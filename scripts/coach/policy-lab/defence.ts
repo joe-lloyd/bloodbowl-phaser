@@ -12,13 +12,11 @@ import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import type { BlockRollData } from "../../../src/services/BlockResolutionService";
 import { GameEventNames } from "../../../src/types/events";
 import { type Player, PlayerStatus } from "../../../src/types/Player";
-import { GameConfig } from "../../../src/config/GameConfig";
+import { pitchWidth } from "../../../src/simulation/ai/board";
 import { openTrace } from "../catalogue-study/replay";
 import { isEntry, replaySteps } from "./lab";
 
 const otherSide = (side: 0 | 1): 0 | 1 => (side === 0 ? 1 : 0);
-
-const WIDTH = GameConfig.PITCH_WIDTH;
 
 export interface DefenceTally {
   /** Turns that started with an opposing standing carrier. */
@@ -103,7 +101,7 @@ export function watchDefence(
     return null;
   };
   const toGoFor = (side: Side, at: At) =>
-    side === 0 ? at.x : WIDTH - 1 - at.x;
+    side === 0 ? at.x : pitchWidth() - 1 - at.x;
   let open: Side | null = null;
   let watching: { side: Side; far: boolean } | null = null;
   let rerolling = false;

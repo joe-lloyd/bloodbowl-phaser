@@ -2,14 +2,16 @@ import { GameEventNames } from "../../../src/types/events";
 import { PlayerStatus } from "../../../src/types/Player";
 import type { Player } from "../../../src/types/Player";
 import { GameConfig } from "../../../src/config/GameConfig";
+import { activeLayout } from "../../../src/game/variants/activeMatch";
 import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { openTrace } from "../catalogue-study/replay";
 import { argument, isEntry, replaySteps, verifiedHash } from "./lab";
 
-const WIDTH = GameConfig.PITCH_WIDTH;
-const HEIGHT = GameConfig.PITCH_HEIGHT;
+const width = () => GameConfig.PITCH_WIDTH;
+const height = () => GameConfig.PITCH_HEIGHT;
 const EMPTY = " .";
+const OBSTACLE = "##";
 
 const STATUS_MARK: Partial<Record<PlayerStatus, string>> = {
   [PlayerStatus.PRONE]: "_",
@@ -44,7 +46,7 @@ function letter(player: Player, side: number): string {
 }
 
 function onPitch(x: number, y: number): boolean {
-  return x >= 0 && y >= 0 && x < WIDTH && y < HEIGHT;
+  return x >= 0 && y >= 0 && x < width() && y < height();
 }
 
 function cell(game: HeadlessGame, player: Player, side: number): string {
@@ -71,12 +73,16 @@ function placeBall(game: HeadlessGame, grid: string[][]): void {
 }
 
 function board(game: HeadlessGame): string {
-  const grid = Array.from({ length: HEIGHT }, () =>
-    Array.from({ length: WIDTH }, () => EMPTY)
+  const grid = Array.from({ length: height() }, () =>
+    Array.from({ length: width() }, () => EMPTY)
   );
+  for (const { x, y } of activeLayout().obstacles) {
+    const row = grid[y];
+    if (row) row[x] = OBSTACLE;
+  }
   placePlayers(game, grid);
   placeBall(game, grid);
-  const header = Array.from({ length: WIDTH }, (_, x) =>
+  const header = Array.from({ length: width() }, (_, x) =>
     String(x % 10).padStart(2)
   ).join("");
   return [
@@ -137,13 +143,23 @@ function describe({ game, lines }: Narration, step: Step): void {
   );
 }
 
+function pitchNote(): string {
+  const layout = activeLayout();
+  const barricades = layout.barricades.map(
+    ({ afterColumn, rows }) =>
+      `between x=${String(afterColumn)} and ${String(afterColumn + 1)} on rows ${String(rows.min)}-${String(rows.max)}`
+  );
+  return `${layout.label}, ${String(layout.cols)} x ${String(layout.rows)}, Lines of Scrimmage at x=${String(layout.lineOfScrimmage.team1)} and x=${String(layout.lineOfScrimmage.team2)}${layout.walledSidelines ? ", walled sidelines" : ""}${barricades.length ? `, barricades ${barricades.join("; ")}` : ""}`;
+}
+
 async function narrate(file: string): Promise<string> {
   const { recording, game } = openTrace(file);
   const [home, away] = recording.rosters;
   const narration: Narration = {
     game,
     lines: [
-      `${home} (A, scores at x=${String(WIDTH - 1)}) vs ${away} (b, scores at x=0), final ${JSON.stringify(recording.final.score)}`,
+      `${home} (A, scores at x=${String(width() - 1)}) vs ${away} (b, scores at x=0), final ${JSON.stringify(recording.final.score)}`,
+      pitchNote(),
     ],
   };
   listen(narration);
