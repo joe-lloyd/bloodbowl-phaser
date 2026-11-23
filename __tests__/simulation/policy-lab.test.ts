@@ -325,53 +325,57 @@ describe("repeatable Sevens policy lab", () => {
     }
   }, 60_000);
 
-  it("plays a Street Bowl game with one free potion a team and replays it", async () => {
-    const out = mkdtempSync(join(tmpdir(), "bb7-lab-street-"));
-    try {
-      const job: StudyJob = {
-        id: "street-potions",
-        cohort: "calibration",
-        pair: "amazon-chaos-dwarf",
-        seed: 31_000_000,
-        templates: ["amazon-amazons-0rr", "chaos-dwarf-minotaur-1-reroll"],
-        coaches: ["heuristic", "heuristic"],
-        inducements: true,
-        format: { gameType: "street-bowl", venue: "street" },
-      };
-      const result = await playStudyGame(job, out);
-      const trace = join(out, "traces", job.id + ".json.gz");
-      const { recording, game } = openTrace(trace);
-      const inducementSteps = new Set([
-        "select-inducement",
-        "confirm-inducements",
-        "choose-inducement",
-      ]);
-      const kickoff = recording.steps.findIndex(
-        (step) => !inducementSteps.has(step.command.type)
-      );
-      const opening = recording.steps
-        .slice(0, kickoff + 1)
-        .map((step) => step.command.type);
-      const replay = await replayStudyTrace(trace);
-      expect({
-        gameType: game.ctx.gameService.getState().gameType,
-        pitch: [game.ctx.gameService.getState().venue, result.completed],
-        opening,
-        counters: replay.observations.counters,
-      }).toEqual({
-        gameType: "street-bowl",
-        pitch: ["street", true],
-        opening: [
-          "confirm-inducements",
+  it.each([true, false])(
+    "plays a Street Bowl game with one free potion a team and replays it, petty cash %s",
+    async (inducements) => {
+      const out = mkdtempSync(join(tmpdir(), "bb7-lab-street-"));
+      try {
+        const job: StudyJob = {
+          id: "street-potions",
+          cohort: "calibration",
+          pair: "amazon-chaos-dwarf",
+          seed: 31_000_000,
+          templates: ["amazon-amazons-0rr", "chaos-dwarf-minotaur-1-reroll"],
+          coaches: ["heuristic", "heuristic"],
+          inducements,
+          format: { gameType: "street-bowl", venue: "street" },
+        };
+        const result = await playStudyGame(job, out);
+        const trace = join(out, "traces", job.id + ".json.gz");
+        const { recording, game } = openTrace(trace);
+        const inducementSteps = new Set([
+          "select-inducement",
           "confirm-inducements",
           "choose-inducement",
-          "choose-inducement",
-          "coin-flip",
-        ],
-        counters: result.counters,
-      });
-    } finally {
-      rmSync(out, { recursive: true, force: true });
-    }
-  }, 60_000);
+        ]);
+        const kickoff = recording.steps.findIndex(
+          (step) => !inducementSteps.has(step.command.type)
+        );
+        const opening = recording.steps
+          .slice(0, kickoff + 1)
+          .map((step) => step.command.type);
+        const replay = await replayStudyTrace(trace);
+        expect({
+          gameType: game.ctx.gameService.getState().gameType,
+          pitch: [game.ctx.gameService.getState().venue, result.completed],
+          opening,
+          counters: replay.observations.counters,
+        }).toEqual({
+          gameType: "street-bowl",
+          pitch: ["street", true],
+          opening: [
+            "confirm-inducements",
+            "confirm-inducements",
+            "choose-inducement",
+            "choose-inducement",
+            "coin-flip",
+          ],
+          counters: result.counters,
+        });
+      } finally {
+        rmSync(out, { recursive: true, force: true });
+      }
+    },
+    60_000
+  );
 });

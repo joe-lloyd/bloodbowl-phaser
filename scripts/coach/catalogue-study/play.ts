@@ -18,6 +18,8 @@ import type { Coach } from "../../../src/simulation/coach";
 import { InjuryType } from "../../../src/types/Player";
 import { computerInducementPurchases } from "../../../src/game/inducements/computerPurchases";
 import type { HeadlessCommand } from "../../../src/headless/protocol";
+import { startingFreeInducements } from "../../../src/game/inducements/catalog";
+import { DEFAULT_GAME_TYPE } from "../../../src/game/variants/gameTypes";
 
 async function mustExecute(
   game: HeadlessGame,
@@ -38,8 +40,9 @@ export function withInducementFlag<Job extends StudyJob>(
   return jobs.map((job) => ({ ...job, inducements }));
 }
 
-async function buyComputerInducements(
-  game: HeadlessGame
+async function settleInducements(
+  game: HeadlessGame,
+  shopping: boolean
 ): Promise<RecordedStep[]> {
   const offer = game.ctx.gameService.getInducementOffer();
   const steps: RecordedStep[] = [];
@@ -48,7 +51,8 @@ async function buyComputerInducements(
     game.ctx.team2.id,
   ].entries()) {
     const side = team === 0 ? 0 : 1;
-    for (const line of computerInducementPurchases(offer, teamId))
+    const basket = shopping ? computerInducementPurchases(offer, teamId) : [];
+    for (const line of basket)
       steps.push(
         await mustExecute(
           game,
@@ -117,8 +121,13 @@ export async function playStudyGame(
   const participants = [team1.players.slice(), team2.players.slice()];
   const initial = game.matchSave();
   const telemetry = createTelemetry(game);
+  const freeAtStart =
+    startingFreeInducements(job.format?.gameType ?? DEFAULT_GAME_TYPE).length >
+    0;
   const bought =
-    job.inducements === true ? await buyComputerInducements(game) : [];
+    job.inducements === true || freeAtStart
+      ? await settleInducements(game, job.inducements === true)
+      : [];
   const coaches = job.coaches.map((name, side) =>
     telemetry.wrap(suppliedCoaches?.[side] ?? makeCoach(name, []))
   ) as Parameters<typeof runMatch>[0]["coaches"];

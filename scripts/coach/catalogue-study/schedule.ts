@@ -8,22 +8,27 @@ import { TeamSpecialRule } from "../../../src/types/Team";
 import { standardFor } from "../../../src/simulation/standards";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import type { StudyJob } from "./model";
+import {
+  DEFAULT_GAME_TYPE,
+  type GameType,
+} from "../../../src/game/variants/gameTypes";
 
-export function catalogueInventory() {
-  const templates = getComputerTeamTemplates();
+export function catalogueInventory(gameType: GameType = DEFAULT_GAME_TYPE) {
+  const draft = { gameType };
+  const templates = getComputerTeamTemplates(draft);
   const available = new Set(templates.map((t) => t.id));
   const excluded = COMPUTER_TEAM_CATALOGUE.filter(
     (t) => !available.has(t.id)
   ).map((t) => {
     try {
-      createComputerTeamFromTemplate(t.id);
+      createComputerTeamFromTemplate(t.id, draft);
       return { id: t.id, reason: "Unavailable in the default ruleset" };
     } catch (error) {
       return { id: t.id, reason: String(error) };
     }
   });
   const teams = templates.map((template) => {
-    const team = createComputerTeamFromTemplate(template.id);
+    const team = createComputerTeamFromTemplate(template.id, draft);
     return {
       ...template,
       teamValue: team.teamValue,

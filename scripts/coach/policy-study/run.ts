@@ -156,6 +156,16 @@ function activatesFormats(module: unknown): module is FormatActivator {
   );
 }
 
+async function frozenFormats(): Promise<FormatActivator | null> {
+  if (gameType === "sevens") return null;
+  const module: unknown = await import(
+    pathToFileURL(join(frozen, "src/game/variants/activeMatch.ts")).href
+  );
+  if (!activatesFormats(module))
+    throw new Error("The frozen tree cannot switch game types");
+  return module;
+}
+
 if (args.includes("--worker")) {
   const module = await import(
     pathToFileURL(join(frozen, "src/simulation/commands/shared.ts")).href
@@ -164,18 +174,14 @@ if (args.includes("--worker")) {
     ...module.makeCoach(opponent, []),
     name: "planner-frozen",
   };
-  const frozenFormat: unknown = await import(
-    pathToFileURL(join(frozen, "src/game/variants/activeMatch.ts")).href
-  );
-  if (!activatesFormats(frozenFormat))
-    throw new Error("The frozen tree cannot switch game types");
+  const frozenFormat = await frozenFormats();
   process.on("message", async (job: PolicyJob | false) => {
     if (!job) {
       process.disconnect();
       return;
     }
     try {
-      frozenFormat.activateMatchFormat(job.format ?? SEVENS_FORMAT);
+      frozenFormat?.activateMatchFormat(job.format ?? SEVENS_FORMAT);
       const candidate = track(candidateCoach(), lab);
       const old = track(legacy);
       const coaches: [Coach, Coach] =
@@ -309,7 +315,7 @@ if (args.includes("--worker")) {
   const sourceDigest = policySourceDigest(root, lab);
   const baselineDigest = treeDigest(frozen, ["src"]);
   mkdirSync(join(out, "games"), { recursive: true });
-  const inventory = catalogueInventory();
+  const inventory = catalogueInventory(gameType);
   const objectives = Object.fromEntries(
     inventory.teams.map((t) => [t.rosterName, sppValuesFor(t.rosterName)])
   );
