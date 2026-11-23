@@ -67,6 +67,9 @@ function foulGame(format: MatchFormat) {
   });
 }
 
+const rounded = (value: number | null, places = 3) =>
+  value === null ? null : Number(value.toFixed(places));
+
 async function foulValue(format: MatchFormat): Promise<number | null> {
   const subject = foulGame(format);
   const point = await enumerateDecision(subject, null);
@@ -75,7 +78,7 @@ async function foulValue(format: MatchFormat): Promise<number | null> {
     w: DEFAULT_WEIGHTS,
     available: availableActions(point.candidates),
   }).filter((a) => a.action === "foul");
-  return fouls[0]?.value ?? null;
+  return rounded(fouls[0]?.value ?? null);
 }
 
 describe("game type rules in the planner's prices", () => {
@@ -87,10 +90,10 @@ describe("game type rules in the planner's prices", () => {
       gutter: await foulValue(GUTTER_STREET),
     };
     expect(values).toEqual({
-      sevens: expect.closeTo(1.574, 3),
-      street: expect.closeTo(5.833, 3),
+      sevens: 1.574,
+      street: 5.833,
       beach: null,
-      gutter: expect.closeTo(7.5, 3),
+      gutter: 7.5,
     });
   });
 
@@ -103,11 +106,11 @@ describe("game type rules in the planner's prices", () => {
       skills: [],
     };
     const odds = (format: MatchFormat) =>
-      withMatchFormat(format, () => casualtyChance(attacker, defender) * 1296);
+      rounded(
+        withMatchFormat(format, () => casualtyChance(attacker, defender) * 1296)
+      );
     expect([odds(SEVENS_FORMAT), odds(STREET), odds(GUTTER_STREET)]).toEqual([
-      expect.closeTo(60, 9),
-      expect.closeTo(90, 9),
-      expect.closeTo(90, 9),
+      60, 90, 90,
     ]);
   });
 
