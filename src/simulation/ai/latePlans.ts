@@ -5,7 +5,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { playerValue } from "../../types/Team";
 import { rushAllowance } from "../../game/skills/movement";
 import { BlockValidator } from "../../game/validators/BlockValidator";
-import { blockOdds, casualtyChance, twoD6 } from "./chance";
+import { blockOdds, casualtyChance, fallCasualtyChance } from "./chance";
 import {
   type Board,
   type Square,
@@ -178,10 +178,7 @@ export function scoringValue({
   const { board } = c;
   const at = carrierOf(board)?.gridPosition ?? player.gridPosition;
   const replyCost = finalBallLoss(c, at, ballLoss);
-  const fallCasualty =
-    twoD6(player.stats.AV) *
-    twoD6(hasSkill(player.skills, SkillType.STUNTY) ? 9 : 10) *
-    (hasSkill(player.skills, SkillType.REGENERATION) ? 0.5 : 1);
+  const fallCasualty = fallCasualtyChance(player);
   const personalCost = board.persistentInjuries
     ? fallChance * injuryRiskValue(c, player) * fallCasualty
     : 0;

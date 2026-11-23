@@ -17,14 +17,23 @@ import {
   continuationPlans,
   planIdentity,
 } from "./activations";
-import { type Board, type Square, pitchWidth, readBoard } from "./board";
+import {
+  type Board,
+  type Square,
+  middleRow,
+  pitchWidth,
+  readBoard,
+} from "./board";
 import { decide } from "./decisions";
 import {
   DEFAULT_WEIGHTS,
+  GAME_TYPE_WEIGHTS,
+  type GameTypeWeights,
   ROSTER_WEIGHTS,
   type RosterWeights,
   type Weights,
 } from "./weights";
+import { DEFAULT_GAME_TYPE } from "../../game/variants/gameTypes";
 import { type RollTarget } from "./chance";
 import { enumerateLegalActions } from "../../headless/legalActions";
 import { setupChoice } from "./setupChoice";
@@ -358,6 +367,7 @@ interface CreatePlannerCoachArgs {
   weights?: Weights;
 
   rosters?: RosterWeights;
+  gameTypes?: GameTypeWeights;
   name?: string;
   skillPlans?: boolean;
 
@@ -390,17 +400,10 @@ export function createPlannerCoach(
     remember,
     async choose(context: CoachContext): Promise<CoachChoice> {
       const chosen = choosing(context);
-      const { team1, team2 } = context.game.ctx;
-      const team = team1.id === context.point.teamId ? team1 : team2;
-      const own = (options.rosters ?? ROSTER_WEIGHTS)[team.rosterName];
-      const weights =
-        own || chosen?.plan.weights
-          ? { ...w, ...own, ...chosen?.plan.weights }
-          : w;
       return (
         planChoice({
           context: context,
-          w: weights,
+          w: weightsFor({ context, options, w, plan: chosen?.plan }),
           skillPlans: options.skillPlans ?? true,
           memory: memory,
           remember: remember,
@@ -409,6 +412,28 @@ export function createPlannerCoach(
       );
     },
   };
+}
+
+interface WeightsForArgs {
+  context: CoachContext;
+  options: CreatePlannerCoachArgs;
+  w: Weights;
+  plan: GamePlan | undefined;
+}
+
+function weightsFor({ context, options, w, plan }: WeightsForArgs): Weights {
+  const { team1, team2, gameService } = context.game.ctx;
+  const team = team1.id === context.point.teamId ? team1 : team2;
+  const own = (options.rosters ?? ROSTER_WEIGHTS)[team.rosterName];
+  const gameType = gameService.getState().gameType ?? DEFAULT_GAME_TYPE;
+  const typed = (options.gameTypes ?? GAME_TYPE_WEIGHTS)[gameType];
+  return own || typed || plan?.weights
+    ? { ...w, ...typed, ...own, ...plan?.weights }
+    : w;
+}
+
+function kickingTeam(game: HeadlessGame, teamId: string): boolean {
+  return game.ctx.gameService.getState().setup?.kickingTeamId === teamId;
 }
 
 function kickChoice(
@@ -616,8 +641,9 @@ function kickWidth(
   wide: boolean,
   crowd: (y: number) => number
 ): number {
-  if (wide) return y === 5 ? -5 : -crowd(y);
-  return y === 5 ? 5 : 0;
+  const middle = y === middleRow();
+  if (wide) return middle ? -5 : -crowd(y);
+  return middle ? 5 : 0;
 }
 
 interface ActiveChoiceArgs extends PlanChoiceArgs {

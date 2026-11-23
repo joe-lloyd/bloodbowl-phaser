@@ -1,5 +1,6 @@
 import { type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
+import { activeRules } from "../../game/variants/activeMatch";
 import { type BlockFaces, pickedFaceOdds } from "./wrestle";
 
 export type Chance = number;
@@ -235,20 +236,56 @@ export function twoD6(target: number): Chance {
   return hits / 36;
 }
 
+export interface InjuryRules {
+  knockdown: number;
+  fall: number;
+  foul: number;
+  casualties: boolean;
+}
+
+export function injuryRules(): InjuryRules {
+  const { armour, injuryTables } = activeRules();
+  return {
+    knockdown: armour.knockedDownOrFallsOver,
+    fall: armour.failedDodgeOrRush ?? armour.knockedDownOrFallsOver,
+    foul: armour.foul,
+    casualties: injuryTables.short !== "beach-bowl",
+  };
+}
+
+const has = (p: Player, s: SkillType) => hasSkill(p.skills, s);
+
+export function casualtyTarget(player: Player, rules: InjuryRules): number {
+  return has(player, SkillType.STUNTY) && rules.casualties ? 9 : 10;
+}
+
+export function regenerated(player: Player, rules: InjuryRules): number {
+  return has(player, SkillType.REGENERATION) && rules.casualties ? 0.5 : 1;
+}
+
 export function casualtyChance(attacker: Player, defender: Player): Chance {
-  const has = (p: Player, s: SkillType) => hasSkill(p.skills, s);
+  const rules = injuryRules();
   const ironHard = has(defender, SkillType.IRON_HARD_SKIN);
   const claws = has(attacker, SkillType.CLAWS) && !ironHard;
-  const injury = has(defender, SkillType.STUNTY) ? 9 : 10;
+  const injury = casualtyTarget(defender, rules);
   const blow = has(attacker, SkillType.MIGHTY_BLOW) ? 1 : 0;
 
-  const breakAt = (modifier: number) =>
-    claws
-      ? Math.min(8, defender.stats.AV - modifier)
-      : defender.stats.AV - modifier;
+  const breakAt = (modifier: number) => {
+    const target = defender.stats.AV - modifier - rules.knockdown;
+    return claws ? Math.min(8, target) : target;
+  };
   const breaks = twoD6(breakAt(0));
   const breaksWithBlow = twoD6(breakAt(ironHard ? 0 : blow));
   const p =
     breaks * twoD6(injury - blow) + (breaksWithBlow - breaks) * twoD6(injury);
-  return has(defender, SkillType.REGENERATION) ? p / 2 : p;
+  return p * regenerated(defender, rules);
+}
+
+export function fallCasualtyChance(player: Player): Chance {
+  const rules = injuryRules();
+  return (
+    twoD6(player.stats.AV - rules.fall) *
+    twoD6(casualtyTarget(player, rules)) *
+    regenerated(player, rules)
+  );
 }

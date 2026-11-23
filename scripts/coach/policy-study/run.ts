@@ -20,6 +20,7 @@ import { createPlannerCoach } from "../../../src/simulation/ai/planner";
 import { STANDARD_VARIETY } from "../../../src/simulation/ai/gamePlans";
 import {
   DEFAULT_WEIGHTS,
+  GAME_TYPE_WEIGHTS,
   ROSTER_WEIGHTS,
   parseWeightFile,
 } from "../../../src/simulation/ai/weights";
@@ -81,9 +82,17 @@ if (!["planner", "standard"].includes(candidateKind))
   throw new Error("Unsupported candidate");
 
 const weightsFile = flag("weights", "");
-const { weights: candidateWeights, rosters: candidateRosters } = weightsFile
+const {
+  weights: candidateWeights,
+  rosters: candidateRosters,
+  gameTypes: candidateGameTypes,
+} = weightsFile
   ? parseWeightFile(JSON.parse(readFileSync(resolve(weightsFile), "utf8")))
-  : { weights: DEFAULT_WEIGHTS, rosters: ROSTER_WEIGHTS };
+  : {
+      weights: DEFAULT_WEIGHTS,
+      rosters: ROSTER_WEIGHTS,
+      gameTypes: GAME_TYPE_WEIGHTS,
+    };
 const candidateCoach = () =>
   candidateKind === "standard"
     ? createPlannerCoach({
@@ -91,11 +100,13 @@ const candidateCoach = () =>
         variety: STANDARD_VARIETY,
         weights: candidateWeights,
         rosters: candidateRosters,
+        gameTypes: candidateGameTypes,
       })
     : createPlannerCoach({
         name: "planner-skill-plans",
         weights: candidateWeights,
         rosters: candidateRosters,
+        gameTypes: candidateGameTypes,
       });
 
 function atomic(file: string, data: unknown) {
@@ -141,6 +152,26 @@ function track(coach: Coach, collectPlans = false) {
       return milliseconds;
     },
   };
+}
+
+const RUN_KEYS = [
+  "sourceDigest",
+  "baselineDigest",
+  "node",
+  "opponent",
+  "candidate",
+  "candidateWeights",
+  "candidateRosters",
+  "candidateGameTypes",
+  "jobs",
+] as const;
+
+function sameRun(previous: unknown, current: Record<string, unknown>) {
+  if (typeof previous !== "object" || previous === null) return false;
+  const saved = new Map(Object.entries(previous));
+  return RUN_KEYS.every(
+    (name) => JSON.stringify(saved.get(name)) === JSON.stringify(current[name])
+  );
 }
 
 interface FormatActivator {
@@ -335,6 +366,7 @@ if (args.includes("--worker")) {
     candidate: candidateKind,
     candidateWeights,
     candidateRosters,
+    candidateGameTypes,
     workers,
     variants,
     inventory,
@@ -352,19 +384,8 @@ if (args.includes("--worker")) {
   };
   const file = join(out, "manifest.json");
   if (existsSync(file)) {
-    const previous = JSON.parse(readFileSync(file, "utf8"));
-    if (
-      previous.sourceDigest !== sourceDigest ||
-      previous.baselineDigest !== baselineDigest ||
-      previous.node !== manifest.node ||
-      previous.opponent !== manifest.opponent ||
-      (previous.candidate ?? "planner") !== manifest.candidate ||
-      JSON.stringify(previous.candidateWeights ?? DEFAULT_WEIGHTS) !==
-        JSON.stringify(candidateWeights) ||
-      JSON.stringify(previous.candidateRosters ?? {}) !==
-        JSON.stringify(candidateRosters) ||
-      JSON.stringify(previous.jobs) !== JSON.stringify(jobs)
-    )
+    const previous: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (!sameRun(previous, manifest))
       throw new Error(
         "Source or schedule changed; use a fresh output directory"
       );

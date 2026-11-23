@@ -19,6 +19,7 @@ export function onField(player: Player): player is FieldPlayer {
 
 export const pitchWidth = () => GameConfig.PITCH_WIDTH;
 export const pitchHeight = () => GameConfig.PITCH_HEIGHT;
+export const middleRow = () => Math.floor(pitchHeight() / 2);
 
 export const key = (s: Square) => s.y * pitchWidth() + s.x;
 export const onPitch = (s: Square) => isStandableSquare(s);

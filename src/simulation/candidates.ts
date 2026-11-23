@@ -382,14 +382,24 @@ async function setupCandidates(
         player.id,
         zone,
         (candidate) =>
-          validator.validatePlacement({ candidate: candidate, currentPositions: positions, isTeam1: isTeam1, availablePlayerCount: setup.status.availablePlayerCount, limits: limits }).valid
+          validator.validatePlacement({
+            candidate: candidate,
+            currentPositions: positions,
+            isTeam1: isTeam1,
+            availablePlayerCount: setup.status.availablePlayerCount,
+            limits: limits,
+          }).valid
       );
       if (!placement) continue;
       positions.push(placement);
       commands.push({ type: "place-player", ...placement });
     }
     return [
-      { kind: "setup", commands: setupCommands(commands, teamId), label: "Add reserve Linemen with Swarming" },
+      {
+        kind: "setup",
+        commands: setupCommands(commands, teamId),
+        label: "Add reserve Linemen with Swarming",
+      },
     ];
   }
   const clear: HeadlessCommand[] = (setup?.placements ?? []).map((p) => ({
@@ -416,12 +426,25 @@ async function setupCandidates(
     .map((formation) => ({
       kind: "setup" as const,
       label: setupLabel(formation.name),
-      commands: setupCommands([
-        ...clear,
-        ...assignPlayers({ squares: formation.positions, players: eligible, kicking, mustField }).map(
-          (pos): HeadlessCommand => ({ type: "place-player", playerId: pos.playerId, x: pos.x, y: pos.y })
-        ),
-      ], teamId),
+      commands: setupCommands(
+        [
+          ...clear,
+          ...assignPlayers({
+            squares: formation.positions,
+            players: eligible,
+            kicking,
+            mustField,
+          }).map(
+            (pos): HeadlessCommand => ({
+              type: "place-player",
+              playerId: pos.playerId,
+              x: pos.x,
+              y: pos.y,
+            })
+          ),
+        ],
+        teamId
+      ),
     }));
 }
 
@@ -466,6 +489,12 @@ function wizardCandidates(
   ];
 }
 
+function kickRows(): number[] {
+  const middle = Math.floor(GameConfig.PITCH_HEIGHT / 2);
+  const spread = Math.round((3 * GameConfig.PITCH_HEIGHT) / 11);
+  return [middle - spread, middle, middle + spread];
+}
+
 function kickoffCandidates(
   game: HeadlessGame,
   snapshot: GameSnapshot,
@@ -479,7 +508,7 @@ function kickoffCandidates(
   const kicksRight = kickingTeamId === game.ctx.team1.id;
   const out: Candidate[] = [];
   for (const depth of [2, 4, 6]) {
-    for (const y of [2, 5, 8]) {
+    for (const y of kickRows()) {
       const x = kicksRight ? GameConfig.PITCH_WIDTH - 1 - depth : depth;
       if (!isStandableSquare({ x, y })) continue;
       out.push({

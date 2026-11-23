@@ -1,4 +1,5 @@
 import { RosterName } from "../../types/Team";
+import { type GameType, isGameType } from "../../game/variants/gameTypes";
 
 export const DEFAULT_WEIGHTS = {
   touchdown: 100,
@@ -87,6 +88,10 @@ export type Weights = { readonly [K in keyof typeof DEFAULT_WEIGHTS]: number };
 
 export type RosterWeights = Partial<Record<RosterName, Partial<Weights>>>;
 
+export type GameTypeWeights = Partial<Record<GameType, Partial<Weights>>>;
+
+export const GAME_TYPE_WEIGHTS: GameTypeWeights = {};
+
 export const ROSTER_WEIGHTS: RosterWeights = {
   [RosterName.HALFLING]: { safeMove: 0.82 },
 };
@@ -114,21 +119,38 @@ export function parseWeights(raw: unknown): Weights {
   return { ...DEFAULT_WEIGHTS, ...overrides(raw, "weights") };
 }
 
+const ENTRY_NAMES = { rosters: "roster", gameTypes: "game type" } as const;
+
+function keyedOverrides(
+  raw: unknown,
+  where: keyof typeof ENTRY_NAMES,
+  known: (key: string) => boolean
+): Record<string, Partial<Weights>> {
+  return Object.fromEntries(
+    Object.entries(object(raw, where)).map(([key, value]) => {
+      if (!known(key))
+        throw new Error(`unknown ${ENTRY_NAMES[where]} "${key}"`);
+      return [key, overrides(value, key)];
+    })
+  );
+}
+
 export function parseWeightFile(raw: unknown): {
   weights: Weights;
   rosters: RosterWeights;
+  gameTypes: GameTypeWeights;
 } {
-  const { rosters, ...rest } = object(raw, "weights");
-  if (rosters === undefined)
-    return { weights: parseWeights(rest), rosters: ROSTER_WEIGHTS };
+  const { rosters, gameTypes, ...rest } = object(raw, "weights");
   return {
     weights: parseWeights(rest),
-    rosters: Object.fromEntries(
-      Object.entries(object(rosters, "rosters")).map(([roster, value]) => {
-        if (!ROSTERS.has(roster)) throw new Error(`unknown roster "${roster}"`);
-        return [roster, overrides(value, roster)];
-      })
-    ),
+    rosters:
+      rosters === undefined
+        ? ROSTER_WEIGHTS
+        : keyedOverrides(rosters, "rosters", (key) => ROSTERS.has(key)),
+    gameTypes:
+      gameTypes === undefined
+        ? GAME_TYPE_WEIGHTS
+        : keyedOverrides(gameTypes, "gameTypes", isGameType),
   };
 }
 

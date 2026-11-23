@@ -8,6 +8,7 @@ import {
   carrierOf,
   distance,
   key,
+  middleRow,
   onPitch,
   toGoal,
 } from "./board";
@@ -108,7 +109,7 @@ function pushChoice(
     const command = c.commands[0];
     if (command.type !== "choose-push-direction") return undefined;
     const square = { x: command.x, y: command.y };
-    const wide = !onPitch(square) ? 100 : Math.abs(square.y - 5) * 2;
+    const wide = !onPitch(square) ? 100 : Math.abs(square.y - middleRow()) * 2;
     return pushingThem
       ? wide
       : -wide - (onPitch(square) ? board.marks.getUint8(key(square)) : NaN);
