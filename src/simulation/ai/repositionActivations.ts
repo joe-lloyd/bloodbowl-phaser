@@ -1,4 +1,5 @@
 import { type FieldPlayer as Player } from "./board";
+import { passModifier } from "../../game/kickoff/ballConditions";
 import { PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "../../game/rules/throwTeammate";
@@ -155,7 +156,12 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
       const s = { x, y };
       const range = isDeep({ c, from: at, s, receiver });
       if (!range) continue;
-      const target = passTarget(carrier, [], board.gs.getState(), range);
+      const target = passTarget(
+        carrier,
+        [],
+        passModifier(board.gs.getState(), range.type),
+        range
+      );
       const throws = hasSkill(carrier.skills, SkillType.PASS)
         ? withReroll(d6(target))
         : d6(target);

@@ -13,11 +13,8 @@ import {
 } from "./board";
 import { type BlockOdds, blockOdds, casualtyChance, d6 } from "./chance";
 import { blockFaces } from "./wrestle";
-import { type Route, movesLeft } from "./routes";
+import { type Route, movesLeft, rushTarget } from "./routes";
 import { type Context, gamble } from "./activationContext";
-import { activeRules } from "../../game/variants/activeMatch";
-import { requiredRoll } from "../../game/rules/rollTargets";
-import { weatherEffects } from "../../game/rules/weather";
 import type { Activation } from "./activations";
 
 const blockValidator = new BlockValidator();
@@ -188,14 +185,15 @@ interface BestBlitzArgs {
   moves: Moves;
 }
 
-function blitzReach(
-  board: Context["board"],
-  route: Route | null,
-  normal: number
-): number {
-  const rush = d6(
-    requiredRoll(activeRules().rushTarget, weatherEffects(board.weather).rush)
-  );
+interface BlitzReachArgs {
+  board: Context["board"];
+  player: Player;
+  route: Route | null;
+  normal: number;
+}
+
+function blitzReach({ board, player, route, normal }: BlitzReachArgs): number {
+  const rush = d6(rushTarget(board, player));
   return (
     (route?.chance ?? 1) * (route && route.path.length >= normal ? rush : 1)
   );
@@ -215,7 +213,13 @@ export function hitKeepsTurnChance(c: Context, hit: MarkerHit): number {
     target: hit.target,
     from: hit.route?.to ?? hit.attacker.gridPosition,
   });
-  return blitzReach(c.board, hit.route, normal) * (1 - odds.attackerDown);
+  const reach = blitzReach({
+    board: c.board,
+    player: hit.attacker,
+    route: hit.route,
+    normal,
+  });
+  return reach * (1 - odds.attackerDown);
 }
 
 function bestBlitz({
@@ -239,7 +243,7 @@ function bestBlitz({
       target: target,
       from: from,
     });
-    const reach = blitzReach(c.board, route, normal);
+    const reach = blitzReach({ board: c.board, player, route, normal });
     const chance = reach * (1 - odds.attackerDown);
     const value =
       reach * odds.knockdown * targetValue(c, player, target) -

@@ -11,6 +11,7 @@ import {
 import { createTestPlayer } from "../../fixtures/players";
 import { GameStateBuilder } from "../../utils/test-builders";
 import type { Weather } from "../../../src/game/rules/weather";
+import { passModifier } from "../../../src/game/kickoff/ballConditions";
 import { PlayerStatus } from "../../../src/types/Player";
 import { SkillType, getSkill } from "../../../src/types/Skills";
 import { BlockValidator } from "../../../src/game/validators/BlockValidator";
@@ -45,6 +46,17 @@ describe("roll preview analysis", () => {
     ).toBe(5);
     expect(catchTarget(player, [enemy], inWeather("Nice"), "handoff")).toBe(4);
   });
+  it("lets Big Hand ignore the conch's pick-up penalty, as the engine does", () => {
+    const conch = { ...inWeather("Nice"), lostBall: "conch" as const };
+    const square = fixtureValue(player.gridPosition);
+    const bigHand = { ...player, skills: [getSkill(SkillType.BIG_HAND)] };
+    expect([
+      pickupTarget(player, square, [], conch),
+      pickupTarget(bigHand, square, [], conch),
+      pickupTarget(bigHand, square, [enemy], inWeather("Nice")),
+    ]).toEqual([4, 3, 3]);
+  });
+
   it("applies ball and passing skills before showing the target", () => {
     const skilled = {
       ...player,
@@ -55,12 +67,17 @@ describe("roll preview analysis", () => {
     };
     expect(catchTarget(skilled, [enemy], inWeather("Nice"), "pass")).toBe(2);
     expect(
-      passTarget(skilled, [enemy], inWeather("Very Sunny"), {
-        type: "Short Pass",
-        modifier: -1,
-        minDistance: 4,
-        maxDistance: 6,
-      })
+      passTarget(
+        skilled,
+        [enemy],
+        passModifier(inWeather("Very Sunny"), "Short Pass"),
+        {
+          type: "Short Pass",
+          modifier: -1,
+          minDistance: 4,
+          maxDistance: 6,
+        }
+      )
     ).toBe(6);
   });
   it("gives each interceptor its own target from marking, rain and skills", () => {

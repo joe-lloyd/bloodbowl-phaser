@@ -8,6 +8,7 @@ import { activeRules } from "../../variants/activeMatch";
 import { rushModifier } from "../../inducements/matchInducements";
 import { requiredRoll } from "../../rules/rollTargets";
 import { weatherEffects } from "../../rules/weather";
+import { passModifier } from "../../kickoff/ballConditions";
 import { ballInTheAir } from "../../rules/ballInTheAir";
 import { PassController } from "../PassController";
 import {
@@ -48,9 +49,9 @@ const TITLES: Partial<Record<ActionType, string>> = {
 
 export function throwNeeds(
   c: GameplayInteractionController,
-  throw_: { passer: Player; receiver: Player | null; square: Square; handoff: boolean }
+  throw_: { passer: Player; receiver: Player | null; square: Square; handoff: boolean; bomb: boolean }
 ) {
-  const { passer, receiver, square, handoff } = throw_;
+  const { passer, receiver, square, handoff, bomb } = throw_;
   const state = c.gameService.getState();
   const opponents = c.gameService.getOpponents(passer.teamId);
   const from = passer.gridPosition ?? square;
@@ -63,7 +64,12 @@ export function throwNeeds(
     : null;
   return {
     range,
-    pass: passTarget(withDriveModifiers(passer, state), opponents, state, range),
+    pass: passTarget(
+      withDriveModifiers(passer, state),
+      opponents,
+      bomb ? weatherEffects(state.weather).passingAbility : passModifier(state, range.type),
+      range
+    ),
     catch: catchNeed,
   };
 }
@@ -103,7 +109,7 @@ function catcherAt(c: GameplayInteractionController, actor: Player, finish: Plan
 function throwStages(c: GameplayInteractionController, actor: Player, finish: PlanFinish): PlanStage[] {
   const receiver = catcherAt(c, actor, finish);
   const handoff = finish.kind === "handoff";
-  const needs = throwNeeds(c, { passer: actor, receiver, square: finish, handoff });
+  const needs = throwNeeds(c, { passer: actor, receiver, square: finish, handoff, bomb: finish.kind === "bomb" });
   const intercepts = handoff || !actor.gridPosition
     ? []
     : interceptions({ c, actor, from: actor.gridPosition, square: finish, opponents: c.gameService.getOpponents(actor.teamId) }).lines;

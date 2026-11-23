@@ -40,6 +40,7 @@ import {
 } from "./activationContext";
 import { launchReady } from "./teammateActivations";
 import type { Weights } from "./weights";
+import { passModifier } from "../../game/kickoff/ballConditions";
 import { isWallSquare, obstacleKindAt } from "../../game/rules/pitchSquares";
 import { activeLayout, activeRules } from "../../game/variants/activeMatch";
 import type { Activation } from "./activations";
@@ -606,7 +607,7 @@ function bestThrow({
     const throwRoll = passTarget(
       thrower,
       board.theirs,
-      board.gs.getState(),
+      passModifier(board.gs.getState(), range.type),
       range
     );
     const intercepted = notIntercepted(c, from, to);

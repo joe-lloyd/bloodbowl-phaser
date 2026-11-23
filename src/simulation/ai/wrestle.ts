@@ -110,7 +110,7 @@ function pushFace(pinned: Pinned | null): BlockFace {
   return { rank: 4.4, knockdown: 1, attackerDown: false };
 }
 
-export function pinnedLanding(
+function pinnedLanding(
   board: Board,
   attacker: Player,
   defender: Player

@@ -6,9 +6,6 @@ import { playerValue } from "../../types/Team";
 import { rushAllowance } from "../../game/skills/movement";
 import { BlockValidator } from "../../game/validators/BlockValidator";
 import { blockOdds, casualtyChance, d6, fallCasualtyChance } from "./chance";
-import { activeRules } from "../../game/variants/activeMatch";
-import { requiredRoll } from "../../game/rules/rollTargets";
-import { weatherEffects } from "../../game/rules/weather";
 import {
   type Board,
   type Square,
@@ -17,7 +14,7 @@ import {
   distance,
   toGoal,
 } from "./board";
-import { movesLeft } from "./routes";
+import { movesLeft, rushTarget } from "./routes";
 import type { Route } from "./routes";
 import type { Context } from "./activationContext";
 import type { Available } from "./activations";
@@ -93,14 +90,13 @@ export function lateMoveValue({
   if (left > nextTurnReach(carrier)) return ordinary * c.w.lateProgress;
   const rushes = Math.max(0, left - carrier.stats.MA);
   return (
-    ordinary + route.chance * rushChance(c.board) ** rushes * c.w.touchdown
+    ordinary +
+    route.chance * rushChance(c.board, carrier) ** rushes * c.w.touchdown
   );
 }
 
-function rushChance(board: Board): number {
-  return d6(
-    requiredRoll(activeRules().rushTarget, weatherEffects(board.weather).rush)
-  );
+function rushChance(board: Board, player: Player): number {
+  return d6(rushTarget(board, player));
 }
 
 export function markRisk(c: Context, carrier: Player, at: Square): number {

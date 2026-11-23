@@ -4,11 +4,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { type PassRange } from "../controllers/PassController";
 import { type Weather, weatherEffects } from "./weather";
 import { type GameState } from "../../types/GameState";
-import {
-  catchModifier,
-  passModifier,
-  pickUpModifier,
-} from "../kickoff/ballConditions";
+import { catchModifier, pickUpModifier } from "../kickoff/ballConditions";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { FoulValidator } from "../validators/FoulValidator";
 import { rollLabel, requiredRoll } from "./rollTargets";
@@ -70,14 +66,13 @@ export function pickupTarget(
   opponents: Player[],
   state: GameState
 ): number {
-  const marking = has(player, SkillType.BIG_HAND)
-    ? 0
-    : markingPlayers(square, opponents).length;
+  const conditions = pickUpModifier(state);
+  const handling = has(player, SkillType.BIG_HAND)
+    ? Math.max(0, conditions)
+    : conditions - markingPlayers(square, opponents).length;
   return requiredRoll(
     player.stats.AG,
-    -marking +
-      pickUpModifier(state) +
-      (has(player, SkillType.EXTRA_ARMS) ? 1 : 0)
+    handling + (has(player, SkillType.EXTRA_ARMS) ? 1 : 0)
   );
 }
 
@@ -117,7 +112,7 @@ export function catchTarget(
 export function passTarget(
   player: Player,
   opponents: Player[],
-  state: GameState,
+  conditions: number,
   range: PassRange
 ): number {
   const marking =
@@ -132,7 +127,7 @@ export function passTarget(
     player.stats.PA,
     range.modifier -
       marking +
-      passModifier(state, range.type) +
+      conditions +
       bonus -
       disturbing(player, opponents)
   );

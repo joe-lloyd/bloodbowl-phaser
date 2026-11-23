@@ -255,11 +255,11 @@ export function injuryRules(): InjuryRules {
 
 const has = (p: Player, s: SkillType) => hasSkill(p.skills, s);
 
-export function casualtyTarget(player: Player, rules: InjuryRules): number {
+function casualtyTarget(player: Player, rules: InjuryRules): number {
   return has(player, SkillType.STUNTY) && rules.casualties ? 9 : 10;
 }
 
-export function regenerated(player: Player, rules: InjuryRules): number {
+function regenerated(player: Player, rules: InjuryRules): number {
   return has(player, SkillType.REGENERATION) && rules.casualties ? 0.5 : 1;
 }
 

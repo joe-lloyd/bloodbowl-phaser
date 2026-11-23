@@ -9,7 +9,7 @@ import {
 import { SkillType, hasSkill } from "../../types/Skills";
 import { requiredRoll } from "../../game/rules/rollTargets";
 import { pickupTarget, secureBallTarget } from "../../game/rules/rollPreview";
-import { weatherEffects } from "../../game/rules/weather";
+import { rushModifier } from "../../game/inducements/matchInducements";
 import { rushAllowance, standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
 import {
@@ -62,10 +62,7 @@ function stepRolls({
   if (rush)
     rolls.push({
       kind: "rush",
-      target: requiredRoll(
-        activeRules().rushTarget,
-        weatherEffects(board.weather).rush
-      ),
+      target: rushTarget(board, player),
     });
   if (board.marks.getUint8(key(from)) > 0) {
     rolls.push(dodgeRoll(board, player, { from, to }));
@@ -175,12 +172,17 @@ function dodgeBonus(player: Player): number {
   );
 }
 
+export function rushTarget(board: Board, player: RosterPlayer): number {
+  return requiredRoll(
+    activeRules().rushTarget,
+    rushModifier(board.gs.getState(), player)
+  );
+}
+
 function searchFor(board: Board, player: Player, securing: boolean): Search {
   const ballKey = board.ball.kind === "loose" ? key(board.ball.at) : -1;
 
-  const rush = rollChance(
-    requiredRoll(activeRules().rushTarget, weatherEffects(board.weather).rush)
-  );
+  const rush = rollChance(rushTarget(board, player));
   const stunty = hasSkill(player.skills, SkillType.STUNTY);
   const twoHeads = dodgeBonus(player);
   const dodgeInto = new DataView(new ArrayBuffer(9 * 8));

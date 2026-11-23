@@ -272,7 +272,7 @@ export function interceptions(
 function throwTargetPreview(
 { c,actor,from,target,square,opponents }: { c: GameplayInteractionController; actor: Player; from: Square; target: Player; square: Square; opponents: Player[]; }): { preview: TargetRollPreview; aim: StepPrompt } {
   const handoff = c.currentActionMode === "handoff";
-  const needs = throwNeeds(c, { passer: actor, receiver: target, square, handoff });
+  const needs = throwNeeds(c, { passer: actor, receiver: target, square, handoff, bomb: c.currentActionMode === "throwBomb" });
   const catchNeeds = needs.catch ?? 6;
   const lines = handoff ? [] : [rollLabel(needs.range.type, needs.pass)];
   lines.push(rollLabel("Catch", catchNeeds));

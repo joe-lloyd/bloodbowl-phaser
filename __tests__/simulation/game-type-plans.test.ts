@@ -26,6 +26,7 @@ import {
 import type { PendingDecision } from "../../src/headless/protocol";
 import type { InducementChoiceKind } from "../../src/types/decisions";
 import { blockFaces } from "../../src/simulation/ai/wrestle";
+import { decide } from "../../src/simulation/ai/decisions";
 import {
   BEACH,
   GUTTER_SEWER,
@@ -277,5 +278,38 @@ describe("pushes with nowhere to go", () => {
       pit: pushKnockdown(GUTTER_SEWER, { x: 11, y: 3 }, { x: 10, y: 3 }),
       crowd: pushKnockdown(SEVENS_FORMAT, { x: 5, y: 1 }, { x: 5, y: 0 }),
     }).toEqual({ open: 0, wall: 0.5, pit: 1, crowd: 1 });
+  });
+});
+
+describe("push choices on a walled pitch", () => {
+  it("pushes into the crowd past the end line before the sideline wall", () => {
+    const game = pinGame(STREET, { x: 0, y: 1 }, { x: 0, y: 0 });
+    const attacker = fixtureValue(game.ctx.team1.players[0]);
+    const defender = fixtureValue(game.ctx.team2.players[0]);
+    const options = [
+      { x: 0, y: -1 },
+      { x: -1, y: -1 },
+      { x: 1, y: -1 },
+    ];
+    const candidates: Candidate[] = options.map((square) => ({
+      kind: "decision",
+      commands: [{ type: "choose-push-direction", ...square }],
+      label: `${String(square.x)},${String(square.y)}`,
+    }));
+    const index = decide({
+      board: readBoard(game, "team1"),
+      pending: {
+        type: "push-direction",
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        resultType: "push",
+        options,
+      },
+      candidates,
+    });
+    expect([
+      pushKnockdown(STREET, { x: 0, y: 1 }, { x: 0, y: 0 }),
+      fixtureValue(candidates[index ?? -1]).label,
+    ]).toEqual([1, "-1,-1"]);
   });
 });
