@@ -108,7 +108,7 @@ function visibleMaterial(
   return material;
 }
 
-it.each<DiceRoll["kind"]>(["d6", "d16", "block"])(
+it.each<DiceRoll["kind"]>(["d6", "d8", "d16", "block"])(
   "lands %s naturally, faces the results toward the coach, and marks the chosen die",
   async (kind) => {
     const handle = playRoll(

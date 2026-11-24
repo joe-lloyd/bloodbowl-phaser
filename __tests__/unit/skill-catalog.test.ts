@@ -48,7 +48,7 @@ describe("public skill catalog", () => {
       expect(definition).not.toHaveProperty("text");
     }
     expect(getSkill(SkillType.BLOCK).description).toBe(
-      "Helps the player stay standing when a block produces Both Down."
+      "Stays on their feet when a Both Down is chosen, whether blocking or being blocked."
     );
   });
 

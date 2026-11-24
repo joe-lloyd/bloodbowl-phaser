@@ -41,11 +41,21 @@ import {
   resolveExpensiveMistakes,
   stepsBeforeExpensiveMistakes,
 } from "../../../game/rules/expensiveMistakes";
-import { PlayerDevelopment } from "../hud/PlayerDevelopment";
+import { CandidateOptions } from "../shared/CandidateOptions";
 import {
-  cx,
+  candidateThrows,
+  type RollThrow,
+  selectionThrows,
+} from "../shared/rollThrows";
+import { RollStage } from "../shared/RollTray";
+import { useRollTray } from "../shared/useRollTray";
+import { TeamSaveFieldset } from "../shared/TeamSaveFieldset";
+import { SkillGrid, SkillText } from "../shared/SkillOption";
+import { PlayerDevelopment } from "../hud/PlayerDevelopment";
+import { isTeamSaving } from "../../hooks/teamSaveLock";
+import { commitTeam } from "../hud/commitPlayerChange";
+import {
   HudButton,
-  hudChoiceClass,
   Notice,
   Panel,
 } from "../componentWarehouse/HudKit";
@@ -63,6 +73,7 @@ export function PendingDevelopmentPanel({
   onOpenPlayer?: ((playerId: string) => void) | undefined;
 }) {
   const [notice, setNotice] = useState("");
+  const dice = useRollTray(team);
 
   const pending = [
     ...(team.pendingDevelopment ?? []).filter(
@@ -72,7 +83,7 @@ export function PendingDevelopmentPanel({
       (entry) => showExpensiveMistakes && entry.kind === "expensive-mistakes"
     ),
   ];
-  if (pending.length === 0 && !team.players.some(mustAdvance) && !notice) {
+  if (pending.length === 0 && !team.players.some(mustAdvance) && !notice && !dice.rolling) {
     return null;
   }
 
@@ -86,6 +97,8 @@ export function PendingDevelopmentPanel({
           {notice}
         </Notice>
       )}
+      <RollStage dice={dice} />
+      <TeamSaveFieldset>
       {pending.map((entry) => {
         switch (entry.kind) {
           case "raised-dead-recruit":
@@ -115,6 +128,8 @@ export function PendingDevelopmentPanel({
                 key={entry.id}
                 team={team}
                 entry={entry}
+                rolling={dice.rolling}
+                onRoll={dice.roll}
                 onChange={onChange}
                 onNotice={setNotice}
               />
@@ -149,6 +164,7 @@ export function PendingDevelopmentPanel({
             );
         }
       })}
+      </TeamSaveFieldset>
     </Panel>
   );
 }
@@ -303,6 +319,18 @@ function ExpensiveMistakesStep({
   );
 }
 
+function revalueAndSave(team: Team): void {
+  team.teamValue = calculateTeamValue(team);
+  void saveTeam(team);
+}
+
+function selectionEntry(team: Team, entryId: string): SkillSelectionPending {
+  const entry = team.pendingDevelopment?.find(({ id }) => id === entryId);
+  if (entry?.kind !== "sevens-skill-selection")
+    throw new Error("This Skill Selection has already been answered.");
+  return entry;
+}
+
 function removePending(team: Team, entryId: string): void {
   team.pendingDevelopment = (team.pendingDevelopment ?? []).filter(
     (entry) => entry.id !== entryId
@@ -407,11 +435,15 @@ const SELECT = "hud-field w-auto max-w-full disabled:opacity-40";
 function SkillSelectionEntry({
   team,
   entry,
+  rolling,
+  onRoll,
   onChange,
   onNotice,
 }: {
   team: Team;
   entry: SkillSelectionPending;
+  rolling: boolean;
+  onRoll: (throws: RollThrow[], then?: () => void) => void;
   onChange: (team: Team) => void;
   onNotice: (notice: string) => void;
 }) {
@@ -421,11 +453,19 @@ function SkillSelectionEntry({
   const [error, setError] = useState("");
   const rng = panelRng();
 
-  const act = (step: () => void) => {
+  const act = async (
+    step: (
+      draft: Team,
+      draftEntry: SkillSelectionPending
+    ) => (() => void) | undefined
+  ) => {
+    if (isTeamSaving()) return;
     try {
-      step();
-      team.teamValue = calculateTeamValue(team);
-      saveTeam(team);
+      const draft = structuredClone(team);
+      const saved = step(draft, selectionEntry(draft, entry.id));
+      draft.teamValue = calculateTeamValue(draft);
+      await commitTeam(team, draft);
+      saved?.();
       onChange({ ...team });
       setSkill("");
       setError("");
@@ -433,9 +473,19 @@ function SkillSelectionEntry({
       setError(cause instanceof Error ? cause.message : String(cause));
     }
   };
-  const finish = (run: () => SkillSelectionResult) => {
-    act(() => {
-      onNotice(describeSelection(team, run()));
+  const finish = (
+    run: (
+      draft: Team,
+      draftEntry: SkillSelectionPending
+    ) => SkillSelectionResult
+  ) => {
+    void act((draft, draftEntry) => {
+      const result = run(draft, draftEntry);
+      return () => {
+        onRoll(selectionThrows(result), () => {
+          onNotice(describeSelection(draft, result));
+        });
+      };
     });
   };
 
@@ -493,8 +543,9 @@ function SkillSelectionEntry({
                 disabled={!category}
                 onClick={() =>
                   category &&
-                  act(() => {
-                    startPrimarySelection(team, entry, playerId, category);
+                  void act((draft, draftEntry) => {
+                    startPrimarySelection(draft, draftEntry, playerId, category);
+                    return undefined;
                   })
                 }
               >
@@ -505,8 +556,9 @@ function SkillSelectionEntry({
               size="sm"
               disabled={!decision.secondaryAvailable}
               onClick={() => {
-                act(() => {
-                  startSecondarySelection(team, entry, rng);
+                void act((draft, draftEntry) => {
+                  startSecondarySelection(draft, draftEntry, rng);
+                  return undefined;
                 });
               }}
             >
@@ -527,31 +579,20 @@ function SkillSelectionEntry({
               {decision.named.length > 0 &&
                 ` Named so far: ${decision.named.join(", ")}.`}
             </p>
-            <div className="flex flex-wrap gap-2 items-center">
-              <select
-                aria-label="Named skill"
-                value={skill}
-                onChange={(e) => {
-                  setSkill(
-                    decision.options.find((s) => s === e.target.value) ?? ""
-                  );
-                }}
-                className={SELECT}
-              >
-                <option value="">Choose a skill</option>
-                {decision.options.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+            <SkillGrid
+              skills={decision.options}
+              selected={skill}
+              onSelect={setSkill}
+            />
+            <div className="mt-3">
               <HudButton
                 size="sm"
                 disabled={!skill}
                 onClick={() =>
                   skill &&
-                  act(() => {
-                    nominatePrimarySkill(team, entry, decision.chooser, skill);
+                  void act((draft, draftEntry) => {
+                    nominatePrimarySkill(draft, draftEntry, decision.chooser, skill);
+                    return undefined;
                   })
                 }
               >
@@ -564,16 +605,25 @@ function SkillSelectionEntry({
         return (
           <>
             <p className="mb-2">
-              {playerName(team, decision.playerId)} learns one of:{" "}
-              {decision.named
-                .map((s, i) => `${String(i + 1)}. ${s}`)
-                .join(", ")}
-              .
+              {playerName(team, decision.playerId)} learns one of these. A D3
+              decides.
             </p>
+            <ol className="mb-2 grid gap-2 sm:grid-cols-3">
+              {decision.named.map((named, index) => (
+                <li key={named}>
+                  <strong>
+                    {index + 1}. {named}
+                  </strong>
+                  <SkillText skill={named} />
+                </li>
+              ))}
+            </ol>
             <HudButton
               size="sm"
               onClick={() => {
-                finish(() => rollPrimarySelection(team, entry, rng));
+                finish((draft, draftEntry) =>
+                  rollPrimarySelection(draft, draftEntry, rng)
+                );
               }}
             >
               Roll D3
@@ -593,8 +643,16 @@ function SkillSelectionEntry({
                   size="sm"
                   key={c}
                   onClick={() => {
-                    act(() => {
-                      rollSecondaryCandidates(team, entry, c, rng);
+                    void act((draft, draftEntry) => {
+                      const candidates = rollSecondaryCandidates(
+                        draft,
+                        draftEntry,
+                        c,
+                        rng
+                      );
+                      return () => {
+                        onRoll(candidateThrows(candidates));
+                      };
                     });
                   }}
                 >
@@ -610,34 +668,20 @@ function SkillSelectionEntry({
             <p className="mb-2">
               Choose the skill {playerName(team, decision.playerId)} learns.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {[
-                ...new Map(
-                  decision.candidates.map((c) => [c.skill, c])
-                ).values(),
-              ].map((candidate) => (
-                <button
-                  type="button"
-                  key={candidate.skill}
-                  onClick={() => {
-                    finish(() =>
-                      chooseSecondarySkill(team, entry, candidate.skill, rng)
-                    );
-                  }}
-                  className={cx(
-                    hudChoiceClass(false),
-                    "px-3 py-2 font-hud-label text-hud-sm font-bold uppercase text-hud-bone"
-                  )}
-                >
-                  {candidate.firstD6}, {candidate.secondD6}: {candidate.skill}
-                </button>
-              ))}
-            </div>
+            <CandidateOptions
+              candidates={decision.candidates}
+              onChoose={(chosen) => {
+                finish((draft, draftEntry) =>
+                  chooseSecondarySkill(draft, draftEntry, chosen, rng)
+                );
+              }}
+            />
           </>
         );
     }
   })();
 
+  if (rolling) return null;
   return (
     <div className={ENTRY}>
       {body}
@@ -667,8 +711,7 @@ function DraftOfferEntry({
   const act = (step: () => void) => {
     try {
       step();
-      team.teamValue = calculateTeamValue(team);
-      saveTeam(team);
+      revalueAndSave(team);
       onChange({ ...team });
       setError("");
     } catch (cause) {

@@ -3,20 +3,32 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlayerDevelopment } from "../../../src/ui/components/hud/PlayerDevelopment";
-import { loadTeams, saveTeams } from "../../../src/game/managers/TeamManager";
+import {
+  loadTeams,
+  saveTeams,
+  setTeamRepository,
+} from "../../../src/game/managers/TeamManager";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import {
   applyAdvancement,
   rollPendingRandomPrimary,
 } from "../../../src/game/progression/progression";
 import { createPlayer } from "../../../src/types/Player";
-import { getSkill, SkillCategory, SkillType } from "../../../src/types/Skills";
+import {
+  getSkill,
+  SKILL_DEFINITIONS,
+  SkillCategory,
+  SkillType,
+} from "../../../src/types/Skills";
 import {
   calculateTeamValue,
   createTeam,
   RosterName,
   type Team,
 } from "../../../src/types/Team";
+
+const playRoll = vi.hoisted(() => vi.fn<[HTMLElement, unknown], unknown>());
+vi.mock("../../../src/ui/dice/diceScene", () => ({ playRoll }));
 
 function savedTeam(spp: number): { team: Team; playerId: string } {
   const roster = getRosterByRosterName(RosterName.HUMAN);
@@ -47,6 +59,8 @@ describe("PlayerDevelopment", () => {
 
   beforeEach(() => {
     localStorage.clear();
+    playRoll.mockReset();
+    playRoll.mockReturnValue({ landed: Promise.resolve([]), stop: vi.fn(), still: () => null });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -54,6 +68,7 @@ describe("PlayerDevelopment", () => {
 
   afterEach(async () => {
     vi.restoreAllMocks();
+    setTeamRepository(null);
     await act(async () => {
       root.unmount();
     });
@@ -93,9 +108,10 @@ describe("PlayerDevelopment", () => {
     ));
   }
 
-  function click(element: Element) {
-    act(() => {
+  async function click(element: Element) {
+    await act(async () => {
       element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await Promise.resolve();
     });
   }
 
@@ -109,6 +125,22 @@ describe("PlayerDevelopment", () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
   }
+
+  const waitForDice = () =>
+    vi.waitFor(
+      async () => {
+        await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+        expect(
+          container.querySelector('[data-testid="advancement-form"]')
+        ).not.toBeNull();
+      },
+      { timeout: 4500 }
+    );
+
+  const offered = () =>
+    Array.from(
+      container.querySelectorAll<HTMLElement>('[data-testid="random-candidate"]')
+    ).map((button) => button.dataset["skill"]);
 
   function buttonWithText(text: string) {
     return Array.from(container.querySelectorAll("button")).find((button) =>
@@ -129,7 +161,7 @@ describe("PlayerDevelopment", () => {
 
     expect(container.querySelectorAll("select")).toHaveLength(0);
 
-    click(option("random-primary"));
+    await click(option("random-primary"));
     expect(
       container.querySelector('select[aria-label="Skill category"]')
     ).toBeTruthy();
@@ -142,14 +174,14 @@ describe("PlayerDevelopment", () => {
     const player = fixtureValue(team.players.find((p) => p.id === playerId));
     await renderFromStorage(team.id, playerId, dice(1, 2, 4, 5));
 
-    click(option("random-primary"));
+    await click(option("random-primary"));
     choose(
       fixtureValue(container.querySelector<HTMLSelectElement>(
         'select[aria-label="Skill category"]'
       )),
       fixtureValue(fixtureValue(player.primary)[0])
     );
-    click(fixtureValue(buttonWithText("Roll two candidates")));
+    await click(fixtureValue(buttonWithText("Roll two candidates")));
 
     const stored = fixtureValue(fixtureValue(loadTeams()
       .find((t) => t.id === team.id))
@@ -161,13 +193,9 @@ describe("PlayerDevelopment", () => {
         : [];
 
     await reload(team.id, playerId, dice(6));
-    const shown = Array.from(
-      container.querySelectorAll('[data-testid="random-candidate"]')
-    ).map((button) => button.textContent ?? "");
+    const shown = offered();
     expect(shown.length).toBeGreaterThan(0);
-    shown.forEach((text) => {
-      expect(rolledSkills.some((skill) => text.endsWith(skill))).toBe(true);
-    });
+    expect(rolledSkills).toEqual(expect.arrayContaining(shown));
     expect(buttonWithText("Roll two candidates")).toBeUndefined();
 
     expect(option("chosen-primary").disabled).toBe(true);
@@ -178,7 +206,7 @@ describe("PlayerDevelopment", () => {
       )).disabled
     ).toBe(true);
 
-    click(fixtureValue(container.querySelector('[data-testid="random-candidate"]')));
+    await click(fixtureValue(container.querySelector('[data-testid="random-candidate"]')));
     const after = fixtureValue(fixtureValue(loadTeams()
       .find((t) => t.id === team.id))
       .players.find((p) => p.id === playerId));
@@ -217,20 +245,34 @@ describe("PlayerDevelopment", () => {
 
     await renderFromStorage(team.id, playerId, dice(1, 1, 4, 1, 1, 2, 1, 3));
 
-    click(option("random-primary"));
+    await click(option("random-primary"));
     choose(
       fixtureValue(container.querySelector<HTMLSelectElement>(
         'select[aria-label="Skill category"]'
       )),
       SkillCategory.GENERAL
     );
-    click(fixtureValue(buttonWithText("Roll two candidates")));
+    await click(fixtureValue(buttonWithText("Roll two candidates")));
 
     const expected = ["4, 1: Steady Footing", "1, 3: Fend"];
     const shownNow = () =>
       Array.from(
         container.querySelectorAll('[data-testid="random-candidate"]')
-      ).map((button) => button.textContent);
+      ).map((button) => button.firstElementChild?.textContent);
+    expect(shownNow()).toEqual([]);
+    await waitForDice();
+    expect(playRoll.mock.calls.map(([, roll]) => roll)).toMatchObject([
+      { kind: "d6", values: [4, 1] },
+      { kind: "d6", values: [1, 3] },
+    ]);
+    expect(
+      Array.from(
+        container.querySelectorAll('[data-testid="random-candidate"]')
+      ).map((button) => button.lastElementChild?.textContent)
+    ).toEqual([
+      SKILL_DEFINITIONS[SkillType.STEADY_FOOTING].description,
+      SKILL_DEFINITIONS[SkillType.FEND].description,
+    ]);
     expect(shownNow()).toEqual(expected);
     const saved = fixtureValue(fixtureValue(loadTeams()
       .find((t) => t.id === team.id))
@@ -249,8 +291,14 @@ describe("PlayerDevelopment", () => {
   it("saves the Characteristic D8 so a reload shows the same result", async () => {
     const { team, playerId } = savedTeam(20);
     await renderFromStorage(team.id, playerId, dice(3));
-    click(option("characteristic"));
-    click(fixtureValue(buttonWithText("Roll D8")));
+    await click(option("characteristic"));
+    await click(fixtureValue(buttonWithText("Roll D8")));
+    expect(buttonWithText("Improve")).toBeUndefined();
+    await waitForDice();
+    expect(playRoll.mock.calls[0]?.[1]).toMatchObject({
+      kind: "d8",
+      values: [3],
+    });
     expect(container.textContent).toContain("Rolled 3");
 
     await reload(team.id, playerId, dice(8));
@@ -266,14 +314,15 @@ describe("PlayerDevelopment", () => {
   }
 
   async function rollCandidatesFor(category: string) {
-    click(option("random-primary"));
+    await click(option("random-primary"));
     choose(
       fixtureValue(container.querySelector<HTMLSelectElement>(
         'select[aria-label="Skill category"]'
       )),
       category
     );
-    click(fixtureValue(buttonWithText("Roll two candidates")));
+    await click(fixtureValue(buttonWithText("Roll two candidates")));
+    await waitForDice();
   }
 
   it("keeps a roll another tab already saved instead of rolling again", async () => {
@@ -294,17 +343,13 @@ describe("PlayerDevelopment", () => {
     expect(storedPlayer(team.id, playerId).pendingAdvancementRoll).toEqual(
       otherRoll
     );
-    const shown = Array.from(
-      container.querySelectorAll('[data-testid="random-candidate"]')
-    ).map((button) => button.textContent ?? "");
+    const shown = offered();
     const otherSkills =
       otherRoll.kind === "random-primary"
         ? otherRoll.candidates.map((candidate) => candidate.skill)
         : [];
     expect(shown.length).toBeGreaterThan(0);
-    shown.forEach((text) => {
-      expect(otherSkills.some((skill) => text.endsWith(skill))).toBe(true);
-    });
+    expect(otherSkills).toEqual(expect.arrayContaining(shown));
   });
 
   it("shows no roll and says so when the roll cannot be saved", async () => {
@@ -321,13 +366,73 @@ describe("PlayerDevelopment", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "could not be saved"
     );
-    expect(
-      container.querySelectorAll('[data-testid="random-candidate"]')
-    ).toHaveLength(0);
+    expect(offered()).toEqual([]);
+    expect(playRoll).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="roll-tray"]')).toBeNull();
     vi.mocked(Storage.prototype.setItem).mockRestore();
     expect(
       storedPlayer(team.id, playerId).pendingAdvancementRoll
     ).toBeUndefined();
+  });
+
+  it("shows no dice and keeps no roll when the account refuses the save", async () => {
+    const { team, playerId } = savedTeam(20);
+    await renderFromStorage(team.id, playerId, dice(3));
+    const library = loadTeams();
+    setTeamRepository({
+      loadTeams: () => structuredClone(library),
+      saveTeams: () => Promise.reject(new Error("Cloud offline")),
+      deleteTeam: () => undefined,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await click(option("characteristic"));
+    await click(fixtureValue(buttonWithText("Roll D8")));
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Cloud offline"
+    );
+    expect(playRoll).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="roll-tray"]')).toBeNull();
+    expect(
+      storedPlayer(team.id, playerId).pendingAdvancementRoll
+    ).toBeUndefined();
+    expect(buttonWithText("Roll D8")).toBeDefined();
+  });
+
+  it("keeps the first pair of dice on screen beside the second", async () => {
+    const { team, playerId } = savedTeam(20);
+    await renderFromStorage(team.id, playerId, dice(4, 1, 1, 3));
+    await rollCandidatesFor(SkillCategory.GENERAL);
+    expect(
+      Array.from(container.querySelectorAll('[data-testid="roll-pair"]')).map(
+        (pair) => pair.textContent
+      )
+    ).toEqual([
+      "First skill4, 1: Steady Footing4, 1",
+      "Second skill1, 3: Fend1, 3",
+    ]);
+  });
+
+  it("shows both saved pairs when they rolled the same skill", async () => {
+    const { team, playerId } = savedTeam(20);
+    const stored = fixtureValue(loadTeams().find((t) => t.id === team.id));
+    const roll = rollPendingRandomPrimary(
+      fixtureValue(stored.players.find((p) => p.id === playerId)),
+      SkillCategory.GENERAL,
+      dice(1, 1, 2, 1)
+    );
+    if (roll.kind !== "random-primary") throw new Error("unexpected roll");
+    expect(roll.candidates.map(({ skill }) => skill)).toEqual([
+      SkillType.BLOCK,
+      SkillType.BLOCK,
+    ]);
+    await saveTeams([stored]);
+    await renderFromStorage(team.id, playerId, dice(6));
+    expect(
+      Array.from(
+        container.querySelectorAll('[data-testid="random-candidate"]')
+      ).map((button) => button.firstElementChild?.textContent)
+    ).toEqual(["1, 1 and 2, 1: Block"]);
   });
 
   it("spends the roll and resolves the Advanced League entry in one save", async () => {
@@ -346,7 +451,7 @@ describe("PlayerDevelopment", () => {
     await rollCandidatesFor(fixtureValue(category));
 
     const writes = vi.spyOn(Storage.prototype, "setItem");
-    click(fixtureValue(container.querySelector('[data-testid="random-candidate"]')));
+    await click(fixtureValue(container.querySelector('[data-testid="random-candidate"]')));
 
     expect(writes).toHaveBeenCalledTimes(1);
     const after = fixtureValue(loadTeams().find((t) => t.id === team.id));
@@ -382,10 +487,12 @@ describe("PlayerDevelopment", () => {
 
     const spent = roll.candidates[0].skill;
     expect(roll.candidates[1].skill).not.toBe(spent);
-    const stale = fixtureValue(Array.from(
-      container.querySelectorAll('[data-testid="random-candidate"]')
-    ).find((button) => !button.textContent?.endsWith(spent)));
-    click(stale);
+    const stale = fixtureValue(
+      container.querySelector(
+        `[data-testid="random-candidate"]:not([data-skill="${spent}"])`
+      )
+    );
+    await click(stale);
 
     const after = storedPlayer(team.id, playerId);
     expect(after.advancements).toHaveLength(1);

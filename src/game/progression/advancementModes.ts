@@ -454,7 +454,7 @@ export function rollSecondaryCandidates(
   entry: SkillSelectionEntry,
   category: SkillCategory,
   rng: Rng
-): void {
+): SkillRollCandidate[] {
   const progress = entry.progress;
   if (progress?.route !== "secondary")
     throw new Error("No Secondary category is waiting to be chosen.");
@@ -473,6 +473,7 @@ export function rollSecondaryCandidates(
     rollTakeableSkill(category, canTake, rng),
   ];
   progress.rolled = { category, candidates };
+  return candidates;
 }
 
 export function chooseSecondarySkill(

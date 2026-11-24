@@ -69,6 +69,7 @@ import {
 import { RNGService } from "../../../services/rng/RNGService";
 import { RosterPicker } from "../TeamBuilder/RosterPicker";
 import { PlayedGames } from "../TeamManagement/PlayedGames";
+import { isTeamSaving, onTeamSaveSettled, useTeamSaving } from "../../hooks/teamSaveLock";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 
@@ -246,7 +247,9 @@ export function TeamBuilder() {
   const returnLabel = returnLabelFor(destination);
   const [completion, setCompletion] = useState("");
   const [saveError, setSaveError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [savingTeam, setSaving] = useState(false);
+  const developmentSaving = useTeamSaving();
+  const saving = savingTeam || developmentSaving;
   const saveInFlight = useRef(false);
 
   const savedSnapshot = useRef<string | null>(null);
@@ -264,6 +267,7 @@ export function TeamBuilder() {
           setPendingView(status);
           return false;
         }
+        if (isTeamSaving()) return false;
         const existingTeam = TeamManager.loadTeams().find(
           (t) => t.id === teamId
         );
@@ -279,9 +283,19 @@ export function TeamBuilder() {
         return true;
       };
       if (loadRequestedTeam()) return undefined;
-      const stopWaiting = TeamManager.onTeamRepositoryChanged(() => {
+      const stops: (() => void)[] = [];
+      const stopWaiting = () => {
+        stops.forEach((stop) => {
+          stop();
+        });
+      };
+      const retry = () => {
         if (loadRequestedTeam()) stopWaiting();
-      });
+      };
+      stops.push(
+        TeamManager.onTeamRepositoryChanged(retry),
+        onTeamSaveSettled(retry)
+      );
       return stopWaiting;
     }
 
@@ -408,7 +422,7 @@ export function TeamBuilder() {
   };
 
   const handleReorderPlayers = (sourceSlot: number, targetSlot: number) => {
-    if (!team) return;
+    if (!team || isTeamSaving()) return;
     const refusal = shirtMoveRefusal(team, sourceSlot, targetSlot);
     if (refusal) {
       alert(refusal);
@@ -538,7 +552,7 @@ export function TeamBuilder() {
   };
 
   const handleOpenPlayer = async (playerId: string) => {
-    if (!team || saveInFlight.current) return;
+    if (!team || saveInFlight.current || isTeamSaving()) return;
     if (
       savedSnapshot.current !== snapshotOf(team) &&
       !(await saveBeforeOpeningPlayer(team))

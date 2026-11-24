@@ -3,6 +3,7 @@ import type { GameEventMap } from "../../../services/EventBus";
 import type { GameEventNames } from "../../../types/events";
 import type { DiceRoll, DiceTeam } from "../../dice/diceScene";
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import type { Team, TeamColors } from "../../../types/Team";
 import { kitOf } from "../../../game/presentation/kits";
 import { isBlockDice, isD6, isD16 } from "../../dice/thrownDice";
 type RollEvent = GameEventMap[typeof GameEventNames.DiceRoll];
@@ -41,7 +42,10 @@ export function teamLook(teamId?: string): DiceTeam | null {
   if (!rollerId) return null;
   const team = gameService.getTeam(rollerId);
   if (!team) return null;
-  const kit = kitOf(gameService.getTeams(), team.id);
+  return diceTeam(team, kitOf(gameService.getTeams(), team.id));
+}
+
+export function diceTeam(team: Team, kit: TeamColors): DiceTeam {
   return {
     key: team.id,
     race: team.rosterName.split(" ", 1).join("").toLowerCase(),

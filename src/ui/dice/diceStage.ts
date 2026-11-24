@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { DiceKind } from "./diceScene";
 import { indexed } from "./diceValues";
-import { D16_FACE_UP } from "./d16";
+import { bipyramid } from "./bipyramid";
 import { FACE_NORMALS, normals, TRAY, upFace } from "./dicePhysics";
 
 let renderer: THREE.WebGLRenderer | null = null;
@@ -107,15 +107,15 @@ export function faceForward(input: {
   const { mesh, kind, camera, at } = input;
   const { face } = upFace(mesh.quaternion, kind);
   const local = new THREE.Vector3(...indexed(normals(kind), face));
-  const side =
-    kind === "d16"
-      ? indexed(D16_FACE_UP, face)
-      : new THREE.Vector3(
-          ...indexed(
-            FACE_NORMALS,
-            FACE_NORMALS.findIndex((_n, k) => k >> 1 !== face >> 1)
-          )
-        );
+  const solid = bipyramid(kind);
+  const side = solid
+    ? indexed(solid.faceUp, face)
+    : new THREE.Vector3(
+        ...indexed(
+          FACE_NORMALS,
+          FACE_NORMALS.findIndex((_n, k) => k >> 1 !== face >> 1)
+        )
+      );
   return faceCamera({ camera, at, local, side });
 }
 

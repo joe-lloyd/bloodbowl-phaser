@@ -94,8 +94,9 @@ describe("PlayerPage after another window spends the roll", () => {
     ).find(
       (button) => !button.textContent?.endsWith(roll.candidates[0].skill)
     ));
-    act(() => {
+    await act(async () => {
       stale.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await Promise.resolve();
     });
 
     expect(container.textContent).toContain("Not enough SPP to advance yet");

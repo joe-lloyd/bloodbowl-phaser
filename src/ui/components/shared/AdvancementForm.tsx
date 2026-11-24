@@ -8,6 +8,8 @@ import {
   characteristicChoices,
   nextAdvancementCosts,
 } from "../../../game/progression/progression";
+import { CandidateOptions } from "./CandidateOptions";
+import { SkillGrid } from "./SkillOption";
 import {
   cx,
   HudButton,
@@ -185,31 +187,12 @@ export function AdvancementForm({
           />
           {kind === "random-primary" ? (
             savedRoll?.kind === "random-primary" ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {[
-                  ...new Map(
-                    savedRoll.candidates.map((candidate) => [
-                      candidate.skill,
-                      candidate,
-                    ])
-                  ).values(),
-                ].map((candidate) => (
-                  <button
-                    type="button"
-                    key={candidate.skill}
-                    data-testid="random-candidate"
-                    onClick={() => {
-                      applyChoice({
-                        kind: "random-primary",
-                        skill: candidate.skill,
-                      });
-                    }}
-                    className={cx(hudChoiceClass(false), CHOICE_TEXT)}
-                  >
-                    {candidate.firstD6}, {candidate.secondD6}: {candidate.skill}
-                  </button>
-                ))}
-              </div>
+              <CandidateOptions
+                candidates={savedRoll.candidates}
+                onChoose={(chosen) => {
+                  applyChoice({ kind: "random-primary", skill: chosen });
+                }}
+              />
             ) : (
               <HudButton
                 size="sm"
@@ -359,57 +342,44 @@ function SkillSelectors({
   skills: SkillType[];
 }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      {!lockAccess && (
+    <>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {!lockAccess && (
+          <select
+            aria-label="Skill access"
+            value={access}
+            onChange={(event) => {
+              setAccess(event.target.value as SkillAccess);
+            }}
+            className="hud-field w-auto max-w-full"
+          >
+            <option value="primary">Primary</option>
+            <option value="secondary">Secondary</option>
+          </select>
+        )}
         <select
-          aria-label="Skill access"
-          value={access}
+          aria-label="Skill category"
+          value={category}
+          disabled={categoryLocked}
           onChange={(event) => {
-            setAccess(event.target.value as SkillAccess);
+            setCategory(event.target.value as SkillCategory | "");
           }}
-          className="hud-field w-auto max-w-full"
+          className="hud-field w-auto max-w-full disabled:opacity-60"
         >
-          <option value="primary">Primary</option>
-          <option value="secondary">Secondary</option>
-        </select>
-      )}
-      <select
-        aria-label="Skill category"
-        value={category}
-        disabled={categoryLocked}
-        onChange={(event) => {
-          setCategory(event.target.value as SkillCategory | "");
-        }}
-        className="hud-field w-auto max-w-full disabled:opacity-60"
-      >
-        <option value="">Choose category</option>
-        {(categoryLocked && category && !categories.includes(category)
-          ? [category, ...categories]
-          : categories
-        ).map((item) => (
-          <option key={item} value={item}>
-            {item}
-          </option>
-        ))}
-      </select>
-      {showSkill && (
-        <select
-          aria-label="Skill"
-          value={skill}
-          disabled={!category}
-          onChange={(event) => {
-            setSkill(event.target.value as SkillType | "");
-          }}
-          className="hud-field w-auto max-w-full disabled:opacity-40"
-        >
-          <option value="">Choose skill</option>
-          {skills.map((item) => (
+          <option value="">Choose category</option>
+          {(categoryLocked && category && !categories.includes(category)
+            ? [category, ...categories]
+            : categories
+          ).map((item) => (
             <option key={item} value={item}>
               {item}
             </option>
           ))}
         </select>
+      </div>
+      {showSkill && category && (
+        <SkillGrid skills={skills} selected={skill} onSelect={setSkill} />
       )}
-    </div>
+    </>
   );
 }

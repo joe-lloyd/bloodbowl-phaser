@@ -61,4 +61,15 @@ describe("cloud team save acknowledgement", () => {
     await expect(repository.saveTeams([team])).rejects.toThrow("Cloud offline");
     expect(fixtureValue(repository.loadTeams()[0]).treasury).toBe(140_000);
   });
+
+  it("goes back to the accepted team when Firestore refuses a change", async () => {
+    const accepted = new TeamBuilder().withTreasury(140_000).build();
+    accepted.firstMatchPlayedAt = 1;
+    vi.mocked(setDoc).mockRejectedValueOnce(new Error("Cloud offline"));
+    const repository = new CloudTeamRepository("coach", [accepted]);
+    await expect(
+      repository.saveTeams([{ ...accepted, treasury: 20_000 }])
+    ).rejects.toThrow("Cloud offline");
+    expect(repository.loadTeams()).toEqual([accepted]);
+  });
 });
