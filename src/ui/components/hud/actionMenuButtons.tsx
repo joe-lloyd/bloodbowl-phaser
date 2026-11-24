@@ -246,7 +246,7 @@ export function ActionList(props: ActionListProps) {
       <div
         className={
           compact
-            ? `grid gap-1.5 [direction:rtl] ${offers.length > 3 ? "landscape:grid-cols-[112px_112px]" : ""} grid-cols-[112px]`
+            ? `grid gap-1.5 [direction:rtl] ${offers.length > 2 ? "landscape:grid-cols-[112px_112px]" : ""} grid-cols-[112px]`
             : "flex flex-col gap-1"
         }
       >
