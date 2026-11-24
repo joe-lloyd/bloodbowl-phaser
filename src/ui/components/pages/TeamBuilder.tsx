@@ -69,7 +69,7 @@ import {
 import { RNGService } from "../../../services/rng/RNGService";
 import { RosterPicker } from "../TeamBuilder/RosterPicker";
 import { PlayedGames } from "../TeamManagement/PlayedGames";
-import { useTeamSaving } from "../../hooks/teamSaveLock";
+import { isTeamSaving, useTeamSaving } from "../../hooks/teamSaveLock";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 
@@ -411,7 +411,7 @@ export function TeamBuilder() {
   };
 
   const handleReorderPlayers = (sourceSlot: number, targetSlot: number) => {
-    if (!team) return;
+    if (!team || isTeamSaving()) return;
     const refusal = shirtMoveRefusal(team, sourceSlot, targetSlot);
     if (refusal) {
       alert(refusal);
@@ -541,7 +541,7 @@ export function TeamBuilder() {
   };
 
   const handleOpenPlayer = async (playerId: string) => {
-    if (!team || saveInFlight.current) return;
+    if (!team || saveInFlight.current || isTeamSaving()) return;
     if (
       savedSnapshot.current !== snapshotOf(team) &&
       !(await saveBeforeOpeningPlayer(team))

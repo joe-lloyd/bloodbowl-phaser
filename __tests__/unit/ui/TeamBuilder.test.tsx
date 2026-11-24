@@ -1,3 +1,4 @@
+import { holdTeamSave } from "../../../src/ui/hooks/teamSaveLock";
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -117,6 +118,35 @@ describe("post-match team management", () => {
       coaches: 3,
       pendingDevelopment: [],
     });
+  });
+
+  it("opens no player while a development save is pending", async () => {
+    await renderPostMatch();
+    const row = fixtureValue(
+      container.querySelector('[data-testid="roster-row-1"] td:nth-child(3)')
+    );
+    const openPlayer = () =>
+      act(async () => {
+        row.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await Promise.resolve();
+      });
+    let accept: () => void = () => undefined;
+    const pending = new Promise<void>((resolve) => {
+      accept = resolve;
+    });
+    let held = Promise.resolve();
+    await act(async () => {
+      held = holdTeamSave(() => pending);
+      await Promise.resolve();
+    });
+    await openPlayer();
+    expect(container.textContent).toContain("Post-match team management");
+    await act(async () => {
+      accept();
+      await held;
+    });
+    await openPlayer();
+    expect(container.textContent).not.toContain("Post-match team management");
   });
 
   it("rolls once when finishing above the threshold and shows the result before returning", async () => {

@@ -413,6 +413,28 @@ describe("PlayerDevelopment", () => {
     ]);
   });
 
+  it("shows both saved pairs when they rolled the same skill", async () => {
+    const { team, playerId } = savedTeam(20);
+    const stored = fixtureValue(loadTeams().find((t) => t.id === team.id));
+    const roll = rollPendingRandomPrimary(
+      fixtureValue(stored.players.find((p) => p.id === playerId)),
+      SkillCategory.GENERAL,
+      dice(1, 1, 2, 1)
+    );
+    if (roll.kind !== "random-primary") throw new Error("unexpected roll");
+    expect(roll.candidates.map(({ skill }) => skill)).toEqual([
+      SkillType.BLOCK,
+      SkillType.BLOCK,
+    ]);
+    await saveTeams([stored]);
+    await renderFromStorage(team.id, playerId, dice(6));
+    expect(
+      Array.from(
+        container.querySelectorAll('[data-testid="random-candidate"]')
+      ).map((button) => button.firstElementChild?.textContent)
+    ).toEqual(["1, 1 and 2, 1: Block"]);
+  });
+
   it("spends the roll and resolves the Advanced League entry in one save", async () => {
     const { team, playerId } = savedTeam(15);
     const stored = fixtureValue(loadTeams().find((t) => t.id === team.id));

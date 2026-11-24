@@ -9,16 +9,19 @@ export function CandidateOptions({
   candidates: readonly RandomSkillCandidate[];
   onChoose: (skill: SkillType) => void;
 }) {
-  const distinct = new Map(
-    candidates.map((candidate) => [candidate.skill, candidate])
-  );
+  const skills = [...new Set(candidates.map(({ skill }) => skill))];
+  const rolls = (rolled: SkillType) =>
+    candidates
+      .filter(({ skill }) => skill === rolled)
+      .map(({ firstD6, secondD6 }) => `${String(firstD6)}, ${String(secondD6)}`)
+      .join(" and ");
   return (
     <div className="mt-3 grid gap-2 sm:grid-cols-2">
-      {[...distinct.values()].map(({ skill, firstD6, secondD6 }) => (
+      {skills.map((skill) => (
         <SkillOption
           key={skill}
           skill={skill}
-          rolled={`${String(firstD6)}, ${String(secondD6)}`}
+          rolled={rolls(skill)}
           testId="random-candidate"
           onChoose={() => {
             onChoose(skill);

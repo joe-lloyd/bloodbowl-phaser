@@ -21,7 +21,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: null,
     description:
-      "When throwing a team-mate, a 1 means trying to eat them: another 1 kills them, anything else fumbles the throw.",
+      "When throwing or kicking a team-mate, a 1 means trying to eat them: another 1 kills them, anything else fumbles the throw.",
   },
   "Animal Savagery": {
     kind: "trait",
@@ -30,7 +30,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: null,
     description:
-      "Needs 4+ to activate, or 2+ to Block or Blitz. On a failure, knocks down an adjacent team-mate or loses the activation.",
+      "Needs 4+ to activate, or 2+ to Block or Blitz. On a failure, knocks down an adjacent standing team-mate and carries on, or with none nearby does nothing.",
   },
   Animosity: {
     kind: "trait",
@@ -39,7 +39,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: "X",
     description:
-      "Needs 2+ to pass or hand off to the named kind of team-mate. On a failure the player keeps the ball.",
+      "Needs 2+ to pass or hand off to the named kind of team-mate. On a failure the player keeps the ball and their activation ends.",
   },
   "Arm Bar": {
     kind: "skill",
@@ -57,7 +57,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: null,
     description:
-      "Moves one square at a time in a rolled direction and blocks whoever is in the way, friend or foe.",
+      "Moves square by square in a rolled direction, blocking anyone standing in the way. If it falls it skips armour, and Stunned becomes Knocked-out.",
   },
   "Big Hand": {
     kind: "skill",
@@ -84,7 +84,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: "X+",
     description:
-      "Rolls to activate, with +1 to Block or Blitz. After a failure, must bite an adjacent Thrall Lineman or cause a Turnover.",
+      "Rolls to activate, with +1 to Block or Blitz. After a failure, must bite an adjacent Thrall Lineman, or be Distracted and cause a Turnover.",
   },
   Bombardier: {
     kind: "trait",
@@ -93,7 +93,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Throws a bomb like a pass. It knocks down whoever it lands on, and each neighbour on a 4+.",
+      "Throws a bomb like a pass. It knocks down whoever fails to catch it, and each neighbour on a 4+. A fumble hits the thrower.",
   },
   "Bone Head": {
     kind: "trait",
@@ -129,7 +129,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Instead of a Block: 4+ places an adjacent opponent Prone and a 6 knocks them down. On a 1 the user goes down.",
+      "Instead of a Block: 4+, or 5+ against Strength 5 or more, places an opponent Prone. A 6 knocks them down, and a 1 the user.",
   },
   Bullseye: {
     kind: "skill",
@@ -163,7 +163,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Instead of a Block: rolls armour at +3 against an adjacent opponent, but a 1 knocks the user down. Armour rolls against the user also get +3.",
+      "Instead of a Block: rolls armour at +3, but a 1 first knocks the user down. The user's own armour rolls when knocked down get +3.",
   },
   Claws: {
     kind: "skill",
@@ -172,7 +172,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "A natural 8 or more on the armour dice breaks armour from this player's block or lash-out, unless the victim has Iron Hard Skin.",
+      "A natural 8+ on the armour dice breaks armour when this player blocks, wins a Both Down or lashes out. Iron Hard Skin stops it.",
   },
   "Cloud Burster": {
     kind: "skill",
@@ -208,7 +208,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "During the opposing turn, players this one marks cannot use Guard or Put the Boot In.",
+      "During the opposing turn, players this one marks cannot use Guard or Put the Boot In against its team-mates.",
   },
   "Dirty Player": {
     kind: "skill",
@@ -217,7 +217,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "+1 to either the armour roll or the injury roll when fouling.",
+      "+1 to either the armour roll or the injury roll when fouling. Iron Hard Skin blocks it on armour.",
   },
   "Disturbing Presence": {
     kind: "skill",
@@ -234,7 +234,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Can catch a ball landing in an adjacent empty square, and gets +1 when a pass is aimed at them.",
+      "Can catch a ball landing in an adjacent empty square, and gets +1 to catch a pass that lands on its target square.",
   },
   "Diving Tackle": {
     kind: "skill",
@@ -243,7 +243,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "When an adjacent opponent dodges or jumps away, can dive Prone to take 2 off the roll.",
+      "When an adjacent opponent's dodge or jump away would succeed, can dive Prone to take 2 off it. Cannot stop a natural 6.",
   },
   Dodge: {
     kind: "skill",
@@ -252,7 +252,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Once a turn, re-rolls a failed dodge. A Stumble only pushes this player back, unless the blocker has Tackle.",
+      "Once a turn, re-rolls a failed dodge, unless it left a square next to Tackle. A Stumble only pushes this player back, unless the blocker has Tackle.",
   },
   Drunkard: {
     kind: "trait",
@@ -269,7 +269,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "When an opponent targets this ball carrier, they can throw a Quick Pass before the action happens.",
+      "When an opponent blocks this ball carrier or uses a Special Action on them, can first throw a Quick Pass to the nearest team-mate.",
   },
   "Extra Arms": {
     kind: "skill",
@@ -277,7 +277,8 @@ export const SKILL_CATALOG = {
     usage: "active",
     compulsory: false,
     parameterForm: null,
-    description: "+1 to pick up, catch or intercept the ball.",
+    description:
+      "+1 to catch, intercept or pick up the ball, except with Secure the Ball.",
   },
   "Eye Gouge": {
     kind: "skill",
@@ -304,7 +305,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: null,
     description:
-      "An opponent who blocks this player rolls a D6 first. On a 1 the block does not happen.",
+      "An opponent who blocks this player rolls a D6 first. On a 1 the block does not happen. Ball & Chain ignores it.",
   },
   Frenzy: {
     kind: "skill",
@@ -313,7 +314,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: null,
     description:
-      "Must follow up every push, then block again if the opponent is still standing.",
+      "Follows up every push unless Fend stops it, then blocks once more if the opponent is still standing next to them. Not in a Multiple Block.",
   },
   Fumblerooski: {
     kind: "skill",
@@ -347,7 +348,8 @@ export const SKILL_CATALOG = {
     usage: "active",
     compulsory: false,
     parameterForm: null,
-    description: "Can assist a block even while marked by other opponents.",
+    description:
+      "Can assist a block even while marked. In their own turn, a Defensive marker other than the block's target stops it.",
   },
   "Hail Mary Pass": {
     kind: "skill",
@@ -356,7 +358,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Can throw the ball to any square. It is never accurate and cannot be intercepted.",
+      "Can throw the ball to any square. It is never accurate and cannot be intercepted, but it can still be fumbled.",
   },
   Hatred: {
     kind: "trait",
@@ -374,7 +376,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "After a Block or Stab, can move one free square to a spot no opponent marks.",
+      "After a Block or Stab, can move one free square to a spot no opponent marks. The game picks the square.",
   },
   Horns: {
     kind: "skill",
@@ -382,7 +384,7 @@ export const SKILL_CATALOG = {
     usage: "active",
     compulsory: false,
     parameterForm: null,
-    description: "+1 Strength for the block in a Blitz.",
+    description: "+1 Strength for each block in a Blitz.",
   },
   "Hypnotic Gaze": {
     kind: "trait",
@@ -409,7 +411,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Opponents get no bonus on armour rolls against this player, and Claws has no effect.",
+      "Cancels armour-roll bonuses from fouls, Chainsaw, Mighty Blow, Lethal Flight and Claws against this player.",
   },
   Juggernaut: {
     kind: "skill",
@@ -418,7 +420,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "In a Blitz, can treat Both Down as a push, and opponents cannot use Fend, Stand Firm or Wrestle.",
+      "In a Blitz, treats Both Down as a push, and opponents cannot use Fend, Stand Firm or Wrestle.",
   },
   "Jump Up": {
     kind: "skill",
@@ -427,7 +429,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Stands up for free. Can also Block from Prone by passing an Agility roll at +1.",
+      "Stands up for free. Can also Block from Prone by passing an Agility roll at +1; on a failure the activation ends.",
   },
   Kick: {
     kind: "skill",
@@ -436,7 +438,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "The kick-off scatters a D3 squares instead of a D6. Can re-roll a Punt's direction or distance.",
+      "The kick-off scatters a D3 squares instead of a D6. Can re-roll a Punt's direction and distance.",
   },
   "Kick Team-Mate": {
     kind: "trait",
@@ -445,7 +447,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Can kick a Right Stuff team-mate across the pitch. A fumbled kick injures the team-mate and is a Turnover.",
+      "Can kick an adjacent Right Stuff team-mate up to a Short Pass away. A fumbled kick injures them and is a Turnover.",
   },
   Leader: {
     kind: "skill",
@@ -472,7 +474,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "When thrown into an opponent, adds 1 to the armour or injury roll and earns SPP for a casualty.",
+      "With Right Stuff, when thrown into an opponent, adds 1 to their armour or injury roll and earns SPP for a casualty.",
   },
   "Lone Fouler": {
     kind: "skill",
@@ -481,7 +483,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Re-rolls a failed foul armour roll when nobody assists either side.",
+      "Re-rolls a failed foul armour roll when neither side has an assist.",
   },
   Loner: {
     kind: "trait",
@@ -490,7 +492,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: "X+",
     description:
-      "Must roll the number shown or higher to use a team re-roll. On a failure the re-roll is lost.",
+      "Must roll the number shown or higher for a team re-roll to work. The re-roll is spent either way.",
   },
   "Mighty Blow": {
     kind: "skill",
@@ -499,7 +501,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Adds the number shown to the armour or injury roll when this player's block knocks an opponent down.",
+      "Adds the number shown to the armour or injury roll when this player blocks, wins a Both Down or lashes out.",
   },
   "Monstrous Mouth": {
     kind: "skill",
@@ -508,7 +510,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Strip Ball has no effect. Can bite an adjacent opponent on a 3+, pinning them while this player marks them.",
+      "Strip Ball has no effect. Instead of a Block, a 3+ bites an adjacent opponent, who cannot leave while this player marks them.",
   },
   "Multiple Block": {
     kind: "skill",
@@ -517,7 +519,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Can block two adjacent opponents in one Action, at -2 Strength for both blocks.",
+      "Can block two adjacent opponents in one Action, at -2 Strength for both blocks, to a minimum of 1.",
   },
   "My Ball": {
     kind: "trait",
@@ -551,7 +553,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Can move up to 3 squares when an opponent throws a pass. One unmarked receiver can also do so at a kick-off.",
+      "Can move up to 3 squares before an opponent's pass. At a kick-off, one unmarked receiving player can too.",
   },
   Pass: {
     kind: "skill",
@@ -577,7 +579,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "After knocking down an opponent with a block, can foul them for free, then is placed Prone.",
+      "After knocking down an opponent with a block, can foul them for free if still adjacent, then is placed Prone.",
   },
   "Plague Ridden": {
     kind: "trait",
@@ -586,7 +588,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Once a game, killing an ordinary opponent with a block adds a free Lineman to Reserves.",
+      "Once a game, killing an opponent with a block adds a free Lineman. Not from a Big Guy, Stunty, Decay or Regeneration.",
   },
   Pogo: {
     kind: "trait",
@@ -603,7 +605,8 @@ export const SKILL_CATALOG = {
     usage: "active",
     compulsory: false,
     parameterForm: null,
-    description: "Opponents dodging or jumping away from this player get -1.",
+    description:
+      "Opponents dodging or jumping away from this player get -1. More than one tail does not add up.",
   },
   Pro: {
     kind: "skill",
@@ -612,7 +615,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Once a turn, on a 3+, re-rolls one die this player rolled in their own activation.",
+      "Once a turn in their own activation, on a 3+, re-rolls one die. On a 1 or 2 no other re-roll can be used.",
   },
   "Projectile Vomit": {
     kind: "trait",
@@ -630,7 +633,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Kicks the ball D6 squares in a rolled direction, starting from the way this player faces.",
+      "Kicks the ball D6 squares in a rolled direction, centred on the way the coach chooses.",
   },
   "Put the Boot In": {
     kind: "skill",
@@ -638,7 +641,8 @@ export const SKILL_CATALOG = {
     usage: "active",
     compulsory: false,
     parameterForm: null,
-    description: "Can assist a foul even while marked by other opponents.",
+    description:
+      "Can assist a foul even while marked, unless by a Defensive opponent other than the foul's target.",
   },
   "Quick Foul": {
     kind: "skill",
@@ -646,7 +650,7 @@ export const SKILL_CATALOG = {
     usage: "active",
     compulsory: false,
     parameterForm: null,
-    description: "Can keep moving after a foul.",
+    description: "Can keep moving after a foul, unless sent off.",
   },
   "Really Stupid": {
     kind: "trait",
@@ -655,7 +659,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: null,
     description:
-      "Needs 4+ to activate, or 2+ beside a sensible team-mate. On a failure the player is Distracted and does nothing.",
+      "Needs 4+ to activate, or 2+ beside a standing team-mate who is neither Really Stupid nor Distracted. On a failure, Distracted and does nothing.",
   },
   Regeneration: {
     kind: "trait",
@@ -681,7 +685,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "When knocked down by a block, on a 4+ the player is Knocked-out and the blocker goes down too.",
+      "When a block would knock them down, on a 4+ the player is Knocked-out and the blocker goes down too.",
   },
   "Safe Pair of Hands": {
     kind: "skill",
@@ -690,7 +694,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "When knocked down or pushed with the ball, places it in an adjacent empty square instead of letting it bounce.",
+      "Knocked down by Player Down, or down on Both Down, with the ball: places it in an adjacent empty square instead of letting it bounce.",
   },
   "Safe Pass": {
     kind: "skill",
@@ -760,7 +764,8 @@ export const SKILL_CATALOG = {
     usage: "active",
     compulsory: false,
     parameterForm: null,
-    description: "Can refuse to be pushed back.",
+    description:
+      "Can refuse to be pushed back, except by Juggernaut in a Blitz.",
   },
   "Steady Footing": {
     kind: "skill",
@@ -769,7 +774,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "When about to fall or be knocked down, stays standing on a 6.",
+      "When a failed rush, dodge or jump, or a block, would put them down, stays standing on a 6.",
   },
   "Strip Ball": {
     kind: "skill",
@@ -778,7 +783,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Pushing back a ball carrier makes them drop the ball, even if they stay standing.",
+      "Pushing back a ball carrier makes them drop the ball, even if they stay standing. Monstrous Mouth stops it.",
   },
   "Strong Arm": {
     kind: "skill",
@@ -820,7 +825,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "When thrown, glides a D6 squares the way they face instead of scattering, and can re-roll a failed landing.",
+      "Thrown without Bullseye, glides D6 squares from the target in a rolled direction instead of scattering, and re-rolls a failed landing.",
   },
   Tackle: {
     kind: "skill",
@@ -838,7 +843,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: null,
     description:
-      "Needs 2+ to activate normally. On a 1 the player cannot leave their square until knocked down or the drive ends.",
+      "Rolls when activated standing. On a 1 the player can act but not leave their square until knocked down or the drive ends.",
   },
   Taunt: {
     kind: "skill",
@@ -846,7 +851,8 @@ export const SKILL_CATALOG = {
     usage: "active",
     compulsory: false,
     parameterForm: null,
-    description: "When pushed back, can force the blocker to follow up.",
+    description:
+      "When a block pushes them back, can force the blocker to follow up.",
   },
   Tentacles: {
     kind: "skill",
@@ -855,7 +861,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Can grab an opponent dodging or jumping away. A D6 plus the Strength difference of 6 or more ends their activation.",
+      "Can hold an opponent dodging or jumping away: D6 plus the Strength difference of 6+, or a natural 6, ends their activation. A 1 fails.",
   },
   "Thick Skull": {
     kind: "skill",
@@ -872,7 +878,8 @@ export const SKILL_CATALOG = {
     usage: "active",
     compulsory: false,
     parameterForm: null,
-    description: "Can throw a Right Stuff team-mate up to a Short Pass away.",
+    description:
+      "Can throw an adjacent Right Stuff team-mate up to a Short Pass away.",
   },
   "Timmm-ber!": {
     kind: "trait",
@@ -881,7 +888,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "With MA 2 or less, gets +1 to stand up for each adjacent unmarked team-mate.",
+      "With MA 2 or less, gets +1 to stand up for each adjacent standing team-mate that no opponent marks.",
   },
   Titchy: {
     kind: "trait",
@@ -890,7 +897,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: null,
     description:
-      "+1 to dodge. This player's tackle zone gives no penalty to opponents dodging past.",
+      "+1 to dodge. This player's tackle zone gives no penalty to opponents dodging into it.",
   },
   Trickster: {
     kind: "trait",
@@ -899,7 +906,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "When blocked, can first move to another free square beside the blocker.",
+      "When blocked, can first slip to a free square beside the blocker. The game picks the square.",
   },
   "Two Heads": {
     kind: "skill",
@@ -950,7 +957,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "On a Both Down, can place both players Prone with no armour rolls.",
+      "On a Both Down, can place both players Prone with no armour rolls. A defender cannot use it against Juggernaut in a Blitz.",
   },
 } satisfies Record<
   SkillType,
