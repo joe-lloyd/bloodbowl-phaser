@@ -10,6 +10,7 @@ import {
   setTeamLibraryStatus,
   setTeamRepository,
 } from "../../../src/game/managers/TeamManager";
+import { useTeamLibrary } from "../../../src/ui/hooks/useTeamLibrary";
 import { holdTeamSave } from "../../../src/ui/hooks/teamSaveLock";
 import { commitTeam } from "../../../src/ui/components/hud/commitPlayerChange";
 import { type Team } from "../../../src/types/Team";
@@ -189,7 +190,7 @@ describe("TeamBuilder loading a team from its route", () => {
     expect(container.textContent).toContain("CHOOSE YOUR TEAM");
   });
 
-  it("opens the accepted team once a save that is rejected has settled", async () => {
+  async function duringRejectedSave(open: () => Promise<void>) {
     const accepted = savedHumans();
     const { library, repository } = cloudLibrary([
       { ...accepted, name: "Rejected Humans" },
@@ -205,13 +206,37 @@ describe("TeamBuilder loading a team from its route", () => {
           };
         })
     );
-    await renderRoute("/build-team/cloud-humans");
+    await open();
+    return () =>
+      act(async () => {
+        reject();
+        await saving.catch(() => undefined);
+      });
+  }
+
+  it("opens the accepted team once a save that is rejected has settled", async () => {
+    const settle = await duringRejectedSave(() =>
+      renderRoute("/build-team/cloud-humans")
+    );
     expect(container.querySelectorAll("input")).toHaveLength(0);
-    await act(async () => {
-      reject();
-      await saving.catch(() => undefined);
-    });
+    await settle();
     expect(teamNameField()).toBeDefined();
+  });
+
+  it("drops a rejected save from a library opened while it was pending", async () => {
+    const Library = () =>
+      useTeamLibrary()[0]
+        .map(({ name }) => name)
+        .join();
+    const settle = await duringRejectedSave(() => {
+      act(() => {
+        root.render(<Library />);
+      });
+      return Promise.resolve();
+    });
+    expect(container.textContent).toBe("Rejected Humans");
+    await settle();
+    expect(container.textContent).toBe("Cloud Humans");
   });
 
   it("keeps a saved change when only another team's write fails", async () => {
