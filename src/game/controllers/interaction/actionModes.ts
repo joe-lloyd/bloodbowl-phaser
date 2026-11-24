@@ -1,4 +1,4 @@
-import type { ActionType } from "@/types/events";
+import type { ActionType, MovementHalf } from "@/types/events";
 import { GameEventNames } from "@/types/events";
 import { PlayerStatus } from "@/types/Player";
 import { type GameState } from "@/types/GameState";
@@ -10,8 +10,9 @@ import {
 import { getActiveOnlineMatch } from "@/network/OnlineMatch";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { actionStepsFor } from "./actionSteps";
-import { computeJumpTargets } from "./previews";
-import { refreshPlayerVisualization } from "./routes";
+import { drawJumpAim } from "./previews";
+import { afterMove, refreshPlayerVisualization } from "./routes";
+import { movementHalf, showSteps } from "./movement";
 import { gateRequest } from "./Confirmations";
 import { activationGates } from "../../skills";
 import type { ActivationGate } from "../../skills/SkillRule";
@@ -33,17 +34,18 @@ export function enterActionMode(
   const defaultStep = c.actionSteps[0]?.id ?? "move";
 
   const declarer = c.gameService.getPlayerById(playerId);
-  if (declarer?.status === PlayerStatus.PRONE) {
+  if (
+    declarer?.status === PlayerStatus.PRONE &&
+    !c.actionSteps.some((step) => step.id === "move")
+  ) {
     c.actionSteps.unshift({ id: "standup", label: "Stand Up" });
     c.currentStepId = "standup";
   } else {
     c.currentStepId = defaultStep;
   }
 
-  c.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-    steps: c.actionSteps,
-    currentStepId: c.currentStepId,
-  });
+  c.jumpTargeting = false;
+  showSteps(c);
 
   c.eventBus.emit(GameEventNames.ActionModeChanged, {
     playerId: playerId,
@@ -57,7 +59,7 @@ export function enterActionMode(
 
 function gatesForAction(c: GameplayInteractionController, data: Parameters<typeof selectAction>[1]) {
   if (data.action === "forgoe") return null;
-  return askGates(c, data.playerId, data.action === "standUp" ? "move" : data.action);
+  return askGates(c, data.playerId, data.action);
 }
 
 function planWithoutDeclaring(
@@ -76,19 +78,6 @@ function planWithoutDeclaring(
   return true;
 }
 
-async function standUpAction(c: GameplayInteractionController, playerId: string): Promise<void> {
-    try {
-      await c.gameService.standUp(playerId);
-      c.selectPlayer(playerId);
-    } catch (err) {
-      console.error("Stand Up failed:", err);
-      c.eventBus.emit(
-        GameEventNames.UI_Notification,
-        `Cannot Stand Up: ${String(err)}`
-      );
-    }
-}
-
 export async function selectAction(
   c: GameplayInteractionController,
   data: {
@@ -96,21 +85,20 @@ export async function selectAction(
     playerId: string;
     blockReplacement?: BlockReplacement;
     razzleDazzle?: boolean;
+    half?: MovementHalf;
   }
 ): Promise<void> {
   const blockReplacement =
     data.blockReplacement ??
     blockReplacementForDirectAction(data.action) ??
     null;
-  if (planWithoutDeclaring(c, data, blockReplacement)) return;
+  if (planWithoutDeclaring(c, data, blockReplacement)) {
+    if (data.half) selectStep(c, { stepId: data.half });
+    return;
+  }
   c.undeclared = null;
   const asked = gatesForAction(c, data);
   if (asked && !(await asked)) return;
-
-  if (data.action === "standUp") {
-    await standUpAction(c, data.playerId);
-    return;
-  }
 
   if (data.action === "forgoe") {
     c.gameService.finishActivation(data.playerId);
@@ -130,6 +118,7 @@ function declareNow(
   );
   if (success) {
     enterActionMode({ c,playerId: data.playerId,action: data.action,blockReplacement });
+    if (data.half) selectStep(c, { stepId: data.half });
   } else {
     console.log("Failed to declare action:", data.action);
     c.eventBus.emit(
@@ -151,11 +140,8 @@ function standUpStep(c: GameplayInteractionController, playerId: string): void {
       c.actionSteps = c.actionSteps.filter((s) => s.id !== "standup");
 
       c.currentStepId = c.actionSteps[0]?.id ?? "move";
-      c.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-        steps: c.actionSteps,
-        currentStepId: c.currentStepId,
-      });
-      refreshPlayerVisualization(c, playerId);
+      showSteps(c);
+      afterMove(c, playerId);
     })
     .catch((err: unknown) => {
       c.eventBus.emit(
@@ -167,21 +153,19 @@ function standUpStep(c: GameplayInteractionController, playerId: string): void {
 
 function jumpStep(c: GameplayInteractionController, playerId: string): void {
   c.jumpTargeting = true;
-  const player = c.gameService.getPlayerById(playerId);
-  const targets = player ? computeJumpTargets(c, player) : [];
-  if (player?.gridPosition) {
-    c.pitch.drawJumpTargets(player.gridPosition, targets);
-  }
+  c.currentStepId = "move";
+  showSteps(c);
+  refreshPlayerVisualization(c, playerId);
+  drawJumpAim(c, playerId);
   c.eventBus.emit(
     GameEventNames.UI_Notification,
-    targets.length > 0
-      ? "Jump: click a highlighted landing square to leap over the adjacent square."
-      : "No adjacent player to Jump over."
+    "Jump: pick a highlighted landing square to add it to the plan."
   );
 }
 
 function availableStep(c: GameplayInteractionController, stepId: string): boolean {
   if (c.actionSteps.some((step) => step.id === stepId)) return true;
+  if (movementHalf(c) === stepId) return true;
   console.warn("Invalid step selected:", stepId);
   return false;
 }
@@ -196,17 +180,14 @@ export function selectStep(
     standUpStep(c, c.selectedPlayerId);
     return;
   }
-  if (data.stepId === "jump" && c.selectedPlayerId) {
+  if (data.stepId === "jump" && !c.jumpTargeting && c.selectedPlayerId) {
     jumpStep(c, c.selectedPlayerId);
     return;
   }
 
   c.jumpTargeting = false;
-  c.currentStepId = data.stepId;
-  c.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-    steps: c.actionSteps,
-    currentStepId: c.currentStepId,
-  });
+  c.currentStepId = data.stepId === "jump" ? "move" : data.stepId;
+  showSteps(c);
   console.log(`Switched action step to: ${data.stepId}`);
 
   if (c.selectedPlayerId) {
@@ -229,6 +210,7 @@ function forgetAction(c: GameplayInteractionController, playerId: string): void 
   c.currentBlockReplacement = null;
   c.currentStepId = null;
   c.actionSteps = [];
+  c.jumpTargeting = false;
   c.pitch.clearPassVisualization();
   c.interactionSeq++;
   const player = c.gameService.getPlayerById(playerId);
@@ -349,10 +331,8 @@ export function resumeBlitzMove(
   c.pitch.clearPath();
   c.scene.highlightPlayer(playerId);
   c.eventBus.emit(GameEventNames.PlayerSelected, { player });
-  c.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-    steps: [{ id: "move", label: "Move" }],
-    currentStepId: "move",
-  });
+  c.actionSteps = actionStepsFor("move", null);
+  showSteps(c);
   refreshPlayerVisualization(c, playerId);
 }
 
@@ -368,10 +348,8 @@ export function resumeBallAndChain(
   c.hasMovedInAction = true;
   c.scene.highlightPlayer(playerId);
   c.eventBus.emit(GameEventNames.PlayerSelected, { player });
-  c.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-    steps: [{ id: "swing", label: "Swing (pick a direction)" }],
-    currentStepId: "swing",
-  });
+  c.actionSteps = actionStepsFor("ballAndChain", null);
+  showSteps(c);
   c.eventBus.emit(GameEventNames.PlayerMovedInAction, { playerId });
   refreshPlayerVisualization(c, playerId);
 }

@@ -55,7 +55,6 @@ const SUPPORTED_DECLARATIONS = new Set<ActionType>([
   "pass",
   "handoff",
   "foul",
-  "standUp",
   "ballAndChain",
   "stab",
   "chainsaw",

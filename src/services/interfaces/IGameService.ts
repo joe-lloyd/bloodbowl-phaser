@@ -1,4 +1,5 @@
 import type { KickoffRehearsal } from "@/game/kickoff/kickRecord";
+import type { MoveReach } from "../../game/validators/jumpReach";
 import type * as SetupTypes from "@/types/SetupTypes";
 import type * as InducementTypes from "@/types/Inducements";
 import { GamePhase, type GameState, SubPhase } from "@/types/GameState";
@@ -317,7 +318,8 @@ export interface IGameService {
 
   hasUsedBlitzBlock(playerId: string): boolean;
   getAvailableMovements(
-    playerId: string
+    playerId: string,
+    reach?: MoveReach
   ): { x: number; y: number; cost?: number }[];
   setBallPosition(x: number, y: number): void;
   finishActivation(playerId: string): void;

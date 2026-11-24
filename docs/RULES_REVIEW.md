@@ -52,6 +52,7 @@ change follows the 2025 rulebook text.
 | Throw Team-mate | It has its own once-per-turn limit, and Kick Team-mate does not use it. The landing roll counts marking and a Subpar Throw. A failed landing is a turnover only with the ball. Swoop belongs to the thrown player. Bullseye works on any Superb Throw. |
 | Bombardier | No move before the throw, and one bomb per turn. |
 | Movement | A Jump onto the ball needs a Pick-up. Jumps can be re-rolled, and Prehensile Tail, Diving Tackle and Tentacles affect them. Leap and Pogo can cross an empty square. |
+| Movement | Every action with a Move shares one movement phase: walk, Rush, Dodge, Jump, Stand Up and carry. It covers Move, Blitz, Pass, Hand-off, Foul, Secure the Ball, Throw and Kick Team-mate, Punt and Hypnotic Gaze. The engine refuses movement in any other declared action. Stand Up is part of Move, not an action. Standing to Block with Jump Up is the one exception. |
 | Movement | A Rooted or Chomped player is offered no Move, Jump or squares. |
 | Secure the Ball | A plain 2+ roll, with no Sure Hands re-roll. |
 | Match flow | Stunned players turn over at the end of their own team's turn. |

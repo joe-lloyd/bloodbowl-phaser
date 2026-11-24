@@ -12,7 +12,9 @@ import {
   reachNextTo,
   scenePlayer,
 } from "./plan";
-import type { Player } from "@/types/Player";
+import { type Player, PlayerStatus } from "@/types/Player";
+import type { RouteStep } from "../../rules/jump";
+import { showSteps } from "./movement";
 import { handoffTargetRefusalReason } from "../../rules/handoff";
 import { planProblem, publishPlan } from "./planSummary";
 import { cancelAction } from "./actionModes";
@@ -20,11 +22,6 @@ import { previewSquare } from "./previews";
 import { afterMove, refreshPlayerVisualization, stoppedShort, walkRoute } from "./routes";
 import { adjacentTo } from "./squares";
 import { FINISHERS, type SquareClick } from "./stepClicks";
-
-interface Square {
-  x: number;
-  y: number;
-}
 
 function refusesTarget(c: GameplayInteractionController, kind: FinishKind, target: Player | null): boolean {
   const hander = c.selectedPlayerId ? c.gameService.getPlayerById(c.selectedPlayerId) : undefined;
@@ -38,10 +35,7 @@ function refusesTarget(c: GameplayInteractionController, kind: FinishKind, targe
 function showFinishStep(c: GameplayInteractionController, kind: FinishKind): void {
   if (c.currentStepId === kind || !c.actionSteps.some((step) => step.id === kind)) return;
   c.currentStepId = kind;
-  c.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-    steps: c.actionSteps,
-    currentStepId: kind,
-  });
+  showSteps(c);
   if (c.selectedPlayerId) refreshPlayerVisualization(c, c.selectedPlayerId);
 }
 
@@ -54,6 +48,7 @@ export function planFinishAt(
   if (locked?.x === click.x && locked.y === click.y) return goPlan(c);
   if (refusesTarget(c, kind, click.player)) return;
   if (needsContact(kind) && !reachNextTo(c, click)) return;
+  c.jumpTargeting = false;
   c.finish = { kind, key: finishKey(c), x: click.x, y: click.y, targetId: click.player?.id ?? null };
   showFinishStep(c, kind);
   previewSquare(c, click.x, click.y);
@@ -85,7 +80,7 @@ function stillPlanned(c: GameplayInteractionController, playerId: string, planne
   );
 }
 
-export async function declarePlanned(c: GameplayInteractionController, playerId: string): Promise<boolean> {
+async function declarePlanned(c: GameplayInteractionController, playerId: string): Promise<boolean> {
   const planned = c.undeclared;
   c.undeclared = null;
   if (!planned) return true;
@@ -114,7 +109,25 @@ export async function declarePlanned(c: GameplayInteractionController, playerId:
   return false;
 }
 
-async function walkPlanned(c: GameplayInteractionController, playerId: string, route: Square[]): Promise<boolean> {
+async function standPlanned(c: GameplayInteractionController, playerId: string): Promise<boolean> {
+  c.isBusy = true;
+  try {
+    await c.gameService.standUp(playerId);
+  } catch (error) {
+    stopPlan(c, playerId, `Cannot stand up: ${String(error)}`);
+    return false;
+  } finally {
+    c.isBusy = false;
+  }
+  afterMove(c, playerId);
+  return c.gameService.getPlayerById(playerId)?.status === PlayerStatus.ACTIVE;
+}
+
+function risesFirst(c: GameplayInteractionController, playerId: string): boolean {
+  return c.gameService.getPlayerById(playerId)?.status === PlayerStatus.PRONE;
+}
+
+async function walkPlanned(c: GameplayInteractionController, playerId: string, route: RouteStep[]): Promise<boolean> {
   c.isBusy = true;
   c.clearWaypoints();
   c.clearRollPreviews();
@@ -123,8 +136,8 @@ async function walkPlanned(c: GameplayInteractionController, playerId: string, r
   try {
     walked = await walkRoute(c, playerId, route);
   } catch (error) {
-    console.error("Move failed", error);
-    c.deselectPlayer();
+    c.isBusy = false;
+    stopPlan(c, playerId, `Cannot move: ${String(error)}`);
     return false;
   } finally {
     c.isBusy = false;
@@ -172,9 +185,12 @@ export async function goPlan(c: GameplayInteractionController): Promise<void> {
   const finish = currentFinish(c);
   const route = [...c.waypoints];
   c.dropFinish();
+  c.jumpTargeting = false;
   if (c.undeclared && !(await declarePlanned(c, playerId))) return;
   if (route.length > 0 && !(await walkPlanned(c, playerId, route))) return;
-  if (finish) await finishPlanned(c, playerId, finish);
+  if (!finish) return;
+  if (risesFirst(c, playerId) && !(await standPlanned(c, playerId))) return;
+  await finishPlanned(c, playerId, finish);
 }
 
 export function clearPlan(c: GameplayInteractionController): void {
@@ -184,6 +200,7 @@ export function clearPlan(c: GameplayInteractionController): void {
     cancelAction(c);
     return;
   }
+  c.jumpTargeting = false;
   if (currentFinish(c)) {
     c.dropFinish();
     c.clearRollPreviews();

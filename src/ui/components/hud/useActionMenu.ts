@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { type Player } from "../../../types/Player";
 import { GamePhase, type GameState } from "../../../types/GameState";
-import type { ActionType, GameEventNames } from "../../../types/events";
+import type { ActionType, GameEventNames, MovementHalf } from "../../../types/events";
 import {
   computeActionAvailability,
   noActionAvailability,
@@ -142,7 +142,7 @@ export function readMenuAvailability({
       ballPosition: groundBall(gs.getState()),
       opponents: gs.getOpponents(selectedPlayer.teamId),
       teammates: gs.getTeammates(selectedPlayer.id),
-      reachable: gs.getAvailableMovements(selectedPlayer.id),
+      reachable: gs.getAvailableMovements(selectedPlayer.id, "jump"),
       turn: menuTurnFlags({
         turnData: turnData,
         state: gs.getState(),
@@ -173,16 +173,18 @@ export function menuActionRequest(
   playerId: string,
   action: ActionType,
   options: {
-    blockReplacement: BlockReplacement | undefined;
+    blockReplacement?: BlockReplacement | undefined;
+    half?: MovementHalf | undefined;
     razzleOn: boolean;
     canRazzle: boolean;
   }
 ): UIEvents[typeof GameEventNames.UI_ActionSelected] {
-  const { blockReplacement, razzleOn, canRazzle } = options;
+  const { blockReplacement, half, razzleOn, canRazzle } = options;
   return {
     action,
     playerId,
     ...(blockReplacement === undefined ? {} : { blockReplacement }),
+    ...(half === undefined ? {} : { half }),
     ...(razzleOn && canRazzle && action !== "forgoe"
       ? { razzleDazzle: true }
       : {}),

@@ -27,6 +27,7 @@ export interface NetworkUIEvents {
 
 export type PromptRollType =
   | "dodge"
+  | "jump"
   | "rush"
   | "barricade"
   | "pickup"

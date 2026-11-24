@@ -2,7 +2,6 @@ import { GameEventNames, type StepPrompt } from "@/types/events";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { weatherEffects } from "../../rules/weather";
-import { legalJumpTargets, type JumpTarget } from "../../rules/jump";
 import { legalHandoffTargets } from "../../rules/handoff";
 import { isThrowTeammateInRange } from "../../rules/throwTeammate";
 import { rollLabel } from "../../rules/rollTargets";
@@ -15,7 +14,8 @@ import {
 } from "../../rules/rollPreview";
 import { BlockValidator } from "../../validators/BlockValidator";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
-import { drawPath } from "./routes";
+import { drawCurrentPath, drawPath } from "./routes";
+import { plannedJumpTargets } from "./movement";
 import { boardWith, currentFinish, plannedActor } from "./plan";
 import { throwNeeds } from "./planSummary";
 
@@ -27,15 +27,6 @@ interface Square {
 function plannedPlayer(c: GameplayInteractionController, id: string): Player | undefined {
   const player = c.gameService.getPlayerById(id);
   return player ? plannedActor(c, player) : undefined;
-}
-
-export function computeJumpTargets(
-  c: GameplayInteractionController,
-  player: Player
-): JumpTarget[] {
-  const from = player.gridPosition;
-  if (!from || player.status !== PlayerStatus.ACTIVE) return [];
-  return legalJumpTargets(player, from, [...c.getSceneTeam1().players, ...c.getSceneTeam2().players]);
 }
 
 function foulPreviewFor(
@@ -149,20 +140,17 @@ function drawFoulTargets(
   }
 }
 
-function drawJumpAim(
+export function drawJumpAim(
   c: GameplayInteractionController,
   selectedId: string
 ): void {
   c.pitch.clearPassVisualization();
-  const selectedPlayer = c.gameService.getPlayerById(selectedId);
-  if (selectedPlayer?.gridPosition) {
-    c.pitch.drawJumpTargets(
-      selectedPlayer.gridPosition,
-      computeJumpTargets(c, selectedPlayer)
-    );
-  } else {
-    c.pitch.clearPath();
-  }
+  drawCurrentPath(c);
+  const player = c.gameService.getPlayerById(selectedId);
+  if (!player) return;
+  const { gridPosition } = plannedActor(c, player);
+  if (gridPosition)
+    c.pitch.drawJumpTargets(gridPosition, plannedJumpTargets(c, player));
 }
 
 function drawThrowStep(input: { c: GameplayInteractionController; selectedId: string; x: number; y: number }): boolean {
@@ -200,8 +188,8 @@ export function previewSquare(
     return;
   }
   const aim = currentFinish(c) ?? { x, y };
-  if (drawActionAim({ c, selectedId, x: aim.x, y: aim.y })) return;
   if (c.jumpTargeting) { drawJumpAim(c, selectedId); return; }
+  if (drawActionAim({ c, selectedId, x: aim.x, y: aim.y })) return;
   c.pitch.clearPassVisualization();
   if (!c.getPlayerAt(x, y)) drawPath(c, x, y);
   else c.pitch.clearPath();

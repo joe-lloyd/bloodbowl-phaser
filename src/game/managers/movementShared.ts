@@ -1,7 +1,7 @@
 import { activeRules } from "@/game/variants/activeMatch";
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
-import { ballOnSquare } from "@/game/rules/ballInTheAir";
+import { ballOnSquare, groundBall } from "@/game/rules/ballInTheAir";
 import { type Team } from "@/types/Team";
 import {
   type Player,
@@ -27,6 +27,14 @@ import {
   type StandUpRollContext,
 } from "../skills/SkillRule";
 import { rushModifier } from "../inducements/matchInducements";
+import {
+  STAND_UP_TARGET,
+  moveAllowance,
+  standUpCost,
+} from "../skills/movement";
+import { carrierMayPass } from "../kickoff/ballConditions";
+import { withDriveModifiers } from "../kickoff/driveEffects";
+import { actsFromHere } from "../rules/actionAvailability";
 
 export interface Square {
   x: number;
@@ -89,7 +97,7 @@ export function isBallAt(state: GameState, square: Square): boolean {
   return ballOnSquare(state, square);
 }
 
-export async function rollToStand(
+async function rollToStand(
   deps: MovementDeps,
   player: Player
 ): Promise<boolean> {
@@ -107,8 +115,56 @@ export async function rollToStand(
     deps.eventBus.emit(GameEventNames.SkillTriggered, t);
   }
   const check = deps.diceController.rollSkillCheck(
-    { reason: "Stand Up",target: 4,modifier: ctx.modifiers,playerName: player.playerName }  );
+    { reason: "Stand Up",target: STAND_UP_TARGET,modifier: ctx.modifiers,playerName: player.playerName }  );
   return check.success;
+}
+
+function actionContinues(deps: MovementDeps, player: Player): boolean {
+  const { activePlayer } = deps.state;
+  if (activePlayer?.id !== player.id || !activePlayer.action) return false;
+  if (activePlayer.action === "pass" && !carrierMayPass(deps.state))
+    return false;
+  const { own, opp } = teamsOf(deps, player);
+  return actsFromHere(activePlayer.action, {
+    player,
+    ballPosition: groundBall(deps.state),
+    opponents: opp.players,
+    teammates: own.players.filter(({ id }) => id !== player.id),
+  });
+}
+
+export function finishIfSpent(deps: MovementDeps, player: Player): void {
+  const allowance = moveAllowance(withDriveModifiers(player, deps.state));
+  if (movementUsed(deps.state, player.id) < allowance) return;
+  if (actionContinues(deps, player)) return;
+  deps.callbacks.onActivationFinished(player.id);
+}
+
+export async function standToMove(
+  deps: MovementDeps,
+  player: Player,
+  maView: Player
+): Promise<boolean> {
+  const cost = standUpCost(maView);
+  const used = movementUsed(deps.state, player.id) + cost;
+  const stood = await rollToStand(deps, maView);
+  deps.state.turn.movementUsed.set(player.id, used);
+  if (!stood) {
+    deps.callbacks.onActivationFinished(player.id);
+    return false;
+  }
+  rise(deps, player, cost);
+  return true;
+}
+
+export function rise(
+  { eventBus }: MovementDeps,
+  player: Player,
+  cost: number
+): void {
+  player.status = PlayerStatus.ACTIVE;
+  eventBus.emit(GameEventNames.PlayerStoodUp, { playerId: player.id, cost });
+  eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 }
 
 export async function rollRush(

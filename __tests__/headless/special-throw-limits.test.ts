@@ -111,7 +111,7 @@ describe("once-per-Turn special throws", () => {
     });
     expect(move.ok).toBe(false);
     expect(move.reason).toBe(
-      "command-failed: A bomber may not move before throwing the bomb"
+      "command-failed: A player may not move during a throwBomb action"
     );
   });
 

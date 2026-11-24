@@ -2,6 +2,7 @@ import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
 import { type Team } from "@/types/Team";
 import {
+  type Player,
   PlayerStatus,
   PlayerCondition,
   hasCondition,
@@ -20,11 +21,15 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import {
   type MovementDeps,
   findPlayer,
+  finishIfSpent,
   movementUsed,
-  rollToStand,
+  rise,
+  standToMove,
+  teamsOf,
 } from "./movementShared";
 import { movePlayer } from "./moveAction";
 import { jumpPlayer } from "./jumpAction";
+import { reachWithJumps, type MoveReach } from "../validators/jumpReach";
 import type { MoveStep } from "../../headless/protocol";
 
 export class MovementManager {
@@ -33,8 +38,6 @@ export class MovementManager {
 
   private eventBus: IEventBus;
   private state: GameState;
-  private team1: Team;
-  private team2: Team;
   private diceController: DiceController;
   private callbacks: {
     onTurnover: (reason: string) => void;
@@ -55,8 +58,6 @@ export class MovementManager {
   ) {
     this.eventBus = eventBus;
     this.state = state;
-    this.team1 = team1;
-    this.team2 = team2;
     this.diceController = diceController;
     this.callbacks = callbacks;
     this.deps = {
@@ -76,10 +77,12 @@ export class MovementManager {
   }
 
   public getAvailableMovements(
-    playerId: string
+    playerId: string,
+    reach: MoveReach = "walk"
   ): { x: number; y: number; cost?: number }[] {
     const player = findPlayer(this.deps, playerId);
-    if (!player || player.teamId !== this.state.activeTeamId) return [];
+    const position = player?.gridPosition;
+    if (!position || player.teamId !== this.state.activeTeamId) return [];
 
     if (
       hasCondition(player, PlayerCondition.ROOTED) ||
@@ -89,99 +92,81 @@ export class MovementManager {
     }
 
     const used = this.getMovementUsed(playerId);
-    const ma = driveEffectiveMA(player, this.state);
-
     if (used >= moveAllowance(withDriveModifiers(player, this.state)))
       return [];
 
-    const team = player.teamId === this.team1.id ? this.team1 : this.team2;
-    const opponentTeam =
-      player.teamId === this.team1.id ? this.team2 : this.team1;
-
-    const opponents = opponentTeam.players.filter((p) => p.gridPosition);
-    const teammates = team.players.filter(
+    const { own, opp } = teamsOf(this.deps, player);
+    const opponents = opp.players.filter((p) => p.gridPosition);
+    const teammates = own.players.filter(
       (p) => p.gridPosition && p.id !== player.id
     );
+    const proxyPlayer = this.withMovementLeft(player, used);
+    return reach === "walk"
+      ? this.movementValidator.findReachableSquares(
+          proxyPlayer,
+          opponents,
+          teammates
+        )
+      : reachWithJumps({
+          player: proxyPlayer,
+          start: position,
+          others: [...opponents, ...teammates],
+        });
+  }
 
-    let remainingMA = ma - used;
-    if (player.status === PlayerStatus.PRONE) {
-      remainingMA = Math.max(0, remainingMA - standUpCost(player));
-    }
+  private withMovementLeft(player: Player, used: number): Player {
+    const left = driveEffectiveMA(player, this.state) - used;
+    const MA =
+      player.status === PlayerStatus.PRONE
+        ? Math.max(0, left - standUpCost(player))
+        : left;
+    return { ...player, stats: { ...player.stats, MA } };
+  }
 
-    const proxyPlayer = {
-      ...player,
-      stats: {
-        ...player.stats,
-        MA: remainingMA,
-      },
-    };
-
-    return this.movementValidator.findReachableSquares(
-      proxyPlayer,
-      opponents,
-      teammates
-    );
+  private jumpUpToBlock(player: Player, maView: Player): boolean {
+    const declared = this.state.activePlayer;
+    if (
+      declared?.id !== player.id ||
+      declared.action !== "block" ||
+      !hasSkill(maView.skills ?? [], SkillType.JUMP_UP)
+    )
+      return false;
+    const check = this.diceController.rollSkillCheck({
+      reason: "Jump Up (stand to Block)",
+      target: player.stats.AG,
+      modifier: 1,
+      playerName: player.playerName,
+      teamId: player.teamId,
+    });
+    this.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: player.id,
+      skill: SkillType.JUMP_UP,
+      effect: check.success
+        ? "Jump Up: stood up to make a Block"
+        : "Jump Up: failed the stand-up test — Action wasted",
+    });
+    if (check.success) rise(this.deps, player, 0);
+    else this.callbacks.onActivationFinished(player.id);
+    return true;
   }
 
   public async standUp(playerId: string): Promise<void> {
     const player = findPlayer(this.deps, playerId);
-    if (!player || player.status !== PlayerStatus.PRONE) {
+    if (player?.status !== PlayerStatus.PRONE) {
       return Promise.reject("Player is not prone");
     }
 
     const maView = withDriveModifiers(player, this.state);
+    if (this.jumpUpToBlock(player, maView)) return;
 
-    if (
-      this.state.activePlayer?.id === playerId &&
-      this.state.activePlayer?.action === "block" &&
-      hasSkill(player.skills ?? [], SkillType.JUMP_UP)
-    ) {
-      const check = this.diceController.rollSkillCheck(
-        { reason: "Jump Up (stand to Block)",target: player.stats.AG,modifier: 1,playerName: player.playerName,teamId: player.teamId }      );
-      this.eventBus.emit(GameEventNames.SkillTriggered, {
-        playerId,
-        skill: SkillType.JUMP_UP,
-        effect: check.success
-          ? "Jump Up: stood up to make a Block"
-          : "Jump Up: failed the stand-up test — Action wasted",
-      });
-      if (!check.success) {
-        this.callbacks.onActivationFinished(playerId);
-        return;
-      }
-      player.status = PlayerStatus.ACTIVE;
-      this.eventBus.emit(GameEventNames.PlayerStoodUp, { playerId, cost: 0 });
-      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-      return;
-    }
-
-    const used = this.getMovementUsed(playerId);
-    const cost = standUpCost(maView);
-
-    if (used + cost > moveAllowance(maView)) {
+    const allowance = moveAllowance(maView);
+    if (this.getMovementUsed(playerId) + standUpCost(maView) > allowance) {
       return Promise.reject("Not enough movement to stand up");
     }
 
-    if (!(await rollToStand(this.deps, maView))) {
-      this.state.turn.movementUsed.set(playerId, used + cost);
-      this.callbacks.onActivationFinished(playerId);
-      return;
-    }
+    if (!(await standToMove(this.deps, player, maView))) return;
 
-    player.status = PlayerStatus.ACTIVE;
-    this.state.turn.movementUsed.set(playerId, used + cost);
-
-    this.eventBus.emit(GameEventNames.PlayerStoodUp, {
-      playerId,
-      cost,
-    });
-    this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-
-    if (used + cost >= moveAllowance(maView)) {
-      this.callbacks.onActivationFinished(playerId);
-    }
-
-    return Promise.resolve();
+    finishIfSpent(this.deps, player);
   }
 
   public movePlayer(

@@ -1,3 +1,4 @@
+import type { MoveReach } from "../game/validators/jumpReach";
 import { invokeCommand } from "./gameService/commandPromise";
 import type * as SetupTypes from "@/types/SetupTypes";
 import type * as InducementTypes from "@/types/Inducements";
@@ -637,15 +638,13 @@ export class GameService implements IGameService {
   }
 
   getAvailableMovements(
-    playerId: string
+    playerId: string,
+    reach?: MoveReach
   ): { x: number; y: number; cost?: number }[] {
-    return this.parts.movementManager.getAvailableMovements(playerId);
+    return this.parts.movementManager.getAvailableMovements(playerId, reach);
   }
 
-  movePlayer(
-    playerId: string,
-    path: MoveStep[]
-  ): Promise<void> {
+  movePlayer(playerId: string, path: MoveStep[]): Promise<void> {
     return moves.movePlayer(this.parts, playerId, path);
   }
 

@@ -3,6 +3,7 @@ import type { RouteRoll } from "./rollPreview";
 export type PlanRollKind =
   | RouteRoll["type"]
   | "gate"
+  | "standUp"
   | "pass"
   | "catch"
   | "armour";

@@ -1,3 +1,4 @@
+import { headlessCommandSchema } from "../../src/boundary/schemas/HeadlessCommand";
 import { getSkill, SkillType } from "../../src/types/Skills";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
@@ -84,6 +85,27 @@ describe("resumable match save", () => {
     expect(fixtureValue(restored.teams[0].players[0]).keywords).toEqual(
       fixtureValue(save.teams[0].players[0]).keywords
     );
+  });
+
+  it("restores a save held mid Stand Up, now a Move", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 21 });
+    const older = structuredClone(saveCurrent(game));
+    Reflect.set(older.snapshot, "activePlayer", {
+      id: fixtureValue(older.teams[0].players[0]).id,
+      action: "standUp",
+    });
+
+    const restored = deserializeMatchSave(serializeMatchSave(older));
+
+    expect(restored.snapshot.activePlayer?.action).toBe("move");
+  });
+
+  it("reads a recorded Stand Up declaration as a Move", () => {
+    const command = { type: "declare-action", playerId: "p1", action: "standUp" };
+    expect(headlessCommandSchema.parse(command)).toEqual({
+      ...command,
+      action: "move",
+    });
   });
 
   it("restores a save whose drive opened with Solid Defence, now Alert Defence", () => {

@@ -16,7 +16,8 @@ export type {
   LogEntryCategory,
   AnnouncementKind,
   MatchMoment,
-  
+  ActionStep,
+  MovementHalf,
 } from "./gameEvents/ui";
 
 export interface GameEvents

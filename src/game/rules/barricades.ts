@@ -1,5 +1,6 @@
 import type { MoveStep } from "../../headless/protocol";
 import { barricadeBetween } from "./pitchSquares";
+import { JUMP_COST, routeSquares, type RouteStep } from "./jump";
 
 interface Square {
   x: number;
@@ -34,13 +35,18 @@ export function stepCost(crossing: Crossing | null): number {
 
 export function planCrossings(
   start: Square,
-  path: readonly Square[],
+  path: readonly RouteStep[],
   { used, ma }: { used: number; ma: number }
-): MoveStep[] {
+): RouteStep[] {
   let spent = used;
   let from = start;
   return path.map((square, index) => {
-    const after = path.length - index - 1;
+    if (square.over) {
+      from = square;
+      spent += JUMP_COST;
+      return square;
+    }
+    const after = routeSquares(path.slice(index + 1));
     const safe = spent + 1 + SAFE_CROSSING_EXTRA + after <= ma;
     const crossing = barricadeBetween(from, square);
     from = square;

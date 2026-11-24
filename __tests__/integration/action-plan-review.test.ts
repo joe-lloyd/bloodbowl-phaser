@@ -1,82 +1,11 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { GameplayInteractionController } from "../../src/game/controllers/GameplayInteractionController";
+import { describe, expect, it, vi } from "vitest";
 import { PassController } from "../../src/game/controllers/PassController";
-import { MovementValidator } from "../../src/game/validators/MovementValidator";
-import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { GameEventNames, type ActionType, type AllEvents } from "../../src/types/events";
+import { GameEventNames, type AllEvents } from "../../src/types/events";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
-import type { PlayerPlacement } from "../../src/types/Scenario";
 import { forceDice } from "../utils/test-helpers";
-
-type Plan = AllEvents[typeof GameEventNames.UI_ActionPlan];
-
-let destroy: (() => void) | null = null;
-afterEach(() => {
-  destroy?.();
-  destroy = null;
-});
-
-function board(team1Placements: PlayerPlacement[], team2Placements: PlayerPlacement[]) {
-  const game = new HeadlessGame({
-    seed: 1,
-    scenario: {
-      id: "action-plan-review",
-      name: "Action plan review cases",
-      description: "Boards for the plan card regressions",
-      setup: {
-        team1Placements,
-        team2Placements,
-        activeTeam: "team1",
-        phase: GamePhase.PLAY,
-        subPhase: SubPhase.TURN_RECEIVING,
-        ...(team1Placements.some((p) => p.hasBall) ? {} : { ballPosition: { x: 1, y: 1 } }),
-      },
-    },
-  });
-  const members: Record<string, unknown> = {
-    worldToGrid: (x: number, y: number) => ({ x, y }),
-    getPixelPosition: (x: number, y: number) => ({ x, y }),
-    highlightSquare: () => ({ destroy: vi.fn() }),
-  };
-  const pitch = new Proxy(members, {
-    get: (target, key: string) => (target[key] ??= vi.fn()),
-  });
-  const controller = new GameplayInteractionController({
-    scene: {
-      team1: game.ctx.team1,
-      team2: game.ctx.team2,
-      events: { on: vi.fn(), off: vi.fn() },
-      highlightPlayer: vi.fn(),
-      unhighlightPlayer: vi.fn(),
-      cameras: { main: { worldView: { x: 0, y: 0 }, zoom: 1 } },
-      scale: { width: 800, height: 600 },
-    } as never,
-    gameService: game.ctx.gameService,
-    eventBus: game.ctx.eventBus,
-    pitch: pitch as never,
-    movementValidator: new MovementValidator(),
-  });
-  destroy = () => {
-    controller.destroy();
-  };
-  const { eventBus } = game.ctx;
-  const seen: { plan: Plan; notes: string[]; dice: string[] } = { plan: null, notes: [], dice: [] };
-  eventBus.on(GameEventNames.UI_ActionPlan, (plan) => {
-    seen.plan = plan;
-  });
-  eventBus.on(GameEventNames.UI_Notification, (note) => seen.notes.push(note));
-  eventBus.on(GameEventNames.DiceRoll, (roll) => seen.dice.push(roll.description));
-  const act = (index: number, action: ActionType) => {
-    const id = fixtureValue(game.ctx.team1.players[index]).id;
-    controller.handlePlayerClick(id);
-    eventBus.emit(GameEventNames.UI_ActionSelected, { playerId: id, action });
-    return fixtureValue(game.ctx.team1.players[index]);
-  };
-  return { game, controller, seen, act };
-}
+import { board } from "../utils/interaction-board";
 
 describe("action plan review fixes", () => {
   it("settles a deferred Bone Head roll before a Jump", async () => {
@@ -90,6 +19,8 @@ describe("action plan review fixes", () => {
     expect(seen.dice).toEqual([]);
 
     game.ctx.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "jump" });
+    await controller.onSquareClicked(12, 5);
+    expect(seen.dice).toEqual([]);
     await controller.onSquareClicked(12, 5);
 
     expect(seen.dice[0]).toContain("Bone Head");
@@ -111,6 +42,8 @@ describe("action plan review fixes", () => {
 
     game.ctx.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "jump" });
     await controller.onSquareClicked(12, 5);
+    expect(fixtureValue(seen.plan).squares).toBe(3);
+    await controller.onSquareClicked(12, 5);
 
     await vi.waitFor(() => {
       expect(jumper.gridPosition).toEqual({ x: 12, y: 5 });
@@ -131,9 +64,10 @@ describe("action plan review fixes", () => {
 
     game.ctx.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "jump" });
     await controller.onSquareClicked(12, 5);
+    await controller.onSquareClicked(12, 5);
 
-    expect(seen.notes).toContain("Cannot Jump: Error: refused");
-    expect(jumper.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(seen.notes).toContain("Cannot move: Error: refused");
+    expect(jumper.gridPosition).toEqual({ x: 10, y: 6 });
     expect(controller.selectedPlayerId).toBe(jumper.id);
     expect(seen.plan).toBeNull();
   });

@@ -93,7 +93,7 @@ const availabilityFor = (
     ballPosition: state.ballPosition ?? null,
     opponents: gs.getOpponents(player.teamId),
     teammates: gs.getTeammates(player.id),
-    reachable: gs.getAvailableMovements(player.id),
+    reachable: gs.getAvailableMovements(player.id, "jump"),
     turn: state.turn,
     hasMovedInAction,
   });

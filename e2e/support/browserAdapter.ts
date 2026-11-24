@@ -63,11 +63,13 @@ async function performStep(
       return;
 
     case "jump":
+      await app.hud.selectActionStep("jump");
+      await app.pitch.clickSquare({ x: command.x, y: command.y });
       await app.pitch.clickSquare({ x: command.x, y: command.y });
       return;
 
     case "stand-up":
-      await app.hud.declareAction(command.playerId, "standUp");
+      await app.hud.standUp(command.playerId);
       return;
 
     case "block":

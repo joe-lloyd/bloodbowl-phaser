@@ -7,7 +7,7 @@ import {
 } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "./throwTeammate";
-import { jumpTargets } from "./jump";
+import { legalJumpTargets } from "./jump";
 import { canSecureBall } from "./secureBall";
 import {
   type BlockReplacement,
@@ -19,7 +19,6 @@ import {
 } from "./blockReplacements";
 import { type ActionType } from "../../types/events";
 import { chebyshev } from "./chebyshev";
-import { isStandableSquare } from "./pitchSquares";
 
 const ACTIONS_WITH_A_MOVE: ReadonlySet<ActionType> = new Set<ActionType>([
   "move",
@@ -34,8 +33,12 @@ const ACTIONS_WITH_A_MOVE: ReadonlySet<ActionType> = new Set<ActionType>([
   "ballAndChain",
 ]);
 
-export function actionHasMove(action: ActionType): boolean {
+function actionHasMove(action: ActionType): boolean {
   return ACTIONS_WITH_A_MOVE.has(action);
+}
+
+export function usesBaseMove(action: ActionType): boolean {
+  return actionHasMove(action) && action !== "ballAndChain";
 }
 
 export function razzleDazzleAllows(
@@ -58,6 +61,15 @@ export interface TurnFlags {
   hasKickedTeamMate: boolean;
   hasPunted?: boolean;
 }
+
+const UNSPENT_FLAGS: TurnFlags = {
+  hasBlitzed: false,
+  hasPassed: false,
+  hasHandedOff: false,
+  hasFouled: false,
+  hasThrownTeamMate: false,
+  hasKickedTeamMate: false,
+};
 
 export interface ActionAvailabilityInput {
   player: Player;
@@ -311,21 +323,11 @@ function standingStillActions(board: ActingBoard) {
     hasSkill(player.skills, SkillType.MULTIPLE_BLOCK) &&
     adjacentEnemies.length >= 2;
 
-  const canJumpAnything =
-    hasSkill(player.skills, SkillType.LEAP) ||
-    hasSkill(player.skills, SkillType.POGO);
   const jump =
     isStanding(player) &&
-    jumpTargets(
-      here,
-      [...opponents, ...teammates].filter(onPitch),
-      canJumpAnything,
-      inBounds
-    ).length > 0;
+    legalJumpTargets(player, here, [...opponents, ...teammates]).length > 0;
   return { block, multipleBlock, jump };
 }
-
-const inBounds = (x: number, y: number) => isStandableSquare({ x, y });
 
 function blockReplacementActions(board: ActingBoard) {
   const { player, opponents, reachable, turn } = board.input;
@@ -382,6 +384,46 @@ function skillActions(board: ActingBoard) {
     (isStanding(player) || player.status === PlayerStatus.PRONE) &&
     canHaveBall;
   return { gaze, throwTeammate, kickTeammate, throwBomb, punt };
+}
+
+type AfterMove = Extract<
+  ActionType,
+  "pass" | "punt" | "handoff" | "foul" | "gaze" | "throwTeamMate"
+>;
+
+const LEFT_AFTER_MOVE: Record<
+  AfterMove,
+  (available: ActionAvailability) => boolean
+> = {
+  pass: ({ pass }) => pass,
+  punt: ({ punt }) => punt,
+  handoff: ({ handoff }) => handoff,
+  foul: ({ foul }) => foul,
+  gaze: ({ gaze }) => gaze,
+  throwTeamMate: ({ throwTeammate, kickTeammate }) =>
+    throwTeammate || kickTeammate,
+};
+
+const endsWithAnAct = (action: ActionType): action is AfterMove =>
+  action in LEFT_AFTER_MOVE;
+
+export function actsFromHere(
+  action: ActionType,
+  board: Pick<
+    ActionAvailabilityInput,
+    "player" | "ballPosition" | "opponents" | "teammates"
+  >
+): boolean {
+  if (!endsWithAnAct(action) || board.player.status !== PlayerStatus.ACTIVE)
+    return false;
+  return LEFT_AFTER_MOVE[action](
+    computeActionAvailability({
+      ...board,
+      reachable: [],
+      turn: UNSPENT_FLAGS,
+      hasMovedInAction: false,
+    })
+  );
 }
 
 export function computeActionAvailability(

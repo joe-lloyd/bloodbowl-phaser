@@ -10,6 +10,7 @@ import { PlayerStatus } from "../../../src/types/Player";
 import {
   mockScene,
   mockGameService,
+  mockMovementValidator,
   player1,
   createController,
 } from "./GameplayInteractionController.setup";
@@ -223,5 +224,27 @@ describe("GameplayInteractionController", () => {
       expect(serviceSpies.foulPlayer).toHaveBeenCalledWith("p1", 6, 5);
       expect(mockScene.unhighlightPlayer).toHaveBeenCalledWith("p1");
     });
+  });
+
+  it.each([
+    { step: "throw", mateX: 5, throws: 1 },
+    { step: "move", mateX: 5, throws: 0 },
+    { step: "throw", mateX: 9, throws: 0 },
+  ])("throws a team-mate at x $mateX $throws times from the $step step", async ({ step, mateX, throws }) => {
+    mockGameService.getAvailableMovements.mockReturnValue([]);
+    mockMovementValidator.findPath.mockReturnValue({ cost: 0, valid: false, path: [], rolls: [] });
+    const throwTeammate = vi.fn().mockResolvedValue(undefined);
+    Object.assign(mockGameService, { throwTeammate });
+    mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+    mockGameService.isTouchbackPending.mockReturnValue(false);
+    mockGameService.getState.mockReturnValue(stateWith({ ballPosition: null }));
+    mockGameService.getPlayerById.mockImplementation((id: string) => playerWith({ id, teamId: "team1", gridPosition: { x: id === "p1" ? 5 : mateX, y: id === "p1" ? 5 : 6 }, status: "Active", skills: [] }));
+    controller.getPlayerAt = vi.fn().mockReturnValue(null);
+    controller.currentActionMode = "throwTeamMate";
+    controller.selectedPlayerId = "p1";
+    controller.ttmTeammateId = "p2";
+    controller.currentStepId = step;
+    await controller.onSquareClicked(7, 5);
+    expect(throwTeammate).toHaveBeenCalledTimes(throws);
   });
 });

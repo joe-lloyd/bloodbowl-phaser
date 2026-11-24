@@ -20,6 +20,7 @@ import { drawKickTarget, KICK_TARGET_LAYER } from "./kickTargetRing";
 
 const ROLL_LETTER: Record<RouteRoll["type"], string> = {
   dodge: "D",
+  jump: "J",
   rush: "R",
   barricade: "B",
   pickup: "P",
@@ -320,7 +321,6 @@ export class Pitch {
       dest: { x: number; y: number };
     }[]
   ): void {
-    this.clearPath();
     if (targets.length === 0) return;
     const a = gridToPixel(from.x, from.y);
 

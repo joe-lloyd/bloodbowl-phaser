@@ -203,7 +203,6 @@ export type ActionType =
   | "punt"
   | "handoff"
   | "foul"
-  | "standUp"
   | "throwTeamMate"
   | "secureBall"
   | "special"

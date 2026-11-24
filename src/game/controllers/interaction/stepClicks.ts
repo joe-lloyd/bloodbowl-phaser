@@ -18,6 +18,7 @@ import {
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { SPECIAL_ACTION_MODES } from "./actionSteps";
 import { type FinishKind, finishKindAt } from "./plan";
+import { showSteps } from "./movement";
 
 export interface SquareClick {
   x: number;
@@ -222,10 +223,7 @@ function pickTeamMate(c: GameplayInteractionController, mate: Player): void {
   c.ttmTeammateId = mate.id;
   if (c.currentStepId !== "throw") {
     c.currentStepId = "throw";
-    c.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-      steps: c.actionSteps,
-      currentStepId: c.currentStepId,
-    });
+    showSteps(c);
   }
   c.eventBus.emit(
     GameEventNames.UI_Notification,
@@ -267,13 +265,23 @@ async function throwTeamMateAt(
   }
 }
 
+function dropTeamMateOutOfReach(
+  c: GameplayInteractionController,
+  thrower: Player | undefined
+): void {
+  const at = c.gameService.getPlayerById(c.ttmTeammateId ?? "")?.gridPosition;
+  if (!at || !withinOneSquare(thrower?.gridPosition, at))
+    c.ttmTeammateId = null;
+}
+
 function teamMateClickFor(
   c: GameplayInteractionController,
   selectedId: string,
   click: SquareClick
 ): StepClick | null {
-  if (c.ttmTeammateId) return throwTeamMateAt;
   const thrower = c.gameService.getPlayerById(selectedId);
+  dropTeamMateOutOfReach(c, thrower);
+  if (c.ttmTeammateId && c.currentStepId === "throw") return throwTeamMateAt;
   const mate = teamMateToThrow(thrower, click);
   if (mate)
     return () => {

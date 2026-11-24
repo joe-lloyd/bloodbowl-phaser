@@ -1,6 +1,12 @@
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type Player, PlayerStatus } from "../../types/Player";
+import type { MoveStep } from "../../headless/protocol";
 import { isStandableSquare } from "./pitchSquares";
+
+interface Square {
+  x: number;
+  y: number;
+}
 
 export interface JumpTarget {
   over: { x: number; y: number };
@@ -103,9 +109,29 @@ export function jumpTargets(
   return out;
 }
 
+export function mayJumpAnything(player: Player): boolean {
+  return (
+    hasSkill(player.skills, SkillType.LEAP) ||
+    hasSkill(player.skills, SkillType.POGO)
+  );
+}
+
 export function legalJumpTargets(player: Player, from: { x: number; y: number }, players: Player[]): JumpTarget[] {
   const others = players.filter((other) => other.id !== player.id && other.gridPosition);
-  const canJumpAnything = hasSkill(player.skills, SkillType.LEAP) || hasSkill(player.skills, SkillType.POGO);
   const inBounds = (x: number, y: number) => isStandableSquare({ x, y });
-  return jumpTargets(from, others, canJumpAnything, inBounds);
+  return jumpTargets(from, others, mayJumpAnything(player), inBounds);
+}
+
+export const JUMP_COST = 2;
+
+export function jumpRushes(used: number, ma: number): number {
+  return Math.min(JUMP_COST, Math.max(0, used + JUMP_COST - ma));
+}
+
+export interface RouteStep extends MoveStep {
+  over?: Square;
+}
+
+export function routeSquares(route: readonly RouteStep[]): number {
+  return route.reduce((sum, step) => sum + (step.over ? JUMP_COST : 1), 0);
 }

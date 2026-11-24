@@ -1,4 +1,15 @@
-import { dodgeTarget, markingPlayers, type RouteRoll } from "./rollPreview";
+import {
+  dodgeTarget,
+  jumpTarget,
+  markingPlayers,
+  type RouteRoll,
+} from "./rollPreview";
+import {
+  JUMP_COST,
+  jumpRushes,
+  routeSquares,
+  type RouteStep,
+} from "./jump";
 import { type Player } from "../../types/Player";
 import { activeRules } from "../variants/activeMatch";
 import type { MoveStep } from "../../headless/protocol";
@@ -32,7 +43,8 @@ export interface ClimbChoice {
 export type MoveLeg =
   | { risk: null; path: [MoveStep, ...MoveStep[]] }
   | { risk: StepRisk; path: [MoveStep] }
-  | { risk: StepRisk | null; path: [MoveStep]; climb: ClimbChoice };
+  | { risk: StepRisk | null; path: [MoveStep]; climb: ClimbChoice }
+  | { risk: StepRisk; path: [RouteStep]; jump: true };
 
 export interface LegContext {
   opponents: Player[];
@@ -48,35 +60,57 @@ export interface LegContext {
   pickup?: { square: Square; target: number; securing?: boolean };
 }
 
+type Pickup = LegContext["pickup"];
+
 const need = (target: number) => Math.min(6, Math.max(2, target));
 
-function pickupAt(pickup: LegContext["pickup"], step: Square) {
+function pickupAt(pickup: Pickup, step: Square) {
   return pickup && pickup.square.x === step.x && pickup.square.y === step.y
     ? pickup
     : null;
 }
 
-function riskAt({
-  from,
-  step,
-  ctx,
-  spent,
-  pickup,
-}: {
+interface StepAt {
   from: Square;
-  step: MoveStep;
+  step: RouteStep;
   ctx: LegContext;
   spent: number;
-  pickup: LegContext["pickup"];
-}) {
+  pickup: Pickup;
+}
+
+const rushRoll = (ctx: LegContext): StepRoll => ({
+  type: "rush",
+  target: need(activeRules().rushTarget - ctx.rushModifier),
+});
+
+function pickupRolls(ball: NonNullable<Pickup> | null): StepRoll[] {
+  if (!ball) return [];
+  return [
+    { type: ball.securing ? "secureBall" : "pickup", target: ball.target },
+  ];
+}
+
+function jumpRisk({ from, step, ctx, spent, pickup }: StepAt): StepRisk {
+  const { player, opponents, ma } = ctx;
+  const rushes = Array.from({ length: jumpRushes(spent, ma) }, () =>
+    rushRoll(ctx)
+  );
+  const jump: StepRoll = {
+    type: "jump",
+    target: jumpTarget({ player, from, to: step, opponents }),
+  };
+  const landing = pickupRolls(pickupAt(pickup, step));
+  const [first, ...rest] = rushes;
+  return first
+    ? [first, ...rest, jump, ...landing]
+    : [jump, ...landing];
+}
+
+function riskAt({ from, step, ctx, spent, pickup }: StepAt) {
   const ball = pickupAt(pickup, step);
   const crossing = crossingAt({ from, step, used: spent, ma: ctx.ma });
   const rolls: StepRoll[] = [];
-  if (spent + 1 > ctx.ma)
-    rolls.push({
-      type: "rush",
-      target: need(activeRules().rushTarget - ctx.rushModifier),
-    });
+  if (spent + 1 > ctx.ma) rolls.push(rushRoll(ctx));
   if (markingPlayers(from, ctx.opponents).length > 0)
     rolls.push({
       type: "dodge",
@@ -89,21 +123,16 @@ function riskAt({
     });
   if (crossing === "reckless")
     rolls.push({ type: "barricade", target: RECKLESS_CROSSING_TARGET });
-  if (ball)
-    rolls.push({
-      type: ball.securing ? "secureBall" : "pickup",
-      target: ball.target,
-    });
+  rolls.push(...pickupRolls(ball));
   const [first, ...rest] = rolls;
   return {
     risk: first ? ([first, ...rest] as const) : null,
     cost: stepCost(crossing),
-    pickedUp: ball !== null,
   };
 }
 
 function climbChoice(
-  at: Parameters<typeof riskAt>[0],
+  at: StepAt,
   after: number
 ): ClimbChoice | null {
   const { from, step, ctx, spent } = at;
@@ -119,7 +148,7 @@ function climbChoice(
 type PlannedStep = { walk: MoveStep } | { leg: MoveLeg };
 
 function stepLeg(
-  at: Parameters<typeof riskAt>[0],
+  at: StepAt,
   risk: StepRisk | null,
   after: number
 ): PlannedStep {
@@ -129,9 +158,21 @@ function stepLeg(
   return risk ? { leg: { risk, path: [at.step] } } : { walk: at.step };
 }
 
+function planStep(
+  at: StepAt,
+  rest: RouteStep[]
+): { planned: PlannedStep; cost: number } {
+  if (at.step.over) {
+    const leg: MoveLeg = { risk: jumpRisk(at), path: [at.step], jump: true };
+    return { planned: { leg }, cost: JUMP_COST };
+  }
+  const { risk, cost } = riskAt(at);
+  return { planned: stepLeg(at, risk, routeSquares(rest)), cost };
+}
+
 function plannedSteps(
   start: Square,
-  path: Square[],
+  path: RouteStep[],
   ctx: LegContext
 ): PlannedStep[] {
   const steps: PlannedStep[] = [];
@@ -140,18 +181,18 @@ function plannedSteps(
   let pickup = ctx.pickup;
   for (const [index, step] of planCrossings(start, path, ctx).entries()) {
     const at = { from, step, ctx, spent, pickup };
-    const { risk, cost, pickedUp } = riskAt(at);
-    steps.push(stepLeg(at, risk, path.length - index - 1));
+    const { planned, cost } = planStep(at, path.slice(index + 1));
+    steps.push(planned);
     from = step;
     spent += cost;
-    if (pickedUp) pickup = undefined;
+    if (pickupAt(pickup, step)) pickup = undefined;
   }
   return steps;
 }
 
 export function planMoveLegs(
   start: Square,
-  path: Square[],
+  path: RouteStep[],
   ctx: LegContext
 ): MoveLeg[] {
   const legs: MoveLeg[] = [];

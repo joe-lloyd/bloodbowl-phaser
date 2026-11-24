@@ -3,12 +3,16 @@ import { useActionSelection } from "./useActionSelection";
 import type React from "react";
 import type { EventBus } from "../../../services/EventBus";
 import { useHeldOnline } from "../../hooks/useHeldOnline";
-import { PlayerStatus, type Player } from "../../../types/Player";
-import { GameEventNames, type ActionType } from "../../../types/events";
+import type { Player } from "../../../types/Player";
+import {
+  GameEventNames,
+  type ActionStep,
+  type ActionType,
+} from "../../../types/events";
 import type { BlockReplacement } from "../../../types/BlockReplacement";
 import { Panel } from "../componentWarehouse/HudKit";
 import { ActionStepper } from "./ActionStepper";
-import { MenuHeader, ActionList } from "./actionMenuButtons";
+import { MenuHeader, ActionList, type ActionChoice } from "./actionMenuButtons";
 import {
   menuActionRequest,
   actingSide,
@@ -53,14 +57,11 @@ export function PlayerActionMenu(props: PlayerActionMenuProps) {
 
   if (selectedPlayer.teamId !== effectiveActiveTeamId) return null;
 
-  const handleAction = (
-    action: ActionType,
-    blockReplacement?: BlockReplacement
-  ) => {
+  const handleAction = (action: ActionType, choice: ActionChoice) => {
     eventBus.emit(
       GameEventNames.UI_ActionSelected,
       menuActionRequest(selectedPlayer.id, action, {
-        blockReplacement,
+        ...choice,
         razzleOn,
         canRazzle,
       })
@@ -90,7 +91,7 @@ interface PlayerActionMenuViewProps {
   compact: boolean;
   selectedPlayer: Player;
   secondActionAfter: ActionType | undefined;
-  actionSteps: { id: string; label: string }[];
+  actionSteps: ActionStep[];
   currentStepId: string | null;
   eventBus: EventBus;
   hasMovedInAction: boolean;
@@ -109,10 +110,7 @@ interface PlayerActionMenuViewProps {
     };
     stalling?: boolean;
   } | null;
-  handleAction: (
-    action: ActionType,
-    blockReplacement?: BlockReplacement
-  ) => void;
+  handleAction: (action: ActionType, choice: ActionChoice) => void;
   availability: ActionAvailability;
   canRazzle: boolean;
   razzleOn: boolean;
@@ -168,7 +166,6 @@ function PlayerActionMenuView({
           <ActionList
             onAction={handleAction}
             availability={availability}
-            isProne={selectedPlayer.status === PlayerStatus.PRONE}
             hasActed={selectedPlayer.hasActed}
             compact={compact}
             canRazzle={canRazzle}

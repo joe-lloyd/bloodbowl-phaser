@@ -7,6 +7,14 @@ import { type SidelineCrewInfo } from "../../game/presentation/sidelineStaff";
 import type { StepPrompt } from "./network";
 import type { ActionType } from "./match";
 
+export type MovementHalf = "jump" | "standup";
+
+export interface ActionStep {
+  id: string;
+  label: string;
+  half?: MovementHalf;
+}
+
 export interface CommonUIEvents {
   [GameEventNames.UI_PlayerHired]: { position: string };
   [GameEventNames.UI_PlayerFired]: { playerId: string };
@@ -21,6 +29,8 @@ export interface CommonUIEvents {
     blockReplacement?: import("../BlockReplacement").BlockReplacement;
 
     razzleDazzle?: boolean;
+
+    half?: MovementHalf;
   };
   [GameEventNames.UI_ConfirmAction]: { actionId: string };
   [GameEventNames.UI_CancelAction]: void;
@@ -151,7 +161,7 @@ export interface CommonUIEvents {
 
   [GameEventNames.UI_UpdateActionSteps]: {
     currentStepId: string;
-    steps: { id: string; label: string }[];
+    steps: ActionStep[];
   };
 
   [GameEventNames.UI_WizardTargeting]: {
