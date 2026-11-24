@@ -72,6 +72,7 @@ export function noteFor(a: Activation): string {
     blitz: "blitzes",
     reposition:
       a.intent.kind === "reposition" ? `moves to ${a.intent.role}` : "moves",
+    punt: "punts",
     "stand-up": "stands up",
   }[a.intent.kind];
   const rolls = a.rolls.map((r) => rollLabel(ROLL_NAMES[r.kind], r.target));
@@ -108,13 +109,37 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
   if ("to" in intent) return transferStep(candidates, player.id, intent);
   if ("targets" in intent)
     return multipleBlockStep(candidates, player.id, intent.targets);
-  if ("mate" in intent) return thrownStep(candidates, player.id, intent);
-  return intent.kind === "stand-up"
-    ? commandIndex(
-        candidates,
-        (c) => c.type === "stand-up" && c.playerId === player.id
-      )
-    : -1;
+  if ("aim" in intent) return aimedStep(candidates, player.id, intent);
+  return intent.kind === "stand-up" ? standUpStep(candidates, player.id) : -1;
+}
+
+function aimedStep(
+  candidates: readonly Candidate[],
+  id: string,
+  intent: Extract<Intent, { aim: Square }>
+): number {
+  return intent.kind === "punt"
+    ? puntStep(candidates, id, intent.aim)
+    : thrownStep(candidates, id, intent);
+}
+
+function puntStep(
+  candidates: readonly Candidate[],
+  id: string,
+  aim: Square
+): number {
+  return commandIndex(
+    candidates,
+    (c) =>
+      c.type === "punt" && c.playerId === id && c.x === aim.x && c.y === aim.y
+  );
+}
+
+function standUpStep(candidates: readonly Candidate[], id: string): number {
+  return commandIndex(
+    candidates,
+    (c) => c.type === "stand-up" && c.playerId === id
+  );
 }
 
 function standUpFirst(
@@ -122,10 +147,7 @@ function standUpFirst(
   player: Player
 ): number {
   if (player.status !== PlayerStatus.PRONE) return -1;
-  return commandIndex(
-    candidates,
-    (c) => c.type === "stand-up" && c.playerId === player.id
-  );
+  return standUpStep(candidates, player.id);
 }
 
 function movementStep(

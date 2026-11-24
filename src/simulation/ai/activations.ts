@@ -26,6 +26,7 @@ import { repositionActivation, roleSquares } from "./repositionActivations";
 import { SKILL_PLANS } from "./skillActivations";
 import { foulActivations } from "./foulActivations";
 import { gatePriced } from "./gateActivations";
+import { puntActivations } from "./puntActivations";
 import { pickupActivation } from "./pickupActivations";
 import {
   feedActivations,
@@ -75,6 +76,7 @@ export type Intent =
   | { kind: "foul"; target: Player; route: Route | null }
   | { kind: "blitz"; target: Player; route: Route | null }
   | { kind: "reposition"; role: Role; route: Route }
+  | { kind: "punt"; aim: Square }
   | { kind: "stand-up" };
 
 export interface Activation {
@@ -97,6 +99,8 @@ export function planIdentity(plan: Activation): string {
   if ("target" in intent) return `${prefix}/${intent.target.id}`;
   if ("mate" in intent)
     return `${prefix}/${intent.mate.id}/${String(intent.aim.x)},${String(intent.aim.y)}`;
+  if ("aim" in intent)
+    return `${prefix}/${String(intent.aim.x)},${String(intent.aim.y)}`;
   if ("targets" in intent)
     return `${prefix}/${intent.targets
       .map((player) => player.id)
@@ -125,6 +129,7 @@ function carrierOptions(
   if (actions.has("move")) out.push(...carrierActivations(c, player));
   if (actions.has("handoff")) out.push(...handoffActivations(c, player));
   if (actions.has("pass")) out.push(...passActivations(c, player));
+  if (actions.has("punt")) out.push(...puntActivations(c, player));
   if (actions.has("blitz")) out.push(...carrierBlitzActivations(c, player));
   return out;
 }
@@ -365,4 +370,6 @@ const CONTINUATIONS: Partial<
   handoff: (c, player) => transferContinuation(c, player, "handoff"),
   pass: (c, player) => transferContinuation(c, player, "pass"),
   foul: foulActivations,
+  punt: (c, player) =>
+    carrierOf(c.board)?.id === player.id ? puntActivations(c, player) : [],
 };

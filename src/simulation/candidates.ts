@@ -59,6 +59,7 @@ const SUPPORTED_DECLARATIONS = new Set<ActionType>([
   "secureBall",
   "gaze",
   "throwTeamMate",
+  "punt",
 ]);
 
 export async function enumerateDecision(

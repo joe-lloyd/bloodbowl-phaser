@@ -50,16 +50,29 @@ interface StepContext {
   step: (command: HeadlessCommand, label: string) => void;
 }
 
+const FACINGS = [
+  { x: 1, y: 0 },
+  { x: -1, y: 0 },
+  { x: 0, y: 1 },
+  { x: 0, y: -1 },
+] as const;
+
+function puntSteps({ player, at, action, carrying, step }: StepContext): void {
+  if (action !== "punt" || !carrying) return;
+  for (const facing of FACINGS) {
+    const toward = { x: at.x + facing.x, y: at.y + facing.y };
+    step(
+      { type: "punt", playerId: player.id, ...facing },
+      `${describePlayer(player)} punts towards ${square(toward)}`
+    );
+  }
+}
+
 function ballAndChainSteps({ player, at, action, step }: StepContext): void {
   if (action !== "ballAndChain" || player.status !== PlayerStatus.ACTIVE)
     return;
 
-  for (const facing of [
-    { x: 1, y: 0 },
-    { x: -1, y: 0 },
-    { x: 0, y: 1 },
-    { x: 0, y: -1 },
-  ]) {
+  for (const facing of FACINGS) {
     const toward = { x: at.x + facing.x, y: at.y + facing.y };
     step(
       { type: "ball-and-chain", playerId: player.id, ...facing },
@@ -360,6 +373,7 @@ const STEP_PASSES = [
   handoffSteps,
   foulSteps,
   throwTeammateSteps,
+  puntSteps,
 ];
 
 export function stepCandidates(
