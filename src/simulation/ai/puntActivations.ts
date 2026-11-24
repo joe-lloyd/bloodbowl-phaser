@@ -4,15 +4,15 @@ import {
   canCarry,
   distance,
   key,
-  onPitch,
   standing,
   toGoal,
 } from "./board";
 import type { Activation } from "./activations";
 import { type Context, tierFor } from "./activationContext";
+import { isOnPitch } from "../../game/rules/pitchSquares";
 import { catchTarget } from "../../game/rules/rollPreview";
 import { d6 } from "./chance";
-import { finalBallLoss, nextTurnReach } from "./latePlans";
+import { finalBallLoss } from "./latePlans";
 import {
   DIRS,
   templateOffset,
@@ -47,7 +47,7 @@ function landings(from: Square, aim: Square): Landing[] {
     if (!way) return [];
     return DIE.map((far) => {
       const at = { x: from.x + way.x * far, y: from.y + way.y * far };
-      return { at, inBounds: onPitch(at) };
+      return { at, inBounds: isOnPitch(at) };
     });
   });
 }
@@ -57,14 +57,19 @@ function lost(c: Context, at: Square): number {
   return board.turnsLeft === 0 ? finalBallLoss(c, at, w.ballLoss) : w.ballLoss;
 }
 
+function progressWorth({ c, from }: Punt, at: Square): number {
+  const { board, w } = c;
+  if (board.turnsLeft === 0) return 0;
+  return (toGoal(board, from) - toGoal(board, at)) * w.advance * c.urgency;
+}
+
 function heldWorth({ c, from }: Punt, at: Square, mate: Player): number {
   const { board, w } = c;
   const goal = toGoal(board, at);
   if (goal === 0) return w.touchdown;
-  const runs = c.available.has(mate.id) && goal <= nextTurnReach(mate);
-  if (runs && goal <= mate.stats.MA) return w.touchdown * w.safeScore;
-  if (board.turnsLeft === 0) return 0;
-  return (toGoal(board, from) - goal) * w.advance * c.urgency;
+  if (c.available.has(mate.id) && goal <= mate.stats.MA)
+    return w.touchdown * w.safeScore;
+  return progressWorth({ c, from }, at);
 }
 
 function looseWorth(punt: Punt, at: Square): number {
@@ -85,7 +90,7 @@ function looseWorth(punt: Punt, at: Square): number {
       const scores = toGoal(board, at) <= left;
       return scores
         ? c.w.touchdown * PICK_UP
-        : heldWorth(punt, at, p) * PICK_UP;
+        : progressWorth(punt, at) * PICK_UP;
     })
   );
   const share = collectors.length > 0 ? 1 - PICK_UP : 1;

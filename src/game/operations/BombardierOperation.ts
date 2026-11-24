@@ -174,7 +174,7 @@ export class BombardierOperation extends GameOperation {
         GameEventNames.UI_Notification,
         "The bomb is dropped and explodes!"
       );
-      explodeBomb(context, { ...newThrower.gridPosition });
+      explodeBomb(context, { ...newThrower.gridPosition }, newThrowerId);
       return;
     }
 
