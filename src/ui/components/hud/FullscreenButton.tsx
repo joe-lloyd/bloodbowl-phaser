@@ -1,4 +1,5 @@
-import { goFullscreenLandscape } from "./fullscreen";
+import { runsInstalled } from "../../../boundary/pwa";
+import { goFullscreen } from "./fullscreen";
 import { useEffect, useState } from "react";
 
 export function FullscreenButton() {
@@ -14,7 +15,7 @@ export function FullscreenButton() {
       document.removeEventListener("fullscreenchange", update);
     };
   }, []);
-  if (typeof document === "undefined" || !document.fullscreenEnabled)
+  if (runsInstalled || typeof document === "undefined" || !document.fullscreenEnabled)
     return null;
   return (
     <button
@@ -22,7 +23,7 @@ export function FullscreenButton() {
       data-testid="fullscreen-toggle"
       aria-label={full ? "Leave full screen" : "Full screen"}
       onClick={() =>
-        full ? void document.exitFullscreen() : void goFullscreenLandscape()
+        full ? void document.exitFullscreen() : void goFullscreen()
       }
       className="hud-slab flex h-11 w-11 items-center justify-center text-hud-lg text-hud-bone pointer-events-auto"
     >

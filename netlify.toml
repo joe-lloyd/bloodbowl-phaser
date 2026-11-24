@@ -25,6 +25,19 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
+# The service worker and the manifest must never go stale, or an installed
+# game would keep an old worker.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Content-Type = "application/manifest+json"
+
 # Allow the Firebase Google sign-in popup (signInWithPopup) to talk back to
 # the opener. Mirrors the COOP header the Vite dev server sets; without it a
 # strict default can break the OAuth popup.
