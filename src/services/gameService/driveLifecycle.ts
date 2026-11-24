@@ -415,6 +415,5 @@ function resetTurnUsage(state: GameParts["state"]): void {
   state.turn.hasThrownTeamMate = false;
   state.turn.hasKickedTeamMate = false;
   state.turn.hasThrownBomb = false;
-  delete state.turn.hasPunted;
   delete state.turnUsage;
 }

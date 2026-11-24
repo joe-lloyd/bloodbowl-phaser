@@ -81,7 +81,7 @@ function menuTurnFlags({
     hasBlitzed: !!turnData.hasBlitzed,
     hasPassed: !!turnData.hasPassed,
     hasHandedOff: !!turnData.hasHandedOff,
-    hasPunted: !activeCharge?.charge && !!state.turn.hasPunted,
+    hasPunted: !!state.turn.hasPunted,
 
     hasThrownTeamMate: state.turn.hasThrownTeamMate,
     hasKickedTeamMate: state.turn.hasKickedTeamMate,
