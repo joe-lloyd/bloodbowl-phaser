@@ -265,13 +265,23 @@ async function throwTeamMateAt(
   }
 }
 
+function dropTeamMateOutOfReach(
+  c: GameplayInteractionController,
+  thrower: Player | undefined
+): void {
+  const at = c.gameService.getPlayerById(c.ttmTeammateId ?? "")?.gridPosition;
+  if (!at || !withinOneSquare(thrower?.gridPosition, at))
+    c.ttmTeammateId = null;
+}
+
 function teamMateClickFor(
   c: GameplayInteractionController,
   selectedId: string,
   click: SquareClick
 ): StepClick | null {
-  if (c.ttmTeammateId && c.currentStepId === "throw") return throwTeamMateAt;
   const thrower = c.gameService.getPlayerById(selectedId);
+  dropTeamMateOutOfReach(c, thrower);
+  if (c.ttmTeammateId && c.currentStepId === "throw") return throwTeamMateAt;
   const mate = teamMateToThrow(thrower, click);
   if (mate)
     return () => {
