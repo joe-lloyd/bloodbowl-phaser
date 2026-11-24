@@ -70,9 +70,9 @@ describe("KickoffEventOverlay", () => {
       });
     });
 
-    expect(container.textContent).toContain(
-      "Move up to 3 of your players one square each: click a player in a blue ring, then a green square next to them."
-    );
+    expect(
+      [...container.querySelectorAll("li")].map((line) => line.textContent)
+    ).toEqual(["1Pick a ringed player", "2Click a green square", "3Press Done"]);
     expect(container.querySelector("section")?.className).toContain("mt-auto");
     expect(container.querySelector(".absolute")).toBeNull();
     expect(container.textContent).not.toContain("Griff");
@@ -117,6 +117,8 @@ describe("KickoffEventOverlay", () => {
       fixtureValue([...container.querySelectorAll("button")].find(
         (button) => button.textContent?.trim() === "Done"
       ));
+    const current = () =>
+      container.querySelector('[aria-current="step"]')?.textContent;
     const refresh = () =>
       act(async () => {
         eventBus.emit(GameEventNames.KickoffEventStepStarted, {
@@ -131,22 +133,27 @@ describe("KickoffEventOverlay", () => {
     });
     await refresh();
     expect(container.textContent).toContain("0/3 moved");
+    expect(current()).toBe("1Pick a ringed player");
     expect(done().disabled).toBe(true);
 
     step.selectedPlayerIds = ["p1"];
     await act(async () => {
       eventBus.emit(GameEventNames.KickoffEventStepChanged, undefined);
     });
-    expect(container.textContent).toContain(
-      "Now click a green square next to Griff to move them there."
-    );
+    expect(current()).toBe("2Click a green square");
     expect(container.textContent).toContain("0/3 moved");
     expect(done().disabled).toBe(true);
 
     step.movedPlayerIds = ["p1"];
     await refresh();
     expect(container.textContent).toContain("1/3 moved");
+    expect(current()).toBe("1Pick a ringed player");
     expect(done().disabled).toBe(false);
+
+    step.selectedPlayerIds = ["p1", "p2", "p3"];
+    step.movedPlayerIds = ["p1", "p2", "p3"];
+    await refresh();
+    expect(current()).toBe("3Press Done");
   });
 
   it("uses the normal player action menu for the active Charge player", async () => {
