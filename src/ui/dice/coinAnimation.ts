@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { CoinToss, DiceTeam, DiceThrow } from "./diceScene";
 import { coinTexture } from "./diceFaces";
 import { clack, loadClacks } from "./diceSound";
-import { createStage, faceCamera, liftEase } from "./diceStage";
+import { createStage, drawStage, faceCamera, liftEase } from "./diceStage";
 
 const COIN = { radius: 1.05, thickness: 0.12 };
 const FLIP_MS = 1500;
@@ -136,7 +136,7 @@ class CoinAnimation implements Control {
     if (elapsed < FLIP_MS) this.flip(elapsed);
     else if (elapsed < FLIP_MS + SETTLE_MS) this.settle(elapsed);
     else this.lift(elapsed);
-    this.stage.gl.render(this.stage.scene, this.stage.camera);
+    drawStage(this.stage);
     requestAnimationFrame(this.tick);
   };
 }

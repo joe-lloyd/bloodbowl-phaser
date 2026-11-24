@@ -5,7 +5,7 @@ import { d16Geometry, d16Labelling } from "./d16";
 import { faceMaterial } from "./diceFaces";
 import { labelling, simulate, upFace } from "./dicePhysics";
 import { clack, loadClacks } from "./diceSound";
-import { createStage, faceForward, liftEase } from "./diceStage";
+import { createStage, drawStage, faceForward, liftEase } from "./diceStage";
 import { indexed } from "./diceValues";
 import type { Stage } from "./diceStage";
 
@@ -119,7 +119,7 @@ class DiceAnimation implements Control {
   }
 
   private render(): void {
-    this.stage.gl.render(this.stage.scene, this.stage.camera);
+    drawStage(this.stage);
   }
 
   private applyFrame(frame: Simulation["frames"][number]): void {

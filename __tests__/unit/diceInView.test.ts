@@ -1,7 +1,12 @@
 import type * as Three from "three";
 import { describe, expect, it, vi } from "vitest";
 
-const worst = vi.hoisted(() => ({ edge: 0, size: 0 }));
+const worst = vi.hoisted(() => ({
+  edge: 0,
+  size: 0,
+  aspect: 0,
+  canvas: [0, 0],
+}));
 
 vi.mock("three", async (importOriginal) => {
   const real = await importOriginal<typeof Three>();
@@ -12,12 +17,13 @@ vi.mock("three", async (importOriginal) => {
     setPixelRatio() {
       return undefined;
     }
-    setSize() {
-      return undefined;
+    setSize(width: number, height: number) {
+      worst.canvas = [width, height];
     }
     render(scene: Three.Scene, camera: Three.PerspectiveCamera) {
       scene.updateMatrixWorld();
       camera.updateMatrixWorld();
+      worst.aspect = camera.aspect;
       worst.size = 1 / Math.tan((camera.fov * Math.PI) / 360);
       scene.traverse((object) => {
         if (!("labels" in object.userData)) return;
@@ -65,6 +71,27 @@ async function rollOn(
   thrown.stop();
   return { ...worst };
 }
+
+it("a landed roll follows its stage when the phone turns", async () => {
+  const { playRoll } = await import("../../src/ui/dice/diceScene");
+  const size = { width: 446, height: 70 };
+  const host = document.createElement("div");
+  Object.defineProperties(host, {
+    clientWidth: { get: () => size.width },
+    clientHeight: { get: () => size.height },
+  });
+  const thrown = playRoll(
+    host,
+    { kind: "d6", values: [4, 1], team },
+    { sound: false }
+  );
+  await thrown.landed;
+  Object.assign(size, { width: 238, height: 125 });
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  expect(worst.canvas).toEqual([238, 125]);
+  expect(worst.aspect).toBeCloseTo(238 / 125);
+  thrown.stop();
+}, 40_000);
 
 describe("two dice stay in the picture", () => {
   it("all the way through the desktop weather and kick-off strip", async () => {

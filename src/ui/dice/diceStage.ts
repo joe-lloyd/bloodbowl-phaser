@@ -54,7 +54,18 @@ export function createStage(host: HTMLElement, close = false) {
   const lookAt = new THREE.Vector3(0, 0, 0.15);
   camera.lookAt(lookAt);
   addLighting(scene);
-  return { gl, scene, camera, lookAt };
+  return { host, gl, scene, camera, lookAt };
+}
+
+export function drawStage({ host, gl, scene, camera }: Stage): void {
+  const { clientWidth: width, clientHeight: height } = host;
+  const aspect = width / height;
+  if (width > 0 && height > 0 && aspect !== camera.aspect) {
+    gl.setSize(width, height);
+    camera.aspect = aspect;
+    camera.updateProjectionMatrix();
+  }
+  gl.render(scene, camera);
 }
 
 export type Stage = ReturnType<typeof createStage>;
