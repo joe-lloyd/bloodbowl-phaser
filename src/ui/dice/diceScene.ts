@@ -48,7 +48,7 @@ type Control = Pick<DiceThrow, "mark" | "stop" | "hurry">;
 export function playRoll(
   host: HTMLElement,
   roll: DiceRoll | CoinToss,
-  opts: { sound: boolean }
+  opts: { sound: boolean; close?: boolean }
 ): DiceThrow {
   const pickers: ((index: number) => void)[] = [];
   let marked: number | null = null;
@@ -73,7 +73,13 @@ export function playRoll(
     showing?.stop();
     return roll.kind === "coin"
       ? throwCoin({ host, toss: roll, sound: opts.sound, ready: hooks.ready })
-      : throwDice({ host, roll, sound: opts.sound, ...hooks });
+      : throwDice({
+          host,
+          roll,
+          sound: opts.sound,
+          close: opts.close ?? false,
+          ...hooks,
+        });
   });
   lane = landed.catch(() => undefined);
   return {

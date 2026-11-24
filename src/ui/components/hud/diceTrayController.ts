@@ -6,8 +6,10 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { soundSettings } from "../../sound/settings";
 import type { DiceRoll, DiceThrow } from "../../dice/diceScene";
 import type { BlockRollData } from "../../../services/BlockResolutionService";
+import { PHONE_QUERY, matchesMedia } from "../../../game/presentation/phoneLayout";
 import { DIE_LANDING_TIMEOUT_MS } from "../../../game/presentation/diceWatch";
 import { KICKOFF_TABLE_ROLL } from "../../../game/kickoff/kickoffEvents";
+import { WEATHER_ROLL } from "./weatherThrow";
 import { toDice, teamLook, BLOCK_VALUE } from "./diceTrayData";
 type RollEvent = GameEventMap[typeof GameEventNames.DiceRoll];
 
@@ -53,6 +55,12 @@ function joinsThrow(waiting: Queued, next: Queued): boolean {
     !next.block &&
     waiting.roll.team.key === next.roll.team.key &&
     waiting.roll.values.length + next.roll.values.length <= MAX_DICE_PER_THROW
+  );
+}
+function isOpeningWeather({ rollType }: RollEvent): boolean {
+  return (
+    rollType === WEATHER_ROLL &&
+    ServiceContainer.getInstance().gameService.getPhase() === GamePhase.SETUP
   );
 }
 function teamName(teamId: string): string {
@@ -193,7 +201,7 @@ export class DiceTrayController {
 
     if (!dice || dice.kind === "block" || !team) return;
 
-    if (event.rollType === KICKOFF_TABLE_ROLL) return;
+    if (event.rollType === KICKOFF_TABLE_ROLL || isOpeningWeather(event)) return;
     this.enqueue({
       roll: { ...dice, team },
       title: event.rollType,
@@ -285,6 +293,7 @@ export class DiceTrayController {
         throw new Error("Dice tray was removed before its renderer loaded");
       const handle = scene.playRoll(host, next.roll, {
         sound: !soundSettings.get().muted,
+        close: matchesMedia(PHONE_QUERY),
       });
       this.throwing = handle;
 

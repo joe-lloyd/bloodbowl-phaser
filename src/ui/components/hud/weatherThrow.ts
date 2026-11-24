@@ -7,6 +7,8 @@ import type { DiceThrow } from "../../dice/diceScene";
 import { DIE_LANDING_TIMEOUT_MS } from "../../../game/presentation/diceWatch";
 import { teamLook } from "./diceTrayData";
 
+export const WEATHER_ROLL = "Weather";
+
 const RESULT_BEAT_MS = 700;
 
 export type WeatherStep = "waiting" | "rolling" | "shown";
@@ -15,7 +17,7 @@ export function useWeatherThrow({
   eventBus,
   teamId,
   rolled,
-  rollType = "Weather",
+  rollType = WEATHER_ROLL,
 }: {
   eventBus: IEventBus;
   teamId: string;
