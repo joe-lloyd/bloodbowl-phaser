@@ -5,7 +5,10 @@ import { FormationManager } from "../../src/game/managers/FormationManager";
 import { SetupValidator } from "../../src/game/validators/SetupValidator";
 import { GAME_TYPES } from "../../src/game/variants/gameTypes";
 import { gameTypeRules } from "../../src/game/variants/gameTypeRules";
-import { withMatchFormat } from "../../src/game/variants/activeMatch";
+import {
+  type MatchFormat,
+  withMatchFormat,
+} from "../../src/game/variants/activeMatch";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { addPlayerToTeam, createTeam, RosterName } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";

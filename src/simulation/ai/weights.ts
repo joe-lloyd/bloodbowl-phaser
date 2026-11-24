@@ -92,10 +92,7 @@ export type RosterWeights = Partial<Record<RosterName, Partial<Weights>>>;
 
 export type GameTypeWeights = Partial<Record<GameType, Partial<Weights>>>;
 
-export const GAME_TYPE_WEIGHTS: GameTypeWeights = {
-  "street-bowl": { setupKick: 4 },
-  "gutter-bowl": { setupKick: 4 },
-};
+export const GAME_TYPE_WEIGHTS: GameTypeWeights = {};
 
 export const ROSTER_WEIGHTS: RosterWeights = {
   [RosterName.HALFLING]: { safeMove: 0.82 },

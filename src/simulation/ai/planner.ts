@@ -432,10 +432,6 @@ function weightsFor({ context, options, w, plan }: WeightsForArgs): Weights {
     : w;
 }
 
-function kickingTeam(game: HeadlessGame, teamId: string): boolean {
-  return game.ctx.gameService.getState().setup?.kickingTeamId === teamId;
-}
-
 function kickChoice(
   board: Board,
   candidates: readonly Candidate[],

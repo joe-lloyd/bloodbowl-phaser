@@ -142,7 +142,7 @@ describe("repeatable Sevens policy lab", () => {
 
       for (const candidate of [
         { candidateRosters: { Halfling: { safeMove: 0.82 } } },
-        { candidateGameTypes: { "street-bowl": { setupKick: 2 } } },
+        { candidateGameTypes: { "street-bowl": { kickWide: 2 } } },
         { candidateWeights: { ...DEFAULT_WEIGHTS, cageWalk: 0 } },
         { candidate: "standard" },
       ])

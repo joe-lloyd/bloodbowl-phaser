@@ -111,7 +111,7 @@ function landingWorth(punt: Punt, landing: Landing): number {
       (1 - OPPONENT_CATCH) * looseWorth(punt, at)
     );
   const caught = d6(
-    catchTarget(under, board.theirs, board.weather, "handoff") + 1
+    catchTarget(under, board.theirs, board.gs.getState(), "handoff") + 1
   );
   return (
     caught * heldWorth(punt, at, under) + (1 - caught) * looseWorth(punt, at)
