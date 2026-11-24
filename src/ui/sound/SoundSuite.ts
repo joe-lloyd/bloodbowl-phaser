@@ -53,7 +53,8 @@ export class SoundSuite {
       return null;
     });
     this.bind(GameEventNames.PlayerCasualtyInflicted, (data) =>
-      data.cause === "special" ? "foul" : "koInjury"
+      data.cause === "special" || data.cause === "foul"
+        ? "foul" : "koInjury"
     );
     this.bind(GameEventNames.DriveEnded, (data) =>
       data.reason === "halftime" ? "endOfHalf" : null

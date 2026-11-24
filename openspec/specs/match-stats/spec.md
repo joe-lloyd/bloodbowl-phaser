@@ -44,6 +44,11 @@ The engine SHALL provide attributable outcomes for every standard SPP action wit
 - **WHEN** a Casualty is caused by a Special Action, failed dodge, foul, or the crowd
 - **THEN** it is not counted as a standard SPP-eligible Casualty
 
+#### Scenario: Violent Innovator
+
+- **WHEN** a player with Violent Innovator causes an opposing player's Casualty with a Special Action
+- **THEN** it is counted as an SPP-eligible Casualty
+
 #### Scenario: Touchdown and interception
 
 - **WHEN** a player scores a Touchdown or intercepts an opposition Pass Action

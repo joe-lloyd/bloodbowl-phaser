@@ -10,55 +10,64 @@ import { GameEventNames } from "../../../src/types/events";
 
 const GUARD_MS = 5000;
 
-describe("a kick the weather scatters", () => {
-  it("falls only after its scatter dice have landed", async () => {
-    const { team1, team2, gameService } = new HeadlessGame({ seed: 1 }).ctx;
-    const state = gameService.getState();
-    state.ballPosition = { x: 15, y: 5 };
-    const bus = new EventBus();
-    const dice = new DiceController(bus, new RNGService(1));
-    DiceWatch.shared(bus);
-    const tray = (landedThrough: number) => {
-      bus.emit(GameEventNames.UI_DiceInAir, {
-        count: 3 - landedThrough,
-        thrown: 3,
-        landedThrough,
-      });
-    };
-    const seen: string[] = [];
-    bus.on(GameEventNames.KickoffAirbornePositionChanged, () => {
-      seen.push("moved");
-      tray(0);
+function scatteredKick(from: { x: number; y: number }, seed: number) {
+  const { team1, team2, gameService } = new HeadlessGame({ seed: 1 }).ctx;
+  const state = gameService.getState();
+  state.ballPosition = from;
+  const bus = new EventBus();
+  const dice = new DiceController(bus, new RNGService(seed));
+  DiceWatch.shared(bus);
+  const tray = (landedThrough: number) => {
+    bus.emit(GameEventNames.UI_DiceInAir, {
+      count: 3 - landedThrough,
+      thrown: 3,
+      landedThrough,
     });
-    bus.on(GameEventNames.KickoffBallLanding, () => {
-      seen.push("falls");
-    });
-    const manager = new BallManager(
-      bus,
-      state,
-      team1,
-      team2,
-      new WeatherManager(bus, state, dice),
-      dice,
-      {
-        onTurnover: () => undefined,
-        onPhaseChange: () => undefined,
-        onBallPlaced: () => undefined,
-        resolveKickoffEvent: () => Promise.resolve(),
-        consumeWeatherScatterPending: () => 3,
-      },
-      (ms) =>
-        ms > GUARD_MS || seen.includes("falls")
-          ? new Promise<void>(() => undefined)
-          : Promise.resolve()
-    );
+  };
+  const seen: string[] = [];
+  bus.on(GameEventNames.BallScattered, () => {
+    seen.push("scattered");
+    tray(0);
+  });
+  bus.on(GameEventNames.KickoffBallLanding, ({ isTouchback }) => {
+    seen.push(isTouchback ? "touchback" : "falls");
+  });
+  const manager = new BallManager(
+    bus,
+    state,
+    team1,
+    team2,
+    new WeatherManager(bus, state, dice),
+    dice,
+    {
+      onTurnover: () => undefined,
+      onPhaseChange: () => undefined,
+      onBallPlaced: () => undefined,
+      resolveKickoffEvent: () => Promise.resolve(),
+      consumeWeatherScatterPending: () => 3,
+    },
+    (ms) =>
+      ms > GUARD_MS || seen.length > 1
+        ? new Promise<void>(() => undefined)
+        : Promise.resolve()
+  );
+  void manager.rollKickoff();
+  return { seen, tray };
+}
 
-    void manager.rollKickoff();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(seen).toEqual(["moved"]);
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+describe("a kick the weather scatters", () => {
+  it.each([
+    { ending: "falls", from: { x: 15, y: 5 }, seed: 1 },
+    { ending: "touchback", from: { x: 19, y: 0 }, seed: 2 },
+  ])("$ending only after its scatter dice have landed", async (kick) => {
+    const { seen, tray } = scatteredKick(kick.from, kick.seed);
+    await settle();
+    expect(seen).toEqual(["scattered"]);
 
     tray(3);
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(seen).toEqual(["moved", "falls"]);
+    await settle();
+    expect(seen).toEqual(["scattered", kick.ending]);
   });
 });

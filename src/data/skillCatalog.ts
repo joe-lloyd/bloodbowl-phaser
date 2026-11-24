@@ -887,7 +887,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Earns advancement credit for certain successful special attacks.",
+      "Earns SPP for a Casualty this player causes with a Special Action.",
   },
   Wrestle: {
     kind: "skill",

@@ -1519,6 +1519,16 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 skillTriggered(r, SkillType.VIOLENT_INNOVATOR),
                 "Violent Innovator must credit the Special Action casualty"
               );
+              assert(
+                r.events.some(
+                  (e) =>
+                    e.name === GameEventNames.PlayerCasualtyInflicted &&
+                    z
+                      .object({ sppEligible: z.boolean() })
+                      .parse(e.data).sppEligible
+                ),
+                "The Special Action casualty must earn SPP"
+              );
             },
           },
         ],

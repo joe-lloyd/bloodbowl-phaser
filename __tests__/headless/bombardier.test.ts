@@ -4,7 +4,9 @@ import { findSeed } from "../../src/game/rules-lab";
 import { TRAIT_RULE_SCENARIOS } from "../../src/data/ruleScenarios/traits";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { type Scenario } from "../../src/types/Scenario";
-import { SkillType } from "../../src/types/Skills";
+import { GameEventNames } from "../../src/types/events";
+import { forceDice } from "../utils/test-helpers";
+import { SkillType, getSkill } from "../../src/types/Skills";
 
 const BOMB_CONFIG = fixtureValue(
   TRAIT_RULE_SCENARIOS.find((e) => e.skill === SkillType.BOMBARDIER)
@@ -78,5 +80,28 @@ describe("bombardier: throw bomb protocol round-trip", () => {
       action: "throwBomb",
     });
     expect(res.ok).toBe(false);
+  });
+
+  it("gives a thrower hurt by their own bomb one Regeneration roll", async () => {
+    const game = new HeadlessGame({ scenario, seed: 1 });
+    const bomber = fixtureValue(game.ctx.team1.players[BOMBER_INDEX]);
+    bomber.skills = [...bomber.skills, getSkill(SkillType.REGENERATION)];
+    const rolls: string[] = [];
+    game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ rollType }) => {
+      rolls.push(rollType);
+    });
+    await game.execute({
+      type: "declare-action",
+      playerId: bomber.id,
+      action: "throwBomb",
+    });
+    forceDice(game.ctx.rng, [1, 6, 6, 6, 6, 1, 1, 1, 6, 6]);
+    await game.execute({
+      type: "throw-bomb",
+      throwerId: bomber.id,
+      x: 13,
+      y: 5,
+    });
+    expect(rolls.filter((roll) => /regeneration/i.test(roll))).toHaveLength(1);
   });
 });

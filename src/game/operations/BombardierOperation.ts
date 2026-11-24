@@ -92,7 +92,7 @@ export class BombardierOperation extends GameOperation {
         GameEventNames.UI_Notification,
         `Fumble! The bomb goes off in ${thrower.playerName}'s square!`
       );
-      explodeBomb(context, { ...thrower.gridPosition });
+      explodeBomb(context, { ...thrower.gridPosition }, throwerId);
       gameService.triggerTurnover("Fumbled Bomb");
       return;
     }
@@ -153,11 +153,11 @@ export class BombardierOperation extends GameOperation {
         GameEventNames.UI_Notification,
         `${occupant.playerName} drops the bomb — it explodes!`
       );
-      explodeBomb(context, landing);
+      explodeBomb(context, landing, throwerId);
       return;
     }
 
-    explodeBomb(context, landing);
+    explodeBomb(context, landing, throwerId);
   }
 
   private async rethrow(
@@ -277,7 +277,8 @@ export class BombardierOperation extends GameOperation {
 
 function explodeBomb(
   context: FlowContext,
-  square: { x: number; y: number }
+  square: { x: number; y: number },
+  throwerId?: string
 ): void {
   const gameService = context.gameService;
   const eventBus = context.eventBus;
@@ -298,13 +299,14 @@ function explodeBomb(
   }
 
   for (const player of hits) {
+    const causerId = player.id === throwerId ? undefined : throwerId;
     if (player.status === PlayerStatus.ACTIVE) {
       knockDownPlayer(eventBus, player);
       bounceIfBallUnder(context, player);
     }
 
     context.flowManager.add(
-      new ArmourOperation(player.id, undefined, undefined, "special"),
+      new ArmourOperation(player.id, causerId, undefined, "special"),
       true
     );
   }

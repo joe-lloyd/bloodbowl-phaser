@@ -8,6 +8,7 @@ import {
 } from "../controllers/InjuryController.js";
 import { CasualtyOperation } from "./CasualtyOperation.js";
 import { type CasualtyCause } from "../rules/plagueRidden";
+import { earnsCasualtySpp } from "../rules/casualtyCredit";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { foldTrigger, type InjuryRollContext } from "../skills";
 import { offerApothecary } from "../inducements/apothecary";
@@ -256,10 +257,13 @@ export class InjuryOperation extends InjuryPartiesOperation {
         : {}),
       victimId: player.id,
       cause: this.opts.cause ?? "special",
-      sppEligible:
-        this.opts.cause === "block" &&
-        !!this.opts.causedById &&
-        this.opts.causedById !== player.id,
+      sppEligible: earnsCasualtySpp(
+        this.opts.causedById === undefined
+          ? undefined
+          : context.gameService.getPlayerById(this.opts.causedById),
+        player,
+        this.opts.cause ?? "special"
+      ),
     });
 
     flowManager.add(

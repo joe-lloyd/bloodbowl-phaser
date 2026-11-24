@@ -278,7 +278,7 @@ export function skillSelectionDecision(
   team: Team,
   entry: SkillSelectionEntry
 ): SkillSelectionDecision {
-  const progress = entry.progress;
+  const progress = standingProgress(team, entry);
   if (!progress) {
     const players = eligiblePlayers(team, entry);
     return {
@@ -299,12 +299,13 @@ export function skillSelectionDecision(
     throw new Error(`${progress.playerId} is no longer on the team.`);
   switch (progress.route) {
     case "primary": {
-      const chooser = NOMINATION_ORDER[progress.named.length];
+      const named = standingNames(player, progress.named);
+      const chooser = NOMINATION_ORDER[named.length];
       if (!chooser) {
         return {
           type: "roll-primary-d3",
           playerId: player.id,
-          named: [...progress.named],
+          named,
         };
       }
       return {
@@ -312,12 +313,12 @@ export function skillSelectionDecision(
         chooser,
         playerId: player.id,
         category: progress.category,
-        named: [...progress.named],
-        options: nameableSkills(player, progress.category, progress.named),
+        named,
+        options: nameableSkills(player, progress.category, named),
       };
     }
     case "secondary":
-      return progress.rolled
+      return progress.rolled && rollStands(player, progress.rolled)
         ? {
             type: "choose-secondary-skill",
             playerId: player.id,
@@ -331,8 +332,37 @@ export function skillSelectionDecision(
   }
 }
 
-function requireNoRoute(entry: SkillSelectionEntry): void {
-  if (entry.progress) throw new Error("This game's route is already chosen.");
+function standingNames(
+  player: Player,
+  named: readonly SkillType[]
+): SkillType[] {
+  const illegal = named.findIndex((skill) => !isSkillLegal(player, skill));
+  return illegal < 0 ? [...named] : named.slice(0, illegal);
+}
+
+function standingProgress(
+  team: Team,
+  { progress }: SkillSelectionEntry
+): SkillSelectionEntry["progress"] {
+  const player = team.players.find(({ id }) => id === progress?.playerId);
+  if (progress?.route !== "primary" || !player) return progress;
+  const named = standingNames(player, progress.named);
+  const open = nameableSkills(player, progress.category, named);
+  return named.length + open.length < NOMINATION_ORDER.length
+    ? undefined
+    : progress;
+}
+
+function rollStands(
+  player: Player,
+  rolled: { candidates: readonly SkillRollCandidate[] }
+): boolean {
+  return rolled.candidates.every(({ skill }) => isSkillLegal(player, skill));
+}
+
+function requireNoRoute(team: Team, entry: SkillSelectionEntry): void {
+  if (standingProgress(team, entry))
+    throw new Error("This game's route is already chosen.");
 }
 
 export function startPrimarySelection(
@@ -341,7 +371,7 @@ export function startPrimarySelection(
   playerId: string,
   category: SkillCategory
 ): void {
-  requireNoRoute(entry);
+  requireNoRoute(team, entry);
   const player = eligiblePlayer(team, entry, playerId);
   if (!nameableCategories(player).includes(category)) {
     throw new Error(
@@ -373,7 +403,7 @@ export function nominatePrimarySkill(
       `${skill} cannot be named for ${String(player?.playerName)}.`
     );
   }
-  entry.progress.named.push(skill);
+  entry.progress.named = [...decision.named, skill];
 }
 
 export interface SkillSelectionResult {
@@ -407,7 +437,7 @@ export function startSecondarySelection(
   entry: SkillSelectionEntry,
   rng: Rng
 ): void {
-  requireNoRoute(entry);
+  requireNoRoute(team, entry);
   const players = eligiblePlayers(team, entry).filter(
     (player) => categoriesFor(player, "secondary").length > 0
   );
@@ -426,10 +456,11 @@ export function rollSecondaryCandidates(
   rng: Rng
 ): void {
   const progress = entry.progress;
-  if (progress?.route !== "secondary" || progress.rolled) {
+  if (progress?.route !== "secondary")
     throw new Error("No Secondary category is waiting to be chosen.");
-  }
   const player = eligiblePlayer(team, entry, progress.playerId);
+  if (progress.rolled && rollStands(player, progress.rolled))
+    throw new Error("No Secondary category is waiting to be chosen.");
   if (!categoriesFor(player, "secondary").includes(category)) {
     throw new Error(
       `${category} is not a Secondary category for ${player.playerName}.`

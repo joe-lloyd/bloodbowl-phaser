@@ -39,6 +39,7 @@ export interface TurnSnapshot {
   hasThrownTeamMate: boolean;
   hasKickedTeamMate: boolean;
   hasThrownBomb: boolean;
+  hasPunted?: boolean;
   movementUsed: Record<string, number>;
 }
 
@@ -203,6 +204,12 @@ function inducementFields(source: GameState | GameSnapshot) {
   };
 }
 
+function optionalTurnFields(turn: Pick<TurnSnapshot, "hasPunted">) {
+  return {
+    ...(turn.hasPunted ? { hasPunted: true } : {}),
+  };
+}
+
 export function serializeGameState(
   state: GameState,
   teams: Team[]
@@ -230,6 +237,7 @@ export function serializeGameState(
       hasKickedTeamMate: state.turn.hasKickedTeamMate,
       hasThrownBomb: state.turn.hasThrownBomb,
       movementUsed,
+      ...optionalTurnFields(state.turn),
     },
     score: { ...state.score },
     ...rerollFields(state),
@@ -301,6 +309,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     hasThrownTeamMate: snapshot.turn.hasThrownTeamMate,
     hasKickedTeamMate: snapshot.turn.hasKickedTeamMate,
     hasThrownBomb: snapshot.turn.hasThrownBomb,
+    ...optionalTurnFields(snapshot.turn),
     movementUsed: new Map(Object.entries(snapshot.turn.movementUsed)),
   };
 

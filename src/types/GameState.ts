@@ -56,6 +56,7 @@ export interface TurnData {
   hasThrownTeamMate: boolean;
   hasKickedTeamMate: boolean;
   hasThrownBomb: boolean;
+  hasPunted?: boolean;
   movementUsed: Map<string, number>;
 }
 

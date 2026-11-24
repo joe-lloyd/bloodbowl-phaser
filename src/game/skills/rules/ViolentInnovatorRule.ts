@@ -5,11 +5,10 @@ export const ViolentInnovatorRule: SkillRule = {
   onCasualty(ctx: CasualtyContext, self) {
     if (
       ctx.cause !== "special" ||
-      !ctx.causedBy ||
-      self.id !== ctx.causedBy.id
-    ) {
+      self.id !== ctx.causedBy?.id ||
+      self.teamId === ctx.player.teamId
+    )
       return;
-    }
     ctx.triggers.push({
       playerId: self.id,
       skill: SkillType.VIOLENT_INNOVATOR,

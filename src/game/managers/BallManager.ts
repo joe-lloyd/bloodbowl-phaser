@@ -331,14 +331,13 @@ export class BallManager {
         this.eventBus.emit(GameEventNames.KickoffAirbornePositionChanged, {
           ...this.state.ballPosition,
         });
-
-        await waitAtMost(
-          this.delay,
-          DiceWatch.shared(this.eventBus).landed(),
-          SCATTER_SHOWN_GUARD_MS
-        );
-        await this.delay(800);
       }
+      await waitAtMost(
+        this.delay,
+        DiceWatch.shared(this.eventBus).landed(),
+        SCATTER_SHOWN_GUARD_MS
+      );
+      await this.delay(800);
     }
   }
 

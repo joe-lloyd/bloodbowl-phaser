@@ -4,7 +4,10 @@ import {
   type ReactNode,
   type SyntheticEvent,
 } from "react";
-import { HUD_PANELS_ATTRIBUTE } from "../../../game/presentation/hudRects";
+import {
+  HUD_PANELS_ATTRIBUTE,
+  HUD_RESERVED,
+} from "../../../game/presentation/hudRects";
 
 interface HUDLayoutProps {
   topLeft?: ReactNode;
@@ -22,6 +25,7 @@ const top = `${stack} overflow-y-auto hud-scroll`;
 const bottom = `${stack} mt-auto shrink-0`;
 const filling = `${stack} flex-1 [justify-content:safe_flex-end]`;
 const panels = { [HUD_PANELS_ATTRIBUTE]: "" };
+const reserved = { [HUD_PANELS_ATTRIBUTE]: HUD_RESERVED };
 const phoneColumn =
   "phone-column absolute flex flex-col gap-2 overflow-y-auto no-scrollbar";
 
@@ -104,7 +108,8 @@ function HudColumn({
   const columnClass = phone
     ? `${phoneColumn} phone-column-${side}`
     : `${column} ${inset}`;
-  const bottomClass = right || phone ? bottom : filling;
+  const fills = !right && !phone;
+  const bottomClass = fills ? filling : bottom;
   const slotClass = right ? " w-full items-end" : "";
   return (
     <div
@@ -113,7 +118,10 @@ function HudColumn({
       <div className={`${top}${slotClass}`} {...panels}>
         {topSlot}
       </div>
-      <div className={`${bottomClass}${slotClass}`} {...panels}>
+      <div
+        className={`${bottomClass}${slotClass}`}
+        {...(fills ? reserved : panels)}
+      >
         {bottomSlot}
       </div>
     </div>

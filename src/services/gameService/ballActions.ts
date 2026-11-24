@@ -171,7 +171,7 @@ export function puntBall({
   const player = parts.game.getPlayerById(playerId);
   if (
     !player?.gridPosition ||
-    parts.marks.puntUsedThisTurn ||
+    parts.state.turn.hasPunted ||
     parts.state.activePlayer?.id !== playerId ||
     parts.state.activePlayer.action !== "punt" ||
     !hasSkill(player.skills, SkillType.PUNT) ||
@@ -179,7 +179,7 @@ export function puntBall({
   ) {
     return;
   }
-  parts.marks.puntUsedThisTurn = true;
+  parts.state.turn.hasPunted = true;
   parts.flowManager.add(new PuntOperation(playerId, facingX, facingY));
 }
 

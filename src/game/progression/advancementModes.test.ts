@@ -30,6 +30,7 @@ import {
   startPrimarySelection,
   startSecondarySelection,
 } from "./advancementModes";
+import { SKILL_ROLL_TABLE } from "./progression";
 
 const baseStats: PlayerStats = { MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 };
 
@@ -388,6 +389,73 @@ describe("Sevens Skill Selection, Primary route (A2, A4, A5)", () => {
   });
 });
 
+describe("Sevens Skill Selection, a saved choice that is now illegal", () => {
+  it("asks for a new name in place of an illegal Primary nomination", () => {
+    const team = teamOf([player("p1")], 500_000);
+    createPendingSkillSelection(team, "match-1", ["p1"]);
+    const entry = onlySelection(team);
+    entry.progress = {
+      route: "primary",
+      playerId: "p1",
+      category: SkillCategory.GENERAL,
+      named: [SkillType.BLOCK, SkillType.VIOLENT_INNOVATOR, SkillType.TACKLE],
+    };
+    expect(skillSelectionDecision(team, entry)).toMatchObject({
+      type: "name-primary-skill",
+      chooser: "opponent",
+      named: [SkillType.BLOCK],
+    });
+  });
+
+  it("offers the route again when the category cannot fill three names", () => {
+    const p1 = player("p1");
+    const keep: SkillType[] = [
+      SkillType.DIRTY_PLAYER,
+      SkillType.EYE_GOUGE,
+      SkillType.VIOLENT_INNOVATOR,
+    ];
+    p1.skills = SKILL_ROLL_TABLE[SkillCategory.DEVIOUS]
+      .filter((skill) => !keep.includes(skill))
+      .map((skill) => getSkill(skill));
+    const team = teamOf([p1], 500_000);
+    createPendingSkillSelection(team, "match-1", ["p1"]);
+    const entry = onlySelection(team);
+    entry.progress = {
+      route: "primary",
+      playerId: "p1",
+      category: SkillCategory.DEVIOUS,
+      named: keep,
+    };
+    expect(skillSelectionDecision(team, entry).type).toBe("choose-route");
+    startPrimarySelection(team, entry, "p1", SkillCategory.GENERAL);
+    expect(skillSelectionDecision(team, entry)).toMatchObject({
+      type: "name-primary-skill",
+      chooser: "coach",
+      named: [],
+    });
+  });
+
+  it("asks for the Secondary category again", () => {
+    const team = teamOf([player("p1")], 500_000);
+    createPendingSkillSelection(team, "match-1", ["p1"]);
+    const entry = onlySelection(team);
+    entry.progress = {
+      route: "secondary",
+      playerId: "p1",
+      rolled: {
+        category: SkillCategory.DEVIOUS,
+        candidates: [
+          { skill: SkillType.VIOLENT_INNOVATOR, firstD6: 6, secondD6: 6 },
+          { skill: SkillType.EYE_GOUGE, firstD6: 1, secondD6: 2 },
+        ],
+      },
+    };
+    expect(skillSelectionDecision(team, entry).type).toBe(
+      "choose-secondary-category"
+    );
+  });
+});
+
 describe("Sevens Skill Selection, Secondary route (A3, A4, A5)", () => {
   it("picks a random player, then rolls two skills in a category the coach picks", () => {
     const p1 = player("p1");
@@ -531,9 +599,11 @@ describe("Drafted Players (A6)", () => {
       addedSkillCount: 1,
       matchId: "m1",
     });
-    expect(fixtureValue(fixtureValue(team.draftHistory)[0]).player.skills.map((s) => s.type)).toEqual([
-      SkillType.BLOCK,
-    ]);
+    expect(
+      fixtureValue(fixtureValue(team.draftHistory)[0]).player.skills.map(
+        (s) => s.type
+      )
+    ).toEqual([SkillType.BLOCK]);
   });
 
   it("releases a player at once when the Treasury cannot pay their value", () => {

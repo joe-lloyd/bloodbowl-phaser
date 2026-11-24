@@ -175,8 +175,20 @@ const INCOMPATIBLE_SKILLS: readonly (readonly [SkillType, SkillType])[] = [
   [SkillType.FRENZY, SkillType.MULTIPLE_BLOCK],
 ];
 
-const REQUIRED_WITH: Partial<Record<SkillType, SkillType>> = {
-  [SkillType.SABOTEUR]: SkillType.SECRET_WEAPON,
+const SPECIAL_ACTION_TRAITS: readonly SkillType[] = [
+  SkillType.BALL_AND_CHAIN,
+  SkillType.BOMBARDIER,
+  SkillType.BREATHE_FIRE,
+  SkillType.CHAINSAW,
+  SkillType.HYPNOTIC_GAZE,
+  SkillType.KICK_TEAM_MATE,
+  SkillType.PROJECTILE_VOMIT,
+  SkillType.STAB,
+];
+
+const NEEDS_ONE_OF: Partial<Record<SkillType, readonly SkillType[]>> = {
+  [SkillType.SABOTEUR]: [SkillType.SECRET_WEAPON],
+  [SkillType.VIOLENT_INNOVATOR]: SPECIAL_ACTION_TRAITS,
 };
 
 export function advancementCount(player: Player): number {
@@ -215,8 +227,9 @@ export function rollSkill(
 
 export function isSkillLegal(player: Player, skill: SkillType): boolean {
   if (player.skills.some((existing) => existing.type === skill)) return false;
-  const required = REQUIRED_WITH[skill];
-  if (required && !player.skills.some((s) => s.type === required)) return false;
+  const needed = NEEDS_ONE_OF[skill];
+  if (needed && !player.skills.some((s) => needed.includes(s.type)))
+    return false;
   return !INCOMPATIBLE_SKILLS.some(
     ([left, right]) =>
       (skill === left && player.skills.some((s) => s.type === right)) ||
@@ -282,6 +295,16 @@ function requireCost(player: Player, cost: keyof AdvancementCosts): void {
   const costs = nextAdvancementCosts(player);
   if (!costs) throw new Error("Legend players cannot gain another advancement");
   if ((player.spp ?? 0) < costs[cost]) throw new Error("Not enough SPP");
+}
+
+export function savedRollStands(
+  player: Player,
+  roll: PendingAdvancementRoll
+): boolean {
+  return (
+    roll.kind !== "random-primary" ||
+    roll.candidates.every(({ skill }) => isSkillLegal(player, skill))
+  );
 }
 
 export function rollPendingRandomPrimary(

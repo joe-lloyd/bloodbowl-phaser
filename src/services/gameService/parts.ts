@@ -48,7 +48,6 @@ import {
 
 interface ActivationMarks {
   blitzBlockUsed: Set<string>;
-  puntUsedThisTurn: boolean;
 
   ballAndChainSquare: BallAndChainSquare | null;
 
@@ -136,7 +135,6 @@ function createCore({
 
   const marks: ActivationMarks = {
     blitzBlockUsed: new Set<string>(),
-    puntUsedThisTurn: false,
     ballAndChainSquare: null,
     crowdRolledFor: null,
   };

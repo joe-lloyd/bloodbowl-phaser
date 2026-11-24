@@ -363,7 +363,7 @@ export class FoulOperation extends GameOperation {
           roll: injury.total,
           modifier: dirtyOnInjury ? 1 : 0,
           causedById: fouler.id,
-          cause: "special",
+          cause: "foul",
         })
       );
     } else {
