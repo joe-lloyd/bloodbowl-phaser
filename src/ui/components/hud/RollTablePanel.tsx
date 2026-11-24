@@ -87,7 +87,7 @@ function RollTableStrip(props: RollTablePanelProps) {
         as="section"
         accent="gold"
         aria-label={title}
-        className="pointer-events-auto w-[min(640px,calc(100vw-39rem))] min-w-[560px] animate-hud-in"
+        className="pointer-events-auto w-[min(640px,calc(100vw-39rem))] min-w-[min(560px,100%)] animate-hud-in"
       >
         <PanelHeader title={title} as="h2" aside="2D6" />
         <div className="p-3">
@@ -216,7 +216,11 @@ function DialogRows({ kind, rows, result }: RollTablePanelProps) {
   return (
     <ul
       ref={list}
-      className="max-h-[min(360px,40dvh)] space-y-0.5 overflow-y-auto hud-scroll text-left"
+      className={
+        kind === "kickoff"
+          ? "max-h-[min(360px,40dvh)] space-y-0.5 overflow-y-auto hud-scroll text-left"
+          : "space-y-1 text-left"
+      }
       data-testid={`${kind}-table`}
     >
       {rows.map((row) => {

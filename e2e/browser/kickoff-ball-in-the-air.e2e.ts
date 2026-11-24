@@ -22,6 +22,8 @@ test("a charger under the airborne ball rolls no Pick up, then Catches it", asyn
   const charge = page.getByRole("button", { name: /charge!/i });
   await expect(charge).toBeVisible({ timeout: 30_000 });
 
+  expect(await app.bridge.pitchLayers()).toContain("kick_target");
+
   const before = await app.bridge.snapshot();
   const landing = fixtureValue(before.ballPosition);
   expect(landing).not.toBeNull();
@@ -69,6 +71,7 @@ test("a charger under the airborne ball rolls no Pick up, then Catches it", asyn
   await expect
     .poll(async () => (await app.bridge.phase()).phase, { timeout: 20_000 })
     .toBe("PLAY");
+  expect(await app.bridge.pitchLayers()).not.toContain("kick_target");
   const rolls = (await app.bridge.events())
     .filter((e) => e.name === "diceRoll")
     .map((e) => (e.data as { rollType: string }).rollType);
