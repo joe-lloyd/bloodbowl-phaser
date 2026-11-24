@@ -72,12 +72,12 @@ function ShellStrip(props: RollShellProps) {
         <PanelHeader title={props.title} as="h2" aside={props.aside} />
         <div className="p-3">
           {props.header}
-          <div className="flex min-h-[56px] items-center gap-4">
+          <div className="flex min-h-[56px] flex-wrap items-center gap-4">
             <Stage {...props} shape="strip" />
-            <div className="min-w-0 flex-1 font-hud-body text-hud-base">
+            <div className="min-w-[110px] flex-1 font-hud-body text-hud-base [overflow-wrap:anywhere]">
               {props.children}
             </div>
-            <div className="shrink-0 empty:hidden">{props.action}</div>
+            <div className="ml-auto shrink-0 empty:hidden">{props.action}</div>
           </div>
           {props.table}
         </div>
