@@ -278,7 +278,7 @@ export function skillSelectionDecision(
   team: Team,
   entry: SkillSelectionEntry
 ): SkillSelectionDecision {
-  const progress = entry.progress;
+  const progress = standingProgress(team, entry);
   if (!progress) {
     const players = eligiblePlayers(team, entry);
     return {
@@ -340,6 +340,19 @@ function standingNames(
   return illegal < 0 ? [...named] : named.slice(0, illegal);
 }
 
+function standingProgress(
+  team: Team,
+  { progress }: SkillSelectionEntry
+): SkillSelectionEntry["progress"] {
+  const player = team.players.find(({ id }) => id === progress?.playerId);
+  if (progress?.route !== "primary" || !player) return progress;
+  const named = standingNames(player, progress.named);
+  const open = nameableSkills(player, progress.category, named);
+  return named.length + open.length < NOMINATION_ORDER.length
+    ? undefined
+    : progress;
+}
+
 function rollStands(
   player: Player,
   rolled: { candidates: readonly SkillRollCandidate[] }
@@ -347,8 +360,9 @@ function rollStands(
   return rolled.candidates.every(({ skill }) => isSkillLegal(player, skill));
 }
 
-function requireNoRoute(entry: SkillSelectionEntry): void {
-  if (entry.progress) throw new Error("This game's route is already chosen.");
+function requireNoRoute(team: Team, entry: SkillSelectionEntry): void {
+  if (standingProgress(team, entry))
+    throw new Error("This game's route is already chosen.");
 }
 
 export function startPrimarySelection(
@@ -357,7 +371,7 @@ export function startPrimarySelection(
   playerId: string,
   category: SkillCategory
 ): void {
-  requireNoRoute(entry);
+  requireNoRoute(team, entry);
   const player = eligiblePlayer(team, entry, playerId);
   if (!nameableCategories(player).includes(category)) {
     throw new Error(
@@ -423,7 +437,7 @@ export function startSecondarySelection(
   entry: SkillSelectionEntry,
   rng: Rng
 ): void {
-  requireNoRoute(entry);
+  requireNoRoute(team, entry);
   const players = eligiblePlayers(team, entry).filter(
     (player) => categoriesFor(player, "secondary").length > 0
   );
