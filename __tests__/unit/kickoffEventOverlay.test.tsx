@@ -72,7 +72,7 @@ describe("KickoffEventOverlay", () => {
 
     expect(
       [...container.querySelectorAll("li")].map((line) => line.textContent)
-    ).toEqual(["1Pick a ringed player", "2Click a green square", "3Press Done"]);
+    ).toEqual(["1Choose a ringed player", "2Click a green square", "3Press Done"]);
     expect(container.querySelector("section")?.className).toContain("mt-auto");
     expect(container.querySelector(".absolute")).toBeNull();
     expect(container.textContent).not.toContain("Griff");
@@ -133,7 +133,7 @@ describe("KickoffEventOverlay", () => {
     });
     await refresh();
     expect(container.textContent).toContain("0/3 moved");
-    expect(current()).toBe("1Pick a ringed player");
+    expect(current()).toBe("1Choose a ringed player");
     expect(done().disabled).toBe(true);
 
     step.selectedPlayerIds = ["p1"];
@@ -147,7 +147,7 @@ describe("KickoffEventOverlay", () => {
     step.movedPlayerIds = ["p1"];
     await refresh();
     expect(container.textContent).toContain("1/3 moved");
-    expect(current()).toBe("1Pick a ringed player");
+    expect(current()).toBe("1Choose a ringed player");
     expect(done().disabled).toBe(false);
 
     step.selectedPlayerIds = ["p1", "p2", "p3"];

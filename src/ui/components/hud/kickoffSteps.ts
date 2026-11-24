@@ -15,7 +15,7 @@ function oneSquareTodo(step: KickoffEventStepState): KickoffTodo {
   const full = step.movedPlayerIds.length >= step.selectionLimit;
   const beforePick = full ? 2 : 0;
   return {
-    lines: ["Pick a ringed player", "Click a green square", "Press Done"],
+    lines: ["Choose a ringed player", "Click a green square", "Press Done"],
     current: picked ? 1 : beforePick,
   };
 }
@@ -25,7 +25,7 @@ function chargeTodo(step: KickoffEventStepState): KickoffTodo {
   const beforeStart = full ? 1 : 0;
   return {
     lines: [
-      `Pick up to ${String(step.selectionLimit)} ringed players`,
+      `Choose up to ${String(step.selectionLimit)} ringed players`,
       `Press ${step.event}`,
       "Play each player's action",
     ],
@@ -37,7 +37,7 @@ export function kickoffTodo(step: KickoffEventStepState): KickoffTodo {
   if (isOneSquareMoveEvent(step.event)) return oneSquareTodo(step);
   if (step.event === KickoffEvent.HIGH_KICK)
     return {
-      lines: ["Pick a ringed player to stand under the ball", "Press Confirm"],
+      lines: ["Choose a ringed player to stand under the ball", "Press Confirm"],
       current: step.selectedPlayerIds.length > 0 ? 1 : 0,
     };
   return chargeTodo(step);
