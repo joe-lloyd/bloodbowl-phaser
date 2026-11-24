@@ -19,6 +19,7 @@ const HELD_POLL_MS = 100;
 const queues = new WeakMap<IEventBus, MomentQueue>();
 
 export function hasPendingMoments(eventBus: IEventBus): boolean {
+  if (!isPaced()) return false;
   return queues.get(rootEventBus(eventBus))?.isBusy() ?? false;
 }
 

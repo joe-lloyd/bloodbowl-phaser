@@ -5,6 +5,8 @@ import { matchSaveSchema } from "../../src/boundary/schemas/MatchSave";
 import { checkOwnership, gateContextOf } from "../../src/network/OwnershipGate";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { MatchAutosave } from "../../src/game/persistence/MatchAutosave";
+import { MomentQueue } from "../../src/game/presentation/momentQueue";
+import { withoutPacing } from "../../src/game/core/GameFlowManager";
 import { GameEventNames } from "../../src/types/events";
 import { SkillType, getSkill } from "../../src/types/Skills";
 import type { Scenario } from "../../src/types/Scenario";
@@ -410,5 +412,20 @@ describe("a turnover during a Charge", () => {
     expect(game.isAtRest()).toBe(false);
     await settle();
     expect(game.isAtRest()).toBe(true);
+  });
+
+  it("hands over in an unpaced replay while a banner is queued", async () => {
+    const { game, gs, home } = await rehearse(KickoffEvent.CHARGE, {
+      players: 1,
+    });
+    await choose(game, [home(1).id]);
+    const queue = new MomentQueue(game.ctx.eventBus);
+    await withoutPacing(async () => {
+      gs.triggerTurnover("Knocked down");
+      await settle();
+    });
+    expect(game.isAtRest()).toBe(true);
+    expect(game.snapshot().phase).toBe(GamePhase.PLAY);
+    queue.dispose();
   });
 });
