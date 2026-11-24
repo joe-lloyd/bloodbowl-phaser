@@ -49,13 +49,16 @@ describe("between league fixtures", () => {
     });
   });
 
-  it("buys a re-roll for 100,000, the Sevens price, not double", () => {
-    const team = leagueTeam(250_000, LINEMEN(7));
-    expect(priceOf(team, { type: "reroll" })).toEqual({ amount: 100_000 });
-    expect(purchase(team, { type: "reroll" })).toEqual({ amount: 100_000 });
-    expect(team.rerolls).toBe(1);
-    expect(team.treasury).toBe(150_000);
-  });
+  it.each(["reroll", "dedicated-fan"] as const)(
+    "refuses a %s, and changes nothing",
+    (type) => {
+      const team = leagueTeam(250_000, LINEMEN(7));
+      const before = structuredClone(team);
+      expect(priceOf(team, { type }).amount).toBeNull();
+      expect(purchase(team, { type }).amount).toBeNull();
+      expect(team).toEqual(before);
+    }
+  );
 
   it("refuses a player the Treasury cannot pay, and changes nothing", () => {
     const team = leagueTeam(80_000, LINEMEN(6));
@@ -68,14 +71,14 @@ describe("between league fixtures", () => {
     expect(team.players).toHaveLength(6);
   });
 
-  it("refuses a re-roll the Treasury cannot pay", () => {
-    const team = leagueTeam(95_000, LINEMEN(7));
-    expect(purchase(team, { type: "reroll" })).toEqual({
+  it("refuses a coach the Treasury cannot pay", () => {
+    const team = leagueTeam(15_000, LINEMEN(7));
+    expect(purchase(team, { type: "coach" })).toEqual({
       amount: null,
       reason: "Not enough gold in the treasury.",
     });
-    expect(team.treasury).toBe(95_000);
-    expect(team.rerolls).toBe(0);
+    expect(team.treasury).toBe(15_000);
+    expect(team.coaches).toBe(0);
   });
 
   it("refuses a 12th permanently hired player", () => {

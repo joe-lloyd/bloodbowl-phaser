@@ -39,11 +39,11 @@ describe("team re-rolls (D4)", () => {
     expect(team.treasury).toBe(1_900_000);
   });
 
-  it("cost 100,000 for an active league team", () => {
+  it("are never sold once the team has played its first match", () => {
     const team = activeTeam();
-    expect(purchase(team, { type: "reroll" })).toEqual({ amount: 100000 });
-    expect(team.rerolls).toBe(1);
-    expect(team.treasury).toBe(1_900_000);
+    expect(purchase(team, { type: "reroll" }).amount).toBeNull();
+    expect(team.rerolls).toBe(0);
+    expect(team.treasury).toBe(2_000_000);
   });
 
   it("stop at 6, the top of the re-roll tracker", () => {
@@ -145,12 +145,11 @@ describe("Dedicated Fans (D7)", () => {
     expect(team.treasury).toBe(2_000_000 - 80_000);
   });
 
-  it("can be bought by an active league team", () => {
+  it("are never sold once the team has played its first match", () => {
     const team = activeTeam();
-    expect(purchase(team, { type: "dedicated-fan" })).toEqual({
-      amount: 20000,
-    });
-    expect(team.dedicatedFans).toBe(2);
+    expect(purchase(team, { type: "dedicated-fan" }).amount).toBeNull();
+    expect(team.dedicatedFans).toBe(1);
+    expect(team.treasury).toBe(2_000_000);
   });
 });
 

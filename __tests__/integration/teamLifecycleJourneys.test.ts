@@ -74,7 +74,7 @@ describe("draft repair and legal finalization journey", () => {
 });
 
 describe("first-match activation and active management journey", () => {
-  it("locks roster type but keeps selling re-rolls once a team is active", () => {
+  it("locks roster type, re-rolls and Dedicated Fans once a team is active", () => {
     const team = newDraftTeam();
     for (let i = 0; i < 7; i++) {
       team.players.push(createPlayer(lineman, team.id, i + 1));
@@ -90,9 +90,25 @@ describe("first-match activation and active management journey", () => {
     const active = fixtureValue(loadTeams().find((t) => t.id === team.id));
     expect(getTeamMode(active)).toBe("active");
     expect(canEdit(active, { type: "change-roster-type" }).allowed).toBe(false);
-    expect(priceOf(active, { type: "reroll" }).amount).toBe(100000);
+    expect(priceOf(active, { type: "reroll" }).amount).toBeNull();
+    expect(priceOf(active, { type: "dedicated-fan" }).amount).toBeNull();
 
     expect(canEdit(active, { type: "hire-player" }).allowed).toBe(true);
+  });
+
+  it("refuses a draft copy with bought staff over a team that has played", async () => {
+    const team = newDraftTeam();
+    await saveTeam(team);
+    const stale = structuredClone(team);
+    stampFirstCompletedMatch(team);
+    await saveTeam(team);
+
+    stale.treasury -= 100_000;
+    stale.rerolls += 1;
+    await expect(saveTeam(stale)).rejects.toThrow("has played its first match");
+    const kept = fixtureValue(loadTeams().find((t) => t.id === team.id));
+    expect(kept.rerolls).toBe(0);
+    expect(getTeamMode(kept)).toBe("active");
   });
 });
 

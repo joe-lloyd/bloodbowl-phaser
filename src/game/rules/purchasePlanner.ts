@@ -30,11 +30,10 @@ import {
 type PurchaseReason =
   | "minimum"
   | "journeyman"
-  | "reroll"
   | "roster"
   | "spend-down";
 
-type PlannedStaff = "reroll" | "apothecary" | "coach" | "cheerleader";
+type PlannedStaff = "apothecary" | "coach" | "cheerleader";
 
 export type PlannedPurchase =
   | {
@@ -75,7 +74,6 @@ type UnpricedPurchase = PlannedPurchase extends infer Item
 
 const SPEND_DOWN: readonly PlannedStaff[] = [
   "apothecary",
-  "reroll",
   "coach",
   "cheerleader",
 ];
@@ -237,10 +235,6 @@ export function planPurchases(team: Team): PlannedPurchase[] {
 
   while (hireJourneymanFor("journeyman", spare));
 
-  const reroll = priceOf(sim, { type: "reroll" }).amount;
-  if (sim.rerolls === 0 && reroll != null && reroll <= spare())
-    buy({ kind: "staff", item: "reroll", reason: "reroll" });
-
   while (hireCheapest("roster", spare()));
 
   while (sim.treasury >= EXPENSIVE_MISTAKES_THRESHOLD) {
@@ -266,7 +260,6 @@ export function describePurchase(item: PlannedPurchase): string {
 }
 
 const STAFF_NAMES: Record<PlannedStaff, string> = {
-  reroll: "a team re-roll",
   apothecary: "an Apothecary",
   coach: "an Assistant Coach",
   cheerleader: "a Cheerleader",

@@ -14,6 +14,16 @@ export function isActiveTeam(team: Team): boolean {
   return getTeamMode(team) === "active";
 }
 
+export function buysAfterStart(team: Team, stored: Team | undefined): boolean {
+  return (
+    stored !== undefined &&
+    isDraftTeam(team) &&
+    isActiveTeam(stored) &&
+    (team.rerolls > stored.rerolls ||
+      team.dedicatedFans > stored.dedicatedFans)
+  );
+}
+
 export function stampFirstCompletedMatch(
   team: Team,
   completedAt: number = Date.now()

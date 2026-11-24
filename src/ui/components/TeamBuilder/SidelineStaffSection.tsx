@@ -31,6 +31,7 @@ export function SidelineStaffSection({
           count={team.rerolls}
           team={team}
           item={{ type: "reroll" }}
+          locked={active}
           onBuy={onBuy}
         />
         {draft.apothecary && (
@@ -62,6 +63,7 @@ export function SidelineStaffSection({
           count={team.dedicatedFans}
           team={team}
           item={{ type: "dedicated-fan" }}
+          locked={active}
           onBuy={onBuy}
         />
         {draft.assistantCoaches && (
@@ -118,12 +120,14 @@ function StaffCounter({
   count,
   team,
   item,
+  locked = false,
   onBuy,
 }: {
   label: string;
   count: number;
   team: Team;
   item: StaffItem;
+  locked?: boolean;
   onBuy: (item: StaffItem) => void;
 }) {
   const price = priceOf(team, item);
@@ -137,18 +141,20 @@ function StaffCounter({
       </span>
       <div className="flex h-11 items-center justify-between rounded-hud border border-white/10 bg-black/35 pl-3 pr-1">
         <span className="font-hud-display text-hud-lg">{count}</span>
-        <HudButton
-          size="sm"
-          variant="secondary"
-          className="w-9 !px-0"
-          onClick={() => {
-            onBuy(item);
-          }}
-          disabled={!affordable}
-          title={price.reason}
-        >
-          +
-        </HudButton>
+        {!locked && (
+          <HudButton
+            size="sm"
+            variant="secondary"
+            className="w-9 !px-0"
+            onClick={() => {
+              onBuy(item);
+            }}
+            disabled={!affordable}
+            title={price.reason}
+          >
+            +
+          </HudButton>
+        )}
       </div>
     </div>
   );

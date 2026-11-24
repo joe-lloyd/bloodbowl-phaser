@@ -3,7 +3,7 @@ import {
   dehydrateTeam,
   readStoredTeam,
 } from "../../data/persistence/teamPersistence";
-import { backfillFirstMatchPlayedAt } from "../rules/teamLifecycle";
+import { backfillFirstMatchPlayedAt, buysAfterStart } from "../rules/teamLifecycle";
 import { chooseFirstLinemanAsVeteran } from "../rules/veteran";
 import { clearUnneededExpensiveMistakes } from "../rules/expensiveMistakes";
 import { carryGutterUnlock, latchGutterUnlock } from "../rules/club";
@@ -142,6 +142,11 @@ export function saveTeams(teams: Team[]): Promise<void> {
       activeRepository.loadTeams().map((team) => [team.id, team])
     );
     teams.forEach((team) => {
+      if (buysAfterStart(team, stored.get(team.id))) {
+        throw new Error(
+          `${team.name} has played its first match. Reload the team: re-rolls and Dedicated Fans can no longer be bought.`
+        );
+      }
       carryGutterUnlock(team, stored.get(team.id));
     });
     saved = Promise.resolve(activeRepository.saveTeams(teams));
