@@ -308,9 +308,9 @@ describe("online host resume", () => {
     const { gameService } = ServiceContainer.getInstance();
     const attackerId = fixtureValue(team1.players[0]).id;
     const settled = () => new Promise((resolve) => setTimeout(resolve, 100));
-    await gameService.declareAction({ playerId: attackerId, action: "blitz" });
+    gameService.declareAction({ playerId: attackerId, action: "blitz" });
     await settled();
-    gameService.rollBlockDice({
+    await gameService.rollBlockDice({
       attackerId,
       defenderId: fixtureValue(team2.players[0]).id,
       numDice: 1,
