@@ -85,10 +85,10 @@ const finished =
       later(200, then);
     });
 
-const nominate = () => {
+const clearNominees = () => {
   const players = [
     ...document.querySelectorAll<HTMLButtonElement>("section button"),
-  ].filter((button) => button.innerText.includes("#"));
+  ].filter((button) => button.textContent.includes("#"));
   players.slice(0, 6).forEach((button, index) => {
     later(index * 30, () => {
       button.click();
@@ -112,20 +112,17 @@ const RESULTS = rows(
       drive: finished(),
     },
     {
-      id: "results-mvp-picked",
-      title: "A league game: six nominees picked",
+      id: "results-mvp-empty",
+      title: "A league game: no nominees",
       fixture: { phase: GamePhase.GAME_OVER, progression: true },
-      drive: finished(nominate),
+      drive: finished(clearNominees),
     },
     {
       id: "results-mvp",
       title: "A league game: the MVP rolled",
       fixture: { phase: GamePhase.GAME_OVER, progression: true },
       drive: finished(() => {
-        nominate();
-        later(300, () => {
-          click("button", "Roll MVP D6");
-        });
+        click("button", "Roll MVP D6");
       }),
     },
   ]

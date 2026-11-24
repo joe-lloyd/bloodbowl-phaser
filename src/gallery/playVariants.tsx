@@ -331,7 +331,7 @@ const OPTION_ROWS: MatchRow[] = [
           ),
         ];
         items
-          .find((item) => /abandon|end match/i.test(item.innerText))
+          .find((item) => /abandon|end match/i.test(item.textContent))
           ?.click();
       });
     },
@@ -407,7 +407,7 @@ const BANNERS = rows(
     {
       id: "turnover",
       title: "Turnover",
-      drive: replay(4000, (fx) => {
+      drive: replay(2000, (fx) => {
         fx.bus.emit(GameEventNames.UI_Turnover, {
           teamId: fx.team1.id,
           reason: "Failed Dodge",

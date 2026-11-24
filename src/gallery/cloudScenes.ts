@@ -20,6 +20,16 @@ export const seed = () => {
 
 const ROSTERS = ["Human", "Orc", "Dwarf", "Wood Elf"];
 
+export function fewTeams(): void {
+  seed();
+  const kept = loadTeams().filter(
+    (team) =>
+      ROSTERS.includes(team.rosterName) ||
+      (team.pendingDevelopment ?? []).length > 0
+  );
+  void saveTeams(kept.slice(0, 6));
+}
+
 export const teamAt = (index: number): Team => {
   const team = loadTeams().find(
     ({ rosterName }) => rosterName === ROSTERS[index]
@@ -218,8 +228,8 @@ export const RANDOM_ROLL: PendingAdvancementRoll = {
   kind: "random-primary",
   category: SkillCategory.GENERAL,
   candidates: [
-    { skill: SkillType.BLOCK, firstD6: 2, secondD6: 3 },
-    { skill: SkillType.FEND, firstD6: 4, secondD6: 1 },
+    { skill: SkillType.WRESTLE, firstD6: 2, secondD6: 3 },
+    { skill: SkillType.TACKLE, firstD6: 4, secondD6: 1 },
   ],
 };
 

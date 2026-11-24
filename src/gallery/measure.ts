@@ -35,7 +35,10 @@ export function bringIntoView(element: Element): void {
   const { top, bottom } = element.getBoundingClientRect();
   if (!view || (top >= 0 && bottom <= view.innerHeight)) return;
   let scroller = element.parentElement;
-  while (scroller && scroller.scrollHeight <= scroller.clientHeight + 1)
+  while (
+    scroller &&
+    !/auto|scroll/.test(view.getComputedStyle(scroller).overflowY)
+  )
     scroller = scroller.parentElement;
   (scroller ?? page.documentElement).scrollTop += top - 120;
 }

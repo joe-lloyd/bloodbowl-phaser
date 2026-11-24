@@ -423,7 +423,7 @@ const PAGES: DriftSpec[] = [
         selector: '[aria-checked="true"]',
       },
       {
-        variant: "results-mvp-picked",
+        variant: "results-progression",
         label: "MVP nominee",
         selector: "section button",
         contains: "1. #",

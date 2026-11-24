@@ -18,6 +18,7 @@ import { TeamManagement } from "../ui/components/pages/TeamManagement";
 import { TeamSelect } from "../ui/components/pages/TeamSelect";
 import {
   CLOUD_LEAGUE,
+  fewTeams,
   guestSeat,
   hostAlone,
   hostReady,
@@ -121,6 +122,7 @@ const TEAMS = teamPages("Teams", [
   {
     id: "page-teams",
     title: "The team list",
+    prepare: fewTeams,
     view: teamList,
   },
   {
