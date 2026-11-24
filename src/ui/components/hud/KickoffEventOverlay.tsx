@@ -41,8 +41,6 @@ function TodoList({ todo, active }: { todo: KickoffTodo; active: boolean }) {
 function finishButton(step: KickoffEventStepState) {
   if (isOneSquareMoveEvent(step.event))
     return { label: "Done", ready: step.movedPlayerIds.length > 0 };
-  if (step.event === KickoffEvent.HIGH_KICK)
-    return { label: "Confirm", ready: true };
   return { label: step.event, ready: step.selectedPlayerIds.length > 0 };
 }
 
@@ -115,7 +113,7 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
           >
             Skip
           </HudButton>
-          {!step.charge && (
+          {!step.charge && step.event !== KickoffEvent.HIGH_KICK && (
             <HudButton
               variant="gold"
               disabled={awaiting.size > 0 || !finish.ready}

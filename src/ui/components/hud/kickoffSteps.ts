@@ -37,8 +37,8 @@ export function kickoffTodo(step: KickoffEventStepState): KickoffTodo {
   if (isOneSquareMoveEvent(step.event)) return oneSquareTodo(step);
   if (step.event === KickoffEvent.HIGH_KICK)
     return {
-      lines: ["Choose a ringed player to stand under the ball", "Press Confirm"],
-      current: step.selectedPlayerIds.length > 0 ? 1 : 0,
+      lines: ["Choose a ringed player to stand under the ball"],
+      current: 0,
     };
   return chargeTodo(step);
 }
