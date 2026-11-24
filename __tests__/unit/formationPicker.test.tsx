@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FormationManager } from "../../src/game/managers/FormationManager";
 import { FormationPicker } from "../../src/ui/components/hud/FormationPicker";
 import { fixtureValue } from "../../src/testing/fixtureValue";
@@ -119,4 +119,28 @@ describe("FormationPicker", () => {
     expect(picked).toEqual(["Spread"]);
     expect(options()).toHaveLength(0);
   });
+
+  it.each([
+    { panelLeft: 336, screen: 640, left: 16, width: 456 },
+    { panelLeft: 976, screen: 1280, left: 496, width: 456 },
+    { panelLeft: 120, screen: 400, left: 16, width: 368 },
+  ])(
+    "stays on a $screen pixel screen, above the HUD",
+    ({ panelLeft, screen, left, width }) => {
+      vi.stubGlobal("innerWidth", screen);
+      vi.spyOn(
+        HTMLElement.prototype,
+        "getBoundingClientRect"
+      ).mockReturnValue(new DOMRect(panelLeft, 0, 264, 60));
+      open(true, true);
+      const grid = fixtureValue(
+        document.querySelector<HTMLElement>('[data-testid="formation-grid"]')
+      );
+      expect(grid.style.left).toBe(`${String(left)}px`);
+      expect(grid.style.width).toBe(`${String(width)}px`);
+      expect(grid.className).toContain("z-[1001]");
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    }
+  );
 });

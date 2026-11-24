@@ -13,6 +13,16 @@ import { FormationThumb } from "./FormationThumb";
 
 const COLUMNS = 3;
 
+const GRID_WIDTH = 456;
+const SCREEN_MARGIN = 16;
+const PANEL_GAP = 24;
+
+function besidePanel(panelLeft: number, screenWidth: number): CSSProperties {
+  const width = Math.min(GRID_WIDTH, screenWidth - 2 * SCREEN_MARGIN);
+  const left = Math.max(SCREEN_MARGIN, panelLeft - PANEL_GAP - width);
+  return { left, width };
+}
+
 const KEY_STEP: Readonly<Record<string, number>> = {
   ArrowRight: 1,
   ArrowLeft: -1,
@@ -46,8 +56,8 @@ export function FormationPicker(props: FormationPickerProps) {
       close();
       return;
     }
-    const left = trigger.current?.getBoundingClientRect().left ?? 0;
-    setAnchor({ right: window.innerWidth - left + 24 });
+    const edge = trigger.current?.getBoundingClientRect().left ?? 0;
+    setAnchor(besidePanel(edge, window.innerWidth));
   };
 
   return (
@@ -100,8 +110,10 @@ function useOutsidePress(
       onPress();
     };
     document.addEventListener("pointerdown", check, true);
+    window.addEventListener("resize", onPress);
     return () => {
       document.removeEventListener("pointerdown", check, true);
+      window.removeEventListener("resize", onPress);
     };
   });
 }
@@ -191,7 +203,7 @@ function FormationGrid({
       data-hotkey-scope=""
       onKeyDown={(event) => { navigate(event, options(), onClose); }}
       style={anchor}
-      className="hud-slab hud-scroll pointer-events-auto fixed bottom-4 z-[130] max-h-[calc(100dvh-2rem)] w-[456px] space-y-3 overflow-y-auto border-t-[3px] border-t-hud-gold p-3 text-hud-bone animate-hud-in"
+      className="hud-slab hud-scroll pointer-events-auto fixed bottom-4 z-[1001] max-h-[calc(100dvh-2rem)] space-y-3 overflow-y-auto border-t-[3px] border-t-hud-gold p-3 text-hud-bone animate-hud-in"
     >
       {formationGroups(formations, kicking).map((group) => (
         <div key={group.label} role="group" aria-label={group.label}>
