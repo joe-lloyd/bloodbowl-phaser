@@ -387,18 +387,15 @@ class OnlineSession {
 
   private saveNow(): void {
     if (this.engine.getState().pregameInducements?.resolving) return;
-    void persistMatch(this.options.lobby.code, this.game.snapshot(), {
-      teams: structuredClone([this.sides.team1, this.sides.team2]),
-      rng: this.container.rngService.captureState(), matchStats: this.container.matchStats.captureState(),
-      applied: this.session.appliedCommands(),
-    }).catch((error: unknown) => { console.warn("[Online] save failed:", error); });
+    const { snapshot, teams, rng, matchStats, applied } = this.session.captureState();
+    void persistMatch(this.options.lobby.code, snapshot, { teams: structuredClone(teams), rng, matchStats, applied }).catch((error: unknown) => { console.warn("[Online] save failed:", error); });
   }
 
   private saveIfTurnChanged(): void {
     const { phase, turn } = this.engine.getState();
     const key = `${phase}:${turn.teamId}:${String(turn.turnNumber)}`;
     if (key === this.savedTurn) return;
-    this.savedTurn = key;
+    if (this.game.isAtRest()) this.savedTurn = key;
     this.saveNow();
   }
 

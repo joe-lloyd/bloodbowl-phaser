@@ -19,17 +19,22 @@ import { InjuryResult } from "../../src/game/controllers/InjuryController";
 const saves = vi.hoisted(() => {
   const turns: number[] = [];
   const teams: ([Team, Team] | undefined)[] = [];
-  return { turns, teams };
+  const spentBlocks: (boolean | undefined)[] = [];
+  return { turns, teams, spentBlocks };
 });
 vi.mock("../../src/firebase/lobby", async (load) => ({
   ...(await load<typeof import("../../src/firebase/lobby")>()),
   persistMatch: async (
     _code: string,
-    snapshot: { turn: { turnNumber: number } },
+    snapshot: {
+      turn: { turnNumber: number };
+      activePlayer?: { blitzBlockUsed?: boolean } | null;
+    },
     resume: MatchResume
   ) => {
     saves.turns.push(snapshot.turn.turnNumber);
     saves.teams.push(resume.teams);
+    saves.spentBlocks.push(snapshot.activePlayer?.blitzBlockUsed);
   },
 }));
 import { type Scenario } from "../../src/types/Scenario";
@@ -255,6 +260,67 @@ describe("online host resume", () => {
     for (let i = 0; i < 25 && saves.turns.length === 0; i++) await flushed();
 
     expect(saves.turns.length).toBe(1);
+    match.close();
+  });
+
+  it("saving while Block dice wait keeps the Block to be thrown again", async () => {
+    const scenario: Scenario = {
+      ...midMatch,
+      setup: {
+        ...midMatch.setup,
+        team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
+      },
+    };
+    const game = new HeadlessGame({ scenario, seed: 5 });
+    const { team1, team2 } = game.ctx;
+    const seat = (uid: string, team: Team) => ({
+      uid,
+      displayName: uid,
+      team,
+      ready: true,
+    });
+    const [hostEnd] = createInMemoryTransportPair();
+    const match = createOnlineMatch({
+      lobby: {
+        code: "BLOCK",
+        hostUid: "host-uid",
+        guestUid: "guest-uid",
+        status: "active",
+        settings: { ...DEFAULT_SETTINGS },
+        snapshot: game.snapshot(),
+        players: {
+          "host-uid": seat("host-uid", team1),
+          "guest-uid": seat("guest-uid", team2),
+        },
+        createdAt: null,
+      },
+      user: {
+        uid: "host-uid",
+        displayName: "Host",
+        email: null,
+        emailVerified: false,
+        photoURL: null,
+      },
+      eventBus: new EventBus(),
+      transport: hostEnd,
+      seed: 5,
+    });
+    const { gameService } = ServiceContainer.getInstance();
+    const attackerId = fixtureValue(team1.players[0]).id;
+    const settled = () => new Promise((resolve) => setTimeout(resolve, 100));
+    await gameService.declareAction({ playerId: attackerId, action: "blitz" });
+    await settled();
+    gameService.rollBlockDice({
+      attackerId,
+      defenderId: fixtureValue(team2.players[0]).id,
+      numDice: 1,
+      isAttackerChoice: true,
+    });
+    await settled();
+    expect(gameService.getState().activePlayer?.blitzBlockUsed).toBe(true);
+    saves.spentBlocks.length = 0;
+    match.saveState();
+    expect(saves.spentBlocks).toEqual([undefined]);
     match.close();
   });
 });
