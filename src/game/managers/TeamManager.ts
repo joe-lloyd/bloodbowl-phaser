@@ -3,7 +3,7 @@ import {
   dehydrateTeam,
   readStoredTeam,
 } from "../../data/persistence/teamPersistence";
-import { backfillFirstMatchPlayedAt } from "../rules/teamLifecycle";
+import { backfillFirstMatchPlayedAt, withStartLock } from "../rules/teamLifecycle";
 import { chooseFirstLinemanAsVeteran } from "../rules/veteran";
 import { clearUnneededExpensiveMistakes } from "../rules/expensiveMistakes";
 import { carryGutterUnlock, latchGutterUnlock } from "../rules/club";
@@ -144,7 +144,10 @@ export function saveTeams(teams: Team[]): Promise<void> {
     teams.forEach((team) => {
       carryGutterUnlock(team, stored.get(team.id));
     });
-    saved = Promise.resolve(activeRepository.saveTeams(teams));
+    const locked = teams.map((team) =>
+      withStartLock(team, stored.get(team.id))
+    );
+    saved = Promise.resolve(activeRepository.saveTeams(locked));
   } catch (cause) {
     saved = Promise.reject(cause);
   }

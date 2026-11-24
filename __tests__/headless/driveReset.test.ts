@@ -5,7 +5,8 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { type Scenario } from "../../src/types/Scenario";
-import { PlayerStatus } from "../../src/types/Player";
+import { PlayerCondition, PlayerStatus } from "../../src/types/Player";
+import { deserializeGameState } from "../../src/headless/serialization";
 import { forceDice } from "../utils/test-helpers";
 
 const tdScenario: Scenario = {
@@ -87,7 +88,124 @@ async function placeTeam(game: HeadlessGame, teamId: string): Promise<void> {
   }
 }
 
+const endTurns = async (game: HeadlessGame, turns: number) => {
+  for (let turn = 0; turn < turns; turn++)
+    await game.execute({ type: "end-turn" });
+};
+
+const DRIVE_ENDS = [
+  {
+    name: "the active team scores",
+    prepare: () => Promise.resolve(),
+    end: scoreTouchdown,
+  },
+  {
+    name: "the other team scores",
+    prepare: () => Promise.resolve(),
+    end: async (game: HeadlessGame) => {
+      const { gameService, team2 } = game.ctx;
+      gameService.addTouchdown(team2.id, fixtureValue(team2.players[0]).id);
+      await gameService.getFlowContext().flowManager.whenIdle();
+    },
+  },
+  {
+    name: "half-time",
+    prepare: async (game: HeadlessGame) => {
+      game.ctx.gameService.startGame(game.ctx.team1.id);
+      await endTurns(game, 11);
+    },
+    end: (game: HeadlessGame) => endTurns(game, 1),
+  },
+  {
+    name: "extra time",
+    prepare: async (game: HeadlessGame) => {
+      game.ctx.gameService.getState().knockout = true;
+      game.ctx.gameService.getState().turn.isHalf2 = true;
+      game.ctx.gameService.startGame(game.ctx.team1.id);
+      await endTurns(game, 11);
+    },
+    end: (game: HeadlessGame) => endTurns(game, 1),
+  },
+];
+
 describe("drive reset", () => {
+  it.each(DRIVE_ENDS)(
+    "resets every player and the whole turn when $name",
+    async ({ prepare, end }) => {
+      const game = new HeadlessGame({ scenario: tdScenario, seed: 3 });
+      const { team1, team2, gameService } = game.ctx;
+      await prepare(game);
+      const state = gameService.getState();
+      for (const [index, team] of [team1, team2].entries()) {
+        const [, prone, stunned, knockedOut, casualty, sentOff] =
+          team.players;
+        Object.assign(fixtureValue(prone), {
+          status: PlayerStatus.PRONE,
+          gridPosition: { x: 3 + index, y: 1 },
+          hasActed: true,
+        });
+        Object.assign(fixtureValue(stunned), {
+          status: PlayerStatus.STUNNED,
+          gridPosition: { x: 3 + index, y: 2 },
+          hasActed: true,
+          conditions: [{ type: PlayerCondition.DISTRACTED }],
+        });
+        for (const [player, status] of [
+          [knockedOut, PlayerStatus.KO],
+          [casualty, PlayerStatus.INJURED],
+          [sentOff, PlayerStatus.REMOVED],
+        ] as const) {
+          fixtureValue(player).status = status;
+          delete fixtureValue(player).gridPosition;
+        }
+        for (const player of team.players.slice(1, 3)) {
+          state.turn.activatedPlayerIds.add(player.id);
+          state.turn.movementUsed.set(player.id, 3);
+        }
+      }
+      state.turn.hasBlitzed = true;
+      state.turn.hasFouled = true;
+      state.turnUsage = { turn: "h1", teams: [team1.id], once: [], uses: {} };
+
+      const recovered = new Map<string, boolean>();
+      game.ctx.eventBus.on(GameEventNames.KORecoveryRolled, (roll) => {
+        recovered.set(roll.playerId, roll.recovered);
+      });
+      await end(game);
+
+      expect(state.phase).not.toBe(GamePhase.PLAY);
+      expect(recovered.size).toBe(2);
+      for (const player of [...team1.players, ...team2.players]) {
+        expect(player.gridPosition).toBeUndefined();
+        expect(player.hasActed).toBe(false);
+        expect(player.conditions ?? []).toEqual([]);
+      }
+      for (const team of [team1, team2]) {
+        const statuses = team.players.map((player) => player.status);
+        expect(statuses.slice(3, 6)).toEqual([
+          recovered.get(fixtureValue(team.players[3]).id)
+            ? PlayerStatus.RESERVE
+            : PlayerStatus.KO,
+          PlayerStatus.INJURED,
+          PlayerStatus.REMOVED,
+        ]);
+        expect(new Set([...statuses.slice(0, 3), ...statuses.slice(6)])).toEqual(
+          new Set([PlayerStatus.RESERVE])
+        );
+      }
+      for (const turn of [
+        state.turn,
+        deserializeGameState(game.snapshot()).turn,
+      ]) {
+        expect(turn.activatedPlayerIds.size).toBe(0);
+        expect(turn.movementUsed.size).toBe(0);
+        expect(turn).toMatchObject({ hasBlitzed: false, hasFouled: false });
+      }
+      expect(state.turnUsage).toBeUndefined();
+      expect(state.activePlayer).toBeNull();
+    }
+  );
+
   it("clears the pitch after a touchdown: dugouts, no ball, placements reset", async () => {
     const game = new HeadlessGame({ scenario: tdScenario, seed: 3 });
     const response = await scoreTouchdown(game);

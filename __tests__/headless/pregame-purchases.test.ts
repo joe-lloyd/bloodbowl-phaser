@@ -22,7 +22,7 @@ const buyTraining = {
 };
 
 describe("graphical match pregame through the protocol", () => {
-  it("requires both ready and both confirmed before any coin toss or setup mutation", async () => {
+  it("requires both ready and the coach with petty cash confirmed before any coin toss or setup mutation", async () => {
     const game = pregameGame();
     const rng = game.ctx.rng.captureState();
     expect((await game.execute(buyTraining)).reason).toContain(
@@ -36,10 +36,11 @@ describe("graphical match pregame through the protocol", () => {
     expect(game.driveKickingTeamId()).toBeNull();
     await ready(game);
 
-    expect((await game.execute(buyTraining)).reason).toContain(
-      "not-your-turn-to-buy"
-    );
-    await game.execute(team2Confirms);
+    expect(game.snapshot().pregameInducements?.offer?.confirmed).toEqual({
+      team1: false,
+      team2: true,
+    });
+    expect((await game.execute(team2Confirms)).ok).toBe(true);
     expect(
       (await game.execute({ type: "start-setup", kickingTeamId: "team2" })).ok
     ).toBe(false);
@@ -101,11 +102,8 @@ describe("graphical match pregame through the protocol", () => {
       "team2",
       "team1",
     ]);
-    await game.execute(team2Confirms);
-    expect((await game.execute(buyTraining)).reason).toContain(
-      "budget-exceeded"
-    );
-    await game.execute({ type: "confirm-inducements", teamId: "team1" });
+    expect(game.snapshot().pregameInducements?.complete).toBe(true);
+    expect((await game.execute(buyTraining)).ok).toBe(false);
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
     expect(
       fixtureValue(game.snapshot().inducements?.inventory[0]).quantity
@@ -113,6 +111,58 @@ describe("graphical match pregame through the protocol", () => {
     await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
   });
+
+  it("lets the coaches answer a vacant captaincy in an older save nobody can buy in", async () => {
+    const original = pregameGame();
+    original.ctx.team2.rerolls = original.ctx.team1.rerolls;
+    await ready(original);
+    const snapshot = original.snapshot();
+    const pregame = fixtureValue(snapshot.pregameInducements);
+    pregame.complete = false;
+    fixtureValue(pregame.offer).confirmed = { team1: false, team2: false };
+    delete snapshot.inducements;
+    const [team1, team2] = [original.ctx.team1, original.ctx.team2].map(
+      (team) => {
+        const stored = structuredClone(team);
+        stored.firstMatchPlayedAt = 1;
+        stored.players.forEach((player) => {
+          delete player.teamCaptain;
+        });
+        return stored;
+      }
+    );
+    const game = new HeadlessGame({
+      team1: fixtureValue(team1),
+      team2: fixtureValue(team2),
+      initialState: { ...deserializeGameState(snapshot), paysWinnings: true },
+      seed: 23,
+    });
+    for (const teamId of fixtureValue(pregame.buyOrder))
+      expect(
+        (await game.execute({ type: "confirm-inducements", teamId })).ok
+      ).toBe(true);
+    for (let asked = 0; asked < 2; asked++) {
+      expect(game.pendingDecision()).toMatchObject({ kind: "team-captain" });
+      expect((await game.execute({ type: "choose-inducement" })).ok).toBe(true);
+    }
+    expect(game.snapshot().pregameInducements?.resolving).toBe(false);
+    expect(
+      (await game.execute({ type: "start-setup", kickingTeamId: "team1" })).ok
+    ).toBe(true);
+  });
+
+  it.each(["sevens", "street-bowl", "beach-bowl", "gutter-bowl"] as const)(
+    "finishes the purchases of a %s match nobody can afford to buy in",
+    async (gameType) => {
+      const game = pregameGame(false, gameType);
+      game.ctx.team2.rerolls = game.ctx.team1.rerolls;
+      await ready(game);
+      expect(game.snapshot().pregameInducements?.complete).toBe(true);
+      if (gameType === "street-bowl")
+        expect(game.pendingDecision()?.type).toBe("inducement-choice");
+      else expect(game.pendingDecision()).toBeNull();
+    }
+  );
 
   it("resolves bought prayer choices before allowing setup", async () => {
     const game = pregameGame();

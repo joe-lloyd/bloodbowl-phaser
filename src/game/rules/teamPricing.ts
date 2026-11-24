@@ -97,7 +97,14 @@ function apothecaryPrice(team: Team): PriceResult {
     : { amount: APOTHECARY_COST };
 }
 
+const STARTED_TEAM: PriceResult = {
+  amount: null,
+  reason:
+    "Team re-rolls and Dedicated Fans are bought only before the first match.",
+};
+
 function dedicatedFanPurchase(team: Team): PriceResult {
+  if (isActiveTeam(team)) return STARTED_TEAM;
   const draft = teamDraftRules(team);
   if (draft.dedicatedFansInLeagueOnly && !isLeagueMode(team.advancementMode)) {
     return {
@@ -150,6 +157,7 @@ export function teamRerollPrice(team: Team): number {
 export function priceOf(team: Team, item: PriceableItem): PriceResult {
   switch (item.type) {
     case "reroll":
+      if (isActiveTeam(team)) return STARTED_TEAM;
       return capped(
         team.rerolls,
         MAX_TEAM_REROLLS,

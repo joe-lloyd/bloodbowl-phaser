@@ -68,16 +68,20 @@ for (const viewport of [
     await expect(
       page.getByText("Winnings: +60,000 gp added to the Treasury.")
     ).toBeVisible();
-    await page
-      .getByText("Re-Rolls (100k)", { exact: true })
-      .locator("..")
-      .getByRole("button", { name: "+", exact: true })
-      .click();
-    await page
-      .getByText("Asst. Coaches (20k)", { exact: true })
-      .locator("..")
-      .getByRole("button", { name: "+", exact: true })
-      .click();
+    for (const locked of ["Re-Rolls", "Dedicated Fans"])
+      await expect(
+        page
+          .getByText(locked, { exact: true })
+          .locator("..")
+          .getByRole("button")
+      ).toHaveCount(0);
+    for (let coach = 0; coach < 3; coach++) {
+      await page
+        .getByText(/^Asst. Coaches/)
+        .locator("..")
+        .getByRole("button", { name: "+", exact: true })
+        .click();
+    }
     await page.locator('[data-testid="roster-row-1"] td').nth(2).click();
     await expect(page).toHaveURL(
       new RegExp(`/build-team/${id}/player/${id}-player-1`)
@@ -96,10 +100,10 @@ for (const viewport of [
       .click();
     await expect(page).toHaveURL(/\/leagues\/season-1$/);
     expect(await savedTeam(page)).toEqual({
-      treasury: 30_000,
+      treasury: 90_000,
       pending: [],
-      rerolls: 1,
-      coaches: 1,
+      rerolls: 0,
+      coaches: 3,
     });
     await page.goto("/build-team");
     await expect(page.getByTestId("expensive-mistakes")).toHaveCount(0);

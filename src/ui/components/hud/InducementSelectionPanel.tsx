@@ -61,10 +61,6 @@ export function InducementSelectionPanel({
     0
   );
   const { busy, error, run } = usePregameCommand(onChanged);
-  const draft =
-    team.advancementMode === "matched-play"
-      ? (team.draftInducements ?? [])
-      : [];
   const setQuantity = (inducement: Inducement, quantity: number) =>
     void run(() =>
       quantity === 0
@@ -102,31 +98,6 @@ export function InducementSelectionPanel({
         {(budget - spent).toLocaleString()} / {budget.toLocaleString()} gold
         remaining
       </p>
-      {team.advancementMode === "matched-play" ? (
-        <Notice className="mb-3">
-          Matched Play inducements come from your draft budget. There is no
-          additional petty cash.
-        </Notice>
-      ) : (
-        budget === 0 && (
-          <Notice className="mb-3">
-            No petty cash: your team value is equal to or higher than your
-            opponent&apos;s. You can continue without buying anything.
-          </Notice>
-        )
-      )}
-      {draft.length > 0 && (
-        <div className="mb-3 text-hud-sm">
-          <strong>Already on your draft list</strong>
-          <ul>
-            {draft.map((line) => (
-              <li key={line.inducement}>
-                {line.quantity} × {line.inducement}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
       {error && (
         <Notice tone="bad" role="alert" className="mb-3">
           {error}

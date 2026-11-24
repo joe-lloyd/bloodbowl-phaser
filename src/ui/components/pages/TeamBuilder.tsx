@@ -79,7 +79,7 @@ const MODE_EYEBROWS: Record<TeamMode, string> = {
 
 const MODE_SUBTITLES: Record<TeamMode, string> = {
   active:
-    "This team has played its first match. Roster type is locked and nobody can be fired. Between league fixtures, spend the Treasury on players at roster price, and on re-rolls and Sideline Staff at the prices of the team's game type, within the roster limits.",
+    "This team has played its first match. Roster type is locked and nobody can be fired. Between league fixtures, spend the Treasury on players at roster price and on Sideline Staff at the prices of the team's game type, within the roster limits. Re-rolls and Dedicated Fans are no longer for sale.",
   draft:
     "Draft teams may be edited freely and saved even while incomplete, but must pass roster legality before they can be selected for a match or entered in a competition.",
 };

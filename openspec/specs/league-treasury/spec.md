@@ -112,10 +112,11 @@ bloodbowlbase.ru `bb2025/spike_journal/issue_22`):
 ### Requirement: A league team spends its Treasury between fixtures
 
 After its first game a team SHALL hire players from its roster at their
-Hiring Fee, and buy team re-rolls and Sideline Staff at their Sevens prices,
+Hiring Fee, and buy an Apothecary, Assistant Coaches and Cheerleaders at their Sevens prices,
 from the Treasury, using the same Team Builder and `AvailableHires` as the
-draft. A team re-roll SHALL cost 100,000 gp between fixtures, as at the
-draft. Every purchase SHALL lower the Treasury by exactly its price, and the
+draft. Team re-rolls and Dedicated Fans SHALL be sold only
+before the team's first match, an owner decision that overrides the
+rulebook. Every purchase SHALL lower the Treasury by exactly its price, and the
 Treasury SHALL never go below zero. Draft-only allowances SHALL be off:
 firing players, selling back staff, changing roster type, the starting
 Treasury, choosing a Veteran and Matched Play inducements.
@@ -126,11 +127,11 @@ Treasury, choosing a Veteran and Matched Play inducements.
   fixtures
 - **THEN** the Treasury holds 115,000 gp
 
-#### Scenario: Buying a re-roll
+#### Scenario: No re-roll after the first match
 
-- **WHEN** a league team with 250,000 gp buys a team re-roll between
+- **WHEN** a league team with 250,000 gp tries to buy a team re-roll between
   fixtures
-- **THEN** it has one more re-roll and 150,000 gp
+- **THEN** it is refused and the team is unchanged
 
 ### Requirement: Purchases beyond the Treasury or the roster limits are refused
 

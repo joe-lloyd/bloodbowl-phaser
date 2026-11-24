@@ -10,7 +10,7 @@ import { type Team } from "@/types/Team";
 import { SetupManager } from "@/game/managers/SetupManager";
 import { rollMasterChefs as cookMasterChefs } from "@/game/inducements/masterChef";
 import type { GameParts } from "./parts";
-import { readyInducements } from "./inducements";
+import { readyInducements, skipUnaffordableInducements } from "./inducements";
 import { prepareClubSquad } from "@/game/rules/club";
 
 export function createMatchState({
@@ -96,7 +96,10 @@ export function readyForWeather(parts: GameParts, teamId: string): boolean {
 
   if (state.pregameInducements) readyInducements(parts, teamId);
   parts.eventBus.emit(GameEventNames.WeatherReady, { teamIds: ready });
-  if (weatherRolled(state)) parts.weatherService.rollWeather();
+  if (weatherRolled(state)) {
+    parts.weatherService.rollWeather();
+    skipUnaffordableInducements(parts);
+  }
   return true;
 }
 

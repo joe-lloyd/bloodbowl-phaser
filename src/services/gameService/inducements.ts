@@ -6,6 +6,7 @@ import {
 import { GameEventNames } from "@/types/events";
 
 import {
+  affordsInducement,
   calculateInducementBudgets,
   draftListInventory as teamDraftList,
 } from "@/game/inducements/rules";
@@ -210,12 +211,22 @@ export function confirmInducements(
   if (![parts.team1.id, parts.team2.id].includes(teamId))
     return { ok: false, errors: ["unknown-team"] };
 
-  if (pregame?.complete) return { ok: true, errors: [] };
+  if (pregame?.complete || pregame?.offer?.confirmed[teamId])
+    return { ok: true, errors: [] };
   const error = purchaseError(parts, teamId);
   if (error) return { ok: false, errors: [error] };
   const negotiation = session(parts);
   const result = negotiation.confirm(teamId);
   if (!result.ok) return result;
+  recordConfirmations(parts, negotiation);
+  return result;
+}
+
+function recordConfirmations(
+  parts: GameParts,
+  negotiation: InducementSession
+): void {
+  const pregame = parts.state.pregameInducements;
   if (pregame) pregame.offer = offerFor(parts, negotiation);
   if (negotiation.bothConfirmed([parts.team1.id, parts.team2.id])) {
     if (pregame) pregame.complete = true;
@@ -226,7 +237,24 @@ export function confirmInducements(
     );
   }
   parts.eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
-  return result;
+}
+
+export function skipUnaffordableInducements(parts: GameParts): void {
+  const pregame = parts.state.pregameInducements;
+  if (!pregame?.offer || pregame.complete || !isPregameOpening(parts.state))
+    return;
+  const negotiation = session(parts);
+  const broke = [parts.team1.id, parts.team2.id].filter(
+    (teamId) =>
+      !negotiation.isConfirmed(teamId) &&
+      !affordsInducement(
+        negotiation.getCatalogFor(teamId),
+        negotiation.getBudgetFor(teamId)
+      )
+  );
+  if (broke.length === 0) return;
+  broke.forEach((teamId) => negotiation.confirm(teamId));
+  recordConfirmations(parts, negotiation);
 }
 
 export function restoreMatchInducements(parts: GameParts): void {

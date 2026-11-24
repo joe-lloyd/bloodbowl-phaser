@@ -1,9 +1,11 @@
-import { usePregameInducements } from "./pregameInducementHooks";
+import { useEffect, useRef, type ReactNode } from "react";
+import { usePregameCommand, usePregameInducements } from "./pregameInducementHooks";
 import type { EventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { affordsInducement } from "../../../game/inducements/rules";
 import { shoppingTeamId } from "../../../game/inducements/pregame";
-import { DialogShell } from "../componentWarehouse/HudKit";
+import { DialogShell, HudButton, Notice } from "../componentWarehouse/HudKit";
 import { InducementSelectionPanel } from "./InducementSelectionPanel";
 
 export function PregameInducements({ eventBus }: { eventBus: EventBus }) {
@@ -17,29 +19,71 @@ export function PregameInducements({ eventBus }: { eventBus: EventBus }) {
   const match = getActiveOnlineMatch();
   const mine = !match || shopper === match.myTeamId;
   if (shopper && mine)
-    return (
+    return pregame.offer &&
+      !affordsInducement(
+        pregame.offer.catalogs[shopper] ?? [],
+        pregame.offer.budgets[shopper] ?? 0
+      ) ? (
+      <SkippedInducements key={shopper} teamId={shopper} onChanged={refresh} />
+    ) : (
       <InducementSelectionPanel
         key={shopper}
         teamId={shopper}
         onChanged={refresh}
       />
     );
+  if (pregame.complete) return null;
   const buyer = shopper ? service.getTeam(shopper) : undefined;
+  return (
+    <PregameDialog>
+      <p role="status" className="text-hud-dim">
+        {buyer
+          ? `Waiting for ${buyer.name}…`
+          : "Waiting for both coaches to ready up…"}
+      </p>
+    </PregameDialog>
+  );
+}
+
+function PregameDialog({ children }: { children: ReactNode }) {
   return (
     <DialogShell
       zClass="z-[100]"
-      title="INDUCEMENTS"
+      title="PRE-MATCH"
       placement="center"
       backdrop="heavy"
       width="w-[520px]"
     >
-      <p role="status" className="text-hud-dim">
-        {buyer
-          ? `${buyer.name} is choosing inducements…`
-          : pregame.complete
-            ? "Preparing inducements…"
-            : "Waiting for both coaches to ready up…"}
-      </p>
+      {children}
     </DialogShell>
+  );
+}
+
+function SkippedInducements({
+  teamId,
+  onChanged,
+}: {
+  teamId: string;
+  onChanged: () => void;
+}) {
+  const { error, run } = usePregameCommand(onChanged);
+  const skip = () =>
+    void run(() =>
+      ServiceContainer.getInstance().gameService.confirmInducements(teamId)
+    );
+  const first = useRef(skip);
+  useEffect(() => {
+    first.current();
+  }, []);
+  if (!error) return null;
+  return (
+    <PregameDialog>
+      <Notice tone="bad" role="alert" className="mb-3">
+        {error}
+      </Notice>
+      <HudButton block onClick={skip}>
+        Continue
+      </HudButton>
+    </PregameDialog>
   );
 }

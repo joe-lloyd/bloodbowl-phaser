@@ -419,9 +419,6 @@
     }
   },
   "__tests__/unit/TeamPersistence.test.ts": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 4
-    },
     "@typescript-eslint/no-floating-promises": {
       "count": 7
     },
@@ -4514,7 +4511,7 @@
   },
   "src/game/rules/purchasePlanner.ts": {
     "complexity": {
-      "count": 2
+      "count": 1
     },
     "max-depth": {
       "count": 2
@@ -6024,9 +6021,6 @@
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
     },
-    "complexity": {
-      "count": 1
-    },
     "max-lines-per-function": {
       "count": 1
     },
@@ -6159,9 +6153,6 @@
   },
   "src/ui/components/hud/PregameInducements.tsx": {
     "complexity": {
-      "count": 1
-    },
-    "no-nested-ternary": {
       "count": 1
     }
   },

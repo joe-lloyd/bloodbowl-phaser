@@ -86,30 +86,6 @@ describe("the purchase plan of a team with no human coach", () => {
     expect(team.treasury).toBe(120_000);
   });
 
-  it("buys a team re-roll when it has none, before filling the roster", () => {
-    const team = leagueTeam(RosterName.HUMAN, {
-      players: 7,
-      treasury: 160_000,
-      rerolls: 0,
-    });
-    const plan = planPurchases(team);
-    expect(plan[0]).toEqual({
-      kind: "staff",
-      item: "reroll",
-      price: 100_000,
-      reason: "reroll",
-    });
-
-    expect(plan.slice(1)).toEqual(
-      Array(2).fill({
-        kind: "player",
-        positionName: "Halfling Hopeful",
-        price: 30_000,
-        reason: "roster",
-      })
-    );
-  });
-
   it("fills the roster toward 11 with the cheapest players the roster allows", () => {
     const team = leagueTeam(RosterName.HUMAN, {
       players: 7,
@@ -146,8 +122,8 @@ describe("the purchase plan of a team with no human coach", () => {
       true
     );
     expect(team.apothecary).toBe(true);
-    expect(team.treasury).toBeLessThan(100_000);
-    expect(team.treasury).toBeGreaterThanOrEqual(0);
+    expect([team.coaches, team.cheerleaders, team.rerolls]).toEqual([3, 3, 2]);
+    expect(team.treasury).toBe(360_000);
   });
 
   it("keeps back what keeping a drafted Skill Selection player costs", () => {

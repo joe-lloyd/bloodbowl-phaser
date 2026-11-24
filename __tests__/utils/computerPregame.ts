@@ -35,16 +35,15 @@ export async function confirmComputerPregame(
     expect(Object.values(pregame().ready).filter(Boolean)).toHaveLength(2);
   });
 
-  await vi.waitFor(() => {
-    expect(shoppingTeamId(pregame(), [team1.id, team2.id])).toBe(
-      match.myTeamId
-    );
-  });
-  expect(
-    (await match.run({ type: "confirm-inducements", teamId: match.myTeamId }))
-      .ok
-  ).toBe(true);
-  await vi.waitFor(() => {
-    expect(pregame().complete).toBe(true);
-  });
+  if (shoppingTeamId(pregame(), [team1.id, team2.id]) === match.myTeamId)
+    expect(
+      (await match.run({ type: "confirm-inducements", teamId: match.myTeamId }))
+        .ok
+    ).toBe(true);
+  await vi.waitFor(
+    () => {
+      expect(pregame().complete).toBe(true);
+    },
+    { timeout: 5000 }
+  );
 }

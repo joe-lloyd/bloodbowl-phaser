@@ -14,6 +14,21 @@ export function isActiveTeam(team: Team): boolean {
   return getTeamMode(team) === "active";
 }
 
+type StartLock = Pick<
+  Team,
+  "firstMatchPlayedAt" | "rerolls" | "dedicatedFans" | "seedMetadata"
+>;
+
+export function withStartLock<T extends StartLock>(
+  team: T,
+  stored: StartLock | undefined
+): T {
+  if (stored?.firstMatchPlayedAt === undefined) return team;
+  if (team.firstMatchPlayedAt !== undefined || team.seedMetadata) return team;
+  const { firstMatchPlayedAt, rerolls, dedicatedFans } = stored;
+  return { ...team, firstMatchPlayedAt, rerolls, dedicatedFans };
+}
+
 export function stampFirstCompletedMatch(
   team: Team,
   completedAt: number = Date.now()

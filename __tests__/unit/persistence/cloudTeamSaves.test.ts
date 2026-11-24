@@ -32,6 +32,7 @@ describe("cloud team save acknowledgement", () => {
       .withId("saved-team")
       .withTreasury(30_000)
       .build();
+    team.firstMatchPlayedAt = 1;
     const repository = new CloudTeamRepository("coach", []);
     let acknowledged = false;
     const saved = repository.saveTeams([team]).then(() => {
@@ -55,6 +56,7 @@ describe("cloud team save acknowledgement", () => {
       .withId("saved-team")
       .withTreasury(140_000)
       .build();
+    team.firstMatchPlayedAt = 1;
     const repository = new CloudTeamRepository("coach", []);
     await expect(repository.saveTeams([team])).rejects.toThrow("Cloud offline");
     expect(fixtureValue(repository.loadTeams()[0]).treasury).toBe(140_000);

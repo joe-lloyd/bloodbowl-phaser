@@ -36,6 +36,7 @@ import { createInitialState } from "./matchStart";
 import {
   announceFullTime,
   rollFanFactors,
+  resetActivationMarks,
   updateDedicatedFans,
 } from "./driveLifecycle";
 import {
@@ -343,10 +344,7 @@ function bindPartEvents(
   });
 
   eventBus.on(GameEventNames.TurnStarted, () => {
-    marks.blitzBlockUsed.clear();
-    marks.puntUsedThisTurn = false;
-    marks.ballAndChainSquare = null;
-    marks.crowdRolledFor = null;
+    resetActivationMarks(marks);
   });
 }
 

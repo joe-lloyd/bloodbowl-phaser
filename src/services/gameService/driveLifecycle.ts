@@ -287,7 +287,7 @@ export function resetDriveState(parts: GameParts): void {
 
   resetTurnUsage(state);
 
-  parts.marks.blitzBlockUsed.clear();
+  resetActivationMarks(parts.marks);
 
   [...team1.players, ...team2.players].forEach((p) => {
     if (p.conditions?.length)
@@ -399,6 +399,13 @@ function fanOutcome(lead: number): "win" | "loss" | "draw" {
   return lead < 0 ? "loss" : "draw";
 }
 
+export function resetActivationMarks(marks: GameParts["marks"]): void {
+  marks.blitzBlockUsed.clear();
+  marks.puntUsedThisTurn = false;
+  marks.ballAndChainSquare = null;
+  marks.crowdRolledFor = null;
+}
+
 function resetTurnUsage(state: GameParts["state"]): void {
   state.turn.activatedPlayerIds.clear();
   state.turn.movementUsed.clear();
@@ -409,4 +416,5 @@ function resetTurnUsage(state: GameParts["state"]): void {
   state.turn.hasThrownTeamMate = false;
   state.turn.hasKickedTeamMate = false;
   state.turn.hasThrownBomb = false;
+  delete state.turnUsage;
 }

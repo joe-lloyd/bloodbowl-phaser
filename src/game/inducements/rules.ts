@@ -28,6 +28,13 @@ export function calculateInducementBudgets(
   };
 }
 
+export function affordsInducement(
+  catalog: InducementCatalogEntry[],
+  budget: number
+): boolean {
+  return catalog.some((entry) => entry.maxCount > 0 && entry.price <= budget);
+}
+
 function catalogEntry(
   catalog: InducementCatalogEntry[],
   inducement: Inducement

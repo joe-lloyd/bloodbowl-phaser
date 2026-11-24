@@ -33,12 +33,19 @@ vi.mock("../../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => true),
 }));
 
+const setDoc = vi.hoisted(() =>
+  vi.fn<[unknown, unknown], Promise<void>>(() => Promise.resolve())
+);
+
 vi.mock("firebase/firestore", () => ({
   collection: vi.fn(() => ({})),
   collectionGroup: vi.fn(),
   doc: vi.fn(() => ({})),
-  runTransaction: vi.fn(),
-  setDoc: vi.fn(() => Promise.resolve()),
+  runTransaction: vi.fn(
+    (_db: unknown, run: (transaction: unknown) => Promise<void>) =>
+      run({ get: () => Promise.resolve({ exists: () => false }), set: setDoc })
+  ),
+  setDoc,
   getDocs: vi.fn(
     () =>
       new Promise((resolve, reject) => {
@@ -47,7 +54,6 @@ vi.mock("firebase/firestore", () => ({
   ),
 }));
 
-import { setDoc } from "firebase/firestore";
 import { TeamBuilder } from "../../../src/ui/components/pages/TeamBuilder";
 import { TeamManagement } from "../../../src/ui/components/pages/TeamManagement";
 import { TeamLibraryGate } from "../../../src/ui/components/TeamManagement/TeamLibraryGate";
@@ -186,7 +192,7 @@ describe("Edit Team when the signed-in library fails to load", () => {
     expect(inputValues()).toContain("Cloud Humans");
     expect(container.textContent).toContain("4/11");
     await editTeamName("Cloud Humans", "Cloud Humans edited");
-    vi.mocked(setDoc).mockClear();
+    setDoc.mockClear();
     await act(async () => {
       button(/Save Team/).click();
     });
