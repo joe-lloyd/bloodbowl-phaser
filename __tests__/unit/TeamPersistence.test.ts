@@ -212,6 +212,10 @@ describe("a stale draft in the cloud library", () => {
       rerolls: draft.rerolls,
       dedicatedFans: draft.dedicatedFans,
     });
+    expect(loadTeams()[0]).toMatchObject({
+      firstMatchPlayedAt: 1,
+      rerolls: draft.rerolls,
+    });
   });
 
   it("never lands after a later save of the same team", async () => {
@@ -225,13 +229,36 @@ describe("a stale draft in the cloud library", () => {
     expect(stored()).toMatchObject({ firstMatchPlayedAt: 2, wins: 1 });
   });
 
-  it("still saves a draft when the document cannot be read", async () => {
+  it("waits for the server and still keeps the lock", async () => {
+    const { draft, stale } = await startedElsewhere();
+    vi.useFakeTimers();
     vi.mocked(runTransaction).mockRejectedValueOnce(
       new FirebaseError("unavailable", "offline")
     );
+    const saved = stale.saveTeams([
+      { ...structuredClone(draft), rerolls: draft.rerolls + 1 },
+    ]);
+    await vi.advanceTimersByTimeAsync(5000);
+    await saved;
+    vi.useRealTimers();
+    expect(stored()).toMatchObject({
+      firstMatchPlayedAt: 1,
+      rerolls: draft.rerolls,
+    });
+  });
+
+  it("finishes a batch before the next save when one team is refused", async () => {
+    const draft = makeTeam("club");
     const repository = new CloudTeamRepository("user-a", []);
-    await repository.saveTeams([makeTeam("club")]);
-    expect(stored()).toMatchObject({ id: "club" });
+    setDocMock.mockRejectedValueOnce(new Error("refused"));
+    const first = repository.saveTeams([
+      { ...makeTeam("started"), firstMatchPlayedAt: 1 },
+      { ...draft, name: "Old" },
+    ]);
+    const second = repository.saveTeams([{ ...draft, name: "New" }]);
+    await expect(first).rejects.toThrow("refused");
+    await second;
+    expect(stored()).toMatchObject({ name: "New" });
   });
 });
 

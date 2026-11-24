@@ -73,25 +73,29 @@ export async function fetchCoachTeam({
   return snapshot.exists() ? readCloudTeam(snapshot.data()).team : null;
 }
 
-async function writeCloudTeam(uid: string, team: Team): Promise<void> {
+const RETRY_MS = 5000;
+
+async function writeCloudTeam(uid: string, team: Team): Promise<Team> {
   const reference = doc(teamsCollection(uid), team.id);
-  const plain = toPlainDoc(team);
   if (isActiveTeam(team)) {
-    await setDoc(reference, plain);
-    return;
+    await setDoc(reference, toPlainDoc(team));
+    return team;
   }
   try {
-    await runTransaction(getDb(), async (transaction) => {
+    return await runTransaction(getDb(), async (transaction) => {
       const snapshot = await transaction.get(reference);
       const stored = snapshot.exists()
         ? readCloudTeam(snapshot.data()).team
         : undefined;
-      transaction.set(reference, toPlainDoc(withStartLock(team, stored)));
+      const locked = withStartLock(team, stored);
+      transaction.set(reference, toPlainDoc(locked));
+      return locked;
     });
   } catch (cause) {
     if (!(cause instanceof FirebaseError) || cause.code !== "unavailable")
       throw cause;
-    await setDoc(reference, plain);
+    await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
+    return writeCloudTeam(uid, team);
   }
 }
 
@@ -129,6 +133,12 @@ export class CloudTeamRepository implements TeamRepository {
     this.cache = this.cache.filter((team) => team.id !== teamId);
   }
 
+  private async write(copy: Team, cached: Team | undefined): Promise<void> {
+    const written = await writeCloudTeam(this.uid, copy);
+    if (written !== copy)
+      this.cache = this.cache.map((team) => (team === cached ? written : team));
+  }
+
   async saveTeams(teams: Team[]): Promise<void> {
     const previousIds = new Set(this.cache.map((t) => t.id));
     const nextIds = new Set(teams.map((t) => t.id));
@@ -137,13 +147,14 @@ export class CloudTeamRepository implements TeamRepository {
     const copies = structuredClone(teams);
     const removed = [...previousIds].filter((id) => !nextIds.has(id));
     const written = this.writing.then(() =>
-      Promise.all([
-        ...copies.map((team) => writeCloudTeam(this.uid, team)),
+      Promise.allSettled([
+        ...copies.map((team, index) => this.write(team, teams[index])),
         ...removed.map((id) => deleteCloudTeam(this.uid, id)),
       ])
     );
-    this.writing = written.catch(() => undefined);
-    await written;
+    this.writing = written;
+    const failed = (await written).find(({ status }) => status === "rejected");
+    if (failed?.status === "rejected") throw failed.reason;
   }
 }
 
