@@ -2,6 +2,9 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOnlineMatch } from "../../src/network/OnlineMatch";
 import { createInMemoryTransportPair } from "../../src/network/transport";
+import { GameEventNames } from "../../src/types/events";
+import { matchResumeSchema } from "../../src/boundary/schemas/MatchResume";
+import type { GameSnapshot } from "../../src/headless/serialization";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -20,7 +23,8 @@ const saves = vi.hoisted(() => {
   const turns: number[] = [];
   const teams: ([Team, Team] | undefined)[] = [];
   const spentBlocks: (boolean | undefined)[] = [];
-  return { turns, teams, spentBlocks };
+  const last: { snapshot?: GameSnapshot; resume?: MatchResume } = {};
+  return { turns, teams, spentBlocks, last };
 });
 vi.mock("../../src/firebase/lobby", async (load) => ({
   ...(await load<typeof import("../../src/firebase/lobby")>()),
@@ -34,6 +38,7 @@ vi.mock("../../src/firebase/lobby", async (load) => ({
   ) => {
     saves.turns.push(snapshot.turn.turnNumber);
     saves.teams.push(resume.teams);
+    Object.assign(saves.last, { snapshot, resume });
     saves.spentBlocks.push(snapshot.activePlayer?.blitzBlockUsed);
   },
 }));
@@ -280,12 +285,12 @@ describe("online host resume", () => {
       ready: true,
     });
     const [hostEnd] = createInMemoryTransportPair();
-    const match = createOnlineMatch({
+    const options = {
       lobby: {
         code: "BLOCK",
         hostUid: "host-uid",
         guestUid: "guest-uid",
-        status: "active",
+        status: "active" as const,
         settings: { ...DEFAULT_SETTINGS },
         snapshot: game.snapshot(),
         players: {
@@ -304,7 +309,8 @@ describe("online host resume", () => {
       eventBus: new EventBus(),
       transport: hostEnd,
       seed: 5,
-    });
+    };
+    const match = createOnlineMatch(options);
     const { gameService } = ServiceContainer.getInstance();
     const attackerId = fixtureValue(team1.players[0]).id;
     const settled = () => new Promise((resolve) => setTimeout(resolve, 100));
@@ -321,6 +327,26 @@ describe("online host resume", () => {
     saves.spentBlocks.length = 0;
     match.saveState();
     expect(saves.spentBlocks).toEqual([undefined]);
+    const before = structuredClone(match.pendingDecision());
     match.close();
+    ServiceContainer.reset();
+
+    const { snapshot, resume } = saves.last;
+    const resumedBus = new EventBus();
+    const resumed = createOnlineMatch({
+      ...options,
+      lobby: {
+        ...options.lobby,
+        snapshot: fixtureValue(snapshot),
+        resume: matchResumeSchema.parse(resume),
+      },
+      eventBus: resumedBus,
+    });
+    const { gameService: engine } = ServiceContainer.getInstance();
+    resumedBus.emit(GameEventNames.GameStateRestored, engine.getState());
+    await settled();
+    expect(before?.type).toBe("block-dice");
+    expect(resumed.pendingDecision()).toEqual(before);
+    resumed.close();
   });
 });

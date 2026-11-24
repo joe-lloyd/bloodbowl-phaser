@@ -255,7 +255,7 @@ function resumeParts(saved: ReturnType<typeof startingState>["saved"]) {
     matchStats: resume?.matchStats,
     turnManager,
     kickingTeamId: turnManager?.driveKickingTeamId ?? null,
-    applied: resume?.applied ?? 0,
+    commands: { applied: 0, replay: [], ...resume },
   };
 }
 
@@ -351,7 +351,10 @@ class OnlineSession {
         team1, team2, seed: options.seed, matchStats: this.container.matchStats },
       kickingTeamId: resume.kickingTeamId,
     });
-    this.session = this.createSession(resume.applied);
+    this.session = this.createSession(resume.commands.applied);
+    this.eventBus.once(GameEventNames.GameStateRestored, () => {
+      void this.session.replaySaved(resume.commands);
+    });
     void this.session.sendHello();
     this.subscriptions = [
       subscribeSelectionForwarding(this.eventBus, this.sides.myTeamId, (playerId) => void this.session.sendSelection(playerId)),
@@ -387,8 +390,8 @@ class OnlineSession {
 
   private saveNow(): void {
     if (this.engine.getState().pregameInducements?.resolving) return;
-    const { snapshot, teams, rng, matchStats, applied } = this.session.captureState();
-    void persistMatch(this.options.lobby.code, snapshot, { teams: structuredClone(teams), rng, matchStats, applied }).catch((error: unknown) => { console.warn("[Online] save failed:", error); });
+    const { snapshot, teams, rng, matchStats, applied, replay } = this.session.captureState();
+    void persistMatch(this.options.lobby.code, snapshot, { teams: structuredClone(teams), rng, matchStats, applied, replay: structuredClone(replay) }).catch((error: unknown) => { console.warn("[Online] save failed:", error); });
   }
 
   private saveIfTurnChanged(): void {

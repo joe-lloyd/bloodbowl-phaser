@@ -118,6 +118,16 @@ export class LockstepSession {
     return this.applied;
   }
 
+  replaySaved(saved: {
+    applied: number;
+    replay: HeadlessCommand[];
+  }): Promise<void> {
+    return this.enqueue(async () => {
+      if (saved.replay.length === 0 || this.applied !== saved.applied) return;
+      await this.runMissed(saved.replay);
+    });
+  }
+
   run(command: HeadlessCommand): Promise<CommandResponse> {
     return this.enqueue(async () => {
       const { game, myTeamId, hostTeamId } = this.options;
