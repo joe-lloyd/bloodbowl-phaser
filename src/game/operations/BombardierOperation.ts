@@ -299,13 +299,14 @@ function explodeBomb(
   }
 
   for (const player of hits) {
+    const causerId = player.id === throwerId ? undefined : throwerId;
     if (player.status === PlayerStatus.ACTIVE) {
       knockDownPlayer(eventBus, player);
       bounceIfBallUnder(context, player);
     }
 
     context.flowManager.add(
-      new ArmourOperation(player.id, throwerId, undefined, "special"),
+      new ArmourOperation(player.id, causerId, undefined, "special"),
       true
     );
   }
