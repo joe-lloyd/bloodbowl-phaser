@@ -172,6 +172,87 @@ describe("a plan with a jump in it", () => {
   });
 });
 
+interface Spent {
+  action: ActionType;
+  step?: string;
+  target: { x: number; y: number };
+  team1: Parameters<typeof board>[0];
+  team2?: Parameters<typeof board>[1];
+  needle: string;
+}
+
+const LAST: Spent[] = [
+  { action: "pass", step: "pass", target: { x: 15, y: 5 }, team1: [CARRIER, { playerIndex: 1, x: 15, y: 5 }], needle: "Pass" },
+  { action: "handoff", target: { x: 13, y: 5 }, team1: [CARRIER, { playerIndex: 1, x: 13, y: 5 }], needle: "Catch" },
+  {
+    action: "foul",
+    target: { x: 13, y: 5 },
+    team1: [CARRIER],
+    team2: [{ ...DOWNED, playerIndex: 1, x: 13, y: 5 }],
+    needle: "Armour",
+  },
+];
+
+describe("the last movement leaves the rest of the action", () => {
+  it.each(LAST)("$action after a jump", async ({ action, step, target, team1, team2 = [FAR], needle }) => {
+    const set = board(team1, [DOWNED, ...team2]);
+    const actor = fixtureValue(set.game.ctx.team1.players[0]);
+    forceDice(set.game.ctx.rng, [6, 6, 6, 6, 5, 6, 5]);
+    set.act(0, action);
+    set.game.ctx.gameService.getState().turn.movementUsed.set(actor.id, actor.stats.MA);
+    await planJump(set);
+    if (step) set.game.ctx.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: step });
+    await set.controller.onSquareClicked(target.x, target.y);
+    go(set);
+    await vi.waitFor(() => {
+      expect(set.seen.dice.some((line) => line.includes(needle))).toBe(true);
+    });
+  });
+
+  it.each(LAST)("$action after a walk of Rushes", async ({ action, step, target, team1, team2 = [FAR], needle }) => {
+    const set = board(team1, [{ ...FAR, playerIndex: 2, y: 1 }, ...team2]);
+    const actor = fixtureValue(set.game.ctx.team1.players[0]);
+    forceDice(set.game.ctx.rng, [6, 6, 6, 6, 5, 6, 5]);
+    set.act(0, action);
+    set.game.ctx.gameService.getState().turn.movementUsed.set(actor.id, actor.stats.MA);
+    await set.controller.onSquareClicked(12, 5);
+    if (step) set.game.ctx.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: step });
+    await set.controller.onSquareClicked(target.x, target.y);
+    go(set);
+    await vi.waitFor(() => {
+      expect(set.seen.dice.some((line) => line.includes(needle))).toBe(true);
+    });
+  });
+
+  it("a Foul after standing up", async () => {
+    const set = board([PRONE, { playerIndex: 1, x: 2, y: 9 }], [DOWNED, FAR]);
+    const actor = fixtureValue(set.game.ctx.team1.players[0]);
+    forceDice(set.game.ctx.rng, [5, 6, 5, 6]);
+    set.act(0, "foul");
+    const { gameService } = set.game.ctx;
+    gameService.getState().turn.movementUsed.set(actor.id, actor.stats.MA - 1);
+    await gameService.standUp(actor.id);
+    expect(gameService.hasPlayerActed(actor.id)).toBe(false);
+    await gameService.foulPlayer(actor.id, 11, 5);
+    await vi.waitFor(() => {
+      expect(set.seen.dice.some((line) => line.includes("Armour"))).toBe(true);
+    });
+  });
+
+  it("still ends an action with nothing left to do", async () => {
+    const set = board([CARRIER, { playerIndex: 1, x: 2, y: 9 }], [DOWNED, FAR]);
+    const actor = fixtureValue(set.game.ctx.team1.players[0]);
+    forceDice(set.game.ctx.rng, [6, 6, 6]);
+    set.act(0, "handoff");
+    set.game.ctx.gameService.getState().turn.movementUsed.set(actor.id, actor.stats.MA);
+    await planJump(set);
+    go(set);
+    await vi.waitFor(() => {
+      expect(set.game.ctx.gameService.hasPlayerActed(actor.id)).toBe(true);
+    });
+  });
+});
+
 describe("the second half of Move", () => {
   it("stands a prone player up as a declared Move, without moving", async () => {
     const set = board([PRONE], [FAR]);
