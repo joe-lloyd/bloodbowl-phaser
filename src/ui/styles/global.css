@@ -247,6 +247,7 @@
   --column: min(300px, 44vw);
 }
 .phone-hud:has([data-testid="action-plan"]) .phone-notice-bar,
+.phone-hud:has([data-testid="kickoff-table-dialog"]) .phone-bottom-bar,
 .phone-hud:has([data-decision-dialog]) .phone-bottom-bar,
 .phone-hud:has([data-decision-dialog]) [data-testid="player-chip"] {
   display: none;

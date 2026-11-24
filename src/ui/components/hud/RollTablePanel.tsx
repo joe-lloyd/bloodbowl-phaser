@@ -220,6 +220,11 @@ function RollTableDialog(props: RollTablePanelProps) {
   );
 }
 
+function rowColumns(kind: RollTablePanelProps["kind"], rolled: boolean) {
+  if (kind === "kickoff") return "grid-cols-2 landscape:grid-cols-3";
+  return rolled ? "landscape:grid-cols-3" : "";
+}
+
 function DialogRows({ kind, rows, result }: RollTablePanelProps) {
   const list = useRef<HTMLUListElement>(null);
   useEffect(() => {
@@ -230,7 +235,7 @@ function DialogRows({ kind, rows, result }: RollTablePanelProps) {
   return (
     <ul
       ref={list}
-      className={`grid gap-1 text-left ${kind === "kickoff" ? "grid-cols-2 landscape:grid-cols-3" : ""}`}
+      className={`grid gap-1 text-left ${rowColumns(kind, result !== null)}`}
       data-testid={`${kind}-table`}
     >
       {rows.map((row) => {
@@ -253,7 +258,9 @@ function DialogRows({ kind, rows, result }: RollTablePanelProps) {
                 {row.name}
               </span>
               {kind === "weather" && (
-                <span className="ml-2 text-hud-xs">{row.detail}</span>
+                <span
+                  className={`ml-2 text-hud-xs ${result ? "landscape:hidden" : ""}`}
+                >{row.detail}</span>
               )}
             </span>
           </li>
