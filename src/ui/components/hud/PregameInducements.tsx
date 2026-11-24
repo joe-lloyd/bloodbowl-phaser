@@ -24,21 +24,20 @@ export function PregameInducements({ eventBus }: { eventBus: EventBus }) {
         onChanged={refresh}
       />
     );
+  if (pregame.complete) return null;
   const buyer = shopper ? service.getTeam(shopper) : undefined;
   return (
     <DialogShell
       zClass="z-[100]"
-      title="INDUCEMENTS"
+      title="PRE-MATCH"
       placement="center"
       backdrop="heavy"
       width="w-[520px]"
     >
       <p role="status" className="text-hud-dim">
         {buyer
-          ? `${buyer.name} is choosing inducements…`
-          : pregame.complete
-            ? "Preparing inducements…"
-            : "Waiting for both coaches to ready up…"}
+          ? `Waiting for ${buyer.name}…`
+          : "Waiting for both coaches to ready up…"}
       </p>
     </DialogShell>
   );

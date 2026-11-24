@@ -78,13 +78,11 @@ async function ready(game: ReturnType<typeof pregameGame>) {
 }
 
 describe("ready and purchase screens before the coin toss", () => {
-  it("walks both local coaches through their purchases in turn before showing the toss", async () => {
+  it("shows the purchases only to the coach who can afford one, then the toss", async () => {
     const game = await mount();
     await ready(game);
 
-    expect(container.textContent).toContain("Inducements — Away");
-    expect(container.textContent).toContain("No petty cash");
-    await click("Confirm — no purchases");
+    expect(container.textContent).not.toContain("Away");
     expect(container.textContent).toContain("Inducements — Home");
     const buy = fixtureValue(container.querySelector<HTMLButtonElement>(
       '[aria-label="Buy Blitzer\'s Best Kegs"]'
@@ -106,7 +104,6 @@ describe("ready and purchase screens before the coin toss", () => {
   it("shows an asynchronous refusal and does not advance or invent a purchase", async () => {
     const game = await mount(true);
     await ready(game);
-    await click("Confirm — no purchases");
     const proxy = ServiceContainer.getInstance()
       .gameService as NetworkedGameService;
 
@@ -128,23 +125,30 @@ describe("ready and purchase screens before the coin toss", () => {
     ).toEqual([]);
     expect(button("FLIP COIN")).toBeUndefined();
   });
-  it("lets an online coach buy only on their own turn, then shows who is buying", async () => {
+  it("goes straight to the toss when neither coach can afford an inducement", async () => {
+    const game = await mount();
+    game.ctx.team1.rerolls += 3;
+    await ready(game);
+    expect(container.textContent).not.toMatch(/inducement/i);
+    expect(button("FLIP COIN")).toBeDefined();
+    expect(game.snapshot().pregameInducements?.complete).toBe(true);
+  });
+
+  it("never shows inducements to an online coach who cannot afford one", async () => {
     const game = await mount(true, "team2");
     expect(container.textContent).toContain(
       "Waiting for both coaches to ready up"
     );
     await ready(game);
-    expect(container.textContent).toContain("Inducements — Away");
-    await click("Confirm — no purchases");
-    expect(container.textContent).toContain("Home is choosing inducements");
+    expect(container.textContent).toContain("Waiting for Home");
+    expect(container.textContent).not.toMatch(/inducement/i);
     expect(button("Confirm")).toBeUndefined();
     expect(game.snapshot().pregameInducements?.complete).not.toBe(true);
   });
 
-  it("shows the other coach buying first, with no purchase panel", async () => {
+  it("offers the online coach who can afford one the purchase panel", async () => {
     const game = await mount(true, "team1");
     await ready(game);
-    expect(container.textContent).toContain("Away is choosing inducements");
-    expect(container.textContent).not.toContain("Inducements — Home");
+    expect(container.textContent).toContain("Inducements — Home");
   });
 });

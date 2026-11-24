@@ -55,12 +55,9 @@ describe("pregame lockstep purchases", () => {
       await settle(host, guest);
 
       expect(
-        (await host.run({ type: "confirm-inducements", teamId: "team1" }))
+        (await guest.run({ type: "confirm-inducements", teamId: "team2" }))
           .reason
       ).toBe("not-your-turn");
-      expect(
-        (await guest.run({ type: "confirm-inducements", teamId: "team2" })).ok
-      ).toBe(true);
       await settle(host, guest);
       expect(
         (
@@ -100,6 +97,35 @@ describe("pregame lockstep purchases", () => {
     }
   });
 
+  it("finishes on both peers when neither coach can afford an inducement", async () => {
+    const home = pregameGame();
+    const away = pregameGame();
+    for (const game of [home, away]) game.ctx.team1.rerolls += 3;
+    const [a, b] = createInMemoryTransportPair();
+    const host = session(home, a, true);
+    const guest = session(away, b, false);
+    try {
+      await guest.run({ type: "ready-weather", teamId: "team2" });
+      await settle(host, guest);
+      await host.run({ type: "ready-weather", teamId: "team1" });
+      await settle(host, guest);
+      for (const game of [home, away]) {
+        expect(game.snapshot().pregameInducements).toMatchObject({
+          complete: true,
+          resolving: false,
+        });
+      }
+      expect(
+        (await host.run({ type: "start-setup", kickingTeamId: "team1" })).ok
+      ).toBe(true);
+      await settle(host, guest);
+      expect(stateChecksum(home)).toBe(stateChecksum(away));
+    } finally {
+      host.close();
+      guest.close();
+    }
+  });
+
   it("stays in step when both coaches ready up and buy at the same moment", async () => {
     const home = pregameGame();
     const away = pregameGame();
@@ -132,7 +158,7 @@ describe("pregame lockstep purchases", () => {
         { type: "confirm-inducements", teamId: "team2" }
       );
       await settle(host, guest);
-      expect([hostBuy.ok, guestBuy.ok]).toEqual([false, true]);
+      expect([hostBuy.ok, guestBuy.ok]).toEqual([true, false]);
 
       const [hostConfirm, guestLate] = await both(
         { type: "confirm-inducements", teamId: "team1" },

@@ -22,7 +22,7 @@ const buyTraining = {
 };
 
 describe("graphical match pregame through the protocol", () => {
-  it("requires both ready and both confirmed before any coin toss or setup mutation", async () => {
+  it("requires both ready and the coach with petty cash confirmed before any coin toss or setup mutation", async () => {
     const game = pregameGame();
     const rng = game.ctx.rng.captureState();
     expect((await game.execute(buyTraining)).reason).toContain(
@@ -36,10 +36,11 @@ describe("graphical match pregame through the protocol", () => {
     expect(game.driveKickingTeamId()).toBeNull();
     await ready(game);
 
-    expect((await game.execute(buyTraining)).reason).toContain(
-      "not-your-turn-to-buy"
-    );
-    await game.execute(team2Confirms);
+    expect(game.snapshot().pregameInducements?.offer?.confirmed).toEqual({
+      team1: false,
+      team2: true,
+    });
+    expect((await game.execute(team2Confirms)).ok).toBe(true);
     expect(
       (await game.execute({ type: "start-setup", kickingTeamId: "team2" })).ok
     ).toBe(false);
@@ -101,11 +102,8 @@ describe("graphical match pregame through the protocol", () => {
       "team2",
       "team1",
     ]);
-    await game.execute(team2Confirms);
-    expect((await game.execute(buyTraining)).reason).toContain(
-      "budget-exceeded"
-    );
-    await game.execute({ type: "confirm-inducements", teamId: "team1" });
+    expect(game.snapshot().pregameInducements?.complete).toBe(true);
+    expect((await game.execute(buyTraining)).ok).toBe(false);
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
     expect(
       fixtureValue(game.snapshot().inducements?.inventory[0]).quantity
@@ -113,6 +111,37 @@ describe("graphical match pregame through the protocol", () => {
     await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
   });
+
+  it("passes a broke coach when an older save left them at the purchases", async () => {
+    const original = pregameGame();
+    await ready(original);
+    const snapshot = original.snapshot();
+    fixtureValue(snapshot.pregameInducements?.offer).confirmed["team2"] = false;
+    const game = new HeadlessGame({
+      team1: structuredClone(original.ctx.team1),
+      team2: structuredClone(original.ctx.team2),
+      initialState: deserializeGameState(snapshot),
+      seed: 23,
+    });
+    expect(game.snapshot().pregameInducements?.offer?.confirmed).toEqual({
+      team1: false,
+      team2: true,
+    });
+    expect((await game.execute(buyTraining)).ok).toBe(true);
+  });
+
+  it.each(["sevens", "street-bowl", "beach-bowl", "gutter-bowl"] as const)(
+    "finishes the purchases of a %s match nobody can afford to buy in",
+    async (gameType) => {
+      const game = pregameGame(false, gameType);
+      game.ctx.team2.rerolls = game.ctx.team1.rerolls;
+      await ready(game);
+      expect(game.snapshot().pregameInducements?.complete).toBe(true);
+      if (gameType === "street-bowl")
+        expect(game.pendingDecision()?.type).toBe("inducement-choice");
+      else expect(game.pendingDecision()).toBeNull();
+    }
+  );
 
   it("resolves bought prayer choices before allowing setup", async () => {
     const game = pregameGame();

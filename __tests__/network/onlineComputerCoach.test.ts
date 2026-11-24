@@ -216,22 +216,16 @@ describe("the online computer coach", () => {
       }
       expect(bot.snapshot().inducements).toBeUndefined();
 
-      await vi.waitFor(() => {
-        expect(
-          shoppingTeamId(human.snapshot().pregameInducements, [
-            "team1",
-            "team2",
-          ])
-        ).toBe(human.match.myTeamId);
-      });
-      expect(
-        (
-          await human.match.run({
-            type: "confirm-inducements",
-            teamId: human.match.myTeamId,
-          })
-        ).ok
-      ).toBe(true);
+      if (
+        shoppingTeamId(human.snapshot().pregameInducements, [
+          "team1",
+          "team2",
+        ]) === human.match.myTeamId
+      )
+        await human.match.run({
+          type: "confirm-inducements",
+          teamId: human.match.myTeamId,
+        });
       await vi.waitFor(() => {
         expect(bot.snapshot().pregameInducements?.complete).toBe(true);
       });
@@ -239,9 +233,13 @@ describe("the online computer coach", () => {
         expect(bot.snapshot()).toEqual(human.snapshot());
       });
       expect(sent.map((command) => command.type)).toContain("ready-weather");
-      expect(sent.map((command) => command.type)).toContain(
-        "confirm-inducements"
-      );
+      expect(
+        sent
+          .map((command) => command.type)
+          .filter((type) => type.endsWith("inducements") || type.endsWith("inducement"))
+          .sort((left, right) => left.localeCompare(right))
+          .slice(0, 1)
+      ).toEqual(side === "host" ? ["confirm-inducements"] : []);
       if (side === "host")
         expect(sent.map((command) => command.type)).toContain(
           "select-inducement"
