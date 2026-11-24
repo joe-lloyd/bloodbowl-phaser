@@ -16,6 +16,12 @@ interface Point {
 
 type FocusPoints = [Point, ...Point[]];
 
+type View =
+  | { kind: "overview" }
+  | { kind: "following"; area: ScreenRect }
+  | { kind: "framed"; points: FocusPoints; area: ScreenRect; centre: Point }
+  | { kind: "free" };
+
 const MOVE_MS = 700;
 
 const KEY_PAN_PX_PER_S = 900;
@@ -126,17 +132,11 @@ export class CameraController {
   private eventBus: (CameraBus) | undefined;
   private manual = false;
   private coachZoomed = false;
-  private showingOverview = true;
+  private view: View = { kind: "overview" };
   private size: { width: number; height: number };
   private minZoom = Number.POSITIVE_INFINITY;
-  private followArea: ScreenRect | null = null;
   private fitZoomComplete: (() => void) | undefined;
 
-  private framed: {
-    points: FocusPoints;
-    area: ScreenRect;
-    centre: Point;
-  } | null = null;
   private handoffTimer: ({ remove(dispatchCallback?: boolean): unknown }) | undefined;
   private unsubscribers: (() => void)[] = [];
 
@@ -213,8 +213,7 @@ export class CameraController {
 
   private glide(centre: Point, zoom: number, duration = MOVE_MS): void {
     this.stopFollow();
-    this.framed = null;
-    this.showingOverview = false;
+    this.view = { kind: "free" };
     if (reducedMotion()) {
       this.snap({ centre, zoom });
       return;
@@ -262,7 +261,7 @@ export class CameraController {
   public intro(duration = CAMERA_INTRO_MS): void {
     this.cancelCameraWork();
     const target = this.overviewFraming();
-    this.showingOverview = true;
+    this.view = { kind: "overview" };
     if (reducedMotion()) {
       this.snap(target);
       return;
@@ -287,7 +286,7 @@ export class CameraController {
     if (this.keepsCoachZoom()) return;
     const { centre, zoom } = this.overviewFraming();
     this.glide(centre, zoom, duration);
-    this.showingOverview = true;
+    this.view = { kind: "overview" };
     this.publishState("neutral", duration);
   }
 
@@ -351,7 +350,7 @@ export class CameraController {
   }
 
   private trackPoints(points: FocusPoints, duration: number): void {
-    const previous = this.framed;
+    const previous = this.view.kind === "framed" ? this.view : null;
     this.cancelCameraWork(false);
     const area = this.clearAreaNow();
     const box = this.pointBox(points);
@@ -401,12 +400,12 @@ export class CameraController {
           Math.hypot(centre.x - held.x, centre.y - held.y) * zoom <=
             PAN_DEADBAND_PX)
       ) {
-        this.framed = { points, area, centre: held };
+        this.view = { kind: "framed", points, area, centre: held };
         return;
       }
     }
     this.glide(centre, zoom, duration);
-    this.framed = { points, area, centre };
+    this.view = { kind: "framed", points, area, centre };
     this.publishState("active", duration);
   }
 
@@ -429,7 +428,7 @@ export class CameraController {
     const { width, height } = this.scene.scale;
     const willZoom = zoom !== this.camera.zoom && !reducedMotion();
     this.glide(centre, zoom, duration);
-    this.framed = { points, area, centre };
+    this.view = { kind: "framed", points, area, centre };
     if (willZoom) {
       this.fitZoomComplete = () => {
         this.fitZoomComplete = undefined;
@@ -474,20 +473,16 @@ export class CameraController {
 
   public refreshFraming(reason: "hud" | "resize" = "hud"): void {
     if (this.reframingSuppressed()) return;
-    if (this.showingOverview && this.phone()) {
-      this.slideOverview();
+    const { view } = this;
+    if (view.kind === "free") return;
+    if (view.kind === "overview") {
+      if (this.phone()) this.slideOverview();
       return;
     }
-    const previous = this.followArea ?? this.framed?.area;
-    if (!previous) return;
     const area = this.clearAreaNow();
-    if (reason !== "resize" && !narrowed(previous, area)) return;
-    this.reframe(area);
-  }
-
-  private reframe(area: ScreenRect): void {
-    if (this.followArea) this.followInClearArea(area);
-    else if (this.framed) this.trackPoints(this.framed.points, REFRAME_MS);
+    if (reason !== "resize" && !narrowed(view.area, area)) return;
+    if (view.kind === "following") this.followInClearArea(area);
+    else this.trackPoints(view.points, REFRAME_MS);
   }
 
   private slideOverview(): void {
@@ -495,7 +490,7 @@ export class CameraController {
     const shown = this.camera.scrollY + this.camera.height / 2;
     if (Math.abs(centre.y - shown) * zoom <= PAN_DEADBAND_PX / 2) return;
     this.glide(centre, this.camera.zoom, REFRAME_MS);
-    this.showingOverview = true;
+    this.view = { kind: "overview" };
   }
 
   private clearAreaNow(): ScreenRect {
@@ -508,10 +503,9 @@ export class CameraController {
     return this.phone() ? phoneArea(clear, { width, height }) : clear;
   }
 
-  public follow(target: Phaser.GameObjects.GameObject): void {
+  public follow(target: Parameters<CameraLens["startFollow"]>[0]): void {
     if (this.manual) return;
     this.cancelCameraWork();
-    this.framed = null;
     this.camera.startFollow(
       target,
       false,
@@ -523,7 +517,7 @@ export class CameraController {
   }
 
   private followInClearArea(area = this.clearAreaNow()): void {
-    this.followArea = area;
+    this.view = { kind: "following", area };
     this.camera.setFollowOffset(
       (area.left + area.right - this.camera.width) / (2 * this.camera.zoom),
       (area.top + area.bottom - this.camera.height) / (2 * this.camera.zoom)
@@ -531,10 +525,9 @@ export class CameraController {
   }
 
   public stopFollow(): void {
-    if (this.followArea) {
-      this.camera.stopFollow();
-      this.followArea = null;
-    }
+    if (this.view.kind !== "following") return;
+    this.camera.stopFollow();
+    this.view = { kind: "free" };
   }
 
   public release(): void {
@@ -643,9 +636,8 @@ export class CameraController {
 
   private takeOver(): void {
     this.manual = true;
-    this.showingOverview = false;
-    this.framed = null;
     this.cancelCameraWork();
+    this.view = { kind: "free" };
     this.publishState("active", 0);
   }
 
@@ -657,13 +649,14 @@ export class CameraController {
   };
 
   private turnWithPhone(before: { width: number; height: number }): void {
-    if (this.showingOverview) {
+    if (this.view.kind === "overview") {
       this.cancelCameraWork();
       this.snap(this.overviewFraming());
       return;
     }
     this.camera.scrollX += (before.width - this.size.width) / 2;
     this.camera.scrollY += (before.height - this.size.height) / 2;
+    this.camera.zoomEffect.reset();
     this.refreshFraming("resize");
   }
 

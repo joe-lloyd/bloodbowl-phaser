@@ -41,9 +41,17 @@ function setup(size: { width: number; height: number }, phone = true) {
     },
     once: () => undefined,
     off: () => undefined,
-    setFollowOffset: () => undefined,
-    startFollow: () => undefined,
-    stopFollow: () => undefined,
+    setFollowOffset(x = 0, y = 0) {
+      this.offset = { x, y };
+    },
+    following: false,
+    offset: { x: 0, y: 0 },
+    startFollow() {
+      this.following = true;
+    },
+    stopFollow() {
+      this.following = false;
+    },
     shake: () => undefined,
     panEffect: { isRunning: false, reset: () => undefined },
     zoomEffect: { isRunning: false, reset: () => undefined },
@@ -95,6 +103,8 @@ function setup(size: { width: number; height: number }, phone = true) {
     },
   };
 }
+
+const ball = { x: 2400, y: 1300 };
 
 const diceBox = (size: { width: number; height: number }): ScreenRect => ({
   left: 0,
@@ -175,5 +185,47 @@ describe("the camera on a phone, through a run of rolls", () => {
     const before = camera.scrollX + camera.width / 2;
     turn(PORTRAIT);
     expect(camera.scrollX + camera.width / 2).toBeCloseTo(before);
+  });
+
+  describe("following a kicked ball", () => {
+    const kick = (size = LANDSCAPE) => {
+      const rig = setup(size);
+      rig.controller.overview();
+      rig.controller.follow(ball);
+      return rig;
+    };
+
+    it("keeps on it while the HUD changes", () => {
+      const { controller, camera, hud } = kick();
+      hud.push({ left: 0, top: 290, right: 844, bottom: 390 });
+      controller.refreshFraming();
+      expect(camera.following).toBe(true);
+    });
+
+    it("keeps on it when the phone turns, in the new middle", () => {
+      const { controller, camera, turn } = kick();
+      turn(PORTRAIT);
+      controller.refreshFraming();
+      expect(camera.following).toBe(true);
+      expect(camera.offset.x).toBeCloseTo(0);
+      turn(LANDSCAPE);
+      expect(camera.following).toBe(true);
+    });
+
+    it("stops for an overview, which then owns the next turn of the phone", () => {
+      const { controller, camera, turn, zooms } = kick();
+      controller.overview();
+      expect(camera.following).toBe(false);
+      turn(PORTRAIT);
+      expect(camera.zoom).toBe(zooms.at(-1));
+      expect(camera.zoom * TILE_PX).toBeLessThan(SMALLEST_TILE_PX);
+    });
+
+    it("lets go for good once the coach takes the camera", () => {
+      const { controller, camera, turn } = kick();
+      controller.panBy(40, 0);
+      turn(PORTRAIT);
+      expect(camera.following).toBe(false);
+    });
   });
 });
