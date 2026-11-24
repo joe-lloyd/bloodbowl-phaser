@@ -37,7 +37,7 @@ function readStrip() {
   };
 }
 
-const FLAP = "flex min-w-0 -skew-x-12 items-center gap-2 px-3 py-1";
+const FLAP = "flex min-w-0 -skew-x-12 items-center gap-2 px-3 py-1 phone:px-1.5";
 
 export function MatchStrip({
   eventBus,
@@ -78,7 +78,7 @@ export function MatchStrip({
   return (
     <div
       data-testid="match-strip"
-      className="flex w-[clamp(380px,calc(100vw-38rem),620px)] flex-col items-center font-hud-body text-hud-xs leading-tight text-hud-bone"
+      className="flex w-[clamp(380px,calc(100vw-38rem),620px)] flex-col phone:w-full items-center font-hud-body text-hud-xs leading-tight text-hud-bone"
     >
       <div
         data-testid="match-strip-bar"
@@ -96,9 +96,11 @@ export function MatchStrip({
                   <span aria-hidden="true" className="mr-1 text-hud-gold">
                     {strip.weather.icon}
                   </span>
-                  {strip.weather.word}
+                  <span className="[@media(pointer:coarse)_and_(orientation:landscape)_and_(max-width:700px)]:hidden">
+                    {strip.weather.word}
+                  </span>
                 </span>
-                {strip.weather.effect && <span>: {strip.weather.effect}</span>}
+                {strip.weather.effect && <span className="phone:hidden">: {strip.weather.effect}</span>}
               </span>
             </span>
           )}

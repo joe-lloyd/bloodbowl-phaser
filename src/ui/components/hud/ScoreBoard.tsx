@@ -127,7 +127,7 @@ export function ScoreBoard({
     return (
       <div
         data-testid="scoreboard"
-        className="grid w-[min(460px,56vw)] grid-cols-[1fr_52px_1fr] pointer-events-auto animate-hud-in"
+        className="grid w-full max-w-[520px] grid-cols-[1fr_52px_1fr] pointer-events-auto animate-hud-in"
       >
         {rows[0] && slim(rows[0], false)}
         <div className="flex flex-col items-center justify-center border-y border-hud-gold/30 bg-hud-sunk/95">

@@ -83,7 +83,7 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
     <Panel
       as="section"
       accent="gold"
-      className="pointer-events-auto mt-auto max-h-[48vh] w-full max-w-sm overflow-y-auto hud-scroll p-3 animate-hud-in"
+      className="pointer-events-auto mt-auto max-h-[48vh] phone:max-h-none w-full max-w-sm overflow-y-auto hud-scroll p-3 animate-hud-in"
     >
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-gold">

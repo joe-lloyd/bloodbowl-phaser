@@ -14,6 +14,7 @@ import {
   Panel,
 } from "../componentWarehouse/HudKit";
 import { useAuth } from "../../hooks/useAuth";
+import { InstallGame } from "../common/InstallGame";
 import { SignInDialog } from "../common/SignInDialog";
 import {
   type AuthUser,
@@ -143,12 +144,12 @@ export function MainMenu() {
 
   return (
     <PageShell width="wide" className="flex flex-col justify-center">
-      <div className="mx-auto flex w-full max-w-5xl flex-col items-center py-6 text-center">
+      <div className="mx-auto flex w-full max-w-5xl flex-col items-center py-6 text-center phone:py-0">
         <Eyebrow tone="gold">Fantasy football mayhem</Eyebrow>
-        <h1 className="mt-2 font-hud-display text-[56px] uppercase leading-none tracking-[0.02em] text-hud-bone lg:text-[76px]">
+        <h1 className="mt-2 font-hud-display text-[56px] uppercase leading-none tracking-[0.02em] text-hud-bone lg:text-[76px] phone:mt-0 phone:text-[40px]">
           BLOOD BOWL
         </h1>
-        <p className="mt-3 font-hud-label text-hud-base font-bold uppercase tracking-[0.08em] text-hud-dim">
+        <p className="mt-3 phone:mt-1 font-hud-label text-hud-base font-bold uppercase tracking-[0.08em] text-hud-dim">
           {GAME_TYPES.map((gameType) => GAME_TYPE_LABELS[gameType]).join(" · ")}
         </p>
         <div
@@ -167,7 +168,7 @@ export function MainMenu() {
 
         <div
           className={cx(
-            "mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2",
+            "mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 phone:mt-4 phone:gap-2 phone:landscape:grid-cols-3",
             isAdminUser(user) ? "lg:grid-cols-5" : "lg:grid-cols-4"
           )}
         >
@@ -255,7 +256,7 @@ export function MainMenu() {
 
         <div
           className={cx(
-            "mt-10 flex w-full flex-col items-center gap-3",
+            "mt-10 flex w-full flex-col items-center gap-3 phone:mt-4",
             onlineAvailable && SIGNED_IN_CONTROLS_HEIGHT
           )}
         >
@@ -301,7 +302,9 @@ export function MainMenu() {
           )}
         </div>
 
-        <div className="hud-label mt-10 text-hud-mute">v0.1.0</div>
+        <InstallGame />
+
+        <div className="hud-label mt-10 phone:mt-4 text-hud-mute">v0.1.0</div>
       </div>
       {signingIn && (
         <SignInDialog
@@ -495,8 +498,8 @@ function MenuSection({
   children: React.ReactNode;
 }) {
   return (
-    <Panel as="section" className="flex flex-col gap-3 p-4">
-      <div className="flex items-baseline justify-between gap-2 border-b border-hud-gold/20 pb-2">
+    <Panel as="section" className="flex flex-col gap-3 p-4 phone:gap-2 phone:p-3 phone:portrait:grid phone:portrait:grid-cols-2">
+      <div className="flex items-baseline phone:portrait:col-span-2 justify-between gap-2 border-b border-hud-gold/20 pb-2">
         <h2 className="font-hud-display text-hud-lg uppercase tracking-[0.06em] text-hud-bone">
           {title}
         </h2>

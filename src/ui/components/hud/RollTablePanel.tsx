@@ -197,7 +197,7 @@ function RollTableDialog(props: RollTablePanelProps) {
     <DialogShell
       zClass={props.zClass}
       placement="center"
-      backdrop="heavy"
+      backdrop="light"
       titleAs="h1"
       title={title}
       width={kind === "kickoff" ? "w-[600px]" : "w-[480px]"}
@@ -210,7 +210,7 @@ function RollTableDialog(props: RollTablePanelProps) {
         <Stage
           stage={stage}
           step={step}
-          className="mx-auto h-[min(180px,28dvh)] w-full"
+          className="mx-auto h-[min(150px,22dvh)] w-full"
         />
         <ResultLine kind={kind} result={result} total={total} />
         <DialogRows {...props} />
@@ -230,11 +230,7 @@ function DialogRows({ kind, rows, result }: RollTablePanelProps) {
   return (
     <ul
       ref={list}
-      className={
-        kind === "kickoff"
-          ? "max-h-[min(360px,40dvh)] space-y-0.5 overflow-y-auto hud-scroll text-left"
-          : "space-y-1 text-left"
-      }
+      className={`grid gap-1 text-left ${kind === "kickoff" ? "grid-cols-2 landscape:grid-cols-3" : ""}`}
       data-testid={`${kind}-table`}
     >
       {rows.map((row) => {
@@ -243,7 +239,7 @@ function DialogRows({ kind, rows, result }: RollTablePanelProps) {
           <li
             key={row.label}
             data-current={hit ? "" : undefined}
-            className={`grid grid-cols-[3.5rem_1fr] items-baseline gap-3 rounded-hud border px-3 py-0.5 ${
+            className={`grid grid-cols-[2.5rem_1fr] items-baseline gap-2 rounded-hud border px-2 py-0.5 leading-tight ${
               hit
                 ? "border-hud-gold bg-hud-gold/15 text-hud-bone"
                 : "border-white/5 text-hud-dim"
@@ -256,7 +252,9 @@ function DialogRows({ kind, rows, result }: RollTablePanelProps) {
               <span className="font-hud-label font-bold uppercase tracking-[0.04em]">
                 {row.name}
               </span>
-              <span className="ml-2 text-hud-xs">{row.detail}</span>
+              {kind === "weather" && (
+                <span className="ml-2 text-hud-xs">{row.detail}</span>
+              )}
             </span>
           </li>
         );

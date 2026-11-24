@@ -193,7 +193,7 @@ function MenuPanelShell({ children }: { children: React.ReactNode }) {
   return (
     <div
       data-testid="player-action-menu"
-      className="w-full max-h-[60vh] min-h-0 shrink flex flex-col pointer-events-auto animate-hud-in z-50"
+      className="w-full max-h-[60vh] phone:max-h-none min-h-0 shrink flex flex-col pointer-events-auto animate-hud-in z-50"
       style={{ pointerEvents: "auto", zIndex: 9999 }}
       onClick={stopMenuPointer}
       onPointerDown={stopMenuPointer}

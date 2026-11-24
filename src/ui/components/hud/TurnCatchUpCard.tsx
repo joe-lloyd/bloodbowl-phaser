@@ -163,10 +163,10 @@ function TurnCatchUpCardView({ summary }: TurnCatchUpCardViewProps) {
       data-testid="turn-catch-up"
       aria-label="Since your last turn"
       aria-live="polite"
-      className="pointer-events-auto flex max-h-[22vh] w-full shrink-0 flex-col"
+      className="pointer-events-auto flex max-h-[22vh] phone:max-h-[50dvh] w-full shrink-0 flex-col"
     >
       <PanelHeader as="h2" title="Since your last turn" />
-      <div className="overflow-y-auto hud-scroll p-3 text-hud-sm text-hud-bone">
+      <div className="overflow-y-auto hud-scroll p-3 phone:p-2 text-hud-sm text-hud-bone">
         <ul className="space-y-1">
           {summary.players.map((line) => (
             <li key={line}>{line}</li>

@@ -225,7 +225,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           aria-label={`Filter Player ${String(player)} teams`}
           className="hud-field"
         />
-        <div className="hud-scroll mt-2 flex h-[clamp(200px,calc(100vh_-_400px),620px)] flex-col gap-1.5 overflow-y-auto p-1">
+        <div className="hud-scroll mt-2 flex h-[clamp(200px,calc(100vh_-_400px),620px)] phone:h-auto phone:max-h-[60dvh] flex-col gap-1.5 overflow-y-auto p-1">
           {columnTeams.length === 0 ? (
             <p className="py-6 text-center text-hud-sm text-hud-mute">
               {filter

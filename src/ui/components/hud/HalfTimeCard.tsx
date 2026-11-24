@@ -161,7 +161,7 @@ function HalfTimeCardView({
       data-testid="half-time-card"
       aria-label={title}
       aria-live="polite"
-      className="pointer-events-auto flex max-h-[min(45vh,340px)] w-full shrink-0 flex-col"
+      className="pointer-events-auto flex max-h-[min(45vh,340px)] phone:max-h-[60dvh] w-full shrink-0 flex-col"
     >
       <PanelHeader
         as="h2"

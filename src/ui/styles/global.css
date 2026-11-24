@@ -201,7 +201,7 @@
   display: grid;
   grid-template-columns: 20% 60% 20%;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background-color: #0a0a1e;
 }
@@ -233,15 +233,98 @@
   -webkit-touch-callout: none;
 }
 
-/* The rotate prompt's phone, turning from upright to sideways */
-@keyframes rotate-hint {
-  0%,
-  30% {
-    transform: rotate(0);
+/*
+ * The match HUD on a phone. Sideways, the buttons and the score share one row
+ * and the right column starts under the corner buttons. Upright, the score
+ * takes the whole width, the buttons sit under it, and a decision opens as a
+ * sheet across the bottom.
+ */
+.phone-hud {
+  --edge-top: calc(env(safe-area-inset-top) + 8px);
+  --edge-right: calc(env(safe-area-inset-right) + 8px);
+  --edge-bottom: calc(env(safe-area-inset-bottom) + 8px);
+  --edge-left: calc(env(safe-area-inset-left) + 8px);
+  --column: min(300px, 44vw);
+}
+.phone-hud:has([data-testid="action-plan"]) .phone-notice-bar,
+.phone-hud:has([data-decision-dialog]) .phone-bottom-bar,
+.phone-hud:has([data-decision-dialog]) [data-testid="player-chip"] {
+  display: none;
+}
+.phone-top-bar {
+  top: var(--edge-top);
+  left: var(--edge-left);
+  right: var(--edge-right);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+.phone-strip {
+  width: 100%;
+  max-width: calc(100vw - var(--column) - var(--edge-right) - 140px);
+}
+.phone-bottom-bar {
+  bottom: var(--edge-bottom);
+}
+.phone-notice-bar {
+  bottom: calc(var(--edge-bottom) + 64px);
+}
+.phone-hud:has([data-decision-dialog]) .phone-notice-bar {
+  left: calc((100vw - var(--column)) / 2);
+  max-width: calc(100vw - var(--column) - 24px);
+}
+.phone-card {
+  left: var(--edge-left);
+  top: calc(var(--edge-top) + 52px);
+}
+.phone-column {
+  width: var(--column);
+  top: calc(var(--edge-top) + 80px);
+  bottom: var(--edge-bottom);
+}
+.phone-column-left {
+  left: var(--edge-left);
+}
+.phone-column-right {
+  right: var(--edge-right);
+  top: calc(var(--edge-top) + 52px);
+}
+@media (orientation: portrait) {
+  .phone-hud {
+    --column: calc(100vw - var(--edge-left) - var(--edge-right));
   }
-  60%,
-  90% {
-    transform: rotate(-90deg);
+  .phone-top-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .phone-top-bar > .phone-score {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .phone-top-bar > :last-child {
+    grid-column: 3;
+  }
+  .phone-strip {
+    max-width: none;
+  }
+  .phone-card {
+    top: calc(var(--edge-top) + 136px);
+  }
+  .phone-column,
+  .phone-column-right {
+    top: calc(var(--edge-top) + 136px);
+    bottom: calc(var(--edge-bottom) + 56px);
+  }
+  .phone-hud:has([data-decision-dialog]) .phone-column-right,
+  .phone-hud:has([data-testid="setup-controls"]) .phone-column-right {
+    bottom: var(--edge-bottom);
+  }
+  .phone-notice-bar,
+  .phone-hud:has([data-decision-dialog]) .phone-notice-bar {
+    bottom: auto;
+    top: calc(var(--edge-top) + 140px);
+    left: 50%;
+    max-width: none;
   }
 }
 

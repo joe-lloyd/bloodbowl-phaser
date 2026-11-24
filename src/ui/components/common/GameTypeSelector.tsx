@@ -123,7 +123,7 @@ function GameTypeCards({
     <div
       role="radiogroup"
       aria-label={label}
-      className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+      className="grid grid-cols-2 gap-3 lg:grid-cols-4 phone:landscape:grid-cols-4"
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget))
           setTabStop(value);

@@ -121,7 +121,7 @@ export function PhonePlanBar({ eventBus, plan }: { eventBus: IEventBus; plan: Ac
       className="hud-slab flex max-w-[92vw] flex-col gap-2 py-1.5 pl-3 pr-1.5 pointer-events-auto animate-hud-in"
     >
       {open && (
-        <div data-testid="action-plan-details" className="flex max-h-[45vh] flex-col gap-2 overflow-y-auto pr-1.5 font-hud-body text-hud-bone">
+        <div data-testid="action-plan-details" className="flex max-h-[60dvh] flex-col gap-2 overflow-y-auto pr-1.5 font-hud-body text-hud-bone">
           <PlanDetails plan={plan} />
         </div>
       )}
