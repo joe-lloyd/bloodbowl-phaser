@@ -4,12 +4,25 @@ import {
   pickupTarget,
   catchTarget,
   passTarget,
+  bombInterceptPreviewLine,
+  bombThrowTarget,
+  interceptPreviewLine,
+  rushRollModifier,
+  dodgeTarget,
+  secureBallTarget,
+  throwConditions,
   blockPreviewLines,
   foulPreview,
   interceptTarget,
 } from "../../../src/game/rules/rollPreview";
 import { createTestPlayer } from "../../fixtures/players";
 import { GameStateBuilder } from "../../utils/test-builders";
+import type { Weather } from "../../../src/game/rules/weather";
+import { passModifier } from "../../../src/game/kickoff/ballConditions";
+import {
+  type Souvenir,
+  getVariantInducements,
+} from "../../../src/game/inducements/variantState";
 import { PlayerStatus } from "../../../src/types/Player";
 import { SkillType, getSkill } from "../../../src/types/Skills";
 import { BlockValidator } from "../../../src/game/validators/BlockValidator";
@@ -27,13 +40,64 @@ const enemy = createTestPlayer({
   gridPosition: { x: 6, y: 5 },
 });
 
+const inWeather = (weather: Weather) => ({
+  ...new GameStateBuilder().build(),
+  weather,
+});
+
 describe("roll preview analysis", () => {
   it("includes marking and rain for pickups and catches", () => {
     expect(
-      pickupTarget(player, fixtureValue(player.gridPosition), [enemy], "Pouring Rain")
+      pickupTarget(
+        player,
+        fixtureValue(player.gridPosition),
+        [enemy],
+        inWeather("Pouring Rain")
+      )
     ).toBe(5);
-    expect(catchTarget(player, [enemy], "Nice", "handoff")).toBe(4);
+    expect(catchTarget(player, [enemy], inWeather("Nice"), "handoff")).toBe(4);
   });
+  it("lets Big Hand ignore the conch's pick-up penalty, as the engine does", () => {
+    const conch = { ...inWeather("Nice"), lostBall: "conch" as const };
+    const square = fixtureValue(player.gridPosition);
+    const bigHand = { ...player, skills: [getSkill(SkillType.BIG_HAND)] };
+    expect([
+      pickupTarget(player, square, [], conch),
+      pickupTarget(bigHand, square, [], conch),
+      pickupTarget(bigHand, square, [enemy], inWeather("Nice")),
+    ]).toEqual([4, 3, 3]);
+  });
+
+  it("adds a Sticky Bun's bonus to the carrier's catch, as the engine does", () => {
+    const state = inWeather("Nice");
+    const bare = catchTarget(player, [], state, "pass");
+    getVariantInducements(state).souvenirs.push({
+      teamId: player.teamId,
+      souvenir: "Sticky Bun",
+      playerId: player.id,
+    });
+    expect([bare, catchTarget(player, [], state, "pass")]).toEqual([3, 2]);
+  });
+
+  it("adds a Sticky Bun to Secure the Ball and takes it off a pass", () => {
+    const rain = inWeather("Pouring Rain");
+    const square = fixtureValue(player.gridPosition);
+    const before = [
+      secureBallTarget(player, square, [], rain),
+      throwConditions(rain, player, "Quick Pass"),
+    ];
+    getVariantInducements(rain).souvenirs.push({
+      teamId: player.teamId,
+      souvenir: "Sticky Bun",
+      playerId: player.id,
+    });
+    expect([
+      ...before,
+      secureBallTarget(player, square, [], rain),
+      throwConditions(rain, player, "Quick Pass"),
+    ]).toEqual([3, 0, 2, -1]);
+  });
+
   it("applies ball and passing skills before showing the target", () => {
     const skilled = {
       ...player,
@@ -42,14 +106,19 @@ describe("roll preview analysis", () => {
         getSkill(SkillType.NERVES_OF_STEEL),
       ],
     };
-    expect(catchTarget(skilled, [enemy], "Nice", "pass")).toBe(2);
+    expect(catchTarget(skilled, [enemy], inWeather("Nice"), "pass")).toBe(2);
     expect(
-      passTarget(skilled, [enemy], "Very Sunny", {
-        type: "Short Pass",
-        modifier: -1,
-        minDistance: 4,
-        maxDistance: 6,
-      })
+      passTarget(
+        skilled,
+        [enemy],
+        passModifier(inWeather("Very Sunny"), "Short Pass"),
+        {
+          type: "Short Pass",
+          modifier: -1,
+          minDistance: 4,
+          maxDistance: 6,
+        }
+      )
     ).toBe(6);
   });
   it("gives each interceptor its own target from marking, rain and skills", () => {
@@ -59,15 +128,143 @@ describe("roll preview analysis", () => {
       stats: { ...enemy.stats, AG: 3 },
     };
 
-    expect(interceptTarget(interceptor, -3, [player], "Nice")).toBe(6);
+    expect(interceptTarget(interceptor, -3, [player], inWeather("Nice"))).toBe(
+      6
+    );
     const legs = {
       ...interceptor,
       skills: [getSkill(SkillType.VERY_LONG_LEGS)],
       gridPosition: { x: 9, y: 9 },
     };
-    expect(interceptTarget(legs, -3, [player], "Nice")).toBe(4);
-    expect(interceptTarget(legs, -3, [player], "Pouring Rain")).toBe(5);
+    expect(interceptTarget(legs, -3, [player], inWeather("Nice"))).toBe(4);
+    expect(interceptTarget(legs, -3, [player], inWeather("Pouring Rain"))).toBe(
+      5
+    );
   });
+
+  it("prices every roll the engine adjusts for the conch, the beach ball and souvenirs", () => {
+    const square = fixtureValue(player.gridPosition);
+    const legs = {
+      ...enemy,
+      skills: [getSkill(SkillType.VERY_LONG_LEGS)],
+      gridPosition: { x: 9, y: 9 },
+    };
+    const souvenir = (
+      state: ReturnType<typeof inWeather>,
+      item: Souvenir,
+      playerId: string
+    ) => {
+      getVariantInducements(state).souvenirs.push({
+        teamId: "any",
+        souvenir: item,
+        playerId,
+      });
+      return state;
+    };
+    const conch = { ...inWeather("Nice"), lostBall: "conch" as const };
+    const beachBall = { ...inWeather("Nice"), lostBall: "beach-ball" as const };
+    expect({
+      pickup: [
+        pickupTarget(player, square, [], conch),
+        pickupTarget(player, square, [], beachBall),
+        pickupTarget(
+          player,
+          square,
+          [],
+          souvenir(inWeather("Nice"), "Sticky Bun", player.id)
+        ),
+      ],
+      catch: [
+        catchTarget(player, [], conch, "pass"),
+        catchTarget(player, [], beachBall, "pass"),
+      ],
+      intercept: [
+        interceptTarget(legs, -3, [player], conch),
+        interceptTarget(legs, -3, [player], beachBall),
+        interceptTarget(
+          legs,
+          -3,
+          [player],
+          souvenir(inWeather("Nice"), "Sticky Bun", legs.id)
+        ),
+      ],
+      pass: [
+        throwConditions(beachBall, player, "Short Pass"),
+        throwConditions(
+          souvenir(inWeather("Nice"), "Sticky Bun", player.id),
+          player,
+          "Short Pass"
+        ),
+      ],
+      dodge: [
+        dodgeTarget(player, { from: square, to: { x: 5, y: 6 } }, [enemy]),
+        dodgeTarget(player, { from: square, to: { x: 5, y: 6 } }, [enemy], 1),
+      ],
+    }).toEqual({
+      pickup: [4, 2, 2],
+      catch: [4, 2],
+      intercept: [5, 3, 3],
+      pass: [-1, -1],
+      dodge: [4, 3],
+    });
+  });
+  it("rolls a Bomb by range, marking and weather only, and its interceptions by the corridor and marking", () => {
+    const conch = {
+      ...inWeather("Pouring Rain"),
+      lostBall: "conch" as const,
+    };
+    const thrower = {
+      ...player,
+      skills: [
+        getSkill(SkillType.ACCURATE),
+        getSkill(SkillType.NERVES_OF_STEEL),
+      ],
+    };
+    const quick = {
+      type: "Quick Pass" as const,
+      modifier: 0,
+      minDistance: 0,
+      maxDistance: 3,
+    };
+    const interceptor = {
+      ...enemy,
+      number: 4,
+      stats: { ...enemy.stats, AG: 2 },
+      skills: [
+        getSkill(SkillType.VERY_LONG_LEGS),
+        getSkill(SkillType.EXTRA_ARMS),
+      ],
+      gridPosition: { x: 9, y: 9 },
+    };
+    const drunk = { ...player, skills: [getSkill(SkillType.DRUNKARD)] };
+    expect({
+      throw: [
+        bombThrowTarget(thrower, [enemy], quick.modifier - 1),
+        passTarget(
+          thrower,
+          [enemy],
+          throwConditions(conch, thrower, "Quick Pass"),
+          quick
+        ),
+      ],
+      intercept: [
+        bombInterceptPreviewLine(interceptor, [player]).line,
+        interceptPreviewLine(interceptor, [player], conch).line,
+      ],
+      rush: [
+        rushRollModifier(inWeather("Nice"), player),
+        rushRollModifier(inWeather("Nice"), drunk),
+      ],
+    }).toEqual({
+      throw: [6, 3],
+      intercept: [
+        "Intercept #4: 5+, if inaccurate 4+",
+        "Intercept #4: 4+, if inaccurate 3+",
+      ],
+      rush: [0, -1],
+    });
+  });
+
   it("uses the block analysis for the chooser and numbered assists", () => {
     const assist = createTestPlayer({
       id: "assist",
@@ -81,7 +278,12 @@ describe("roll preview analysis", () => {
       stats: { ...enemy.stats, ST: 3 },
       skills: [getSkill(SkillType.DODGE)],
     };
-    const analysis = new BlockValidator().analyzeBlock({ attacker: player, defender: defender, allPlayers: [player, defender, assist], activeTeamId: "ours" });
+    const analysis = new BlockValidator().analyzeBlock({
+      attacker: player,
+      defender: defender,
+      allPlayers: [player, defender, assist],
+      activeTeamId: "ours",
+    });
     expect(analysis.attackerAssists.map((p) => p.number)).toEqual([8]);
     expect(blockPreviewLines(analysis, player, defender, "attacker")).toEqual(
       expect.arrayContaining([
@@ -94,7 +296,12 @@ describe("roll preview analysis", () => {
   });
   it("says the defender picks when they are stronger", () => {
     const strong = { ...enemy, stats: { ...enemy.stats, ST: 4 } };
-    const analysis = new BlockValidator().analyzeBlock({ attacker: player, defender: strong, allPlayers: [player, strong], activeTeamId: "ours" });
+    const analysis = new BlockValidator().analyzeBlock({
+      attacker: player,
+      defender: strong,
+      allPlayers: [player, strong],
+      activeTeamId: "ours",
+    });
     expect(
       blockPreviewLines(analysis, player, strong, "attacker").slice(0, 4)
     ).toEqual([

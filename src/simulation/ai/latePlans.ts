@@ -5,7 +5,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { playerValue } from "../../types/Team";
 import { rushAllowance } from "../../game/skills/movement";
 import { BlockValidator } from "../../game/validators/BlockValidator";
-import { blockOdds, casualtyChance, twoD6 } from "./chance";
+import { blockOdds, casualtyChance, d6, fallCasualtyChance } from "./chance";
 import {
   type Board,
   type Square,
@@ -14,7 +14,7 @@ import {
   distance,
   toGoal,
 } from "./board";
-import { movesLeft } from "./routes";
+import { movesLeft, rushTarget } from "./routes";
 import type { Route } from "./routes";
 import type { Context } from "./activationContext";
 import type { Available } from "./activations";
@@ -86,10 +86,17 @@ export function lateMoveValue({
     toGoal(c.board, carrier.gridPosition) <= nextTurnReach(carrier)
   )
     return ordinary;
-  if (toGoal(c.board, route.to) > nextTurnReach(carrier))
-    return ordinary * c.w.lateProgress;
+  const left = toGoal(c.board, route.to);
+  if (left > nextTurnReach(carrier)) return ordinary * c.w.lateProgress;
+  const rushes = Math.max(0, left - carrier.stats.MA);
+  return (
+    ordinary +
+    route.chance * rushChance(c.board, carrier) ** rushes * c.w.touchdown
+  );
+}
 
-  return ordinary + route.chance * c.w.touchdown;
+function rushChance(board: Board, player: Player): number {
+  return d6(rushTarget(board, player));
 }
 
 export function markRisk(c: Context, carrier: Player, at: Square): number {
@@ -119,7 +126,11 @@ export function exposureCost(c: Context, player: Player, at: Square): number {
       dice: hit.diceCount,
       attackerPicks: !hit.isUphill,
       teamReroll: false,
-      faces: blockFaces(board, opponent, moved),
+      faces: blockFaces(board, {
+        attacker: opponent,
+        defender: moved,
+        blitz: true,
+      }),
     });
     worst = Math.max(worst, odds.knockdown * casualtyChance(opponent, moved));
   }
@@ -178,10 +189,7 @@ export function scoringValue({
   const { board } = c;
   const at = carrierOf(board)?.gridPosition ?? player.gridPosition;
   const replyCost = finalBallLoss(c, at, ballLoss);
-  const fallCasualty =
-    twoD6(player.stats.AV) *
-    twoD6(hasSkill(player.skills, SkillType.STUNTY) ? 9 : 10) *
-    (hasSkill(player.skills, SkillType.REGENERATION) ? 0.5 : 1);
+  const fallCasualty = fallCasualtyChance(player);
   const personalCost = board.persistentInjuries
     ? fallChance * injuryRiskValue(c, player) * fallCasualty
     : 0;

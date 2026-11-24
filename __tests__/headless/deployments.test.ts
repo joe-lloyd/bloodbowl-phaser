@@ -5,7 +5,10 @@ import { FormationManager } from "../../src/game/managers/FormationManager";
 import { SetupValidator } from "../../src/game/validators/SetupValidator";
 import { GAME_TYPES } from "../../src/game/variants/gameTypes";
 import { gameTypeRules } from "../../src/game/variants/gameTypeRules";
-import { withMatchFormat } from "../../src/game/variants/activeMatch";
+import {
+  type MatchFormat,
+  withMatchFormat,
+} from "../../src/game/variants/activeMatch";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { addPlayerToTeam, createTeam, RosterName } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";
@@ -133,6 +136,60 @@ describe("deployments", () => {
     const placed = await deploy("Kick: Press", true);
     expect(placed["Dwarf Blitzer"]).toBe("2,5");
     expect(placed["Troll Slayer"]).toMatch(/^6,/);
+  });
+
+  async function kickingBunker(format: MatchFormat) {
+    const game = new HeadlessGame({ seed: 5, team1: dwarfs(), format });
+    await game.execute({
+      type: "start-setup",
+      kickingTeamId: game.ctx.team1.id,
+    });
+    const bunker = fixtureValue(
+      new FormationManager()
+        .getBuiltInFormations(true)
+        .find((f) => f.name === "Bunker")
+    );
+    await game.execute({
+      type: "apply-formation",
+      teamId: game.ctx.team1.id,
+      formation: bunker.positions,
+    });
+    const line = game.ctx.gameService.getState().setup;
+    const los = format.gameType === "sevens" ? 6 : 12;
+    expect(line?.kickingTeamId).toBe(game.ctx.team1.id);
+    return game.ctx.team1.players
+      .filter((p) => p.gridPosition?.x === los)
+      .map((p) => p.positionName)
+      .sort();
+  }
+
+  it("stands the Blitz line's flankers on the inner row of each Wide Zone", () => {
+    const flankRows = (format: MatchFormat) =>
+      withMatchFormat(format, () =>
+        fixtureValue(
+          new FormationManager()
+            .getBuiltInFormations(true)
+            .find((f) => f.name === "Kick: Blitz line")
+        )
+          .positions.filter((p) => p.role === "flank")
+          .map((p) => p.y)
+          .sort((a, b) => a - b)
+      );
+    expect({
+      sevens: flankRows({ gameType: "sevens", venue: "stadium" }),
+      beach: flankRows({ gameType: "beach-bowl", venue: "beach" }),
+      gutter: flankRows({ gameType: "gutter-bowl", venue: "gutter-street" }),
+    }).toEqual({ sevens: [1, 9], beach: [1, 7], gutter: [3, 11] });
+  });
+
+  it("kicks with a fast line in Sevens but a sturdy one where the lines touch", async () => {
+    expect({
+      sevens: await kickingBunker({ gameType: "sevens", venue: "stadium" }),
+      street: await kickingBunker({ gameType: "street-bowl", venue: "street" }),
+    }).toEqual({
+      sevens: ["Dwarf Lineman", "Dwarf Runner", "Troll Slayer"],
+      street: ["Dwarf Lineman", "Dwarf Lineman", "Dwarf Lineman"],
+    });
   });
 
   it("refuses a formation square with a role it does not know", () => {

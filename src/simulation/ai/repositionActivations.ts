@@ -1,4 +1,5 @@
 import { type FieldPlayer as Player } from "./board";
+
 import { PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "../../game/rules/throwTeammate";
@@ -19,8 +20,9 @@ import {
 import { type Route } from "./routes";
 import { PassController } from "../../game/controllers/PassController";
 import { type Context, crowd, gamble, tierFor } from "./activationContext";
-import { CORNERS, passRange } from "./ballActivations";
-import { passTarget } from "../../game/rules/rollPreview";
+import { CORNERS } from "./ballActivations";
+import { passRange } from "./passRange";
+import { passTarget, throwConditions } from "../../game/rules/rollPreview";
 import { d6, withReroll } from "./chance";
 import type { Activation, Role } from "./activations";
 import { moveFeedingCost } from "./feeding";
@@ -155,7 +157,12 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
       const s = { x, y };
       const range = isDeep({ c, from: at, s, receiver });
       if (!range) continue;
-      const target = passTarget(carrier, [], board.weather, range);
+      const target = passTarget(
+        carrier,
+        [],
+        throwConditions(board.gs.getState(), carrier, range.type),
+        range
+      );
       const throws = hasSkill(carrier.skills, SkillType.PASS)
         ? withReroll(d6(target))
         : d6(target);

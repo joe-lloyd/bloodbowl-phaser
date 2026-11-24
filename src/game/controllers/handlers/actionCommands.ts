@@ -1,6 +1,6 @@
 import { scopeEventBus } from "../../../services/scopedEventBus";
 import { rollLabel, requiredRoll } from "../../rules/rollTargets";
-import { rushModifier } from "../../inducements/matchInducements";
+import { rushRollModifier } from "../../rules/rollPreview";
 import { type IGameService } from "../../../services/interfaces/IGameService";
 import { type GameEventMap, type IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
@@ -44,7 +44,7 @@ function rollBlock(context: ActionContext, data: GameEventMap[typeof GameEventNa
         context.pendingBlitzBlock = data;
         const target = requiredRoll(
           activeRules().rushTarget,
-          rushModifier(state, attacker)
+          rushRollModifier(state, attacker)
         );
         eventBus.emit(GameEventNames.UI_RequestConfirmation, {
           actionId: "blitz-rush-confirm",

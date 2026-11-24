@@ -10,6 +10,8 @@ import { type Square, distance, key, neighbours, standing } from "./board";
 import type { Route } from "./routes";
 import type { Context } from "./activationContext";
 import type { Activation } from "./activations";
+import { activeRules } from "../../game/variants/activeMatch";
+import { injuryRules, twoD6 } from "./chance";
 
 const validator = new FoulValidator();
 
@@ -26,7 +28,7 @@ export interface FoulOdds {
 const has = (p: RosterPlayer, s: SkillType) => hasSkill(p.skills, s);
 
 function injuryBands(target: RosterPlayer): [number, number] {
-  const stunty = has(target, SkillType.STUNTY);
+  const stunty = has(target, SkillType.STUNTY) && injuryRules().casualties;
   const stunnedUpTo = stunty ? 6 : 7;
 
   const thick = has(target, SkillType.THICK_SKULL) ? 1 : 0;
@@ -48,13 +50,14 @@ export function foulOdds(
   assists: FoulAssists
 ): FoulOdds {
   const locked = has(target, SkillType.IRON_HARD_SKIN);
-  const modifier = locked ? 0 : assists.modifier;
+  const modifier = (locked ? 0 : assists.modifier) + injuryRules().foul;
   const dirty = has(fouler, SkillType.DIRTY_PLAYER);
   const dirtyOnArmourAllowed = dirty && !locked;
   const sneaky = has(fouler, SkillType.SNEAKY_GIT);
   const lone = has(fouler, SkillType.LONE_FOULER) && assists.none;
   const [stunnedUpTo, koUpTo] = injuryBands(target);
-  const regenerates = has(target, SkillType.REGENERATION) ? 0.5 : 1;
+  const regenerates =
+    has(target, SkillType.REGENERATION) && injuryRules().casualties ? 0.5 : 1;
   const AV = target.stats.AV;
   const out: FoulOdds = { casualty: 0, ko: 0, spotted: 0 };
 
@@ -102,6 +105,7 @@ function sendOffCost(c: Context, fouler: RosterPlayer): number {
 }
 
 function spottedChances(c: Context, fouler: RosterPlayer) {
+  if (!activeRules().referee) return { sentOff: 0, turnover: 0 };
   const state = c.board.gs.getState();
   const team = c.board.gs.getTeam(fouler.teamId);
   const corrupt =
@@ -136,13 +140,27 @@ function foulAt({ c, fouler, target, at }: FoulAtArgs) {
     none: offensiveAssists.length === 0 && defensiveAssists.length === 0,
   });
   const spotted = spottedChances(c, fouler);
-  return (
+  const value =
     odds.casualty * c.casualty +
     odds.ko * c.w.foulKnockOut -
     odds.spotted *
       (spotted.sentOff * sendOffCost(c, fouler) +
-        spotted.turnover * lostActivations(c))
-  );
+        spotted.turnover * lostActivations(c));
+  return afterRetribution(c, fouler, value);
+}
+
+const RETRIBUTION_CHANCE = 1 / 2;
+
+function afterRetribution(c: Context, fouler: Player, value: number): number {
+  const punished = lostActivations(c) + c.w.ownDown;
+  switch (activeRules().foulRetribution) {
+    case "none":
+      return value;
+    case "rock":
+      return value - RETRIBUTION_CHANCE * twoD6(fouler.stats.AV - 1) * punished;
+    case "sand":
+      return (1 - RETRIBUTION_CHANCE) * value - RETRIBUTION_CHANCE * punished;
+  }
 }
 
 const down = (p: Player) =>

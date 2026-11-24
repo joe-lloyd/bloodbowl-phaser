@@ -2,13 +2,16 @@ import { type Player, hasTackleZone } from "../../types/Player";
 import { type BlockAnalysis } from "../../types/Actions";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type PassRange } from "../controllers/PassController";
-import {
-  type Weather,
-  catchWeather,
-  pickUpWeather,
-  weatherEffects,
-} from "./weather";
+import { type Weather, weatherEffects } from "./weather";
 import { type GameState } from "../../types/GameState";
+import {
+  catchModifier,
+  lostBallHandling,
+  passModifier,
+  pickUpModifier,
+} from "../kickoff/ballConditions";
+import { souvenirModifier } from "../inducements/souvenirModifiers";
+import { rushModifier } from "../inducements/matchInducements";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { FoulValidator } from "../validators/FoulValidator";
 import { rollLabel, requiredRoll } from "./rollTargets";
@@ -33,9 +36,9 @@ const has = (player: Player, skill: SkillType) =>
 
 export function dodgeTarget(
   player: Player,
-  from: Square,
-  to: Square,
-  opponents: Player[]
+  { from, to }: { from: Square; to: Square },
+  opponents: Player[],
+  bonus = 0
 ): number {
   const marking = has(player, SkillType.STUNTY)
     ? 0
@@ -45,7 +48,8 @@ export function dodgeTarget(
     has(p, SkillType.PREHENSILE_TAIL)
   );
   const modifier =
-    -marking -
+    bonus -
+    marking -
     (tail ? 1 : 0) +
     (has(player, SkillType.TITCHY) ? 1 : 0) +
     (has(player, SkillType.TWO_HEADS) ? 1 : 0);
@@ -68,15 +72,16 @@ export function pickupTarget(
   player: Player,
   square: Square,
   opponents: Player[],
-  weather: Weather
+  state: GameState
 ): number {
-  const marking = has(player, SkillType.BIG_HAND)
-    ? 0
-    : markingPlayers(square, opponents).length;
+  const conditions = pickUpModifier(state);
+  const handling = has(player, SkillType.BIG_HAND)
+    ? Math.max(0, conditions)
+    : conditions - markingPlayers(square, opponents).length;
   return requiredRoll(
     player.stats.AG,
-    -marking +
-      pickUpWeather(weather) +
+    handling +
+      souvenirModifier(state, player.id, "pick-up") +
       (has(player, SkillType.EXTRA_ARMS) ? 1 : 0)
   );
 }
@@ -85,20 +90,39 @@ export function secureBallTarget(
   player: Player,
   square: Square,
   opponents: Player[],
-  weather: Weather
+  state: GameState
 ): number {
   const marking = markingPlayers(square, opponents).length;
-  const rain = pickUpWeather(weather);
+  const rain = pickUpModifier(state);
   const modifier = has(player, SkillType.BIG_HAND)
     ? Math.max(0, rain)
     : rain - marking;
-  return requiredRoll(2, modifier);
+  return requiredRoll(
+    2,
+    modifier + souvenirModifier(state, player.id, "pick-up")
+  );
+}
+
+export function rushRollModifier(state: GameState, player: Player): number {
+  return (
+    rushModifier(state, player) - (has(player, SkillType.DRUNKARD) ? 1 : 0)
+  );
+}
+
+export function throwConditions(
+  state: GameState,
+  thrower: Player,
+  type: PassRange["type"]
+): number {
+  return (
+    passModifier(state, type) + souvenirModifier(state, thrower.id, "pass")
+  );
 }
 
 export function catchTarget(
   player: Player,
   opponents: Player[],
-  weather: Weather,
+  state: GameState,
   origin: "pass" | "handoff"
 ): number {
   const marking =
@@ -107,7 +131,8 @@ export function catchTarget(
       : 0;
   const modifier =
     -marking +
-    catchWeather(weather) -
+    catchModifier(state) +
+    souvenirModifier(state, player.id, "catch") -
     disturbing(player, opponents) +
     (has(player, SkillType.EXTRA_ARMS) ? 1 : 0) +
     (origin === "pass" && has(player, SkillType.DIVING_CATCH) ? 1 : 0);
@@ -117,7 +142,7 @@ export function catchTarget(
 export function passTarget(
   player: Player,
   opponents: Player[],
-  weather: Weather,
+  conditions: number,
   range: PassRange
 ): number {
   const marking =
@@ -132,7 +157,7 @@ export function passTarget(
     player.stats.PA,
     range.modifier -
       marking +
-      weatherEffects(weather).passingAbility +
+      conditions +
       bonus -
       disturbing(player, opponents)
   );
@@ -145,7 +170,9 @@ export type BlockSide = "attacker" | "defender";
 
 function strengthPart(base: number, total: number): string {
   const help = total - base;
-  return help === 0 ? String(total) : `${String(total)} (${String(base)} +${String(help)})`;
+  return help === 0
+    ? String(total)
+    : `${String(total)} (${String(base)} +${String(help)})`;
 }
 
 function strengthLine(
@@ -277,25 +304,79 @@ export function interceptTarget(
   interceptor: Player,
   corridorModifier: number,
   passingTeam: Player[],
-  weather: Weather
+  state: GameState
 ): number {
   return requiredRoll(
     interceptor.stats.AG,
-    interceptModifiers(interceptor, corridorModifier, passingTeam, weather)
-      .total
+    interceptModifiers(
+      interceptor,
+      corridorModifier,
+      passingTeam,
+      state.weather
+    ).total +
+      lostBallHandling(state) +
+      souvenirModifier(state, interceptor.id, "intercept")
   );
 }
 
 export const interceptNeed = (interceptor: Player, modifier: number): number =>
   requiredRoll(interceptor.stats.AG, modifier);
 
+const marks = (player: Player, opponents: Player[]) =>
+  player.gridPosition
+    ? markingPlayers(player.gridPosition, opponents).length
+    : 0;
+
+export function bombThrowTarget(
+  thrower: Player,
+  opponents: Player[],
+  modifier: number
+): number {
+  return requiredRoll(thrower.stats.PA, modifier - marks(thrower, opponents));
+}
+
+function bombInterceptTarget(
+  interceptor: Player,
+  corridorModifier: number,
+  throwingTeam: Player[]
+): number {
+  return requiredRoll(
+    interceptor.stats.AG,
+    corridorModifier - marks(interceptor, throwingTeam)
+  );
+}
+
+interface InterceptLine {
+  line: string;
+  accurate: number;
+  inaccurate: number;
+}
+
 export function interceptPreviewLine(
   interceptor: Player,
   passingTeam: Player[],
-  weather: Weather
-): { line: string; accurate: number; inaccurate: number } {
-  const accurate = interceptTarget(interceptor, -3, passingTeam, weather);
-  const inaccurate = interceptTarget(interceptor, -2, passingTeam, weather);
+  state: GameState
+): InterceptLine {
+  return interceptLine(interceptor, (corridor) =>
+    interceptTarget(interceptor, corridor, passingTeam, state)
+  );
+}
+
+export function bombInterceptPreviewLine(
+  interceptor: Player,
+  throwingTeam: Player[]
+): InterceptLine {
+  return interceptLine(interceptor, (corridor) =>
+    bombInterceptTarget(interceptor, corridor, throwingTeam)
+  );
+}
+
+function interceptLine(
+  interceptor: Player,
+  target: (corridorModifier: number) => number
+): InterceptLine {
+  const accurate = target(-3);
+  const inaccurate = target(-2);
   const name = `Intercept #${String(interceptor.number)}`;
   const line =
     accurate === inaccurate

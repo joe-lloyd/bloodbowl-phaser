@@ -9,6 +9,7 @@ import { rollLabel } from "../../rules/rollTargets";
 import {
   foulPreview,
   blockPreviewLines,
+  bombInterceptPreviewLine,
   interceptPreviewLine,
   type TargetRollPreview,
 } from "../../rules/rollPreview";
@@ -243,8 +244,8 @@ function foulTargetPreview(
 }
 
 export function interceptions(
-{ c,actor,from,square,opponents }: { c: GameplayInteractionController; actor: Player; from: Square; square: Square; opponents: Player[]; }): { lines: string[]; rolls: { square: Square; target: number }[] } {
-  const weather = c.gameService.getState().weather;
+{ c,actor,from,square,opponents,bomb = false }: { c: GameplayInteractionController; actor: Player; from: Square; square: Square; opponents: Player[]; bomb?: boolean }): { lines: string[]; rolls: { square: Square; target: number }[] } {
+  const state = c.gameService.getState();
   const passingTeam = [actor, ...c.gameService.getTeammates(actor.id)];
   const lines: string[] = [];
   const rolls: { square: Square; target: number }[] = [];
@@ -253,15 +254,14 @@ export function interceptions(
     const interceptor = c.gameService.getPlayerById(attempt.playerId);
     if (!interceptor) continue;
     if (
+      !bomb &&
       hasSkill(actor.skills, SkillType.CLOUD_BURSTER) &&
       !hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)
     )
       continue;
-    const { line, accurate } = interceptPreviewLine(
-      interceptor,
-      passingTeam,
-      weather
-    );
+    const { line, accurate } = bomb
+      ? bombInterceptPreviewLine(interceptor, passingTeam)
+      : interceptPreviewLine(interceptor, passingTeam, state);
     lines.push(line);
     if (interceptor.gridPosition)
       rolls.push({ square: interceptor.gridPosition, target: accurate });
@@ -272,7 +272,7 @@ export function interceptions(
 function throwTargetPreview(
 { c,actor,from,target,square,opponents }: { c: GameplayInteractionController; actor: Player; from: Square; target: Player; square: Square; opponents: Player[]; }): { preview: TargetRollPreview; aim: StepPrompt } {
   const handoff = c.currentActionMode === "handoff";
-  const needs = throwNeeds(c, { passer: actor, receiver: target, square, handoff });
+  const needs = throwNeeds(c, { passer: actor, receiver: target, square, handoff, bomb: false });
   const catchNeeds = needs.catch ?? 6;
   const lines = handoff ? [] : [rollLabel(needs.range.type, needs.pass)];
   lines.push(rollLabel("Catch", catchNeeds));

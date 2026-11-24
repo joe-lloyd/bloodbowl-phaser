@@ -4,12 +4,10 @@ import {
   catchTarget,
   interceptTarget,
   passTarget,
+  throwConditions,
 } from "../../game/rules/rollPreview";
-import {
-  PassController,
-  type PassRange,
-  type PassType,
-} from "../../game/controllers/PassController";
+import { PassController } from "../../game/controllers/PassController";
+import { passRange } from "./passRange";
 import {
   pitchHeight,
   type Square,
@@ -39,6 +37,9 @@ import {
   tierFor,
 } from "./activationContext";
 import { launchReady } from "./teammateActivations";
+import type { Weights } from "./weights";
+import { isWallSquare, obstacleKindAt } from "../../game/rules/pitchSquares";
+import { activeLayout, activeRules } from "../../game/variants/activeMatch";
 import type { Activation } from "./activations";
 import { feedingCost, moveFeedingCost, unfedChance } from "./feeding";
 import {
@@ -56,6 +57,19 @@ export const CORNERS = [
   [1, 1],
 ] as const;
 
+function cornerHeld(
+  board: Context["board"],
+  corner: Square,
+  carrier: Player
+): boolean | null {
+  if (!onPitch(corner)) return shelters(corner);
+  const there = board.occupant[key(corner)];
+  if (!there) return null;
+  return (
+    there.teamId === board.us && standing(there) && there.id !== carrier.id
+  );
+}
+
 function cageCorners(c: Context, at: Square, carrier: Player): number {
   const { board, w } = c;
   const helpers = board.ours.filter(
@@ -65,12 +79,9 @@ function cageCorners(c: Context, at: Square, carrier: Player): number {
   let cage = 0;
   for (const [dx, dy] of CORNERS) {
     const corner = { x: at.x + dx, y: at.y + dy };
-    if (!onPitch(corner)) continue;
-    const there = board.occupant[key(corner)];
-    if (there) {
-      const holds =
-        there.teamId === board.us && standing(there) && there.id !== carrier.id;
-      if (holds) cage++;
+    const held = cornerHeld(board, corner, carrier);
+    if (held !== null) {
+      cage += Number(held);
       continue;
     }
     const helper = helpers.find(
@@ -84,6 +95,10 @@ function cageCorners(c: Context, at: Square, carrier: Player): number {
     }
   }
   return cage;
+}
+
+function shelters(square: Square): boolean {
+  return isWallSquare(square) || obstacleKindAt(square) !== undefined;
 }
 
 function carrierSquare(c: Context, at: Square, carrier: Player): number {
@@ -110,7 +125,7 @@ function carrierCover(c: Context, at: Square, carrier: Player): number {
       w.carrierMarked -
     threats(board, at) * w.carrierThreat * exposed +
     Math.min(cage, 4) * w.cageCorner -
-    sidelineCost(edge, w.sideline) -
+    sidelineCost(edge, w) -
     exposureCost(c, carrier, at) +
     launchReady(c, carrier, at)
   );
@@ -263,7 +278,8 @@ function stallRoute(
 ): Route | null {
   const { board } = c;
   if (board.turnsLeft === 0 || board.turnsLeft > 2) return null;
-  if (board.lead <= 0) return null;
+  if (board.lead <= 0 || activeRules().stallingPenalty === "bottle")
+    return null;
   const reach = carrier.stats.MA;
   const here = { route: null, at: carrier.gridPosition };
   const options = [
@@ -445,7 +461,12 @@ function handoffTo({
     handoverPace(c, carrier, mate);
   if (insufficientProgress(c, scoreChance, progress - w.advance * 2))
     return null;
-  const target = catchTarget(mate, board.theirs, board.weather, "handoff");
+  const target = catchTarget(
+    mate,
+    board.theirs,
+    board.gs.getState(),
+    "handoff"
+  );
 
   const approach = approachTo(carrier, mate, routes);
   if (approach === undefined) return null;
@@ -507,24 +528,6 @@ export function handoffActivations(c: Context, carrier: Player): Activation[] {
   return out;
 }
 
-const PASS_TYPES = [
-  "Quick Pass",
-  "Short Pass",
-  "Long Pass",
-  "Long Bomb",
-] as const satisfies readonly PassType[];
-
-export function passRange(from: Square, to: Square): PassRange | null {
-  const value = PassController.rangeValue(from, to);
-  if (value === null) return null;
-  return {
-    type: PASS_TYPES[value],
-    modifier: -value,
-    minDistance: 0,
-    maxDistance: 0,
-  };
-}
-
 function offLine(p: Square, a: Square, b: Square): number {
   const [dx, dy] = [b.x - a.x, b.y - a.y];
   const length = dx * dx + dy * dy;
@@ -545,7 +548,8 @@ function notIntercepted(c: Context, from: Square, to: Square): number {
         distance(o.gridPosition, from) > 0
     )
     .reduce(
-      (p, o) => p * (1 - d6(interceptTarget(o, -3, board.ours, board.weather))),
+      (p, o) =>
+        p * (1 - d6(interceptTarget(o, -3, board.ours, board.gs.getState()))),
       1
     );
 }
@@ -580,7 +584,12 @@ function bestThrow({
     const range = passRange(from, to);
     if (!range || from === to) continue;
     const thrower = { ...carrier, gridPosition: from };
-    const throwRoll = passTarget(thrower, board.theirs, board.weather, range);
+    const throwRoll = passTarget(
+      thrower,
+      board.theirs,
+      throwConditions(board.gs.getState(), thrower, range.type),
+      range
+    );
     const intercepted = notIntercepted(c, from, to);
     const transfer: RollTarget[] = [{ kind: "pass", target: throwRoll }];
     const chance =
@@ -644,7 +653,12 @@ function passTo({
     handoverPace(c, carrier, mate);
   if (insufficientProgress(c, scoreChance, progress - w.advance * 4))
     return null;
-  const catchRoll = catchTarget(mate, board.theirs, board.weather, "pass");
+  const catchRoll = catchTarget(
+    mate,
+    board.theirs,
+    board.gs.getState(),
+    "pass"
+  );
   const best = bestThrow({
     c: c,
     carrier: carrier,
@@ -698,9 +712,10 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
   return out;
 }
 
-function sidelineCost(edge: number, cost: number): number {
-  if (edge === 0) return cost;
-  return edge === 1 ? cost / 3 : 0;
+function sidelineCost(edge: number, w: Weights): number {
+  if (activeLayout().walledSidelines) return edge === 0 ? w.wallSide : 0;
+  if (edge === 0) return w.sideline;
+  return edge === 1 ? w.sideline / 3 : 0;
 }
 
 function carrierMoveRoutes(

@@ -136,7 +136,10 @@ function oddsOf(
     dice: 1,
     attackerPicks: true,
     teamReroll,
-    faces: blockFaces(readBoard(subject, attacker.teamId), attacker, defender),
+    faces: blockFaces(readBoard(subject, attacker.teamId), {
+      attacker,
+      defender,
+    }),
   });
 }
 
@@ -148,11 +151,10 @@ describe("Wrestle", () => {
         dice: 1,
         attackerPicks: true,
         teamReroll: false,
-        faces: blockFaces(
-          readBoard(subject, attacker.teamId),
+        faces: blockFaces(readBoard(subject, attacker.teamId), {
           attacker,
-          defender
-        ),
+          defender,
+        }),
       })
     ).toEqual({ knockdown: 3 / 6, attackerDown: 1 / 6 });
   });
@@ -166,11 +168,10 @@ describe("Wrestle", () => {
       dice: 2,
       attackerPicks: true,
       teamReroll: false,
-      faces: blockFaces(
-        readBoard(subject, attacker.teamId),
+      faces: blockFaces(readBoard(subject, attacker.teamId), {
         attacker,
-        defender
-      ),
+        defender,
+      }),
     });
     expect(odds.knockdown).toBeCloseTo(23 / 36, 6);
   });
@@ -235,11 +236,10 @@ describe("Wrestle", () => {
       dice: 1,
       attackerPicks: true,
       teamReroll: false,
-      faces: blockFaces(
-        readBoard(subject, attacker.teamId),
+      faces: blockFaces(readBoard(subject, attacker.teamId), {
         attacker,
-        defender
-      ),
+        defender,
+      }),
     });
     expect(odds.knockdown).toBeCloseTo(2 / 6, 6);
   });

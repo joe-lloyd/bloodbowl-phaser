@@ -7,6 +7,9 @@ import { type Scenario } from "../../src/types/Scenario";
 import { GameEventNames } from "../../src/types/events";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 import { forceDice } from "../utils/test-helpers";
+import { enumerateDecision } from "../../src/simulation/candidates";
+import { plannerCoach } from "../../src/simulation/ai/planner";
+import { createCoachRng } from "../../src/simulation/rng";
 
 const scenario: Scenario = {
   id: "sevens-kickoff-rules",
@@ -179,6 +182,26 @@ describe("K5: High Kick", () => {
       landingSquare: { x: 17, y: 5 },
     });
     expect(landing).toBeUndefined();
+  });
+
+  it("has the computer stand its best catcher under the ball", async () => {
+    const { game } = await kick([5, 2, 2, 2, 3], { x: 15, y: 5 });
+    const point = await enumerateDecision(game, null);
+    const choice = await plannerCoach.choose({
+      game,
+      snapshot: game.snapshot(),
+      point,
+      rng: createCoachRng(1),
+    });
+    const candidate = fixtureValue(point.candidates[choice.index]);
+    for (const command of candidate.commands) await game.execute(command);
+    const under = game.ctx.team2.players.find(
+      (p) => p.gridPosition?.x === 17 && p.gridPosition.y === 5
+    );
+    expect([candidate.label, under?.positionName]).toEqual([
+      "High Kick: Human Lineman #1 at (14,2) stands under the ball",
+      "Human Lineman",
+    ]);
   });
 
   it("offers nothing when the ball will land in No Man's Land", async () => {

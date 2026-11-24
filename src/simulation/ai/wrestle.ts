@@ -4,7 +4,13 @@ import {
   type BlockResultType,
   BlockResolutionService,
 } from "../../services/BlockResolutionService";
-import { type Board, carrierOf } from "./board";
+import { type Board, type Square, carrierOf, key, neighbours } from "./board";
+import { pushBackSquares } from "../../game/rules/jump";
+import {
+  type PushLanding,
+  isOpenPushSquare,
+  pushLandingAt,
+} from "../../game/rules/pitchSquares";
 
 const has = (p: Player, skill: SkillType) => hasSkill(p.skills, skill);
 
@@ -55,45 +61,121 @@ export function defenderWrestles(attacker: Player, defender: Player): boolean {
 
 interface BlockFace {
   rank: number;
-  knockdown: boolean;
+  knockdown: number;
   attackerDown: boolean;
 }
 
 export type BlockFaces = Record<BlockResultType, BlockFace>;
 
-export function blockFaces(
-  board: Board,
-  attacker: Player,
-  defender: Player
-): BlockFaces {
-  const aBlock = has(attacker, SkillType.BLOCK);
-  const dBlock = has(defender, SkillType.BLOCK);
+export interface Matchup {
+  attacker: Player;
+  defender: Player;
+  blitz?: boolean;
+}
+
+export function blockFaces(board: Board, matchup: Matchup): BlockFaces {
+  const { attacker, defender } = matchup;
   const dodges =
     has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE);
+  const pushed = pushFace(pinnedLanding(board, matchup));
+  return {
+    pow: { rank: 5, knockdown: 1, attackerDown: false },
+    "pow-dodge": dodges
+      ? pushed
+      : { rank: 4.5, knockdown: 1, attackerDown: false },
+    push: pushed,
+    "both-down": bothDownFace(board, matchup, pushed),
+    skull: { rank: 0, knockdown: 0, attackerDown: true },
+  };
+}
+
+function bothDownFace(
+  board: Board,
+  { attacker, defender, blitz }: Matchup,
+  pushed: BlockFace
+): BlockFace {
+  const juggernaut = !!blitz && has(attacker, SkillType.JUGGERNAUT);
   const wrestled =
     takesWrestle(board, attacker, defender) ||
-    defenderWrestles(attacker, defender);
-  const value = wrestleValue(board, attacker, defender);
-  const fallsHungry = wrestled && hungry(board, attacker);
+    (!juggernaut && defenderWrestles(attacker, defender));
+  if (wrestled) {
+    const value = wrestleValue(board, attacker, defender);
+    const fallsHungry = hungry(board, attacker);
+    return {
+      rank: fallsHungry ? value - 0.1 : value,
+      knockdown: 1,
+      attackerDown: value === 0 || fallsHungry,
+    };
+  }
+  if (juggernaut) return pushed;
+  const aBlock = has(attacker, SkillType.BLOCK);
+  const dBlock = has(defender, SkillType.BLOCK);
   return {
-    pow: { rank: 5, knockdown: true, attackerDown: false },
-    "pow-dodge": dodges
-      ? { rank: 3, knockdown: false, attackerDown: false }
-      : { rank: 4.5, knockdown: true, attackerDown: false },
-    push: { rank: 3, knockdown: false, attackerDown: false },
-    "both-down": wrestled
-      ? {
-          rank: fallsHungry ? value - 0.1 : value,
-          knockdown: true,
-          attackerDown: value === 0 || fallsHungry,
-        }
-      : {
-          rank: bothDownRank(aBlock, dBlock),
-          knockdown: !dBlock,
-          attackerDown: !aBlock,
-        },
-    skull: { rank: 0, knockdown: false, attackerDown: true },
+    rank: bothDownRank(aBlock, dBlock),
+    knockdown: Number(!dBlock),
+    attackerDown: !aBlock,
   };
+}
+
+type Pinned = Exclude<PushLanding, "pitch">;
+
+const WALL_FALL = 1 / 2;
+
+function pushFace(pinned: Pinned | null): BlockFace {
+  if (pinned === null) return { rank: 3, knockdown: 0, attackerDown: false };
+  if (pinned === "wall")
+    return { rank: 3.5, knockdown: WALL_FALL, attackerDown: false };
+  return { rank: 4.4, knockdown: 1, attackerDown: false };
+}
+
+function taken(board: Board, attacker: Player, square: Square): boolean {
+  const at = attacker.gridPosition;
+  if (at?.x === square.x && at.y === square.y) return true;
+  const there = board.occupant[key(square)];
+  return !!there && there.id !== attacker.id;
+}
+
+function anySquareOpen(
+  board: Board,
+  { attacker, defender, blitz }: Matchup
+): boolean {
+  const from = defender.gridPosition;
+  if (!from) return false;
+  const sidesteps =
+    has(defender, SkillType.SIDESTEP) &&
+    !hasCondition(defender, PlayerCondition.DISTRACTED);
+  const grabs = has(attacker, SkillType.GRAB) && !blitz;
+  const widened = sidesteps || grabs;
+  return (
+    widened &&
+    neighbours(from).some(
+      (square) =>
+        isOpenPushSquare(from, square) && !taken(board, attacker, square)
+    )
+  );
+}
+
+function immovable({ attacker, defender, blitz }: Matchup): boolean {
+  if (hasCondition(defender, PlayerCondition.ROOTED)) return true;
+  const juggernaut = !!blitz && has(attacker, SkillType.JUGGERNAUT);
+  const distracted = hasCondition(defender, PlayerCondition.DISTRACTED);
+  return has(defender, SkillType.STAND_FIRM) && !juggernaut && !distracted;
+}
+
+function pinnedLanding(board: Board, matchup: Matchup): Pinned | null {
+  const { attacker, defender } = matchup;
+  const from = defender.gridPosition;
+  const by = attacker.gridPosition;
+  if (!from || !by || immovable(matchup)) return null;
+  if (anySquareOpen(board, matchup)) return null;
+  let landing: Pinned | null = null;
+  for (const square of pushBackSquares(by, from)) {
+    const kind = pushLandingAt(from, square);
+    if (kind === "pitch") {
+      if (!taken(board, attacker, square)) return null;
+    } else if (landing === null || landing === "wall") landing = kind;
+  }
+  return landing;
 }
 
 const DIE_FACES = [1, 2, 3, 4, 5, 6].map(
@@ -108,9 +190,10 @@ export function pickedFaceOdds(
   const rolled = DIE_FACES.map((type) => faces[type]);
   const odds = { knockdown: 0, attackerDown: 0, both: 0 };
   const tally = (face: BlockFace, weight: number) => {
-    if (face.knockdown) odds.knockdown += weight;
-    if (face.attackerDown) odds.attackerDown += weight;
-    if (face.knockdown && face.attackerDown) odds.both += weight;
+    odds.knockdown += weight * face.knockdown;
+    if (!face.attackerDown) return;
+    odds.attackerDown += weight;
+    odds.both += weight * face.knockdown;
   };
   const visit = (left: number, chosen: BlockFace | null, weight: number) => {
     if (left === 0) {

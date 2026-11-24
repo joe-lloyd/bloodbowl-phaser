@@ -8,11 +8,14 @@ import {
   carrierOf,
   distance,
   key,
-  onPitch,
+  middleRow,
   toGoal,
 } from "./board";
 import { hasBiteSupport, isThrall } from "./feeding";
 import { inducementChoice } from "./inducementChoices";
+import { catchTarget } from "../../game/rules/rollPreview";
+import { d6 } from "./chance";
+import { type PushLanding, pushLandingAt } from "../../game/rules/pitchSquares";
 import { blockFaces, defenderWrestles, takesWrestle } from "./wrestle";
 
 const USE_REROLL = "use-reroll";
@@ -55,6 +58,9 @@ function best(
   return pick;
 }
 
+const blitzing = (board: Board) =>
+  board.gs.getState().activePlayer?.action === "blitz";
+
 function blockDiceChoice(
   board: Board,
   pending: PendingOf<"block-dice">,
@@ -64,7 +70,11 @@ function blockDiceChoice(
   const defender = board.everyone.find((p) => p.id === pending.defenderId);
   if (!attacker || !defender)
     throw new Error("Block decision players must be on the pitch");
-  const faces = blockFaces(board, attacker, defender);
+  const faces = blockFaces(board, {
+    attacker,
+    defender,
+    blitz: blitzing(board),
+  });
   const rank = (type: BlockResultType) => faces[type].rank;
   const weAttack = attacker.teamId === board.us;
   const kept = pending.options.reduce<BlockResultType | null>(
@@ -97,22 +107,51 @@ function blockDiceChoice(
   });
 }
 
+const OFF_PITCH_PUSH: Record<Exclude<PushLanding, "pitch">, number> = {
+  crowd: 200,
+  pit: 200,
+  wall: 100,
+};
+
 function pushChoice(
   board: Board,
   pending: PendingOf<"push-direction">,
   candidates: readonly Candidate[]
 ): number | null {
-  const pushingThem =
-    board.gs.getPlayerById(pending.defenderId)?.teamId !== board.us;
+  const defender = board.gs.getPlayerById(pending.defenderId);
+  const from = defender?.gridPosition;
+  const pushingThem = defender?.teamId !== board.us;
   return best(candidates, (c) => {
     const command = c.commands[0];
-    if (command.type !== "choose-push-direction") return undefined;
+    if (command.type !== "choose-push-direction" || !from) return undefined;
     const square = { x: command.x, y: command.y };
-    const wide = !onPitch(square) ? 100 : Math.abs(square.y - 5) * 2;
-    return pushingThem
-      ? wide
-      : -wide - (onPitch(square) ? board.marks.getUint8(key(square)) : NaN);
+    const landing = pushLandingAt(from, square);
+    if (landing !== "pitch") return pushingThem ? OFF_PITCH_PUSH[landing] : NaN;
+    const wide = Math.abs(square.y - middleRow()) * 2;
+    return pushingThem ? wide : -wide - board.marks.getUint8(key(square));
   });
+}
+
+function highKickCatcher(
+  board: Board,
+  pending: PendingOf<"kickoff-event">,
+  candidates: readonly Candidate[]
+): number | null {
+  const landing = pending.landingSquare;
+  if (!landing) return null;
+  const state = board.gs.getState();
+  const odds = (candidate: Candidate) => {
+    const [select] = candidate.commands;
+    if (select.type !== "kickoff-select-player") return undefined;
+    const player = board.gs.getPlayerById(select.playerId);
+    if (!player || hasSkill(player.skills, SkillType.NO_BALL)) return undefined;
+    const under = { ...player, gridPosition: { ...landing } };
+    const once = d6(catchTarget(under, board.theirs, state, "handoff"));
+    return hasSkill(player.skills, SkillType.CATCH)
+      ? 1 - (1 - once) ** 2
+      : once;
+  };
+  return best(candidates, odds);
 }
 
 function keepsFood(board: Board, attacker: FieldPlayer | undefined): boolean {
@@ -333,8 +372,9 @@ function otherDecision(
       );
     case "inducement-choice":
       return inducementChoice(board, pending, candidates);
-    case "foul-assists":
     case "kickoff-event":
+      return highKickCatcher(board, pending, candidates);
+    case "foul-assists":
       return null;
   }
 }

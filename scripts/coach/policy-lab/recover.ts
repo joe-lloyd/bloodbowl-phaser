@@ -29,6 +29,7 @@ interface Inputs {
   candidate?: string;
   candidateWeights?: unknown;
   candidateRosters?: unknown;
+  candidateGameTypes?: unknown;
 }
 const atomic = (file: string, data: unknown) => {
   writeFileSync(file + ".tmp", JSON.stringify(data));
@@ -39,6 +40,7 @@ const candidateOf = (m: Inputs) => ({
   kind: m.candidate ?? "planner",
   weights: m.candidateWeights ?? DEFAULT_WEIGHTS,
   rosters: m.candidateRosters ?? {},
+  gameTypes: m.candidateGameTypes ?? {},
 });
 const sameInput = (a: Inputs, b: Inputs) =>
   a.node === b.node &&

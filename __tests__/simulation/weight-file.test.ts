@@ -16,6 +16,16 @@ describe("weights file", () => {
     expect(rosters).toEqual({ Dwarf: { carrierMarked: 15 } });
   });
 
+  it("reads overrides for named game types and refuses unknown ones", () => {
+    expect(
+      parseWeightFile({ gameTypes: { "gutter-bowl": { foulKnockOut: 20 } } })
+        .gameTypes
+    ).toEqual({ "gutter-bowl": { foulKnockOut: 20 } });
+    expect(() =>
+      parseWeightFile({ gameTypes: { "dungeon-bowl": {} } })
+    ).toThrow('unknown game type "dungeon-bowl"');
+  });
+
   it("keeps the shipped roster tweaks when the file names no rosters", () => {
     expect(parseWeightFile({ advance: 10 }).rosters).toBe(ROSTER_WEIGHTS);
   });

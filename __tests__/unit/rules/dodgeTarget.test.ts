@@ -48,15 +48,16 @@ describe("Dodge targets in a marked destination", () => {
     expect(
       dodgeTarget(
         { ...player, skills: skills.map((s) => getSkill(s)) },
-        from,
-        to,
+        { from, to },
         markers
       )
     ).toBe(target);
   });
 
   it("does not count a Titchy marker's penalty but still requires a Dodge", () => {
-    const opponents = [{ ...fixtureValue(markers[0]), skills: [getSkill(SkillType.TITCHY)] }];
+    const opponents = [
+      { ...fixtureValue(markers[0]), skills: [getSkill(SkillType.TITCHY)] },
+    ];
     expect(
       planMoveLegs(from, [to], {
         player,
@@ -74,7 +75,7 @@ describe("Dodge targets in a marked destination", () => {
       ...p,
       skills: i === 0 ? [getSkill(SkillType.TITCHY)] : [],
     }));
-    expect(dodgeTarget(player, from, to, opponents)).toBe(5);
+    expect(dodgeTarget(player, { from, to }, opponents)).toBe(5);
   });
 
   it("ignores Prehensile Tail when it marks only the destination", () => {
@@ -82,6 +83,6 @@ describe("Dodge targets in a marked destination", () => {
       ...fixtureValue(markers[2]),
       skills: [getSkill(SkillType.PREHENSILE_TAIL)],
     };
-    expect(dodgeTarget(player, from, to, [opponent])).toBe(4);
+    expect(dodgeTarget(player, { from, to }, [opponent])).toBe(4);
   });
 });

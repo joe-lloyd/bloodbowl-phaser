@@ -19,6 +19,7 @@ export function onField(player: Player): player is FieldPlayer {
 
 export const pitchWidth = () => GameConfig.PITCH_WIDTH;
 export const pitchHeight = () => GameConfig.PITCH_HEIGHT;
+export const middleRow = () => Math.floor(pitchHeight() / 2);
 
 export const key = (s: Square) => s.y * pitchWidth() + s.x;
 export const onPitch = (s: Square) => isStandableSquare(s);
@@ -152,4 +153,29 @@ function fieldMaps(theirs: FieldPlayer[], everyone: FieldPlayer[]) {
   for (const p of everyone) occupant[key(p.gridPosition)] = p;
 
   return { marks, occupant };
+}
+
+export interface BoardMove {
+  player: FieldPlayer;
+  at: Square;
+}
+
+export function projectBoard(board: Board, moves: readonly BoardMove[]): Board {
+  const occupant = [...board.occupant];
+  const moved = new Map<string, FieldPlayer>();
+  for (const { player } of moves)
+    occupant[key(player.gridPosition)] = undefined;
+  for (const { player, at } of moves) {
+    const next = { ...player, gridPosition: at };
+    moved.set(player.id, next);
+    occupant[key(at)] = next;
+  }
+  const replace = (p: FieldPlayer) => moved.get(p.id) ?? p;
+  return {
+    ...board,
+    ours: board.ours.map(replace),
+    theirs: board.theirs.map(replace),
+    everyone: board.everyone.map(replace),
+    occupant,
+  };
 }

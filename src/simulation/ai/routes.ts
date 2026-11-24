@@ -8,8 +8,12 @@ import {
 } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { requiredRoll } from "../../game/rules/rollTargets";
-import { pickupTarget, secureBallTarget } from "../../game/rules/rollPreview";
-import { weatherEffects } from "../../game/rules/weather";
+import {
+  pickupTarget,
+  rushRollModifier,
+  secureBallTarget,
+} from "../../game/rules/rollPreview";
+import { souvenirModifier } from "../../game/inducements/souvenirModifiers";
 import { rushAllowance, standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
 import {
@@ -62,10 +66,7 @@ function stepRolls({
   if (rush)
     rolls.push({
       kind: "rush",
-      target: requiredRoll(
-        activeRules().rushTarget,
-        weatherEffects(board.weather).rush
-      ),
+      target: rushTarget(board, player),
     });
   if (board.marks.getUint8(key(from)) > 0) {
     rolls.push(dodgeRoll(board, player, { from, to }));
@@ -79,7 +80,7 @@ function stepRolls({
         player,
         to,
         board.theirs,
-        board.weather
+        board.gs.getState()
       ),
     });
   return rolls;
@@ -175,14 +176,22 @@ function dodgeBonus(player: Player): number {
   );
 }
 
+const souvenirDodge = (board: Board, player: RosterPlayer) =>
+  souvenirModifier(board.gs.getState(), player.id, "dodge");
+
+export function rushTarget(board: Board, player: RosterPlayer): number {
+  return requiredRoll(
+    activeRules().rushTarget,
+    rushRollModifier(board.gs.getState(), player)
+  );
+}
+
 function searchFor(board: Board, player: Player, securing: boolean): Search {
   const ballKey = board.ball.kind === "loose" ? key(board.ball.at) : -1;
 
-  const rush = rollChance(
-    requiredRoll(activeRules().rushTarget, weatherEffects(board.weather).rush)
-  );
+  const rush = rollChance(rushTarget(board, player));
   const stunty = hasSkill(player.skills, SkillType.STUNTY);
-  const twoHeads = dodgeBonus(player);
+  const twoHeads = dodgeBonus(player) + souvenirDodge(board, player);
   const dodgeInto = new DataView(new ArrayBuffer(9 * 8));
   for (let marks = 0; marks < 9; marks++)
     dodgeInto.setFloat64(
@@ -198,7 +207,7 @@ function searchFor(board: Board, player: Player, securing: boolean): Search {
             player,
             square(ballKey),
             board.theirs,
-            board.weather
+            board.gs.getState()
           )
         )
       : 1;
@@ -414,7 +423,7 @@ function dodgeRoll(
   const modifier = hasSkill(player.skills, SkillType.STUNTY)
     ? 0
     : -dodgeMarks(board, titchyMarkers(board), to);
-  const twoHeads = dodgeBonus(player);
+  const twoHeads = dodgeBonus(player) + souvenirDodge(board, player);
   const tackled = board.theirs.some(
     (o) =>
       hasTackleZone(o) &&

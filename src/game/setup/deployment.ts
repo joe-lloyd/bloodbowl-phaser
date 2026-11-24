@@ -1,4 +1,5 @@
 import { type PitchLayout, isPlayableSquare } from "../variants/pitchLayouts";
+import { activeLayout } from "../variants/activeMatch";
 import {
   type DeploymentRole,
   type FormationPosition,
@@ -216,15 +217,23 @@ export function settleSquares<T extends { x: number; y: number }>(
   });
 }
 
+function slotRow(layout: PitchLayout, slot: Slot): number {
+  const mid = Math.floor(layout.rows / 2);
+  if (slot.wide && Math.abs(slot.lane) === INNER_WIDE) {
+    const { top, bottom } = layout.wideZoneRows;
+    return slot.lane < 0 ? top.max : bottom.min;
+  }
+  const rows = slot.wide ? { min: 0, max: layout.rows - 1 } : layout.centreRows;
+  return Math.min(rows.max, Math.max(rows.min, mid + slot.lane));
+}
+
 function slotSquare(area: SetupArea, slot: Slot): { x: number; y: number } {
   const { layout, isTeam1 } = area;
   const { los, minX, maxX } = setupColumns(area);
-  const mid = Math.floor(layout.rows / 2);
-  const rows = slot.wide ? { min: 0, max: layout.rows - 1 } : layout.centreRows;
   const x = isTeam1 ? los - slot.back : los + slot.back;
   return {
     x: Math.min(maxX, Math.max(minX, x)),
-    y: Math.min(rows.max, Math.max(rows.min, mid + slot.lane)),
+    y: slotRow(layout, slot),
   };
 }
 
@@ -350,7 +359,10 @@ function roleFit(
   role: DeploymentRole,
   kicking: boolean
 ): number {
-  return kicking ? kickingFit(player, role) : receivingFit(player, role);
+  const contact = role === "line" && activeLayout().noMansLand === null;
+  return kicking && !contact
+    ? kickingFit(player, role)
+    : receivingFit(player, role);
 }
 
 export interface Assignment {
