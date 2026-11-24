@@ -21,6 +21,7 @@ const column =
 const stack = "flex min-h-0 flex-col gap-3";
 const top = `${stack} overflow-y-auto hud-scroll`;
 const bottom = `${stack} mt-auto shrink-0`;
+const filling = `${stack} flex-1 justify-end`;
 const panels = { [HUD_PANELS_ATTRIBUTE]: "" };
 const phoneColumn =
   "absolute flex w-[min(300px,44vw)] flex-col gap-3 overflow-y-auto no-scrollbar";
@@ -107,6 +108,7 @@ function HudColumn({
   const right = side === "right";
   const inset = right ? "right-4" : "left-4";
   const columnClass = phone ? phoneColumn : `${column} ${inset}`;
+  const bottomClass = right || phone ? bottom : filling;
   const slotClass = right ? " w-full items-end" : "";
   return (
     <div
@@ -116,7 +118,7 @@ function HudColumn({
       <div className={`${top}${slotClass}`} {...panels}>
         {topSlot}
       </div>
-      <div className={`${bottom}${slotClass}`} {...panels}>
+      <div className={`${bottomClass}${slotClass}`} {...panels}>
         {bottomSlot}
       </div>
     </div>

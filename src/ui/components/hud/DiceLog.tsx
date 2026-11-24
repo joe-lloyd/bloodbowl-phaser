@@ -376,7 +376,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   return (
     <Panel
       data-testid="dice-log"
-      className="w-full h-full max-h-[34vh] flex flex-col pointer-events-auto"
+      className="w-full h-full flex flex-col pointer-events-auto"
     >
       <PanelHeader
         className="z-10"
