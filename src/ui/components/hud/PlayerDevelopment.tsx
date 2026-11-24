@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   type PendingAdvancementRoll,
   type Player,
@@ -50,6 +50,7 @@ export function PlayerDevelopment({
   const [category, setCategory] = useState<SkillCategory | "">("");
   const [skill, setSkill] = useState<SkillType | "">("");
   const [error, setError] = useState("");
+  const saving = useRef(false);
   const dice = useRollTray(team);
   const [, setRevision] = useState(0);
 
@@ -70,21 +71,25 @@ export function PlayerDevelopment({
     access === "primary" ? (player.primary ?? []) : (player.secondary ?? []);
   const skills = activeCategory ? eligibleSkills(player, [activeCategory]) : [];
 
-  const attempt = (action: () => void) => {
+  const attempt = async (action: () => Promise<void>) => {
+    if (saving.current) return;
+    saving.current = true;
     try {
-      action();
+      await action();
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      saving.current = false;
     }
   };
 
   const rollAndSave = (
     roll: (latestPlayer: Player) => PendingAdvancementRoll
   ) => {
-    attempt(() => {
+    void attempt(async () => {
       let throws: RollThrow[] = [];
-      commitPlayerChange(team, player.id, (_latestTeam, latestPlayer) => {
+      await commitPlayerChange(team, player.id, (_latestTeam, latestPlayer) => {
         if (latestPlayer.pendingAdvancementRoll) return;
         throws = advancementThrows(roll(latestPlayer));
       });
@@ -97,10 +102,10 @@ export function PlayerDevelopment({
   };
 
   const applyChoice = (choice: AdvancementChoice) => {
-    attempt(() => {
+    void attempt(async () => {
       const shownRoll = JSON.stringify(savedRoll ?? null);
       try {
-        commitPlayerChange(team, player.id, (latestTeam, latestPlayer) => {
+        await commitPlayerChange(team, player.id, (latestTeam, latestPlayer) => {
           if (
             JSON.stringify(latestPlayer.pendingAdvancementRoll ?? null) !==
             shownRoll

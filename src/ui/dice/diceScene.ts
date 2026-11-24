@@ -41,9 +41,13 @@ export interface DiceThrow {
   stop(): void;
 
   hurry(): void;
+
+  still(): string | null;
 }
 
-type Control = Pick<DiceThrow, "mark" | "stop" | "hurry">;
+type Control = Pick<DiceThrow, "mark" | "stop" | "hurry"> & {
+  still?: () => string | null;
+};
 
 export function playRoll(
   host: HTMLElement,
@@ -94,6 +98,7 @@ export function playRoll(
       control?.stop();
       if (showing === control) showing = null;
     },
+    still: () => control?.still?.() ?? null,
     hurry: () => {
       hurried = true;
       control?.hurry();

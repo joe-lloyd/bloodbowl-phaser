@@ -9,7 +9,7 @@ import { createStage, drawStage, faceForward, liftEase } from "./diceStage";
 import { indexed } from "./diceValues";
 import type { Stage } from "./diceStage";
 
-type Control = Pick<DiceThrow, "mark" | "stop" | "hurry">;
+type Control = Pick<DiceThrow, "mark" | "stop" | "hurry" | "still">;
 type Simulation = ReturnType<typeof simulate>;
 type Pose = Pick<THREE.Object3D, "position" | "quaternion">;
 
@@ -151,6 +151,11 @@ class DiceAnimation implements Control {
     element.style.cursor = "";
     this.geometry.dispose();
     this.input.resolve(this.input.roll.values);
+  }
+
+  still(): string {
+    this.render();
+    return this.stage.gl.domElement.toDataURL();
   }
 
   mark(index: number | null): void {

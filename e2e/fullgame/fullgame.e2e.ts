@@ -287,9 +287,9 @@ test("a full Sevens match, built and played through the UI", async ({
         await named.first().click();
         await page.getByRole("button", { name: "Name skill" }).first().click();
       } else if (await clickIf(page, /^Roll D3$/)) {
-        await page.waitForTimeout(800);
+        await page.getByText(/ learned /).waitFor({ timeout: 15_000 });
         log(
-          `  D3: ${(await page.locator("section").first().innerText()).replace(/\s+/g, " ").slice(0, 300)}`
+          `  D3: ${(await page.getByText(/ learned /).first().innerText()).replace(/\s+/g, " ").slice(0, 300)}`
         );
       } else if (await clickIf(page, /^(Pay|Keep|Release)/)) {
         log(`  drafted-player offer answered`);

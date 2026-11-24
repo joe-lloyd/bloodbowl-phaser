@@ -20,9 +20,9 @@ interface PlayerIdentityProps {
 
 function useSave({ player, team, onSaved }: PlayerIdentityProps) {
   const [error, setError] = useState("");
-  const save = (change: (target: Player) => void): boolean => {
+  const save = async (change: (target: Player) => void): Promise<boolean> => {
     try {
-      commitPlayerChange(team, player.id, (_latestTeam, target) => {
+      await commitPlayerChange(team, player.id, (_latestTeam, target) => {
         change(target);
       });
     } catch (cause) {
@@ -50,10 +50,10 @@ function NameEditor(props: PlayerIdentityProps) {
   const { save: commit, error } = useSave(props);
   const position = { rosterName: team.rosterName, positionName: player.positionName };
   const canRoll = nameBookFor(team.rosterName, player.positionName) !== undefined;
-  const save = (name: string) => {
+  const save = async (name: string) => {
     const clean = name.trim().slice(0, MAX_NAME);
     if (!clean) return;
-    const saved = commit((target) => {
+    const saved = await commit((target) => {
       target.playerName = clean;
     });
     if (saved) setDraft(clean);
@@ -63,7 +63,7 @@ function NameEditor(props: PlayerIdentityProps) {
       className="flex flex-wrap items-center gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        save(draft);
+        void save(draft);
       }}
     >
       <input
@@ -85,7 +85,7 @@ function NameEditor(props: PlayerIdentityProps) {
           size="sm"
           variant="ghost"
           onClick={() => {
-            save(rollName(position, appearanceOf(player, team.rosterName)) ?? player.playerName);
+            void save(rollName(position, appearanceOf(player, team.rosterName)) ?? player.playerName);
           }}
         >
           New name
@@ -131,7 +131,7 @@ export function PlayerLookControls(props: PlayerIdentityProps) {
           option={option}
           value={current[option[0]] ?? option[2][0]?.[0] ?? ""}
           onPick={(value) => {
-            save((target) => {
+            void save((target) => {
               target.appearance = { ...current, [option[0]]: value };
             });
           }}

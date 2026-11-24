@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
   calculateTeamValue,
@@ -51,6 +51,7 @@ import { RollStage } from "../shared/RollTray";
 import { useRollTray } from "../shared/useRollTray";
 import { SkillGrid, SkillText } from "../shared/SkillOption";
 import { PlayerDevelopment } from "../hud/PlayerDevelopment";
+import { commitTeam } from "../hud/commitPlayerChange";
 import {
   HudButton,
   Notice,
@@ -319,6 +320,13 @@ function revalueAndSave(team: Team): void {
   void saveTeam(team);
 }
 
+function selectionEntry(team: Team, entryId: string): SkillSelectionPending {
+  const entry = team.pendingDevelopment?.find(({ id }) => id === entryId);
+  if (entry?.kind !== "sevens-skill-selection")
+    throw new Error("This Skill Selection has already been answered.");
+  return entry;
+}
+
 function removePending(team: Team, entryId: string): void {
   team.pendingDevelopment = (team.pendingDevelopment ?? []).filter(
     (entry) => entry.id !== entryId
@@ -439,25 +447,45 @@ function SkillSelectionEntry({
   const [category, setCategory] = useState<SkillCategory | "">("");
   const [skill, setSkill] = useState<SkillType | "">("");
   const [error, setError] = useState("");
+  const saving = useRef(false);
   const rng = panelRng();
 
-  const act = (step: () => void) => {
+  const act = async (
+    step: (
+      draft: Team,
+      draftEntry: SkillSelectionPending
+    ) => (() => void) | undefined
+  ) => {
+    if (saving.current) return;
+    saving.current = true;
     try {
-      step();
-      revalueAndSave(team);
+      const draft = structuredClone(team);
+      const saved = step(draft, selectionEntry(draft, entry.id));
+      draft.teamValue = calculateTeamValue(draft);
+      await commitTeam(team, draft);
+      saved?.();
       onChange({ ...team });
       setSkill("");
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      saving.current = false;
     }
   };
-  const finish = (run: () => SkillSelectionResult) => {
-    act(() => {
-      const result = run();
-      onRoll(selectionThrows(result), () => {
-        onNotice(describeSelection(team, result));
-      });
+  const finish = (
+    run: (
+      draft: Team,
+      draftEntry: SkillSelectionPending
+    ) => SkillSelectionResult
+  ) => {
+    void act((draft, draftEntry) => {
+      const result = run(draft, draftEntry);
+      return () => {
+        onRoll(selectionThrows(result), () => {
+          onNotice(describeSelection(draft, result));
+        });
+      };
     });
   };
 
@@ -515,8 +543,9 @@ function SkillSelectionEntry({
                 disabled={!category}
                 onClick={() =>
                   category &&
-                  act(() => {
-                    startPrimarySelection(team, entry, playerId, category);
+                  void act((draft, draftEntry) => {
+                    startPrimarySelection(draft, draftEntry, playerId, category);
+                    return undefined;
                   })
                 }
               >
@@ -527,8 +556,9 @@ function SkillSelectionEntry({
               size="sm"
               disabled={!decision.secondaryAvailable}
               onClick={() => {
-                act(() => {
-                  startSecondarySelection(team, entry, rng);
+                void act((draft, draftEntry) => {
+                  startSecondarySelection(draft, draftEntry, rng);
+                  return undefined;
                 });
               }}
             >
@@ -560,8 +590,9 @@ function SkillSelectionEntry({
                 disabled={!skill}
                 onClick={() =>
                   skill &&
-                  act(() => {
-                    nominatePrimarySkill(team, entry, decision.chooser, skill);
+                  void act((draft, draftEntry) => {
+                    nominatePrimarySkill(draft, draftEntry, decision.chooser, skill);
+                    return undefined;
                   })
                 }
               >
@@ -590,7 +621,9 @@ function SkillSelectionEntry({
             <HudButton
               size="sm"
               onClick={() => {
-                finish(() => rollPrimarySelection(team, entry, rng));
+                finish((draft, draftEntry) =>
+                  rollPrimarySelection(draft, draftEntry, rng)
+                );
               }}
             >
               Roll D3
@@ -610,12 +643,16 @@ function SkillSelectionEntry({
                   size="sm"
                   key={c}
                   onClick={() => {
-                    act(() => {
-                      onRoll(
-                        candidateThrows(
-                          rollSecondaryCandidates(team, entry, c, rng)
-                        )
+                    void act((draft, draftEntry) => {
+                      const candidates = rollSecondaryCandidates(
+                        draft,
+                        draftEntry,
+                        c,
+                        rng
                       );
+                      return () => {
+                        onRoll(candidateThrows(candidates));
+                      };
                     });
                   }}
                 >
@@ -634,7 +671,9 @@ function SkillSelectionEntry({
             <CandidateOptions
               candidates={decision.candidates}
               onChoose={(chosen) => {
-                finish(() => chooseSecondarySkill(team, entry, chosen, rng));
+                finish((draft, draftEntry) =>
+                  chooseSecondarySkill(draft, draftEntry, chosen, rng)
+                );
               }}
             />
           </>
