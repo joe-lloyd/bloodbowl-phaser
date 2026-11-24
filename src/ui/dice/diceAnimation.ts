@@ -36,10 +36,6 @@ function createDice(input: {
 }) {
   const { roll, sim, stage, geometry } = input;
   const solid = bipyramid(roll.kind);
-  const spot = resultSpot(stage, {
-    width: roll.values.length * SPREAD,
-    height: 1,
-  });
   return roll.values.map((value, i) => {
     const up = indexed(sim.ups, i);
     const labels = solid
@@ -52,8 +48,7 @@ function createDice(input: {
     mesh.castShadow = true;
     mesh.userData["labels"] = labels;
     stage.scene.add(mesh);
-    const spread = (i - (roll.values.length - 1) / 2) * SPREAD;
-    const position = spot.clone().add(new THREE.Vector3(spread, 0, 0));
+    const position = new THREE.Vector3();
     return {
       mesh,
       labels,
@@ -135,7 +130,18 @@ class DiceAnimation implements Control {
     });
   }
 
+  private placeResults(): void {
+    const count = this.dice.length;
+    const spot = resultSpot(this.stage, { width: count * SPREAD, height: 1 });
+    this.dice.forEach(({ lifted }, index) => {
+      lifted.position
+        .copy(spot)
+        .add(new THREE.Vector3((index - (count - 1) / 2) * SPREAD, 0, 0));
+    });
+  }
+
   private showResult(): void {
+    this.placeResults();
     this.applyFrame(indexed(this.sim.frames, this.sim.frames.length - 1));
     this.dice.forEach((die) => {
       die.mesh.quaternion.copy(this.forward(die));
@@ -206,6 +212,7 @@ class DiceAnimation implements Control {
   }
 
   private settle(): void {
+    this.placeResults();
     this.dice.forEach((die) => {
       die.settled = snapshot(die.mesh);
       die.lifted.quaternion = this.forward(die);
@@ -229,6 +236,7 @@ class DiceAnimation implements Control {
   }
 
   private lift(liftedAt: number): void {
+    this.placeResults();
     const ease = liftEase(performance.now() - liftedAt);
     this.dice.forEach(({ mesh, settled, lifted }, index) => {
       mesh.position.lerpVectors(settled.position, lifted.position, ease);

@@ -67,7 +67,7 @@ export class MomentQueue {
   private pending: { moment: MatchMoment; ready: Promise<void> }[] = [];
   private idleWaiters: (() => void)[] = [];
   private running = false;
-  private onHold = false;
+  private waitsForKickoff = false;
   private showing = false;
   private disposed = false;
   private finishBeat: (() => void) | undefined;
@@ -126,7 +126,11 @@ export class MomentQueue {
   }
 
   hasMomentsToShow(): boolean {
-    return this.isBusy() && !this.onHold;
+    const held =
+      this.waitsForKickoff &&
+      !this.showing &&
+      (this.decisionOpen || this.touchbackOpen);
+    return this.isBusy() && !held;
   }
 
   whenIdle(): Promise<void> {
@@ -161,17 +165,16 @@ export class MomentQueue {
   }
 
   private async kickoffSettled(): Promise<void> {
+    this.waitsForKickoff = true;
     let quietSince = Date.now();
     while (!this.disposed && Date.now() - quietSince < KICKOFF_QUIET_MS) {
       await new Promise((r) => setTimeout(r, 100));
-      const waitingForCoach = this.decisionOpen || this.touchbackOpen;
-      this.onHold = waitingForCoach && !this.showing;
-      if (this.dice.inAir() || waitingForCoach) {
+      if (this.dice.inAir() || this.decisionOpen || this.touchbackOpen) {
         await this.dice.landed();
         quietSince = Date.now();
       }
     }
-    this.onHold = false;
+    this.waitsForKickoff = false;
   }
 
   private async play(): Promise<void> {

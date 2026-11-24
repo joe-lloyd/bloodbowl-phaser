@@ -111,5 +111,15 @@ it("lets the coach choose a touchback while the first turn banner waits for it",
   bus.emit(GameEventNames.TouchbackAwarded, { teamId: "t1" });
   await vi.advanceTimersByTimeAsync(500);
   expect(settled).toBe(true);
+
+  bus.emit(GameEventNames.BallPlaced, { x: 4, y: 5 });
+  let ready = false;
+  void whenScreenSettled(bus).then(() => {
+    ready = true;
+  });
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(ready).toBe(false);
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(ready).toBe(true);
   queue.dispose();
 });
