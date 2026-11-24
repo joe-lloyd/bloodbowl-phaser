@@ -6,7 +6,6 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { soundSettings } from "../../sound/settings";
 import type { DiceRoll, DiceThrow } from "../../dice/diceScene";
 import type { BlockRollData } from "../../../services/BlockResolutionService";
-import { PHONE_QUERY, matchesMedia } from "../../../game/presentation/phoneLayout";
 import { DIE_LANDING_TIMEOUT_MS } from "../../../game/presentation/diceWatch";
 import { KICKOFF_TABLE_ROLL } from "../../../game/kickoff/kickoffEvents";
 import { WEATHER_ROLL } from "./weatherThrow";
@@ -293,7 +292,6 @@ export class DiceTrayController {
         throw new Error("Dice tray was removed before its renderer loaded");
       const handle = scene.playRoll(host, next.roll, {
         sound: !soundSettings.get().muted,
-        close: matchesMedia(PHONE_QUERY),
       });
       this.throwing = handle;
 

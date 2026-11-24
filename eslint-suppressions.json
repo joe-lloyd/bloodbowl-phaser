@@ -5918,9 +5918,6 @@
     }
   },
   "src/ui/components/hud/CoinFlipOverlay.tsx": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
     },
@@ -6592,7 +6589,7 @@
       "count": 1
     },
     "no-nested-ternary": {
-      "count": 4
+      "count": 3
     }
   },
   "src/ui/pages/OnlinePlayPage.tsx": {

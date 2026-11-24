@@ -126,7 +126,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     const w = window as unknown as { flippedAt: number; namedAt: number };
     w.flippedAt = performance.now();
     new MutationObserver((_, observer) => {
-      if ((document.body.textContent ?? "").includes("Wins!")) {
+      if ((document.body.textContent ?? "").includes("wins the toss!")) {
         w.namedAt = performance.now();
         observer.disconnect();
       }
@@ -135,7 +135,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   await flip.click();
   await expect(page.getByTestId("coin-stage").locator("canvas")).toBeVisible();
   await shot("coin-spinning");
-  await expect(page.getByText(/Wins!$/)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/wins the toss!$/)).toBeVisible({ timeout: 10_000 });
   const namedAfterMs = await page.evaluate(() => {
     const w = window as unknown as { flippedAt: number; namedAt: number };
     return w.namedAt - w.flippedAt;
@@ -149,7 +149,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   const winner = (await app.bridge.teams()).find(
     (t) => t.id === (toss?.data as { teamId: string }).teamId
   );
-  await expect(page.getByText(`${String(winner?.name)} Wins!`)).toBeVisible();
+  await expect(page.getByText(`${String(winner?.name)} wins the toss!`)).toBeVisible();
   await shot("coin-result");
   await page
     .getByRole("button", {

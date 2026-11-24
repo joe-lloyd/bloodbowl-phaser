@@ -5,7 +5,13 @@ import { bipyramid, bipyramidGeometry, bipyramidLabelling } from "./bipyramid";
 import { faceMaterial } from "./diceFaces";
 import { labelling, simulate, upFace } from "./dicePhysics";
 import { clack, loadClacks } from "./diceSound";
-import { createStage, drawStage, faceForward, liftEase } from "./diceStage";
+import {
+  createStage,
+  drawStage,
+  faceForward,
+  liftEase,
+  resultSpot,
+} from "./diceStage";
 import { indexed } from "./diceValues";
 import type { Stage } from "./diceStage";
 
@@ -20,6 +26,8 @@ function snapshot(mesh: THREE.Mesh): Pose {
   };
 }
 
+const SPREAD = 1.35;
+
 function createDice(input: {
   roll: DiceRoll;
   sim: Simulation;
@@ -28,6 +36,10 @@ function createDice(input: {
 }) {
   const { roll, sim, stage, geometry } = input;
   const solid = bipyramid(roll.kind);
+  const spot = resultSpot(stage, {
+    width: roll.values.length * SPREAD,
+    height: 1,
+  });
   return roll.values.map((value, i) => {
     const up = indexed(sim.ups, i);
     const labels = solid
@@ -40,11 +52,8 @@ function createDice(input: {
     mesh.castShadow = true;
     mesh.userData["labels"] = labels;
     stage.scene.add(mesh);
-    const spread = (i - (roll.values.length - 1) / 2) * 1.35;
-    const position = stage.camera.position
-      .clone()
-      .lerp(stage.lookAt, 0.63)
-      .add(new THREE.Vector3(spread, 0, 0));
+    const spread = (i - (roll.values.length - 1) / 2) * SPREAD;
+    const position = spot.clone().add(new THREE.Vector3(spread, 0, 0));
     return {
       mesh,
       labels,
@@ -58,8 +67,6 @@ function scaleTarget(marked: number | null, index: number): number {
   if (marked === null) return 1;
   return marked === index ? 1.2 : 0.75;
 }
-
-const CLOSE_DICE = 2;
 
 class DiceAnimation implements Control {
   private readonly input;
@@ -80,17 +87,13 @@ class DiceAnimation implements Control {
     host: HTMLElement;
     roll: DiceRoll;
     sound: boolean;
-    close: boolean;
     pick: (index: number) => void;
     resolve: (values: number[]) => void;
   }) {
     this.input = input;
     this.sim = simulate(input.roll.values.length, input.roll.kind);
     if (input.sound) void loadClacks();
-    this.stage = createStage(
-      input.host,
-      input.close && input.roll.values.length <= CLOSE_DICE
-    );
+    this.stage = createStage(input.host);
     const solid = bipyramid(input.roll.kind);
     this.geometry = solid
       ? bipyramidGeometry(solid)
@@ -260,7 +263,6 @@ export function throwDice(input: {
   host: HTMLElement;
   roll: DiceRoll;
   sound: boolean;
-  close: boolean;
   pick: (index: number) => void;
   ready: (control: Control) => void;
 }): Promise<number[]> {

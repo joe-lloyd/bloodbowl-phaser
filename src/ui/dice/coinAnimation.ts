@@ -2,7 +2,13 @@ import * as THREE from "three";
 import type { CoinToss, DiceTeam, DiceThrow } from "./diceScene";
 import { coinTexture } from "./diceFaces";
 import { clack, loadClacks } from "./diceSound";
-import { createStage, drawStage, faceCamera, liftEase } from "./diceStage";
+import {
+  createStage,
+  drawStage,
+  faceCamera,
+  liftEase,
+  resultSpot,
+} from "./diceStage";
 
 const COIN = { radius: 1.05, thickness: 0.12 };
 const FLIP_MS = 1500;
@@ -66,9 +72,10 @@ class CoinAnimation implements Control {
     this.coin = createCoin(input.toss);
     this.stage.scene.add(this.coin);
     this.spin = Math.PI * (input.toss.side === 1 ? 10 : 11);
-    this.liftedAt = this.stage.camera.position
-      .clone()
-      .lerp(this.stage.lookAt, 0.5);
+    this.liftedAt = resultSpot(this.stage, {
+      width: COIN.radius * 2,
+      height: COIN.radius * 1.4,
+    });
     this.liftedTurn = faceCamera({
       camera: this.stage.camera,
       at: this.liftedAt,

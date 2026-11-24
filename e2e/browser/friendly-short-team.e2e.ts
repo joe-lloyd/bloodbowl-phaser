@@ -36,7 +36,7 @@ test("a friendly fields the player due to miss the next league game, with no Jou
   const flip = page.getByRole("button", { name: "FLIP COIN" });
   await expect(flip).toBeVisible({ timeout: 15_000 });
   await flip.click();
-  await expect(page.getByText(/Wins!$/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/wins the toss!$/)).toBeVisible({ timeout: 15_000 });
   const toss = (await app.bridge.events()).find(
     (e) =>
       e.name === GameEventNames.DiceRoll &&

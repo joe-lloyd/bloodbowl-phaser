@@ -7,7 +7,7 @@ import {
 } from "react";
 import { PHONE_QUERY } from "../../../game/presentation/phoneLayout";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
-import { DialogShell, Panel, PanelHeader } from "../componentWarehouse/HudKit";
+import { RollShell } from "./RollShell";
 import type { WeatherStep } from "./weatherThrow";
 
 interface RollTableRow {
@@ -38,20 +38,25 @@ const TEST_ID = {
 
 export function RollTablePanel(props: RollTablePanelProps) {
   const phone = useMediaQuery(PHONE_QUERY);
-  return phone ? <RollTableDialog {...props} /> : <RollTableStrip {...props} />;
-}
-
-function Stage({
-  stage,
-  step,
-  className,
-}: Pick<RollTablePanelProps, "stage" | "step"> & { className: string }) {
+  const { kind, title, intro, step, stage, result, total } = props;
   return (
-    <div
-      ref={stage}
-      data-testid="weather-stage"
-      className={step === "waiting" ? "hidden" : className}
-    />
+    <RollShell
+      testId={TEST_ID[kind].dialog}
+      title={title}
+      aside="2D6"
+      zClass={props.zClass}
+      width={kind === "kickoff" ? "w-[600px]" : "w-[480px]"}
+      header={props.header}
+      stage={stage}
+      stageTestId="weather-stage"
+      thrown={step !== "waiting"}
+      action={props.action}
+      table={phone ? <DialogRows {...props} /> : <StripCells {...props} />}
+    >
+      {step === "waiting" && <p className="text-hud-bone">{intro}</p>}
+      {step === "rolling" && <p className="hud-label">Rolling…</p>}
+      <ResultLine kind={kind} result={result} total={total} />
+    </RollShell>
   );
 }
 
@@ -70,44 +75,6 @@ function ResultLine({
         {total !== null && <>Rolled {total}. </>}
         {result.detail}
       </p>
-    </div>
-  );
-}
-
-function RollTableStrip(props: RollTablePanelProps) {
-  const { kind, title, intro, step, stage, result, total } = props;
-  return (
-    <div
-      className={`pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4 ${props.zClass}`}
-      data-testid={TEST_ID[kind].dialog}
-      data-hotkey-scope=""
-      data-hud-frame="bottom"
-    >
-      <Panel
-        as="section"
-        accent="gold"
-        aria-label={title}
-        className="pointer-events-auto w-[min(640px,calc(100vw-39rem))] min-w-[min(560px,100%)] animate-hud-in"
-      >
-        <PanelHeader title={title} as="h2" aside="2D6" />
-        <div className="p-3">
-          {props.header}
-          <div className="flex min-h-[112px] items-center gap-4">
-            <Stage
-              stage={stage}
-              step={step}
-              className="h-[112px] w-[160px] shrink-0"
-            />
-            <div className="min-w-0 flex-1 font-hud-body text-hud-base">
-              {step === "waiting" && <p className="text-hud-bone">{intro}</p>}
-              {step === "rolling" && <p className="hud-label">Rolling…</p>}
-              <ResultLine kind={kind} result={result} total={total} />
-            </div>
-            <div className="shrink-0 empty:hidden">{props.action}</div>
-          </div>
-          <StripCells {...props} />
-        </div>
-      </Panel>
     </div>
   );
 }
@@ -191,37 +158,6 @@ function StripCell({
   );
 }
 
-function RollTableDialog(props: RollTablePanelProps) {
-  const { kind, title, intro, step, stage, result, total } = props;
-  return (
-    <DialogShell
-      zClass={props.zClass}
-      placement="center"
-      backdrop="light"
-      titleAs="h1"
-      title={title}
-      width={kind === "kickoff" ? "w-[600px]" : "w-[480px]"}
-      className="text-center"
-      testId={TEST_ID[kind].dialog}
-    >
-      {props.header}
-      <div className="space-y-3 [@media(max-height:600px)]:space-y-1">
-        {step === "waiting" && <p className="text-hud-dim">{intro}</p>}
-        <div className="landscape:flex landscape:items-center landscape:justify-center landscape:gap-4">
-          <Stage
-            stage={stage}
-            step={step}
-            className="mx-auto h-[min(150px,22dvh)] w-full landscape:mx-0 landscape:w-[200px]"
-          />
-          <ResultLine kind={kind} result={result} total={total} />
-        </div>
-        <DialogRows {...props} />
-        {props.action}
-      </div>
-    </DialogShell>
-  );
-}
-
 function rowColumns(kind: RollTablePanelProps["kind"], rolled: boolean) {
   if (kind === "kickoff") return "grid-cols-2 landscape:grid-cols-3";
   return rolled ? "landscape:grid-cols-3" : "";
@@ -262,7 +198,9 @@ function DialogRows({ kind, rows, result }: RollTablePanelProps) {
               {kind === "weather" && (
                 <span
                   className={`ml-2 text-hud-xs ${result ? "landscape:hidden" : ""}`}
-                >{row.detail}</span>
+                >
+                  {row.detail}
+                </span>
               )}
             </span>
           </li>

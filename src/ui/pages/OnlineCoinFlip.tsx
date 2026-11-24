@@ -5,11 +5,7 @@ import { EventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import { SubPhase } from "../../types/GameState";
 import { ServiceContainer } from "../../services/ServiceContainer";
-import {
-  DialogShell,
-  HudButton,
-  HudCoin,
-} from "../components/componentWarehouse/HudKit";
+import { HudButton, HudCoin } from "../components/componentWarehouse/HudKit";
 import {
   type LobbyDoc,
   setCoinFlipReady,
@@ -19,6 +15,11 @@ import {
 import { type OnlineMatch } from "../../network/OnlineMatch";
 import { soundSettings } from "../sound/settings";
 import type { DiceThrow } from "../dice/diceScene";
+import {
+  CoinTossPanel,
+  KickOrReceive,
+  TossWinner,
+} from "../components/hud/CoinTossPanel";
 import { teamLook } from "../components/hud/diceTrayData";
 import { RESULT_BEAT_MS } from "../components/hud/CoinFlipOverlay";
 import { DIE_LANDING_TIMEOUT_MS } from "../../game/presentation/diceWatch";
@@ -295,137 +296,60 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
   const iWon = winnerId === myTeamId;
 
   return (
-    <DialogShell
-      zClass="z-[100]"
-      placement="center"
-      backdrop="heavy"
-      titleAs="h1"
-      title="COIN TOSS"
-      width="w-[480px]"
-      className="text-center"
+    <CoinTossPanel
+      stage={coinHost}
+      thrown={!!winner && !resumed && !coinFailed}
+      header={
+        <div className="mb-2 flex items-center justify-center gap-4">
+          <TeamChip name={team1.name} me={myTeamId === team1.id} />
+          <span className="font-hud-display text-hud-lg text-hud-gold">VS</span>
+          <TeamChip name={team2.name} me={myTeamId === team2.id} />
+        </div>
+      }
+      waiting={!winner && <HudCoin spin={spin} />}
+      action={
+        <>
+          {!bothReady && !iAmReady && !winner && (
+            <HudButton variant="primary" size="lg" block onClick={ready}>
+              READY — FLIP COIN
+            </HudButton>
+          )}
+          {winner && landed && iWon && <KickOrReceive onChoose={choose} />}
+        </>
+      }
     >
-      <div className="mb-5 flex items-center justify-center gap-4">
-        <TeamChip name={team1.name} me={myTeamId === team1.id} />
-        <span className="font-hud-display text-hud-lg text-hud-gold">VS</span>
-        <TeamChip name={team2.name} me={myTeamId === team2.id} />
-      </div>
-
       {!winner && (
-        <ReadyCheck
-          spin={spin}
-          bothReady={bothReady}
-          iAmReady={iAmReady}
-          opponentName={match.opponentName}
-          onReady={ready}
-        />
+        <p className="hud-label">
+          {tossPrompt({ bothReady, iAmReady, opponent: match.opponentName })}
+        </p>
       )}
-
-      <div
-        ref={coinHost}
-        data-testid="coin-stage"
-        className={
-          winner && !resumed && !coinFailed
-            ? "mx-auto h-[min(220px,34dvh)] w-full"
-            : "hidden"
-        }
-      />
-
       {winner && landed && (
-        <TossResult
-          winnerName={winner.name}
-          iWon={iWon}
-          opponentName={match.opponentName}
-          onChoose={choose}
+        <TossWinner
+          name={winner.name}
+          note={
+            iWon
+              ? "Choose to kick or receive"
+              : `${match.opponentName} is choosing to kick or receive…`
+          }
         />
       )}
-    </DialogShell>
+    </CoinTossPanel>
   );
 }
 
-function ReadyCheck({
-  spin,
+function tossPrompt({
   bothReady,
   iAmReady,
-  opponentName,
-  onReady,
+  opponent,
 }: {
-  spin: number;
   bothReady: boolean;
   iAmReady: boolean;
-  opponentName: string;
-  onReady: () => void;
-}) {
-  return (
-    <div className="space-y-5">
-      <div className="flex justify-center py-4 [perspective:600px]">
-        <HudCoin spin={spin} />
-      </div>
-      {!bothReady ? (
-        iAmReady ? (
-          <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
-            Waiting for {opponentName} to ready up…
-          </p>
-        ) : (
-          <HudButton variant="primary" size="lg" block onClick={onReady}>
-            READY — FLIP COIN
-          </HudButton>
-        )
-      ) : (
-        <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-gold">
-          Flipping…
-        </p>
-      )}
-    </div>
-  );
-}
-
-function TossResult({
-  winnerName,
-  iWon,
-  opponentName,
-  onChoose,
-}: {
-  winnerName: string;
-  iWon: boolean;
-  opponentName: string;
-  onChoose: (choice: "kick" | "receive") => void;
-}) {
-  return (
-    <div className="space-y-5 animate-hud-in">
-      <div className="font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-gold">
-        {winnerName} wins the toss!
-      </div>
-      {iWon ? (
-        <>
-          <p className="text-hud-dim">Choose to kick or receive</p>
-          <div className="grid grid-cols-2 gap-3">
-            <HudButton
-              variant="gold"
-              size="lg"
-              onClick={() => {
-                onChoose("kick");
-              }}
-            >
-              KICK
-            </HudButton>
-            <HudButton
-              variant="primary"
-              size="lg"
-              onClick={() => {
-                onChoose("receive");
-              }}
-            >
-              RECEIVE
-            </HudButton>
-          </div>
-        </>
-      ) : (
-        <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
-          {opponentName} is choosing to kick or receive…
-        </p>
-      )}
-    </div>
-  );
+  opponent: string;
+}): string {
+  if (bothReady) return "Flipping…";
+  return iAmReady
+    ? `Waiting for ${opponent} to ready up…`
+    : "Ready up to flip the coin.";
 }
 
 function TeamChip({ name, me }: { name: string; me: boolean }) {

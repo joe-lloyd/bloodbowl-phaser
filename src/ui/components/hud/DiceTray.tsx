@@ -163,7 +163,7 @@ function DiceTrayBody({
       <div
         ref={host}
         data-testid="dice-tray-dice"
-        className={`h-[180px] w-full bg-[radial-gradient(ellipse_at_50%_85%,rgba(44,48,57,0.6),transparent_70%)] ${pickable ? "pointer-events-auto" : ""}`}
+        className={`h-[220px] w-full bg-[radial-gradient(ellipse_at_50%_85%,rgba(44,48,57,0.6),transparent_70%)] ${pickable ? "pointer-events-auto" : ""}`}
       />
       {current?.settled && current.failed !== undefined && (
         <FlatDice

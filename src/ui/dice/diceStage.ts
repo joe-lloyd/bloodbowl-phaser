@@ -35,21 +35,18 @@ function addLighting(scene: THREE.Scene): void {
 }
 
 const FOV = 32;
-const CLOSE_FOV = 26;
+const DIE_HEIGHT_SHARE = 0.58;
+const ROW_WIDTH_SHARE = 0.94;
+const FALLBACK_ASPECT = 2;
 
-export function createStage(host: HTMLElement, close = false) {
+export function createStage(host: HTMLElement) {
   const gl = getRenderer();
   const width = host.clientWidth;
   const height = host.clientHeight;
   gl.setSize(width, height);
   host.appendChild(gl.domElement);
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(
-    close ? CLOSE_FOV : FOV,
-    width / height,
-    0.1,
-    100
-  );
+  const camera = new THREE.PerspectiveCamera(FOV, width / height, 0.1, 100);
   camera.position.set(0, 9.4, 5.4);
   const lookAt = new THREE.Vector3(0, 0, 0.15);
   camera.lookAt(lookAt);
@@ -66,6 +63,20 @@ export function drawStage({ host, gl, scene, camera }: Stage): void {
     camera.updateProjectionMatrix();
   }
   gl.render(scene, camera);
+}
+
+export function resultSpot(
+  { camera, lookAt }: Pick<Stage, "camera" | "lookAt">,
+  row: { width: number; height: number }
+): THREE.Vector3 {
+  const aspect = camera.aspect > 0 ? camera.aspect : FALLBACK_ASPECT;
+  const seen = Math.max(
+    row.height / DIE_HEIGHT_SHARE,
+    row.width / ROW_WIDTH_SHARE / aspect
+  );
+  const away = seen / (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)));
+  const full = camera.position.distanceTo(lookAt);
+  return camera.position.clone().lerp(lookAt, Math.min(0.95, away / full));
 }
 
 export type Stage = ReturnType<typeof createStage>;
