@@ -71,13 +71,21 @@ function bestSteps(
   able: readonly Player[],
   limit: number
 ): KickoffStep[] {
-  return able
-    .flatMap(
-      (player) =>
-        bestKickoffStep(ground, player, freeNeighbours(ground, player)) ?? []
-    )
-    .sort((a, b) => b.value - a.value)
-    .slice(0, limit);
+  const chosen: KickoffStep[] = [];
+  while (chosen.length < limit) {
+    const [best] = able
+      .filter(({ id }) => !chosen.some(({ player }) => player.id === id))
+      .flatMap((player) => {
+        const open = freeNeighbours(ground, player).filter(
+          (s) => !chosen.some(({ at }) => key(at) === key(s))
+        );
+        return bestKickoffStep(ground, player, open) ?? [];
+      })
+      .sort((a, b) => b.value - a.value);
+    if (!best) break;
+    chosen.push(best);
+  }
+  return chosen;
 }
 
 function wantedPicks({ game, teamId, w, pending }: PickArgs): Pick[] {
