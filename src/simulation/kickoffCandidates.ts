@@ -29,6 +29,14 @@ function pickable(game: HeadlessGame, pending: KickoffPending): Player[] {
   );
 }
 
+const placeLabel = (player: Player) =>
+  `Place ${describePlayer(player)} under the ball`;
+
+const placeCommand = (
+  playerId: string,
+  { x, y }: { x: number; y: number }
+): HeadlessCommand => ({ type: "kickoff-place-player", playerId, x, y });
+
 function pickCandidate(pending: KickoffPending, player: Player): Candidate {
   const pick = {
     type: "kickoff-select-player",
@@ -40,10 +48,23 @@ function pickCandidate(pending: KickoffPending, player: Player): Candidate {
       `Pick ${describePlayer(player)} for ${pending.event}`,
       pick
     );
-  return decision(`Place ${describePlayer(player)} under the ball`, pick, {
-    type: "kickoff-place-player",
-    playerId: player.id,
-    ...landing,
+  return decision(
+    placeLabel(player),
+    pick,
+    placeCommand(player.id, landing)
+  );
+}
+
+function placeCandidates(
+  game: HeadlessGame,
+  { landingSquare, selectedPlayerIds }: KickoffPending
+): Candidate[] {
+  if (!landingSquare) return [];
+  return selectedPlayerIds.flatMap((id) => {
+    const player = game.ctx.gameService.getPlayerById(id);
+    return player
+      ? [decision(placeLabel(player), placeCommand(id, landingSquare))]
+      : [];
   });
 }
 
@@ -58,6 +79,7 @@ export function kickoffChoiceCandidates(
   return [
     decision(`Skip the ${pending.event} step`, { type: "kickoff-skip" }),
     ...(pending.event === KickoffEvent.HIGH_KICK ? [] : [confirm]),
+    ...placeCandidates(game, pending),
     ...(full
       ? []
       : pickable(game, pending).map((player) =>

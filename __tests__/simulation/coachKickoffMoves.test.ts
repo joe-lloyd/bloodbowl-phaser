@@ -89,6 +89,28 @@ describe("the computer coach plays its kick-off moves", () => {
     expect(notes.join()).not.toMatch(/%|\d in \d/);
   });
 
+  it("High Kick: places the player it had picked when the match resumes", async () => {
+    const { game } = await rehearse(KickoffEvent.HIGH_KICK, { players: 1 });
+    const point = await enumerateDecision(game, "team1");
+    const { index } = await plannerCoach.choose({
+      game,
+      snapshot: game.snapshot(),
+      point,
+      rng: createCoachRng(1),
+    });
+    const [pick] = fixtureValue(point.candidates[index]).commands;
+    expect(pick.type).toBe("kickoff-select-player");
+    await game.execute(pick);
+
+    const { commands, open } = await coachPlays(game);
+    expect(commands).toEqual(["kickoff-place-player"]);
+    expect(open).toBe(false);
+    const playerId = "playerId" in pick ? pick.playerId : "";
+    expect(game.ctx.gameService.getPlayerById(playerId)?.gridPosition).toEqual(
+      LANDING
+    );
+  });
+
   it.each([KickoffEvent.CHARGE, KickoffEvent.BLITZ])(
     "%s: closes on the ball without rolling a die",
     async (event) => {

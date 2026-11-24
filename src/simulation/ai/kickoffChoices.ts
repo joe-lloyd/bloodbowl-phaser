@@ -27,6 +27,8 @@ import type { Weights } from "./weights";
 
 type KickoffPending = Extract<PendingDecision, { type: "kickoff-event" }>;
 
+const UNDER_THE_BALL = "waits under the ball";
+
 interface Pick {
   player: Player;
   what: string;
@@ -63,7 +65,7 @@ function highKickPick(ground: KickoffGround, able: readonly Player[]): Pick[] {
     .sort((a, b) => b.chance - a.chance || away(a.player) - away(b.player));
   return rated
     .slice(0, 1)
-    .map(({ player }) => ({ player, what: "waits under the ball" }));
+    .map(({ player }) => ({ player, what: UNDER_THE_BALL }));
 }
 
 function bestSteps(
@@ -112,6 +114,11 @@ export function kickoffPick(
   candidates: readonly Candidate[]
 ): CoachChoice {
   const { event, selectedPlayerIds } = args.pending;
+  const placing = candidates.findIndex(
+    ({ commands: [command] }) => command.type === "kickoff-place-player"
+  );
+  if (placing >= 0)
+    return { index: placing, note: `${event}: ${UNDER_THE_BALL}` };
   const wanted = wantedPicks(args);
   const next = wanted.find(
     ({ player }) => !selectedPlayerIds.includes(player.id)
