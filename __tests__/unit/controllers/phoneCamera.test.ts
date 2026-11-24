@@ -179,6 +179,19 @@ describe("the camera on a phone, through a run of rolls", () => {
     expect(left).toBeLessThanOrEqual(corner);
   });
 
+  it("frames the action again when the phone turns during a zoom", () => {
+    const { controller, camera, turn } = setup(LANDSCAPE);
+    controller.focusSquares([{ x: 16, y: 5 }]);
+    camera.zoomEffect.isRunning = true;
+    camera.zoomEffect.reset = () => {
+      camera.zoomEffect.isRunning = false;
+    };
+    turn(PORTRAIT);
+    const at = gridPointToPixel(16.5, 5.5);
+    const centre = camera.scrollX + camera.width / 2;
+    expect(Math.abs(at.x + 2000 - centre) * camera.zoom).toBeLessThan(150);
+  });
+
   it("keeps the same spot in the middle when the phone turns in play", () => {
     const { camera, turn, coachZooms } = setup(LANDSCAPE);
     coachZooms(0.6);
