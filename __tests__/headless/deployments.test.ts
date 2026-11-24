@@ -9,11 +9,7 @@ import { withMatchFormat } from "../../src/game/variants/activeMatch";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { addPlayerToTeam, createTeam, RosterName } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";
-import { enumerateDecision } from "../../src/simulation/candidates";
-import { plannerCoach } from "../../src/simulation/ai/planner";
-import { createCoachRng } from "../../src/simulation/rng";
 import { headlessCommandSchema } from "../../src/boundary/schemas/HeadlessCommand";
-import { type MatchFormat } from "../../src/game/variants/activeMatch";
 
 const GENERAL = ["Balanced", "Spread", "Bunker"];
 
