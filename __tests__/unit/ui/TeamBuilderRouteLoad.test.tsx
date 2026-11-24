@@ -10,6 +10,8 @@ import {
   setTeamLibraryStatus,
   setTeamRepository,
 } from "../../../src/game/managers/TeamManager";
+import { holdTeamSave } from "../../../src/ui/hooks/teamSaveLock";
+import { commitTeam } from "../../../src/ui/components/hud/commitPlayerChange";
 import { type Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
@@ -134,8 +136,12 @@ describe("TeamBuilder loading a team from its route", () => {
     });
 
     expect(library.saves).toHaveLength(1);
-    expect(fixtureValue(library.saves[0]).map((team) => team.id)).toEqual(["cloud-humans"]);
-    expect(fixtureValue(fixtureValue(library.saves[0])[0]).name).toBe("Cloud Humans");
+    expect(fixtureValue(library.saves[0]).map((team) => team.id)).toEqual([
+      "cloud-humans",
+    ]);
+    expect(fixtureValue(fixtureValue(library.saves[0])[0]).name).toBe(
+      "Cloud Humans"
+    );
     expect(container.textContent).toContain("Team management");
   });
 
@@ -169,7 +175,11 @@ describe("TeamBuilder loading a team from its route", () => {
     });
     expect(library.saves).toHaveLength(1);
     expect(
-      fixtureValue(library.saves[0]).map((team) => [team.id, team.name, team.players.length])
+      fixtureValue(library.saves[0]).map((team) => [
+        team.id,
+        team.name,
+        team.players.length,
+      ])
     ).toEqual([["cloud-humans", "Cloud Humans", 4]]);
   });
 
@@ -177,5 +187,45 @@ describe("TeamBuilder loading a team from its route", () => {
     await renderRoute("/build-team/new-team");
 
     expect(container.textContent).toContain("CHOOSE YOUR TEAM");
+  });
+
+  it("opens the accepted team once a save that is rejected has settled", async () => {
+    const accepted = savedHumans();
+    const { library, repository } = cloudLibrary([
+      { ...accepted, name: "Rejected Humans" },
+    ]);
+    setTeamRepository(repository);
+    let reject: () => void = () => undefined;
+    const saving = holdTeamSave(
+      () =>
+        new Promise((_, fail) => {
+          reject = () => {
+            library.teams = [accepted];
+            fail(new Error("refused"));
+          };
+        })
+    );
+    await renderRoute("/build-team/cloud-humans");
+    expect(container.querySelectorAll("input")).toHaveLength(0);
+    await act(async () => {
+      reject();
+      await saving.catch(() => undefined);
+    });
+    expect(teamNameField()).toBeDefined();
+  });
+
+  it("keeps a saved change when only another team's write fails", async () => {
+    const humans = savedHumans();
+    const { library, repository } = cloudLibrary([humans]);
+    setTeamRepository({
+      ...repository,
+      saveTeams: (next) => {
+        library.teams = [...next];
+        return Promise.reject(new Error("another team was refused"));
+      },
+    });
+    const shown = structuredClone(humans);
+    await commitTeam(shown, { ...structuredClone(humans), name: "Renamed" });
+    expect(shown.name).toBe("Renamed");
   });
 });

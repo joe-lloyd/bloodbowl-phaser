@@ -69,7 +69,7 @@ import {
 import { RNGService } from "../../../services/rng/RNGService";
 import { RosterPicker } from "../TeamBuilder/RosterPicker";
 import { PlayedGames } from "../TeamManagement/PlayedGames";
-import { isTeamSaving, useTeamSaving } from "../../hooks/teamSaveLock";
+import { isTeamSaving, onTeamSaveSettled, useTeamSaving } from "../../hooks/teamSaveLock";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 
@@ -267,6 +267,7 @@ export function TeamBuilder() {
           setPendingView(status);
           return false;
         }
+        if (isTeamSaving()) return false;
         const existingTeam = TeamManager.loadTeams().find(
           (t) => t.id === teamId
         );
@@ -282,9 +283,19 @@ export function TeamBuilder() {
         return true;
       };
       if (loadRequestedTeam()) return undefined;
-      const stopWaiting = TeamManager.onTeamRepositoryChanged(() => {
+      const stops: (() => void)[] = [];
+      const stopWaiting = () => {
+        stops.forEach((stop) => {
+          stop();
+        });
+      };
+      const retry = () => {
         if (loadRequestedTeam()) stopWaiting();
-      });
+      };
+      stops.push(
+        TeamManager.onTeamRepositoryChanged(retry),
+        onTeamSaveSettled(retry)
+      );
       return stopWaiting;
     }
 

@@ -694,7 +694,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Knocked down by Player Down, or down on Both Down, with the ball: places it in an adjacent empty square instead of letting it bounce.",
+      "Knocked down by Attacker Down, or down on Both Down, with the ball: places it in an adjacent empty square instead of letting it bounce.",
   },
   "Safe Pass": {
     kind: "skill",

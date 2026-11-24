@@ -21,9 +21,19 @@ export async function holdTeamSave(work: () => Promise<void>): Promise<void> {
   }
 }
 
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function onTeamSaveSettled(settled: () => void): () => void {
+  return subscribe(() => {
+    if (!saving) settled();
+  });
+}
+
 export function useTeamSaving(): boolean {
-  return useSyncExternalStore((listener) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  }, isTeamSaving);
+  return useSyncExternalStore(subscribe, isTeamSaving);
 }

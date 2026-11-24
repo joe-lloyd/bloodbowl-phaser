@@ -24,11 +24,11 @@ export async function commitPlayerChange(
 
 export async function commitTeam(team: Team, changed: Team): Promise<void> {
   if (isTeamSaving()) throw new Error("Wait for the last change to save.");
+  let reason = "";
   try {
     await holdTeamSave(() => saveTeam(changed));
   } catch (cause) {
-    const reason = cause instanceof Error ? cause.message : String(cause);
-    throw new Error(`${NOT_SAVED} ${reason}`);
+    reason = ` ${cause instanceof Error ? cause.message : String(cause)}`;
   }
   const stored = loadTeams().find((t) => t.id === team.id);
   if (
@@ -36,7 +36,7 @@ export async function commitTeam(team: Team, changed: Team): Promise<void> {
     JSON.stringify(dehydrateTeam(stored)) !==
       JSON.stringify(dehydrateTeam(changed))
   ) {
-    throw new Error(NOT_SAVED);
+    throw new Error(`${NOT_SAVED}${reason}`);
   }
   restoreTeam(team, changed);
 }
