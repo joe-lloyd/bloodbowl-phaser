@@ -1,3 +1,4 @@
+import { addDriveCondition } from "../../src/game/kickoff/driveEffects";
 import { describe, expect, it, vi } from "vitest";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { GameEventNames, type ActionType, type AllEvents } from "../../src/types/events";
@@ -236,6 +237,21 @@ describe("the last movement leaves the rest of the action", () => {
     await gameService.foulPlayer(actor.id, 11, 5);
     await vi.waitFor(() => {
       expect(set.seen.dice.some((line) => line.includes("Armour"))).toBe(true);
+    });
+  });
+
+  it("ends a Pass that Sticky Sludge forbids", async () => {
+    const set = board([CARRIER, { playerIndex: 1, x: 15, y: 5 }], [{ ...FAR, playerIndex: 2, y: 1 }]);
+    const actor = fixtureValue(set.game.ctx.team1.players[0]);
+    const state = set.game.ctx.gameService.getState();
+    addDriveCondition(state, "sticky-sludge");
+    forceDice(set.game.ctx.rng, [6, 6, 6]);
+    set.act(0, "pass");
+    state.turn.movementUsed.set(actor.id, actor.stats.MA);
+    await set.controller.onSquareClicked(12, 5);
+    go(set);
+    await vi.waitFor(() => {
+      expect(set.game.ctx.gameService.hasPlayerActed(actor.id)).toBe(true);
     });
   });
 

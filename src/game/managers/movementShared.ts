@@ -32,6 +32,7 @@ import {
   moveAllowance,
   standUpCost,
 } from "../skills/movement";
+import { carrierMayPass } from "../kickoff/ballConditions";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import { actsFromHere } from "../rules/actionAvailability";
 
@@ -121,6 +122,8 @@ async function rollToStand(
 function actionContinues(deps: MovementDeps, player: Player): boolean {
   const { activePlayer } = deps.state;
   if (activePlayer?.id !== player.id || !activePlayer.action) return false;
+  if (activePlayer.action === "pass" && !carrierMayPass(deps.state))
+    return false;
   const { own, opp } = teamsOf(deps, player);
   return actsFromHere(activePlayer.action, {
     player,
