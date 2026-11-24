@@ -34,14 +34,20 @@ function addLighting(scene: THREE.Scene): void {
   scene.add(floor);
 }
 
-export function createStage(host: HTMLElement) {
+const SMALL_STAGE_PX = 120;
+const FOV = 32;
+const CLOSE_FOV = 24;
+
+export function createStage(host: HTMLElement, dice = 1) {
   const gl = getRenderer();
   const width = host.clientWidth;
   const height = host.clientHeight;
   gl.setSize(width, height);
   host.appendChild(gl.domElement);
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(
+    height < SMALL_STAGE_PX && dice <= 3 ? CLOSE_FOV : FOV,
+    width / height, 0.1, 100);
   camera.position.set(0, 9.4, 5.4);
   const lookAt = new THREE.Vector3(0, 0, 0.15);
   camera.lookAt(lookAt);

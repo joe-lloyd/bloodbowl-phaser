@@ -82,7 +82,7 @@ class DiceAnimation implements Control {
     this.input = input;
     this.sim = simulate(input.roll.values.length, input.roll.kind);
     if (input.sound) void loadClacks();
-    this.stage = createStage(input.host);
+    this.stage = createStage(input.host, input.roll.values.length);
     this.geometry =
       input.roll.kind === "d16"
         ? d16Geometry()

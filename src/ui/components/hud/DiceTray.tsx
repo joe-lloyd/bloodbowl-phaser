@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { PHONE_QUERY } from "../../../game/presentation/phoneLayout";
+import { diceTrayStage } from "./diceTrayStage";
+import { PhoneDice } from "./PhoneDice";
 import { DiceTrayController, type Queued } from "./diceTrayController";
 export function DiceTray({ eventBus }: { eventBus: EventBus }) {
   const host = useRef<HTMLDivElement>(null);
@@ -26,6 +30,11 @@ function DiceTrayView({
   const color = current
     ? "#" + current.roll.team.primary.toString(16).padStart(6, "0")
     : undefined;
+  const phone = useMediaQuery(PHONE_QUERY);
+  if (phone)
+    return (
+      <PhoneDice current={current} color={color} host={host} eventBus={eventBus} />
+    );
   return (
     <div
       data-testid="dice-tray"
@@ -167,8 +176,4 @@ function DiceTrayBody({
       )}
     </div>
   );
-}
-function diceTrayStage(current: Queued | null): "landed" | "in-air" | "empty" {
-  if (!current) return "empty";
-  return current.settled ? "landed" : "in-air";
 }

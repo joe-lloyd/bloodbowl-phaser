@@ -122,7 +122,7 @@ export const Announcer: React.FC<AnnouncerProps> = ({
     <div
       data-testid="announcement"
       data-kind={announcement.kind}
-      className="absolute inset-x-0 top-[18%] flex justify-center pointer-events-none select-none z-40"
+      className="absolute inset-x-0 top-[18%] phone:landscape:top-[96px] phone:portrait:top-[160px] flex justify-center pointer-events-none select-none z-40"
     >
       <div
         className="flex flex-col items-center"
@@ -134,14 +134,14 @@ export const Announcer: React.FC<AnnouncerProps> = ({
           )}ms ease`,
         }}
       >
-        <div className="max-w-[calc(100vw-48px)] -skew-x-12 border-y-2 border-hud-gold bg-hud-ink/95 px-12 py-3 shadow-hud">
-          <span className="block skew-x-12 text-center font-hud-display text-hud-4xl uppercase tracking-[0.04em] text-hud-bone [text-shadow:0_3px_0_#000]">
+        <div className="max-w-[calc(100vw-48px)] -skew-x-12 border-y-2 border-hud-gold bg-hud-ink/95 px-12 py-3 phone:px-6 phone:py-1 shadow-hud">
+          <span className="block skew-x-12 text-center font-hud-display text-hud-4xl phone:text-hud-2xl uppercase tracking-[0.04em] text-hud-bone [text-shadow:0_3px_0_#000]">
             {announcement.headline}
           </span>
         </div>
         {announcement.subtitle && (
-          <div className="max-w-[min(900px,calc(100vw-40rem))] -mt-px -skew-x-12 bg-hud-blood px-6 py-1">
-            <span className="block skew-x-12 text-center font-hud-label text-hud-lg font-bold tracking-[0.04em] text-white">
+          <div className="max-w-[min(900px,calc(100vw-40rem))] phone:max-w-[calc(100vw-48px)] -mt-px -skew-x-12 bg-hud-blood px-6 py-1">
+            <span className="block skew-x-12 text-center font-hud-label text-hud-lg phone:text-hud-base font-bold tracking-[0.04em] text-white">
               {announcement.subtitle}
             </span>
           </div>
