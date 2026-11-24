@@ -96,7 +96,7 @@ describe("first-match activation and active management journey", () => {
     expect(canEdit(active, { type: "hire-player" }).allowed).toBe(true);
   });
 
-  it("refuses a stale draft copy over a team that has played", async () => {
+  it("keeps a started team's re-rolls and fans when a stale draft is saved", async () => {
     const team = newDraftTeam();
     await saveTeam(team);
     const stale = structuredClone(team);
@@ -104,9 +104,15 @@ describe("first-match activation and active management journey", () => {
     await saveTeam(team);
 
     stale.name = "Renamed";
-    await expect(saveTeam(stale)).rejects.toThrow("has played its first match");
+    stale.rerolls += 1;
+    stale.dedicatedFans += 1;
+    await saveTeam(stale);
     const kept = fixtureValue(loadTeams().find((t) => t.id === team.id));
-    expect(kept.rerolls).toBe(0);
+    expect(kept).toMatchObject({
+      name: "Renamed",
+      rerolls: team.rerolls,
+      dedicatedFans: team.dedicatedFans,
+    });
     expect(getTeamMode(kept)).toBe("active");
   });
 });

@@ -134,6 +134,27 @@ describe("ready and purchase screens before the coin toss", () => {
     expect(game.snapshot().pregameInducements?.complete).toBe(true);
   });
 
+  it("confirms for a broke coach in an older save, with no inducement screen", async () => {
+    const game = await mount(true, "team2");
+    await ready(game);
+    const state = game.ctx.gameService.getState();
+    const offer = fixtureValue(state.pregameInducements?.offer);
+    offer.confirmed["team2"] = false;
+    const shown: string[] = [];
+    const watch = new MutationObserver(() => {
+      shown.push(container.textContent);
+    });
+    watch.observe(container, { childList: true, subtree: true });
+    await act(async () => {
+      game.ctx.eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    watch.disconnect();
+    expect(state.pregameInducements?.offer?.confirmed["team2"]).toBe(true);
+    expect(shown.join()).not.toMatch(/inducement/i);
+    expect(container.textContent).toContain("Waiting for Home");
+  });
+
   it("never shows inducements to an online coach who cannot afford one", async () => {
     const game = await mount(true, "team2");
     expect(container.textContent).toContain(

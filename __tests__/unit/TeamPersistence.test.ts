@@ -47,7 +47,8 @@ vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => true),
 }));
 
-import { setDoc } from "firebase/firestore";
+import { FirebaseError } from "firebase/app";
+import { runTransaction, setDoc } from "firebase/firestore";
 import {
   saveTeams,
   loadTeams,
@@ -192,26 +193,45 @@ describe("a stale draft in the cloud library", () => {
   }
   const stored = () => cloudDocuments.get("users/user-a/teams/club");
 
-  it("cannot replace a team that played its first match on another device", async () => {
+  it("keeps the re-rolls and fans of a team that played its first match on another device", async () => {
     const { draft, stale } = await startedElsewhere();
     setTeamRepository(stale);
 
-    await expect(
-      saveTeams([{ ...structuredClone(draft), name: "Renamed" }])
-    ).rejects.toThrow("has played its first match");
+    await saveTeams([
+      {
+        ...structuredClone(draft),
+        name: "Renamed",
+        rerolls: draft.rerolls + 1,
+        dedicatedFans: draft.dedicatedFans + 1,
+      },
+    ]);
 
-    expect(stored()).toMatchObject({ firstMatchPlayedAt: 1, wins: 1 });
-    expect(loadTeams().map((team) => team.name)).toEqual(["club"]);
+    expect(stored()).toMatchObject({
+      name: "Renamed",
+      firstMatchPlayedAt: 1,
+      rerolls: draft.rerolls,
+      dedicatedFans: draft.dedicatedFans,
+    });
   });
 
-  it("does not stop the coach saving another team", async () => {
+  it("never lands after a later save of the same team", async () => {
     const { draft, stale } = await startedElsewhere();
-    setTeamRepository(stale);
+    cloudDocuments.clear();
+    const first = stale.saveTeams([structuredClone(draft)]);
+    const second = stale.saveTeams([
+      { ...structuredClone(draft), firstMatchPlayedAt: 2, wins: 1 },
+    ]);
+    await Promise.all([first, second]);
+    expect(stored()).toMatchObject({ firstMatchPlayedAt: 2, wins: 1 });
+  });
 
-    await saveTeams([structuredClone(draft), makeTeam("second")]);
-
-    expect(stored()).toMatchObject({ firstMatchPlayedAt: 1, wins: 1 });
-    expect(cloudDocuments.has("users/user-a/teams/second")).toBe(true);
+  it("still saves a draft when the document cannot be read", async () => {
+    vi.mocked(runTransaction).mockRejectedValueOnce(
+      new FirebaseError("unavailable", "offline")
+    );
+    const repository = new CloudTeamRepository("user-a", []);
+    await repository.saveTeams([makeTeam("club")]);
+    expect(stored()).toMatchObject({ id: "club" });
   });
 });
 

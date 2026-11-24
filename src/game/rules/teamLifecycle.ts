@@ -14,15 +14,19 @@ export function isActiveTeam(team: Team): boolean {
   return getTeamMode(team) === "active";
 }
 
-export function assertKeepsStartedTeam(
-  team: Team,
-  stored: Team | undefined
-): void {
-  if (!stored || team.seedMetadata || isActiveTeam(team)) return;
-  if (isActiveTeam(stored))
-    throw new Error(
-      `${team.name} has played its first match since this copy was opened. Reload the team before you edit it.`
-    );
+type StartLock = Pick<
+  Team,
+  "firstMatchPlayedAt" | "rerolls" | "dedicatedFans" | "seedMetadata"
+>;
+
+export function withStartLock<T extends StartLock>(
+  team: T,
+  stored: StartLock | undefined
+): T {
+  if (stored?.firstMatchPlayedAt === undefined) return team;
+  if (team.firstMatchPlayedAt !== undefined || team.seedMetadata) return team;
+  const { firstMatchPlayedAt, rerolls, dedicatedFans } = stored;
+  return { ...team, firstMatchPlayedAt, rerolls, dedicatedFans };
 }
 
 export function stampFirstCompletedMatch(
