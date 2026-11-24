@@ -39,8 +39,8 @@ const TRAITS = {
   handling: { of: (p) => held(p, HANDLING), mean: 0.5, spread: 0.35 },
 } as const satisfies Record<string, Trait>;
 
-export type TraitName = keyof typeof TRAITS;
-export const TRAIT_NAMES: readonly TraitName[] = [
+type TraitName = keyof typeof TRAITS;
+const TRAIT_NAMES: readonly TraitName[] = [
   "pace",
   "strength",
   "agility",
@@ -58,7 +58,7 @@ function traitOf(team: Team, name: TraitName): number {
   return Math.max(-LIMIT, Math.min(LIMIT, z));
 }
 
-export function teamTraits(team: Team): readonly number[] {
+function teamTraits(team: Team): readonly number[] {
   return TRAIT_NAMES.map((name) => traitOf(team, name));
 }
 
