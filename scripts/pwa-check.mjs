@@ -70,6 +70,14 @@ const checkRuns = async (name, bundle) => {
   const now = await running();
   check(name, up && now === bundle, `mounted ${up}, bundle ${now}`);
 };
+const checkControlled = async (name) => {
+  const controlled = await page
+    .waitForFunction(() => navigator.serviceWorker.controller?.state === "activated", null, {
+      timeout: 20_000,
+    })
+    .then(() => true, () => false);
+  check(name, controlled);
+};
 const cached = () =>
   page.evaluate(async () => {
     const out = {};
@@ -79,12 +87,7 @@ const cached = () =>
   });
 
 await page.goto(ORIGIN);
-await page.evaluate(async () => {
-  const old = await caches.open("bb-assets-v0");
-  await old.put("/old", new Response("old"));
-  await navigator.serviceWorker.ready;
-});
-await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+await checkControlled("the worker takes control");
 
 const cdp = await context.newCDPSession(page);
 const { errors, data } = await cdp.send("Page.getAppManifest");
@@ -121,12 +124,13 @@ const after = await cached();
 check("a missing chunk answered with HTML is not cached", !JSON.stringify(after).includes("gone-"));
 
 await page.evaluate(async () => {
+  const old = await caches.open("bb-assets-v0");
+  await old.put("/old", new Response("old"));
   const registration = await navigator.serviceWorker.getRegistration();
   await registration.unregister();
 });
 await page.goto(ORIGIN);
-await page.evaluate(() => navigator.serviceWorker.ready);
-await page.waitForTimeout(800);
+await checkControlled("a fresh worker takes control");
 check("an old cache is removed on activate", !("bb-assets-v0" in (await cached())));
 
 server.closeAllConnections();
