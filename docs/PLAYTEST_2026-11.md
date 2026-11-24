@@ -5,19 +5,19 @@ only when its change has merged and was checked in the running game.
 
 ## A. Drive and team rules
 
-- [ ] A1. After a touchdown, every player on the pitch is reset before the next setup: standing, not stunned, not activated, full opacity, no leftover action or drive state. Knocked-out players still roll to recover between drives, and casualties stay out. Covers both teams, and half-time.
-- [ ] A2. The inducements step and tab never show when the coach cannot afford any inducement.
-- [ ] A3. Dedicated fans can only be bought while a team is being created. Afterwards they change only through match results. No live or highlighted buttons.
-- [ ] A4. The same for team rerolls: never bought after the team has started.
+- [x] A1. After a touchdown, every player on the pitch is reset before the next setup: standing, not stunned, not activated, full opacity, no leftover action or drive state. Knocked-out players still roll to recover between drives, and casualties stay out. Covers both teams, and half-time.
+- [x] A2. The inducements step and tab never show when the coach cannot afford any inducement.
+- [x] A3. Dedicated fans can only be bought while a team is being created. Afterwards they change only through match results. No live or highlighted buttons.
+- [x] A4. The same for team rerolls: never bought after the team has started.
 
 ## B. Kick-off and setup screens
 
-- [ ] B1. The weather table is compact and sits in line with the other pre-match panels.
-- [ ] B2. The kick-off table gets the same redesign.
-- [ ] B3. The kick-off side panel is a short bullet list of the things to do, in order.
-- [ ] B4. The dice tray in the bottom left corner is much taller on desktop screens.
-- [ ] B5. The square the ball will land on is circled in a neutral colour, red, green or blue, while a kick is in the air.
-- [ ] B6. The load-setup menu shows a small diagram of each formation: a square with a dot per player.
+- [x] B1. The weather table is compact and sits in line with the other pre-match panels.
+- [x] B2. The kick-off table gets the same redesign.
+- [x] B3. The kick-off side panel is a short bullet list of the things to do, in order.
+- [x] B4. The dice tray in the bottom left corner is much taller on desktop screens.
+- [x] B5. The square the ball will land on is circled in a neutral colour, red, green or blue, while a kick is in the air.
+- [x] B6. The load-setup menu shows a small diagram of each formation: a square with a dot per player.
 
 ## C. Actions
 
@@ -33,8 +33,8 @@ only when its change has merged and was checked in the running game.
 
 ## E. Computer coach
 
-- [ ] E1. The computer picks from all its setups, not only the Bunker.
-- [ ] E2. One set of weights for every team. Differences come from the team's own measured traits, so a slow team plays like Dwarfs and a fast team passes and catches, and a secret team needs no tuning. Includes a written review of the current weights.
+- [x] E1. The computer picks from all its setups, not only the Bunker.
+- [x] E2. One set of weights for every team. Differences come from the team's own measured traits, so a slow team plays like Dwarfs and a fast team passes and catches, and a secret team needs no tuning. Includes a written review of the current weights.
 
 ## F. Progression
 
@@ -43,7 +43,7 @@ only when its change has merged and was checked in the running game.
 
 ## G. Mobile
 
-- [ ] G1. Dice roll on or above the pitch instead of in the dice box, and never cover a prompt such as the block choice.
-- [ ] G2. The camera stays hands-off on mobile: it refocuses on the action, never zooms out wildly, and ignores the dice box.
+- [x] G1. Dice roll on or above the pitch instead of in the dice box, and never cover a prompt such as the block choice.
+- [x] G2. The camera stays hands-off on mobile: it refocuses on the action, never zooms out wildly, and ignores the dice box.
 - [ ] G3. The game installs as a progressive web app: full screen without Chrome's message, landscape rotation working.
-- [ ] G4. Action menus and panels use the height available, so nothing is stubby or scrolls without need.
+- [x] G4. Action menus and panels use the height available, so nothing is stubby or scrolls without need.
