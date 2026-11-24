@@ -92,11 +92,11 @@ function RollTableStrip(props: RollTablePanelProps) {
         <PanelHeader title={title} as="h2" aside="2D6" />
         <div className="p-3">
           {props.header}
-          <div className="flex min-h-[64px] items-center gap-4">
+          <div className="flex min-h-[112px] items-center gap-4">
             <Stage
               stage={stage}
               step={step}
-              className="h-[128px] w-[200px] shrink-0"
+              className="h-[112px] w-[200px] shrink-0"
             />
             <div className="min-w-0 flex-1 font-hud-body text-hud-base">
               {step === "waiting" && <p className="text-hud-bone">{intro}</p>}

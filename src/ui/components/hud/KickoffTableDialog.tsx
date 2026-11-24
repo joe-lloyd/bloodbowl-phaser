@@ -16,6 +16,7 @@ import {
 import { kickoffEventSummary } from "../../../game/kickoff/kickoffMoment";
 import { HudButton } from "../componentWarehouse/HudKit";
 import { DiceWatch } from "../../../game/presentation/diceWatch";
+import { PHONE_QUERY, matchesMedia } from "../../../game/presentation/phoneLayout";
 import { RollTablePanel } from "./RollTablePanel";
 import { useWeatherThrow } from "./weatherThrow";
 
@@ -118,6 +119,11 @@ function TableDialog({
       id: opened.readyId,
     });
   };
+
+  useEffect(() => {
+    if (matchesMedia(PHONE_QUERY)) return;
+    eventBus.emit(GameEventNames.Camera_TrackBall, { animationDuration: 600 });
+  }, [eventBus]);
 
   useEffect(() => {
     if (online) roll();
