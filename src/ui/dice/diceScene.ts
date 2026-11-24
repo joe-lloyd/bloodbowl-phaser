@@ -1,7 +1,7 @@
 import { throwCoin } from "./coinAnimation";
 import { throwDice } from "./diceAnimation";
 
-export type DiceKind = "d6" | "d16" | "block";
+export type DiceKind = "d6" | "d8" | "d16" | "block";
 
 export { BLOCK_FACES, coinFaceImage } from "./diceFaces";
 export { labelling,  } from "./dicePhysics";

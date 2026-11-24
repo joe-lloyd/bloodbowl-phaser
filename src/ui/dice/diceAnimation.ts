@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { DiceRoll, DiceThrow } from "./diceScene";
-import { d16Geometry, d16Labelling } from "./d16";
+import { bipyramid, bipyramidGeometry, bipyramidLabelling } from "./bipyramid";
 import { faceMaterial } from "./diceFaces";
 import { labelling, simulate, upFace } from "./dicePhysics";
 import { clack, loadClacks } from "./diceSound";
@@ -27,10 +27,12 @@ function createDice(input: {
   geometry: THREE.BufferGeometry;
 }) {
   const { roll, sim, stage, geometry } = input;
+  const solid = bipyramid(roll.kind);
   return roll.values.map((value, i) => {
     const up = indexed(sim.ups, i);
-    const labels =
-      roll.kind === "d16" ? d16Labelling(up, value) : labelling(up, value);
+    const labels = solid
+      ? bipyramidLabelling(solid, up, value)
+      : labelling(up, value);
     const mesh = new THREE.Mesh(
       geometry,
       labels.map((v) => faceMaterial(roll, v))
@@ -89,10 +91,10 @@ class DiceAnimation implements Control {
       input.host,
       input.close && input.roll.values.length <= CLOSE_DICE
     );
-    this.geometry =
-      input.roll.kind === "d16"
-        ? d16Geometry()
-        : new RoundedBoxGeometry(1, 1, 1, 4, 0.12);
+    const solid = bipyramid(input.roll.kind);
+    this.geometry = solid
+      ? bipyramidGeometry(solid)
+      : new RoundedBoxGeometry(1, 1, 1, 4, 0.12);
     this.dice = createDice({
       ...input,
       sim: this.sim,

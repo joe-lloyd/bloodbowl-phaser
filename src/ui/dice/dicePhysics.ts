@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import * as CANNON from "cannon-es";
 import type { DiceKind } from "./diceScene";
-import { D16_FACES, D16_NORMALS, D16_VERTICES } from "./d16";
+import { bipyramid } from "./bipyramid";
 
 type Axis = 0 | 1 | 2;
 type Vec3 = [number, number, number];
@@ -79,7 +79,7 @@ export function labelling(up: number, value: number): number[] {
 }
 
 export function normals(kind: DiceKind): Vec3[] {
-  return kind === "d16" ? D16_NORMALS : FACE_NORMALS;
+  return bipyramid(kind)?.normals ?? FACE_NORMALS;
 }
 
 export function upFace(
@@ -145,12 +145,13 @@ function createTray(): Tray {
 }
 
 function dieShape(kind: DiceKind): CANNON.Shape {
-  if (kind !== "d16") return new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
+  const solid = bipyramid(kind);
+  if (!solid) return new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
   return new CANNON.ConvexPolyhedron({
-    vertices: D16_VERTICES.map(
+    vertices: solid.vertices.map(
       (vertex) => new CANNON.Vec3(vertex.x, vertex.y, vertex.z)
     ),
-    faces: D16_FACES.map((face) => [...face]),
+    faces: solid.faces.map((face) => [...face]),
   });
 }
 

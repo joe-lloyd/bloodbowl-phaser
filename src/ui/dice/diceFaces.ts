@@ -216,7 +216,7 @@ function d6Face(
   }
 }
 
-function d16Face(g: CanvasRenderingContext2D, value: number, S: number) {
+function numberFace(g: CanvasRenderingContext2D, value: number, S: number) {
   g.font = `bold ${String(S * 0.28)}px Georgia, serif`;
   g.textAlign = "center";
   g.textBaseline = "middle";
@@ -234,7 +234,7 @@ function faceTexture(roll: DiceRoll, value: number): THREE.CanvasTexture {
     g.fillStyle = body;
     g.fillRect(0, 0, S, S);
     g.fillStyle = g.strokeStyle = ink;
-    if (roll.kind === "d16") d16Face(g, value, S);
+    if (roll.kind === "d8" || roll.kind === "d16") numberFace(g, value, S);
     else if (roll.kind === "d6") d6Face(g, roll.team, { value, S, body });
     else blockIcon(g, indexed(BLOCK_FACES, value - 1), { S, body });
   });
