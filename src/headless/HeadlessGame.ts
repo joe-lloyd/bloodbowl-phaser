@@ -24,14 +24,6 @@ import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { type Player } from "../types/Player";
 
-const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
-  "declare-action",
-  "move",
-  "block",
-  "throw-teammate",
-  "end-activation",
-]);
-
 export const tick: () => Promise<void> =
   typeof setImmediate === "function"
     ? () => new Promise((resolve) => setImmediate(resolve))
@@ -62,7 +54,7 @@ export class HeadlessGame {
   private inFlight: Promise<void> | null = null;
   private decisionWaiters: (() => void)[] = [];
 
-  private kickingTeamId: string | null = null;
+  private readonly firstKickingTeamId: string | null;
 
   private readonly autoStartOnReady: boolean;
   private readonly lazySnapshots: boolean;
@@ -83,16 +75,13 @@ export class HeadlessGame {
       dropHeldFollowUp: () => {
         this.heldFollowUp = null;
       },
-      setKickingTeam: (teamId) => {
-        this.kickingTeamId = teamId;
-      },
       logEvent: (event) => {
         this.eventLog.push(event);
       },
     };
     this.autoStartOnReady = options.autoStartOnReady !== false;
     this.lazySnapshots = options.lazySnapshots === true;
-    this.kickingTeamId =
+    this.firstKickingTeamId =
       options.matchSave?.drive.kickingTeamId ?? options.kickingTeamId ?? null;
     this.subscribeToAllEvents();
 
@@ -101,6 +90,14 @@ export class HeadlessGame {
     if (restoredApothecary) {
       this.pending = restoredApothecary;
     }
+    this.surfaceKickPending();
+    this.resumeKick();
+  }
+
+  private resumeKick(): void {
+    this.ctx.gameService.resumeKick().catch((error: unknown) => {
+      console.error("[Headless] the resumed kick failed:", error);
+    });
   }
 
   public snapshot(): GameSnapshot {
@@ -122,14 +119,7 @@ export class HeadlessGame {
     const { team1, team2 } = this.ctx;
     const turnManager = gs.captureTurnManagerState();
     const state = gs.getState();
-
-    const settingUp =
-      state.phase === GamePhase.SETUP || state.phase === GamePhase.KICKOFF;
-    const kickingTeamId =
-      (settingUp ? state.setup?.kickingTeamId : null) ??
-      turnManager.driveKickingTeamId ??
-      this.kickingTeamId ??
-      team1.id;
+    const kickingTeamId = this.driveKickingTeamId() ?? team1.id;
     return createMatchSave({
       state,
       teams: [team1, team2],
@@ -156,7 +146,7 @@ export class HeadlessGame {
   private noteForFork(cmd: HeadlessCommand): void {
     if (!this.keepingForks) return;
     const state = this.ctx.gameService.getState();
-    if (!this.pending && !this.inFlight) {
+    if (!this.pending && !this.inFlight && !this.ctx.gameService.kickInTheAir()) {
       if (state.phase !== GamePhase.PLAY) this.forkBase = null;
       else if (!state.activePlayer)
         this.forkBase = { save: this.matchSave(), since: [] };
@@ -165,7 +155,15 @@ export class HeadlessGame {
   }
 
   public driveKickingTeamId(): string | null {
-    return this.kickingTeamId;
+    const { gameService } = this.ctx;
+    const { kick, phase, setup } = gameService.getState();
+    const settingUp = phase === GamePhase.SETUP || phase === GamePhase.KICKOFF;
+    return (
+      kick?.kickingTeamId ??
+      (settingUp ? setup?.kickingTeamId : null) ??
+      gameService.captureTurnManagerState().driveKickingTeamId ??
+      this.firstKickingTeamId
+    );
   }
 
   public adoptPending(pending: PendingDecision | null): void {
@@ -173,13 +171,27 @@ export class HeadlessGame {
 
     this.ctx.gameService.flowManager.abandon();
     this.inFlight = null;
+    this.ctx.gameService.abandonKick();
     this.pending = pending;
+    this.surfaceKickPending();
+    this.resumeKick();
   }
 
   public isSuspended(): boolean {
     return (
       this.inFlight !== null ||
+      this.ctx.gameService.kickInTheAir() !== null ||
       this.ctx.gameService.getDecisionService().pending() !== null
+    );
+  }
+
+  public isAtRest(): boolean {
+    const { gameService } = this.ctx;
+    return (
+      this.inFlight === null &&
+      gameService.getDecisionService().pending() === null &&
+      (gameService.kickInTheAir() === null ||
+        gameService.getKickoffEventStep() !== null)
     );
   }
 
@@ -225,14 +237,8 @@ export class HeadlessGame {
     this.inFlight = null;
     const run = (async () => {
       await dispatchCommand(this.commandHost, cmd.type, cmd);
-      if (prior) {
-        if (this.ctx.gameService.getKickoffEventStep()) {
-          this.inFlight ??= prior;
-          this.surfaceKickoffPending();
-        } else {
-          await prior;
-        }
-      }
+      if (prior) await prior;
+      await this.kickLanded();
       await this.settle();
       this.surfaceKickoffPending();
     })();
@@ -255,9 +261,11 @@ export class HeadlessGame {
       );
     }
     if (outcome.kind === "decision") {
-      this.inFlight = run.catch((err) => {
-        console.error("[Headless] suspended command failed:", err);
-      });
+      this.suspend(
+        run.catch((err: unknown) => {
+          console.error("[Headless] suspended command failed:", err);
+        })
+      );
     } else if (!this.pending && this.heldFollowUp) {
       this.pending = this.heldFollowUp;
       this.heldFollowUp = null;
@@ -265,12 +273,21 @@ export class HeadlessGame {
     return this.respond(true);
   }
 
+  private suspend(work: Promise<void>): void {
+    if (this.pending?.type !== "kickoff-event") this.inFlight = work;
+  }
+
+  private async kickLanded(): Promise<void> {
+    const { gameService } = this.ctx;
+    if (gameService.getKickoffEventStep()) await tick();
+    if (!gameService.getKickoffEventStep()) await gameService.kickInTheAir();
+  }
+
   private pendingGate(cmd: HeadlessCommand): string | null {
     const pending = this.pending;
     const replyFor = DECISION_REPLIES[cmd.type];
     if (pending?.type === "kickoff-event") {
-      const chargeCommand = !!pending.charge && CHARGE_COMMANDS.has(cmd.type);
-      return replyFor !== "kickoff-event" && !chargeCommand
+      return replyFor !== "kickoff-event"
         ? "decision-pending:kickoff-event — resolve it before other commands"
         : null;
     }
@@ -301,9 +318,7 @@ export class HeadlessGame {
         if (this.pending?.type === "kickoff-event") this.pending = null;
         return;
       case GameEventNames.ReadyToStart:
-        if (this.autoStartOnReady && this.kickingTeamId) {
-          this.ctx.gameService.startGame(this.kickingTeamId);
-        }
+        this.startOnReady();
         return;
       case GameEventNames.DecisionRequested: {
         if (this.pending?.type === "follow-up") {
@@ -323,10 +338,22 @@ export class HeadlessGame {
     if (decision) this.pending = decision;
   }
 
+  private startOnReady(): void {
+    const kickingTeamId = this.driveKickingTeamId();
+    if (this.autoStartOnReady && kickingTeamId)
+      this.ctx.gameService.startGame(kickingTeamId);
+  }
+
+  private surfaceKickPending(): void {
+    this.surfaceKickoffPending();
+    const teamId = this.ctx.gameService.getState().kick?.touchbackTeamId;
+    if (!this.pending && teamId) this.pending = { type: "touchback", teamId };
+  }
+
   private surfaceKickoffPending(): void {
     if (this.pending && this.pending.type !== "kickoff-event") return;
     const step = this.ctx.gameService.getKickoffEventStep();
-    if (!step) {
+    if (step?.stage !== "choose") {
       if (this.pending?.type === "kickoff-event") this.pending = null;
       return;
     }
@@ -339,16 +366,6 @@ export class HeadlessGame {
       movedPlayerIds: [...step.movedPlayerIds],
       awaitingPlacement: [...step.awaitingPlacement],
       ...(step.landingSquare ? { landingSquare: { ...step.landingSquare } } : {}),
-      ...(step.charge
-        ? {
-            charge: {
-              queue: [...step.charge.queue],
-              budget: { ...step.charge.budget },
-              activePlayerId: step.charge.activePlayerId,
-              aborted: step.charge.aborted,
-            },
-          }
-        : {}),
     };
   }
 

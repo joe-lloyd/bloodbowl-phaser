@@ -8,16 +8,11 @@ import { registerActionCommands } from "./actionCommands";
 import { CARRIED_HEIGHT } from "../../elements/BallSprite";
 import { ISO } from "../../elements/GridUtils";
 import { PLAYER_DEPTH } from "../../elements/PlayerSprite";
-import { DiceWatch } from "../../presentation/diceWatch";
-
-function facingDirection(dx: number): number {
-  const direction = Math.sign(dx);
-  return direction === 0 || Number.isNaN(direction) ? 1 : direction;
-}
+import { ActionPresentation, facingDirection } from "./actionPresentation";
 
 export class PlayPhaseHandler implements PhaseHandler {
   private unsubscribes: (() => void)[] = [];
-  private dice: DiceWatch | null = null;
+  private actions: ActionPresentation | null = null;
 
   private ballMoves = 0;
 
@@ -36,7 +31,7 @@ export class PlayPhaseHandler implements PhaseHandler {
 
   enter(): void {
     console.log("[PlayPhaseHandler] Entering Play Phase");
-    this.dice = new DiceWatch(this.eventBus);
+    this.actions = new ActionPresentation(this.scene, this.eventBus);
     this.setupListeners();
     this.scene.startPlayPhase();
   }
@@ -44,8 +39,8 @@ export class PlayPhaseHandler implements PhaseHandler {
   exit(): void {
     this.ballMoves++;
     this.removeListeners();
-    this.dice?.dispose();
-    this.dice = null;
+    this.actions?.dispose();
+    this.actions = null;
   }
 
   private register<K extends keyof GameEventMap>(
@@ -74,12 +69,6 @@ export class PlayPhaseHandler implements PhaseHandler {
       );
     });
 
-    this.register(GameEventNames.PlayerMoved, (data) => {
-      this.handlePlayerMove(data);
-    });
-
-    this.register(GameEventNames.PlayerThrowGesture, this.handlePlayerThrowGesture0);
-
     this.register(GameEventNames.PassDeclared, (data) => {
       this.eventBus.emit(GameEventNames.Camera_TrackBall, {
         playerId: data.playerId,
@@ -106,24 +95,7 @@ export class PlayPhaseHandler implements PhaseHandler {
       registerActionCommands(this.gameService, this.eventBus)
     );
 
-    this.register(GameEventNames.BlockDiceKept, this.handleBlockDiceKept1);
-
-    this.register(GameEventNames.PlayerKnockedDown, (data) => {
-      const sprite = this.scene.playerSprites.get(data.playerId);
-      if (sprite)
-        void this.afterStep(sprite).then(() => {
-          sprite.updateStatus();
-        });
-    });
-
-    this.register(GameEventNames.PlayerPushedIntoCrowd, this.handlePlayerPushedIntoCrowd2);
-
     this.register(GameEventNames.PlayerStatusChanged, this.handlePlayerStatusChanged3);
-
-    this.register(GameEventNames.PlayerStoodUp, (data) => {
-      const sprite = this.scene.playerSprites.get(data.playerId);
-      if (sprite) sprite.updateStatus();
-    });
 
     this.register(GameEventNames.BallPlaced, () => {
       this.ballMoves++;
@@ -143,58 +115,6 @@ export class PlayPhaseHandler implements PhaseHandler {
       this.eventBus.emit(GameEventNames.UI_PresentationAcknowledged, {
         id: presentationId,
       });
-  }
-
-  private handlePlayerMove(
-    data: GameEventMap[typeof GameEventNames.PlayerMoved]
-  ): void {
-    const acknowledge = () => {
-      this.acknowledge(data.presentationId);
-    };
-    const sprite = this.scene.playerSprites.get(data.playerId);
-    if (!sprite) {
-      this.scene.refreshDugouts();
-      acknowledge();
-      return;
-    }
-    if (!data.path?.length) {
-      sprite.motion = sprite.motion.finally(() => {
-        this.scene.refreshDugouts();
-        acknowledge();
-      });
-      return;
-    }
-    const pixelPath = data.path.map((step) =>
-      this.scene.pitch.getPixelPosition(step.x, step.y)
-    );
-    sprite.motion = sprite.motion
-      .then(() => this.dice?.landed())
-      .then(async () => {
-        if (data.ballFrom && data.ballPath && data.ballPath.length > 0) {
-          this.scene.animateBallAlong(
-            data.ballFrom,
-            data.ballPath,
-            (data.ballJoinStep ?? 0) * 180
-          );
-        }
-        await (data.thrown
-          ? sprite.animateThrow(pixelPath)
-          : sprite.animateMovement(pixelPath));
-        this.scene.refreshDugouts();
-        if (data.followUpData) {
-          this.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
-            ...data.followUpData,
-            repeat: true,
-          });
-        }
-      })
-      .finally(acknowledge);
-  }
-
-  private async afterStep(sprite: { motion: Promise<void> }): Promise<void> {
-    await this.dice?.landed();
-
-    await sprite.motion;
   }
 
   private handlePassAnimation(
@@ -345,42 +265,6 @@ export class PlayPhaseHandler implements PhaseHandler {
     this.scene.cameras.main.shake(220, 0.006);
   }
 
-  private readonly handlePlayerThrowGesture0 = (data: GameEventMap[typeof GameEventNames.PlayerThrowGesture]) => {
-      const sprite = this.scene.playerSprites.get(data.playerId);
-      if (!sprite) return;
-      if (data.mode === "kick") {
-        sprite.animateKickGesture(data.dir);
-      } else {
-        sprite.animateThrowGesture(data.dir);
-      }
-    };
-
-  private readonly handleBlockDiceKept1 = (data: GameEventMap[typeof GameEventNames.BlockDiceKept]) => {
-      const sprites = this.scene.playerSprites;
-      const defender = sprites.get(data.defenderId);
-      sprites
-        .get(data.attackerId)
-        ?.playAction(
-          "block",
-          defender ? { x: defender.x, y: defender.y } : undefined
-        );
-    };
-
-  private readonly handlePlayerPushedIntoCrowd2 = (data: GameEventMap[typeof GameEventNames.PlayerPushedIntoCrowd]) => {
-      const sprite = this.scene.playerSprites.get(data.playerId);
-      if (!sprite) return;
-      this.scene.tweens.add({
-        targets: sprite,
-        alpha: 0,
-        duration: 350,
-        onComplete: () => {
-          sprite.setVisible(false);
-          sprite.setAlpha(1);
-          this.scene.refreshDugouts();
-        },
-      });
-    };
-
   private readonly handlePlayerStatusChanged3 = (player: GameEventMap[typeof GameEventNames.PlayerStatusChanged]) => {
       const reconcile = () => {
         this.scene.reconcilePlayerLocation(player.id);
@@ -390,7 +274,7 @@ export class PlayPhaseHandler implements PhaseHandler {
       const sprite = this.scene.playerSprites.get(player.id);
 
       if (sprite && player.gridPosition)
-        void this.afterStep(sprite).then(reconcile);
+        void this.actions?.afterStep(sprite).then(reconcile);
       else reconcile();
     };
 
@@ -408,7 +292,7 @@ export class PlayPhaseHandler implements PhaseHandler {
       );
 
       const moves = this.ballMoves;
-      void (this.dice?.landed() ?? Promise.resolve())
+      void (this.actions?.diceLanded() ?? Promise.resolve())
         .then(() => {
           if (this.ballMoves !== moves) return;
           this.scene.placeBallVisual(data.position.x, data.position.y, 1);

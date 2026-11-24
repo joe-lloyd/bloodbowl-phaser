@@ -4,7 +4,6 @@ import type React from "react";
 import type { EventBus } from "../../../services/EventBus";
 import { useHeldOnline } from "../../hooks/useHeldOnline";
 import { PlayerStatus, type Player } from "../../../types/Player";
-import { GamePhase } from "../../../types/GameState";
 import { GameEventNames, type ActionType } from "../../../types/events";
 import type { BlockReplacement } from "../../../types/BlockReplacement";
 import { Panel } from "../componentWarehouse/HudKit";
@@ -37,24 +36,20 @@ export function PlayerActionMenu(props: PlayerActionMenuProps) {
     setRazzleOn,
   } = useActionSelection(eventBus, turnData);
   const held = useHeldOnline();
-  const { activeCharge, effectiveActiveTeamId } = actingSide(turnData);
+  const effectiveActiveTeamId = actingSide(turnData, selectedPlayer);
   const { declaration, secondActionAfter, canRazzle } = razzleDazzle(
-    selectedPlayer,
-    !!activeCharge
+    selectedPlayer
   );
 
   const availability = readMenuAvailability({
     selectedPlayer,
     effectiveActiveTeamId,
     turnData,
-    activeCharge,
     hasMovedInAction,
     secondActionAfter,
   });
 
   if (!selectedPlayer || held) return null;
-
-  if (turnData.phase === GamePhase.KICKOFF && !activeCharge) return null;
 
   if (selectedPlayer.teamId !== effectiveActiveTeamId) return null;
 

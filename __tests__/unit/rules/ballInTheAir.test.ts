@@ -1,3 +1,4 @@
+import { newKick } from "../../../src/game/kickoff/kickRecord";
 import { describe, expect, it } from "vitest";
 import {
   ballInTheAir,
@@ -12,7 +13,7 @@ const state = (over: Partial<GameState>): GameState =>
   ({
     phase: GamePhase.KICKOFF,
     ballPosition: { ...square },
-    kickoffKickResolved: { isTeam1Kicking: true },
+    kick: newKick("team1", "landing"),
     ...over,
   }) as GameState;
 
@@ -30,7 +31,7 @@ describe("a kicked ball still in the air", () => {
 
   it("is not in the air before the kick or after a Touchback", () => {
     const beforeKick = state({});
-    delete beforeKick.kickoffKickResolved;
+    delete beforeKick.kick;
     expect(ballInTheAir(beforeKick)).toBe(false);
     expect(ballInTheAir(state({ ballPosition: null }))).toBe(false);
   });

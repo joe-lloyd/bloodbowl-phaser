@@ -108,34 +108,6 @@ export const INTERACTIVE_KICKOFF_EVENTS = new Set<KickoffEvent>([
   ...RECEIVING_TEAM_STEPS,
 ]);
 
-const CHARGE_STEPS = new Set<KickoffEvent>([
-  KickoffEvent.CHARGE,
-  KickoffEvent.BLITZ,
-  KickoffEvent.QUICK_ATTACK,
-]);
-
-export function isChargeStepEvent(event: KickoffEvent): boolean {
-  return CHARGE_STEPS.has(event);
-}
-
-export function steppingPlayerId(step: {
-  selectedPlayerIds: string[];
-  movedPlayerIds: string[];
-}): string | null {
-  const waiting = step.selectedPlayerIds.filter(
-    (id) => !step.movedPlayerIds.includes(id)
-  );
-  return waiting[waiting.length - 1] ?? null;
-}
-
-export function isOneSquareMoveEvent(event: KickoffEvent): boolean {
-  return (
-    event === KickoffEvent.ALERT_DEFENCE ||
-    event === KickoffEvent.QUICK_SNAP ||
-    event === KickoffEvent.GET_READY_LADS
-  );
-}
-
 export function kickoffEventOwner(
   event: KickoffEvent,
   kickingTeamId: string,
@@ -162,9 +134,18 @@ export function grantEffect(
   (outcome.perTeam[teamId] ??= []).push(effect);
 }
 
-export function isOpenKickoffPlayer(player: Player, opponents: Player[]): boolean {
+function isOpenKickoffPlayer(player: Player, opponents: Player[]): boolean {
   const position = player.gridPosition;
   if (!position || player.status !== PlayerStatus.ACTIVE) return false;
   return !opponents.some((opponent) => opponent.status === PlayerStatus.ACTIVE && opponent.gridPosition
     && Math.max(Math.abs(opponent.gridPosition.x - position.x), Math.abs(opponent.gridPosition.y - position.y)) === 1);
+}
+
+export function isPickableKickoffPlayer(
+  event: KickoffEvent,
+  player: Player,
+  opponents: Player[]
+): boolean {
+  if (event !== KickoffEvent.QUICK_ATTACK) return isOpenKickoffPlayer(player, opponents);
+  return player.status === PlayerStatus.ACTIVE && !!player.gridPosition;
 }

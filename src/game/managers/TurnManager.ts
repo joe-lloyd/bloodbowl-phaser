@@ -14,6 +14,15 @@ import { PlayerStatus } from "@/types/Player";
 import { ActivationValidator } from "../validators/ActivationValidator";
 import { type AllEvents, GameEventNames } from "../../types/events";
 import { replenishTeamRerolls } from "../teamRerolls";
+import { kickoffTurnOf } from "../kickoff/kickRecord";
+import {
+  closedKickoffTurn,
+  isTurnRunning,
+  type KickoffTurnStart,
+  openedKickoffTurn,
+  unspentTurn,
+} from "../kickoff/kickoffTurn";
+import type { KickoffEvent } from "../kickoff/kickoffEvents";
 import { undecided } from "../rules/extraTime";
 
 export interface TurnManagerState {
@@ -41,6 +50,8 @@ interface TurnCallbacks {
   onTurnEnding?: (endingTeamId: string) => void;
 
   betweenTurns?: (endingTeamId: string) => Promise<void> | null;
+
+  onKickoffTurnEnded?: (event: KickoffEvent, teamId: string) => void;
 }
 
 export class TurnManager {
@@ -156,19 +167,9 @@ export class TurnManager {
     const currentTurn = this.turnCounts[teamId];
 
     this.state.turn = {
-      teamId: teamId,
+      ...unspentTurn(this.state.turn),
+      teamId,
       turnNumber: currentTurn,
-      isHalf2: this.state.turn.isHalf2,
-      ...(this.state.turn.extraTime ? { extraTime: true } : {}),
-      activatedPlayerIds: new Set(),
-      hasBlitzed: false,
-      hasPassed: false,
-      hasHandedOff: false,
-      hasFouled: false,
-      hasThrownTeamMate: false,
-      hasKickedTeamMate: false,
-      hasThrownBomb: false,
-      movementUsed: new Map(),
     };
 
     const activeTeam = teamId === this.team1.id ? this.team1 : this.team2;
@@ -179,6 +180,35 @@ export class TurnManager {
     this.eventBus.emit(GameEventNames.TurnStarted, this.state.turn);
 
     this.announceTurnStart(activeTeam.name, currentTurn);
+  }
+
+  public startKickoffTurn(start: KickoffTurnStart): boolean {
+    const players = [...this.team1.players, ...this.team2.players];
+    const opened = openedKickoffTurn(this.state, start, players);
+    if (!opened || !this.state.kick) return false;
+    this.turnoverInProgress = false;
+    this.state.activePlayer = null;
+    this.state.activeTeamId = start.teamId;
+    this.state.turn = opened.turn;
+    this.state.kick.step = opened.step;
+    this.eventBus.emit(GameEventNames.KickoffTurnStarted, {
+      event: start.event,
+      teamId: start.teamId,
+    });
+    return true;
+  }
+
+  public closeKickoffTurn(): void {
+    const kickoff = kickoffTurnOf(this.state);
+    if (!kickoff || !this.state.kick) return;
+    this.state.kick.step = null;
+    this.turnoverInProgress = false;
+    this.state.activePlayer = null;
+    this.state.activeTeamId = kickoff.resume.activeTeamId;
+    this.state.turn = closedKickoffTurn(this.state.turn, kickoff);
+    this.eventBus.emit(GameEventNames.KickoffTurnEnded, {
+      event: kickoff.event,
+    });
   }
 
   private announceTurnStart(teamName: string, turnNumber: number): void {
@@ -197,9 +227,16 @@ export class TurnManager {
       const turn = this.state.turn;
       void whenMomentsComplete(this.eventBus).then(() => {
         this.handoverPending = false;
-        if (this.state.turn === turn && this.state.phase === GamePhase.PLAY)
+        if (this.state.turn === turn && isTurnRunning(this.state))
           this.endTurn();
       });
+      return;
+    }
+    const kickoff = kickoffTurnOf(this.state);
+    if (kickoff) {
+      const { teamId } = this.state.turn;
+      this.closeKickoffTurn();
+      this.callbacks.onKickoffTurnEnded?.(kickoff.event, teamId);
       return;
     }
     const currentTeamId = this.state.activeTeamId;
@@ -329,7 +366,7 @@ export class TurnManager {
   }
 
   public finishActivation(playerId: string): void {
-    if (this.state.phase !== GamePhase.PLAY) return;
+    if (!isTurnRunning(this.state)) return;
 
     if (!this.state.turn.activatedPlayerIds.has(playerId)) {
       this.state.turn.activatedPlayerIds.add(playerId);
@@ -346,7 +383,7 @@ export class TurnManager {
     if (!hasActions) {
       const turn = this.state.turn;
       this.delay(500).then(() => {
-        if (this.state.turn === turn && this.state.phase === GamePhase.PLAY)
+        if (this.state.turn === turn && isTurnRunning(this.state))
           this.endTurn();
       });
     }
@@ -392,7 +429,7 @@ export class TurnManager {
     if (!this.turnoverInProgress) return;
     this.turnoverInProgress = false;
 
-    if (this.state.phase !== GamePhase.PLAY) return;
+    if (!isTurnRunning(this.state)) return;
     this.endTurn();
   }
 

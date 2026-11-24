@@ -37,7 +37,6 @@ export interface CommandHost {
   restorePending(pending: PendingDecision): void;
 
   dropHeldFollowUp(): void;
-  setKickingTeam(teamId: string): void;
   logEvent(event: EmittedEvent): void;
 }
 
@@ -147,7 +146,6 @@ async function block(
 async function coinFlip({
   ctx,
   logEvent,
-  setKickingTeam,
 }: CommandHost): Promise<void> {
   const gs = ctx.gameService;
   assertPregamePurchasesComplete(gs.getState());
@@ -171,7 +169,6 @@ async function coinFlip({
     resultState: "none",
     teamId: kickingTeam.id,
   });
-  setKickingTeam(kickingTeam.id);
   gs.startSetup(kickingTeam.id);
 }
 
@@ -182,6 +179,10 @@ async function answerKickoffStep(
 ): Promise<void> {
   const pending = host.takePending("kickoff-event");
   refuseUnless(host, pending, answer(), error);
+}
+
+function accepted(ok: boolean, refusal: string): Promise<void> {
+  return ok ? Promise.resolve() : Promise.reject(new Error(refusal));
 }
 
 async function chooseInducement(
@@ -242,7 +243,6 @@ const COMMAND_HANDLERS: CommandHandlers = {
   "start-setup": async (host, cmd) => {
     assertTeam(host.ctx, cmd.kickingTeamId);
     assertPregamePurchasesComplete(host.ctx.gameService.getState());
-    host.setKickingTeam(cmd.kickingTeamId);
     host.ctx.gameService.startSetup(cmd.kickingTeamId);
   },
   "place-player": async (host, cmd) => {
@@ -293,11 +293,12 @@ const COMMAND_HANDLERS: CommandHandlers = {
     ctx.gameService.selectKicker(cmd.playerId);
   },
   "kick-ball": async (host, cmd) => {
+    if (host.ctx.gameService.isKickUnderWay())
+      throw new Error("kick-already-in-the-air");
     const kicker = requirePlayer(host.ctx, cmd.playerId);
     if (!isStandableSquare({ x: cmd.x, y: cmd.y }))
       throw new Error("kick-target-blocked");
     const isTeam1Kicking = kicker.teamId === host.ctx.team1.id;
-    host.setKickingTeam(kicker.teamId);
     await host.ctx.gameService.kickBall({ isTeam1Kicking: isTeam1Kicking, playerId: cmd.playerId, targetX: cmd.x, targetY: cmd.y }
     );
   },
@@ -305,9 +306,15 @@ const COMMAND_HANDLERS: CommandHandlers = {
     answerKickoffStep(host, "invalid-kickoff-player", () =>
       host.ctx.gameService.selectKickoffEventPlayer(cmd.playerId)
     ),
-  "kickoff-move-player": (host, cmd) =>
-    answerKickoffStep(host, "invalid-kickoff-move", () =>
-      host.ctx.gameService.moveKickoffEventPlayer(cmd.playerId, cmd.x, cmd.y)
+  "kickoff-move-player": ({ ctx }, cmd) =>
+    accepted(
+      ctx.gameService.moveKickoffEventPlayer(cmd.playerId, cmd.x, cmd.y),
+      "invalid-kickoff-move"
+    ),
+  "kickoff-reselect": ({ ctx }) =>
+    accepted(
+      ctx.gameService.reselectKickoffEventPlayers(),
+      "kickoff-turn-already-played"
     ),
   "kickoff-place-player": (host, cmd) =>
     answerKickoffStep(host, "invalid-kickoff-placement", () =>

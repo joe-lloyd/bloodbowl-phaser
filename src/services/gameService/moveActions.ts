@@ -1,3 +1,6 @@
+import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
+import { actionHasMove } from "@/game/rules/actionAvailability";
+import { kickoffTurnAllows } from "@/game/kickoff/kickoffTurn";
 import type { Player } from "@/types/Player";
 import { adjacentSquare } from "./squares";
 import { GameEventNames } from "@/types/events";
@@ -11,12 +14,26 @@ interface Square {
   y: number;
 }
 
+function refuseOutsideKickoffTurn(parts: GameParts, playerId: string): void {
+  const { activePlayer } = parts.state;
+  const action =
+    activePlayer?.id === playerId ? (activePlayer.action ?? "move") : "move";
+  if (!kickoffTurnOf(parts.state)) return;
+  if (
+    !parts.game.canActivate(playerId) ||
+    !kickoffTurnAllows(parts.state, action) ||
+    !actionHasMove(action)
+  )
+    throw new Error("player-not-in-kickoff-turn");
+}
+
 export async function movePlayer(
   parts: GameParts,
   playerId: string,
   path: MoveStep[]
 ): Promise<void> {
   if (awaitingSecondAction(parts, playerId)) return;
+  refuseOutsideKickoffTurn(parts, playerId);
 
   const declared = parts.state.activePlayer;
   if (declared?.id === playerId && declared.action === "throwBomb") {
@@ -57,6 +74,7 @@ export async function standUp(
   playerId: string
 ): Promise<void> {
   if (awaitingSecondAction(parts, playerId)) return;
+  refuseOutsideKickoffTurn(parts, playerId);
 
   if (parts.state.activePlayer?.id !== playerId) {
     if (!parts.game.declareAction({ playerId, action: "move" })) {
@@ -81,6 +99,7 @@ export async function jumpPlayer(
   target: Square
 ): Promise<void> {
   if (awaitingSecondAction(parts, playerId)) return;
+  refuseOutsideKickoffTurn(parts, playerId);
   const context = parts.game.getFlowContext();
   await parts.movementManager.jumpPlayer(playerId, target, context);
   parts.playerActionManager.commitAction(playerId);

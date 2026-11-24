@@ -37,6 +37,7 @@ export const COVERAGE_EXCLUSIONS: CoverageExclusion[] = [
       "kickoff-move-player",
       "kickoff-place-player",
       "kickoff-confirm",
+      "kickoff-reselect",
     ] as const
   ).map((command) => ({
     entryId: `protocol-command:${command}`,

@@ -1,5 +1,8 @@
 import { GameEventNames } from "./names";
+import type { KickoffTurn } from "../../game/kickoff/kickoffTurn";
 import type { ActionType } from "./match";
+
+type KickoffTurnEvent = Pick<KickoffTurn, "event">;
 
 export interface KickoffGameEvents {
   [GameEventNames.KickoffStarted]: void;
@@ -72,6 +75,8 @@ export interface KickoffGameEvents {
     skipped: boolean;
   };
   [GameEventNames.KickoffEventStepChanged]: void;
+  [GameEventNames.KickoffTurnStarted]: KickoffTurnEvent & { teamId: string };
+  [GameEventNames.KickoffTurnEnded]: KickoffTurnEvent;
   [GameEventNames.DriveEffectGranted]: {
     teamId: string;
 

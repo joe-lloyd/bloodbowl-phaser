@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
 import { rollSewerPits } from "./sewerPits";
 import type { Player } from "@/types/Player";
 import { GamePhase } from "@/types/GameState";
@@ -23,6 +24,15 @@ import {
 } from "@/game/kickoff/driveHazards";
 import type { GameParts } from "./parts";
 import { whenSettled } from "./activation";
+
+export function endKickoffTurnOnFall(
+  parts: GameParts,
+  playerId: string
+): void {
+  const fallen = parts.game.getPlayerById(playerId);
+  if (!fallen || !kickoffTurnOf(parts.state)?.playerIds.includes(playerId)) return;
+  parts.game.triggerTurnover(`${fallen.playerName} went down`);
+}
 
 export function onPlayerDowned(parts: GameParts, playerId: string): void {
   const player = parts.game.getPlayerById(playerId);

@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "../game/kickoff/kickRecord";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import { type GameSnapshot } from "../headless/serialization";
 import {
@@ -5,7 +6,7 @@ import {
   type PendingDecision,
   type PlayerActions,
 } from "../headless/protocol";
-import { GamePhase, SubPhase } from "../types/GameState";
+import { GamePhase, type GameState, SubPhase } from "../types/GameState";
 import { type Player, PlayerStatus } from "../types/Player";
 import { type ActionType } from "../types/events";
 import type { DopeStat } from "../types/decisions";
@@ -13,6 +14,7 @@ import { FormationManager } from "../game/managers/FormationManager";
 import { assignPlayers, setupLabel } from "../game/setup/deployment";
 import { GameConfig, getSevensSetupZone } from "../config/GameConfig";
 import { SetupValidator } from "../game/validators/SetupValidator";
+import type { KickoffTurn } from "../game/kickoff/kickoffTurn";
 import { isConfinedToReserves } from "../game/kickoff/driveEffects";
 import { decisionOwner } from "../network/OwnershipGate";
 import { describePlayer, square, stepCandidates } from "./stepCandidates";
@@ -114,14 +116,37 @@ export async function enumerateDecision(
       return at(activeTeamId, await setupCandidates(game, activeTeamId));
     }
     case GamePhase.KICKOFF: {
-      const kicker = kickingTeamId ?? activeTeamId;
-      return at(kicker, kickoffCandidates(game, game.snapshot(), kicker));
+      const kicker = kickoffActor(state, kickingTeamId);
+      return at(kicker, kickoffPhaseCandidates(game, kicker));
     }
     case GamePhase.PLAY:
       return at(activeTeamId, await playCandidates(game));
     default:
       return at(activeTeamId, []);
   }
+}
+
+function kickoffActor(state: GameState, kickingTeamId: string | null): string {
+  return (
+    (kickoffTurnOf(state) ? null : kickingTeamId) ?? state.activeTeamId ?? ""
+  );
+}
+
+function kickoffPhaseCandidates(game: HeadlessGame, teamId: string) {
+  const kickoff = kickoffTurnOf(game.ctx.gameService.getState());
+  return kickoff
+    ? kickoffTurnCandidates(kickoff)
+    : kickoffCandidates(game, game.snapshot(), teamId);
+}
+
+function kickoffTurnCandidates(turn: KickoffTurn): Candidate[] {
+  return [
+    {
+      kind: "end-turn",
+      commands: [{ type: "end-turn" }],
+      label: `End ${turn.event}`,
+    },
+  ];
 }
 
 type PendingOf<T extends PendingDecision["type"]> = Extract<

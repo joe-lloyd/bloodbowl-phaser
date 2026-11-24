@@ -1,5 +1,6 @@
 import type { GameScene } from "./GameScene";
 import { GamePhase } from "../types/GameState";
+import { isTurnRunning } from "../game/kickoff/kickoffTurn";
 import { GameEventNames, type GameEvents } from "../types/events";
 import { PlayerStatus } from "../types/Player";
 import { PassController } from "../game/controllers/PassController";
@@ -23,7 +24,7 @@ export function followMatchWithCamera(scene: GameScene): void {
     const state = gameService().getState();
     if (
       state.activeTeamId !== intent.teamId ||
-      state.phase !== GamePhase.PLAY
+      !isTurnRunning(state)
     ) {
       nextPlayerChoice = null;
       return;
@@ -74,7 +75,7 @@ export function followMatchWithCamera(scene: GameScene): void {
     if (gameService().getKickoffEventStep()) return;
     camera().release();
 
-    if (gameService().getPhase() === GamePhase.KICKOFF) {
+    if (!isTurnRunning(gameService().getState())) {
       camera().overview();
       return;
     }

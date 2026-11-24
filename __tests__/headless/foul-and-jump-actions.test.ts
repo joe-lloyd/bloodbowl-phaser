@@ -313,10 +313,6 @@ describe("The one-block-per-Blitz guard is scoped to its Blitz", () => {
     const gs = game.ctx.gameService;
     const blocker = fixtureValue(game.snapshot().teams[0]).players[0];
 
-    const used: unknown = Reflect.get(gs, "blitzBlockUsed");
-    if (!(used instanceof Set)) throw new Error("Expected Blitz usage set");
-    used.add(fixtureValue(blocker).id);
-
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(blocker).id,

@@ -132,7 +132,7 @@ describe("Beach Bowl kick-off table", () => {
     await game.execute({ type: "kickoff-confirm" });
 
     expect(response.pendingDecision).toMatchObject({ type: "kickoff-event", event: KickoffEvent.CHARGE, chooserTeamId: "team1", selectionLimit: 2 });
-    expect(game.ctx.gameService.getKickoffEventStep()?.charge?.budget).toEqual({ blitz: 1, throwTeammate: 1, kickTeammate: 0 });
+    expect(game.ctx.gameService.getState().turn).toMatchObject({ hasBlitzed: false, hasThrownTeamMate: false, hasKickedTeamMate: true });
   });
 
   it("BB-K12 Monster Wave washes everyone D3 squares one way and off-pitch players to the Reserves", async () => {

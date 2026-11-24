@@ -41,7 +41,6 @@ export const kickoffResultSchema = z.object({
     perTeam: z.record(z.string(), z.string().array()),
   }),
 });
-export type KickoffResult = z.infer<typeof kickoffResultSchema>;
 
 export async function kick(seed: number) {
   const game = new HeadlessGame({ scenario: kickoffScenario, seed });

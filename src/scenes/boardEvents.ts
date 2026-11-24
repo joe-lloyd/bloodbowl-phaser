@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "../game/kickoff/kickRecord";
 import type { GameScene } from "./GameScene";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { GameEventNames } from "../types/events";
@@ -124,6 +125,23 @@ export function subscribeTurnMarkers(scene: GameScene): void {
       sprite.setTeamTurnBorder(false);
     });
   });
+
+  const markKickoffTurn = () => {
+    const state = scene.gameService.getState();
+    const { turn } = state;
+    const online = getActiveOnlineMatch();
+    const mine = !online || online.myTeamId === turn.teamId;
+    sprites().forEach((sprite) => {
+      const { id } = sprite.getPlayer();
+      sprite.setActivated(turn.activatedPlayerIds.has(id));
+      sprite.setTeamTurnBorder(
+        mine && kickoffTurnOf(state)?.playerIds.includes(id) === true
+      );
+    });
+    scene.setRemoteSelection(null);
+  };
+  subscribe(GameEventNames.KickoffTurnStarted, markKickoffTurn);
+  subscribe(GameEventNames.KickoffTurnEnded, markKickoffTurn);
 
   subscribe(GameEventNames.RemoteSelectionChanged, ({ playerId }) => {
     scene.setRemoteSelection(playerId);

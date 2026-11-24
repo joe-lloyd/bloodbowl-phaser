@@ -1,8 +1,5 @@
-import {
-  KickoffEvent,
-  isOneSquareMoveEvent,
-  steppingPlayerId,
-} from "../../../game/kickoff/kickoffEvents";
+import { KickoffEvent } from "../../../game/kickoff/kickoffEvents";
+import { kickoffTurnPlay } from "../../../game/kickoff/kickoffTurn";
 import type { KickoffEventStepState } from "../../../game/kickoff/KickoffEventManager";
 
 export interface KickoffTodo {
@@ -10,35 +7,32 @@ export interface KickoffTodo {
   current: number;
 }
 
-function oneSquareTodo(step: KickoffEventStepState): KickoffTodo {
-  const picked = steppingPlayerId(step) !== null;
-  const full = step.movedPlayerIds.length >= step.selectionLimit;
-  const beforePick = full ? 2 : 0;
-  return {
-    lines: ["Choose a ringed player", "Click a green square", "Press Done"],
-    current: picked ? 1 : beforePick,
-  };
+export function playersLeft(step: KickoffEventStepState): number {
+  return step.selectedPlayerIds.length - step.movedPlayerIds.length;
 }
 
-function chargeTodo(step: KickoffEventStepState): KickoffTodo {
-  const full = step.selectedPlayerIds.length >= step.selectionLimit;
-  const beforeStart = full ? 1 : 0;
-  return {
-    lines: [
-      `Choose up to ${String(step.selectionLimit)} ringed players`,
-      `Press ${step.event}`,
-      "Play each player's action",
-    ],
-    current: step.charge ? 2 : beforeStart,
-  };
+function stageIndex(step: KickoffEventStepState): number {
+  if (step.stage === "play") return playersLeft(step) > 0 ? 2 : 3;
+  return step.selectedPlayerIds.length >= step.selectionLimit ? 1 : 0;
 }
 
 export function kickoffTodo(step: KickoffEventStepState): KickoffTodo {
-  if (isOneSquareMoveEvent(step.event)) return oneSquareTodo(step);
   if (step.event === KickoffEvent.HIGH_KICK)
     return {
       lines: ["Choose a ringed player to stand under the ball"],
       current: 0,
     };
-  return chargeTodo(step);
+  const limit = step.selectionLimit;
+  const oneSquare = kickoffTurnPlay(step.event)?.kind === "one-square";
+  return {
+    lines: [
+      `Choose up to ${String(limit)} ringed ${limit === 1 ? "player" : "players"}`,
+      `Press Start ${step.event}`,
+      oneSquare
+        ? "Click each one, then a green square"
+        : "Play each one, in any order",
+      `Press End ${step.event} to stop early`,
+    ],
+    current: stageIndex(step),
+  };
 }

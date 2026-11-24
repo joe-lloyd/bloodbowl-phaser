@@ -55,7 +55,10 @@ is still open and can be answered. Treat online play as experimental.
 ## Developer tools and build limits
 
 - The simulation CLI plays whole matches between automated coaches.
-- Sandbox and Sound Test are development tools, gated on configured deployments.
+- Sandbox, the kick-off playground and Sound Test are development tools, gated
+  on configured deployments. The playground is at `/kickoff-playground`. It
+  opens straight into any kick-off event a coach plays, and its URL keeps the
+  event, the kicking side, both teams and the number of players.
 - The Vite production bundle builds independently of private rulebook files.
   The TypeScript check passes, and CI runs it on every pull request; see
   [build instructions](DEVELOPMENT.md#build-and-preview).

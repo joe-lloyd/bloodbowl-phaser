@@ -1,3 +1,4 @@
+import { newKick } from "../../src/game/kickoff/kickRecord";
 import { describe, expect, it } from "vitest";
 import { createSimGame } from "../../src/simulation/runMatch";
 import { stateChecksum } from "../../src/headless/checksum";
@@ -34,7 +35,7 @@ describe("a full resync onto an engine with flags the peer lacks", () => {
     const honest = stateChecksum(hostGame);
 
     const stale = guestGame.ctx.gameService.getState();
-    stale.chargeTeamId = guestGame.ctx.team1.id;
+    stale.kick = newKick(guestGame.ctx.team1.id, "landed");
     stale.knockout = true;
     stale.paysWinnings = true;
     expect(stateChecksum(guestGame)).not.toBe(honest);
@@ -47,7 +48,7 @@ describe("a full resync onto an engine with flags the peer lacks", () => {
     }
 
     const state = guestGame.ctx.gameService.getState();
-    expect(state.chargeTeamId).toBeUndefined();
+    expect(state.kick).toBeUndefined();
     expect(state.knockout).toBeUndefined();
     expect(state.paysWinnings).toBeUndefined();
     expect(stateChecksum(guestGame)).toBe(honest);

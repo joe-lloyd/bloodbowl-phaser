@@ -10,7 +10,6 @@ import type {
 } from "../types/decisions";
 import { type GameSnapshot } from "./serialization";
 import type {
-  ChargeBudget,
   KickoffEventStepState,
 } from "../game/kickoff/KickoffEventManager";
 import {
@@ -51,6 +50,7 @@ export type HeadlessCommand =
   | { type: "kickoff-place-player"; playerId: string; x: number; y: number }
   | { type: "kickoff-confirm" }
   | { type: "kickoff-skip" }
+  | { type: "kickoff-reselect" }
   | {
       type: "declare-action";
       playerId: string;
@@ -168,12 +168,6 @@ export type PendingDecision =
       movedPlayerIds: string[];
       awaitingPlacement: string[];
       landingSquare?: GridPosition;
-      charge?: {
-        queue: string[];
-        budget: ChargeBudget;
-        activePlayerId: string | null;
-        aborted: boolean;
-      };
     }
   | {
       type: "block-dice";
@@ -335,7 +329,6 @@ export const DECISION_REPLIES: Partial<
   "choose-inducement": "inducement-choice",
   "choose-foul-assists": "foul-assists",
   "kickoff-select-player": "kickoff-event",
-  "kickoff-move-player": "kickoff-event",
   "kickoff-place-player": "kickoff-event",
   "kickoff-confirm": "kickoff-event",
   "kickoff-skip": "kickoff-event",

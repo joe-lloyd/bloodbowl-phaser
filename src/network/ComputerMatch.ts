@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "../game/kickoff/kickRecord";
 import { devVenueFormat } from "../testing/devVenue";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { clearMatchSave } from "../game/persistence/MatchSaveRepository";
@@ -207,6 +208,9 @@ class ComputerSession {
   private waitingLabel(): string {
     if (this.game.pendingDecision()) return `${COMPUTER_NAME} is deciding…`;
     if (this.engine.getPhase() === GamePhase.SETUP) return `${COMPUTER_NAME} is setting up…`;
+    const { teamId } = this.engine.getState().turn;
+    const kickoff = kickoffTurnOf(this.engine.getState());
+    if (kickoff && teamId === this.options.computerTeamId) return `${COMPUTER_NAME} is playing ${kickoff.event}…`;
     if (this.engine.getPhase() === GamePhase.KICKOFF) return `${COMPUTER_NAME} is kicking off…`;
     const active = this.engine.getActiveTeamId();
     const teamName = (active === this.options.team1.id ? this.options.team1 : this.options.team2).name;

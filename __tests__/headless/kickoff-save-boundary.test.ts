@@ -18,7 +18,7 @@ import { kickoffScenario } from "./kickoffKicks";
 class KickoffWrites implements MatchSaveRepository {
   held: (string | null)[] = [];
   write(save: MatchSave): void {
-    this.held.push(save.snapshot.kickoffResolution?.event ?? null);
+    this.held.push(save.snapshot.kick?.resolution?.event ?? null);
   }
   read(): MatchSave | null {
     return null;
@@ -93,7 +93,7 @@ describe("saving across the kick-off", () => {
     expect(gameService.isKickoffTableResolving()).toBe(false);
     expect(await autosave.flushNow()).toBe(true);
 
-    const event = fixtureValue(gameService.getState().kickoffResolution).event;
+    const event = fixtureValue(gameService.getState().kick?.resolution).event;
     expect(writes.held.length).toBeGreaterThan(0);
     expect(new Set(writes.held)).toEqual(new Set([event]));
     autosave.dispose();

@@ -14,8 +14,7 @@ import { turnUsageSchema } from "./TurnUsage";
 import { inducementsMatchStateSchema } from "./InducementsMatchState";
 import { pregameInducementsStateSchema } from "./PregameInducementsState";
 import { matchInducementsStateSchema } from "./MatchInducementsState";
-import { kickoffEventSchema } from "./KickoffEvent";
-import { kickoffEventOutcomeSchema } from "./KickoffEventOutcome";
+import { kickRecordSchema, kickResolutionSchema } from "./KickRecord";
 import { turnManagerStateSchema } from "./TurnManagerState";
 import type { GameSnapshot } from "../../headless/serialization";
 
@@ -47,6 +46,7 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
       blockReplacementUsed: z
         .union([z.literal(false), z.literal(true)])
         .exactOptional(),
+      blitzBlockUsed: z.boolean().exactOptional(),
       committed: z.union([z.literal(false), z.literal(true)]).exactOptional(),
       bloodlustUnsated: z
         .union([z.literal(false), z.literal(true)])
@@ -85,20 +85,13 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   stallingPlayerIds: z.string().array().exactOptional(),
   seriousKnockoutIds: z.string().array().exactOptional(),
   turnUsage: turnUsageSchema.exactOptional(),
-  chargeTeamId: z.string().exactOptional(),
   raisedDead: z.record(z.string(), z.string()).exactOptional(),
   fanFactors: z.record(z.string(), z.number()).exactOptional(),
   inducements: inducementsMatchStateSchema.exactOptional(),
   pregameInducements: pregameInducementsStateSchema.exactOptional(),
   matchInducements: matchInducementsStateSchema.exactOptional(),
-  kickoffResolution: z
-    .looseObject({
-      roll: z.number(),
-      event: kickoffEventSchema,
-      meaning: z.string(),
-      outcome: kickoffEventOutcomeSchema,
-    })
-    .exactOptional(),
+  kick: kickRecordSchema.exactOptional(),
+  kickoffResolution: kickResolutionSchema.exactOptional(),
   kickoffKickResolved: z
     .looseObject({
       isTeam1Kicking: z.boolean(),

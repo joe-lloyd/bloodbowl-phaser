@@ -1,3 +1,4 @@
+import type { KickoffRehearsal } from "@/game/kickoff/kickRecord";
 import type * as SetupTypes from "@/types/SetupTypes";
 import type * as InducementTypes from "@/types/Inducements";
 import { GamePhase, type GameState, SubPhase } from "@/types/GameState";
@@ -111,7 +112,6 @@ export interface IGameService {
     targetX: number;
     targetY: number;
   }): Promise<void>;
-  rollKickoff(): void;
 
   awardTouchback(playerId: string): boolean;
   isTouchbackPending(): boolean;
@@ -128,6 +128,15 @@ export interface IGameService {
   placeKickoffEventPlayer(playerId: string, x: number, y: number): boolean;
   confirmKickoffEventStep(): boolean;
   skipKickoffEventStep(): boolean;
+  reselectKickoffEventPlayers(): boolean;
+  kickInTheAir(): Promise<void> | null;
+  resumeKick(): Promise<void>;
+  rehearseKickoffEvent(
+    rehearsal: KickoffRehearsal & {
+      isTeam1Kicking: boolean;
+      landing: { x: number; y: number };
+    }
+  ): Promise<void>;
 
   startGame(kickingTeamId: string): void;
   startTurn(teamId: string): void;

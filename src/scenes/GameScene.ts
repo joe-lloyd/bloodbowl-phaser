@@ -275,6 +275,7 @@ export class GameScene extends Phaser.Scene {
         GameEventNames.GameStateRestored,
         this.gameService.getState()
       );
+      void this.gameService.resumeKick();
     }
 
     if (this.autosaveEnabled) this.autosave = startAutosave(this);

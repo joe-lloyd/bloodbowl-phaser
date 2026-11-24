@@ -134,5 +134,5 @@ export function rollMasterChefs(parts: GameParts): void {
 export function startGame(parts: GameParts, kickingTeamId: string): void {
   rollMasterChefs(parts);
   parts.rerollArbiter.beginHalf([parts.team1.id, parts.team2.id]);
-  parts.turnManager.startGame(kickingTeamId);
+  parts.turnManager.startGame(parts.state.kick?.kickingTeamId ?? kickingTeamId);
 }

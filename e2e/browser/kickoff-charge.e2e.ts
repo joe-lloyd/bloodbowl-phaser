@@ -20,6 +20,7 @@ test("a lone charger gets the action menu, then the receiving team plays", async
 
   await app.pitch.clickPlayer("team1:2");
   await charge.click();
+  await app.pitch.clickPlayer("team1:2");
   await expect(app.hud.actionMenu()).toBeVisible({ timeout: 10_000 });
   await app.hud.actionButton("move").click();
   const from = await app.pitch.squareOf("team1:2");

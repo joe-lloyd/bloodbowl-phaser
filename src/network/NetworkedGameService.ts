@@ -240,7 +240,8 @@ export class NetworkedGameService implements IGameService {
   }
   getKickoffEventStep(): KickoffEventStepState | null {
     const pending = this.pendingDecision();
-    if (pending?.type !== "kickoff-event") return this.kickoffStepInFlight;
+    if (pending?.type !== "kickoff-event")
+      return this.inner.getKickoffEventStep() ?? this.kickoffStepInFlight;
     return {
       event: pending.event,
       teamId: pending.chooserTeamId,
@@ -249,7 +250,8 @@ export class NetworkedGameService implements IGameService {
       movedPlayerIds: [...pending.movedPlayerIds],
       awaitingPlacement: [...pending.awaitingPlacement],
       ...(pending.landingSquare ? { landingSquare: { ...pending.landingSquare } } : {}),
-      ...(pending.charge ? { charge: { ...pending.charge, queue: [...pending.charge.queue], budget: { ...pending.charge.budget } } } : {}),
+      stage: "choose",
+      canReselect: false,
     };
   }
   canActivate(playerId: string): boolean {
@@ -422,6 +424,14 @@ export class NetworkedGameService implements IGameService {
       x,
       y,
     });
+  }
+  kickInTheAir(): Promise<void> | null {
+    return this.inner.kickInTheAir();
+  }
+  resumeKick: IGameService["resumeKick"] = () => Promise.resolve();
+  rehearseKickoffEvent: IGameService["rehearseKickoffEvent"] = () => Promise.resolve();
+  reselectKickoffEventPlayers(): boolean {
+    return this.sendKickoffStep({ type: "kickoff-reselect" });
   }
   confirmKickoffEventStep(): boolean {
     return this.sendKickoffStep({ type: "kickoff-confirm" });
@@ -632,7 +642,6 @@ export class NetworkedGameService implements IGameService {
   }
 
   startKickoff: IGameService["startKickoff"] = () => undefined;
-  rollKickoff: IGameService["rollKickoff"] = () => undefined;
   readyForWeather(teamId: string): boolean {
     this.send({ type: "ready-weather", teamId });
     return true;

@@ -113,7 +113,7 @@ crowd's roll yet.
 | K7 | 7 | Brilliant Coaching: D6 plus Assistant Coaches each. The higher coach, or both on a tie, gets a free re-roll that expires at the end of the drive. | ok |
 | K8 | 8 | Changing Weather: roll new weather. Perfect Conditions makes the ball Scatter (3) in the air. | ok |
 | K9 | 9 | Quick Snap: the receiving coach picks up to D3+1 Open players. Each may move one square in any direction, even into No Man's Land. | ok |
-| K10 | 10 | Charge!: the kicking coach picks up to D3+1 Open players and activates them one by one for a free Move. One may Blitz instead, one may Throw Team-mate and one may Kick Team-mate. A player who falls or is Knocked Down ends the Charge. | ok |
+| K10 | 10 | Charge!: the kicking coach picks up to D3+1 Open players and activates them one by one, in any order, for a free Move. One may Blitz instead, one may Throw Team-mate and one may Kick Team-mate. A player who falls or is Knocked Down ends the Charge. | ok |
 | K11 | 11 | Dodgy Snack: both coaches roll a D6. The lower one, or both on a tie, picks a random player on the pitch and rolls a D6. On a 2 or more that player has MA and AV -1 for the drive. On a 1 they go to the Reserves for the drive. | ok |
 | K12 | 12 | Pitch Invasion: D6 plus Dedicated Fans each. The lower coach, or both on a tie, picks one random player on the pitch, who is Placed Prone and Stunned. | ok |
 

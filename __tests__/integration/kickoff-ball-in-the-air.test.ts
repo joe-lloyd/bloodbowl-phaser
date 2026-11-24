@@ -130,6 +130,7 @@ async function chargeTo(
   const { eventBus } = game.ctx;
   controller.handlePlayerClick(chargerId);
   expect(gs.confirmKickoffEventStep()).toBe(true);
+  controller.handlePlayerClick(chargerId);
   eventBus.emit(GameEventNames.UI_ActionSelected, {
     action: "move",
     playerId: chargerId,

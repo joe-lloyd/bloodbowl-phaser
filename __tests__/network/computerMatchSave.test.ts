@@ -124,7 +124,7 @@ async function humanStep(
     !live.mayAct() ||
     (snapshot.phase === GamePhase.KICKOFF &&
       !game.pendingDecision() &&
-      game.ctx.gameService.getState().kickoffKickResolved)
+      game.ctx.gameService.getState().kick)
   ) {
     await ms(1);
     return 0;

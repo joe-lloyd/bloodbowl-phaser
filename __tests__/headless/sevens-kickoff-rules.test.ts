@@ -122,6 +122,7 @@ describe("K4: Alert Defence", () => {
       playerId: fixtureValue(player).id,
     });
     expect(selected.ok).toBe(true);
+    await game.execute({ type: "kickoff-confirm" });
     const twoSquares = await game.execute({
       type: "kickoff-move-player",
       playerId: fixtureValue(player).id,
@@ -146,8 +147,7 @@ describe("K4: Alert Defence", () => {
     });
     expect(again.ok).toBe(false);
 
-    const confirmed = await game.execute({ type: "kickoff-confirm" });
-    expect(confirmed.pendingDecision?.type).not.toBe("kickoff-event");
+    expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
     expect(fixtureValue(player).gridPosition).toEqual({ x: 7, y: 1 });
   });
 

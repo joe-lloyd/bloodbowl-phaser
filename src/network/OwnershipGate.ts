@@ -24,6 +24,8 @@ export interface GateContext {
   weatherReady?: string[];
 
   inducementShopper?: string | null;
+
+  kickUnderWay?: boolean;
 }
 
 export type GateVerdict =
@@ -73,14 +75,6 @@ const deny = (reason: GateRejectReason): GateVerdict => ({
   allowed: false,
   reason,
 });
-
-const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
-  "declare-action",
-  "move",
-  "block",
-  THROW_TEAMMATE,
-  "end-activation",
-]);
 
 export function decisionOwner(
   pending: PendingDecision,
@@ -146,27 +140,6 @@ function checkDecisionReply(
   return allow;
 }
 
-function actingPlayerId(command: HeadlessCommand): string | undefined {
-  if ("playerId" in command) return command.playerId;
-  if ("attackerId" in command) return command.attackerId;
-  if ("throwerId" in command) return command.throwerId;
-  return undefined;
-}
-
-function checkCharge(
-  command: HeadlessCommand,
-  senderTeamId: string,
-  context: { ctx: GateContext; pending: PendingDecision }
-): GateVerdict {
-  const { ctx, pending } = context;
-  const owner = decisionOwner(pending, ctx);
-  if (owner !== senderTeamId) return deny(NOT_YOUR_DECISION);
-  const playerId = actingPlayerId(command);
-  return playerId && ctx.teamIdOfPlayer(playerId) !== senderTeamId
-    ? deny(NOT_YOUR_PLAYER)
-    : allow;
-}
-
 function checkWeatherReady(
   teamId: string,
   senderTeamId: string,
@@ -201,6 +174,7 @@ function checkEndOrKickCommand(command: HeadlessCommand, senderTeamId: string, c
   if (command.type === "assign-awarded-touchdown") return ctx.phase === GamePhase.GAME_OVER
     ? ownsPlayer(ctx, senderTeamId, command.playerId) : deny(NOT_YOUR_TURN);
   if (isCommandOf(command, ["select-kicker", "kick-ball"])) {
+    if (ctx.kickUnderWay) return deny(NOT_YOUR_TURN);
     if (ctx.phase === GamePhase.KICKOFF && ctx.activeTeamId === senderTeamId) return deny(NOT_YOUR_TURN);
     return ownsPlayer(ctx, senderTeamId, command.playerId);
   }
@@ -258,10 +232,6 @@ function checkPlayCommand(
   }
 }
 
-function isChargeCommand(command: HeadlessCommand, pending: PendingDecision | null): pending is Extract<PendingDecision, { type: "kickoff-event" }> {
-  return pending?.type === "kickoff-event" && Boolean(pending.charge) && CHARGE_COMMANDS.has(command.type);
-}
-
 export function checkOwnership(
   command: HeadlessCommand,
   senderTeamId: string,
@@ -279,11 +249,6 @@ export function checkOwnership(
     return checkDecisionReply(command, senderTeamId, ctx);
   }
   const pending = ctx.pendingDecision;
-  if (
-    isChargeCommand(command, pending)
-  ) {
-    return checkCharge(command, senderTeamId, { ctx, pending: pending });
-  }
   if (pending) return deny(DECISION_PENDING);
 
   return (
@@ -304,6 +269,7 @@ export function gateContextOf(
     teamIdOfPlayer: (playerId) => gameService.getPlayerById(playerId)?.teamId,
     hostTeamId,
     phase: gameService.getState().phase,
+    kickUnderWay: gameService.isKickUnderWay(),
     ...(gameService.getState().weatherReady === undefined ? {} : { weatherReady: gameService.getState().weatherReady }),
     inducementShopper: shoppingTeamId(
       gameService.getState().pregameInducements,

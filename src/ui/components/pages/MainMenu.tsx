@@ -235,6 +235,13 @@ export function MainMenu() {
               <HudButton
                 variant="ghost"
                 block
+                onClick={() => void navigate("/kickoff-playground")}
+              >
+                Kick-off Playground
+              </HudButton>
+              <HudButton
+                variant="ghost"
+                block
                 onClick={() => navigate("/music")}
               >
                 Sound Test

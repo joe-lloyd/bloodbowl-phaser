@@ -51,7 +51,7 @@ export const VARIANT_EVENT_MEANING: Record<
   "Riot!":
     "Roll a D6 for every player on the pitch; on a 6 they are Placed Prone and Stunned.",
   "Quick Attack":
-    "One Open kicking player may Block before the first turn.",
+    "One kicking player may Block before the first turn.",
   "Rogue Washing Line":
     "Each team has a random player on the pitch who cannot act in its next turn.",
   "This Round Is on Us!":

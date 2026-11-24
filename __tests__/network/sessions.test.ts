@@ -65,6 +65,7 @@ describe("networked sessions", () => {
       selectedPlayerIds: [fixtureValue(receiver).id],
     });
 
+    await match.guest.sendCommand({ type: "kickoff-confirm" });
     const moved = await match.guest.sendCommand({
       type: "kickoff-move-player",
       playerId: fixtureValue(receiver).id,
@@ -241,6 +242,7 @@ describe("networked sessions", () => {
       playerId: fixtureValue(kicker).id,
     });
     expect(selected.ok).toBe(true);
+    await match.host.executeLocal({ type: "kickoff-confirm" });
     const moved = await match.host.executeLocal({
       type: "kickoff-move-player",
       playerId: fixtureValue(kicker).id,
@@ -250,7 +252,6 @@ describe("networked sessions", () => {
     expect(moved.ok).toBe(true);
     expect(fixtureValue(kicker).gridPosition).toEqual({ x: 6, y: 1 });
 
-    await match.host.executeLocal({ type: "kickoff-confirm" });
     expect(match.broadcasts.length).toBeGreaterThan(0);
   });
 
@@ -280,10 +281,7 @@ describe("networked sessions", () => {
     const confirmed = await match.host.executeLocal({
       type: "kickoff-confirm",
     });
-    expect(confirmed.pendingDecision).toMatchObject({
-      type: "kickoff-event",
-      charge: { activePlayerId: fixtureValue(chargers[0]).id },
-    });
+    expect(confirmed.pendingDecision).toBeNull();
 
     const deniedDeclare = await match.guest.sendCommand({
       type: "declare-action",
@@ -291,7 +289,7 @@ describe("networked sessions", () => {
       action: "move",
     });
     expect(deniedDeclare.ok).toBe(false);
-    expect(deniedDeclare.reason).toBe("not-your-decision");
+    expect(deniedDeclare.reason).toBe("not-your-turn");
 
     const declared = await match.host.executeLocal({
       type: "declare-action",
@@ -303,10 +301,10 @@ describe("networked sessions", () => {
       type: "end-activation",
       playerId: fixtureValue(chargers[0]).id,
     });
-    expect(ended.pendingDecision).toMatchObject({
-      type: "kickoff-event",
-      charge: { activePlayerId: fixtureValue(chargers[1]).id },
-    });
+    expect(ended.pendingDecision).toBeNull();
+    expect(
+      match.game.ctx.gameService.canActivate(fixtureValue(chargers[1]).id)
+    ).toBe(true);
   });
 
   it("plays a complete match with every command crossing the wire", async () => {

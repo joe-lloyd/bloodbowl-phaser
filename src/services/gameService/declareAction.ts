@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
 import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { type GameState } from "@/types/GameState";
 import { type ActionType, GameEventNames } from "@/types/events";
@@ -18,6 +19,7 @@ import {
   SkillRegistry,
 } from "@/game/skills";
 import { holdsMeasure } from "@/game/inducements/matchInducements";
+import { kickoffTurnAllows } from "@/game/kickoff/kickoffTurn";
 import { razzleDazzleAllows } from "@/game/rules/actionAvailability";
 import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
 import {
@@ -65,11 +67,8 @@ export function declareAction({
   blockReplacement?: BlockReplacement;
   options?: { razzleDazzle?: boolean };
 }): boolean {
-  if (parts.kickoffEventManager.isChargeActive()) {
-    return chargeDeclareAction(parts, playerId, action);
-  }
-
   if (!parts.game.canActivate(playerId)) return false;
+  if (!kickoffTurnAllows(parts.state, action)) return false;
 
   const activating = parts.game.getPlayerById(playerId);
   if (!activating) return false;
@@ -188,6 +187,7 @@ function razzleDazzleRefuses({
   return (
     !!options.razzleDazzle &&
     (!!firstAction ||
+      !!kickoffTurnOf(parts.state) ||
       !holdsMeasure(
         parts.state,
         activating.teamId,
@@ -496,37 +496,6 @@ function finishDeclaration(
   ) {
     parts.flowManager.add(new ActivationGateOperation(playerId, action), true);
   }
-  return true;
-}
-
-function chargeDeclareAction(
-  parts: GameParts,
-  playerId: string,
-  action: ActionType
-): boolean {
-  const player = parts.game.getPlayerById(playerId);
-  if (
-    player?.status !== PlayerStatus.ACTIVE ||
-    parts.kickoffEventManager.getChargeActivePlayerId() !== playerId ||
-    !parts.kickoffEventManager.canChargeAct(playerId, action)
-  ) {
-    return false;
-  }
-
-  let teammateMode: "throw" | "kick" | undefined;
-  if (action === "throwTeamMate") {
-    const canThrow = hasSkill(player.skills, SkillType.THROW_TEAM_MATE);
-    const canKick = hasSkill(player.skills, SkillType.KICK_TEAM_MATE);
-    if (!canThrow && !canKick) return false;
-    teammateMode = canKick && !canThrow ? "kick" : "throw";
-  }
-
-  parts.state.activePlayer = { id: playerId, action };
-  parts.kickoffEventManager.noteChargeActionDeclared(action, teammateMode);
-  parts.eventBus.emit(
-    GameEventNames.UI_Notification,
-    `Charge! action declared: ${action}`
-  );
   return true;
 }
 

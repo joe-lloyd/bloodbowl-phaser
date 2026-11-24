@@ -1,7 +1,8 @@
 import type { ActionType } from "@/types/events";
 import { GameEventNames } from "@/types/events";
 import { PlayerStatus } from "@/types/Player";
-import { GamePhase, type GameState } from "@/types/GameState";
+import { type GameState } from "@/types/GameState";
+import { isTurnRunning } from "../../kickoff/kickoffTurn";
 import {
   type BlockReplacement,
   blockReplacementForDirectAction,
@@ -314,7 +315,7 @@ export function endActivation(c: GameplayInteractionController): void {
     state.activeTeamId === teamId &&
     state.turn === turn &&
     (!state.activePlayer || c.gameService.runsCommandsLater) &&
-    state.phase === GamePhase.PLAY
+    isTurnRunning(state)
   ) {
     c.eventBus.emit(GameEventNames.Camera_ChooseNextPlayer, {
       teamId,

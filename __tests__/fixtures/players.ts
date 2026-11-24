@@ -1,7 +1,6 @@
 import {
   type Player,
   PositionKeyWord,
-  PlayerStatus,
 } from "../../src/types/Player.js";
 import { PlayerBuilder } from "../utils/test-builders";
 
@@ -37,19 +36,5 @@ export function createCatcher(teamId = "test-team", number = 1): Player {
     .withPosition(PositionKeyWord.CATCHER)
     .withStats({ MA: 8, ST: 2, AG: 2, PA: 5, AV: 8 })
     .withCost(65000)
-    .build();
-}
-
-export function createPlayerOnPitch(
-  teamId: string,
-  number: number,
-  x: number,
-  y: number
-): Player {
-  return new PlayerBuilder()
-    .withTeamId(teamId)
-    .withNumber(number)
-    .withStatus(PlayerStatus.ACTIVE)
-    .withGridPosition(x, y)
     .build();
 }

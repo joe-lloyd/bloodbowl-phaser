@@ -53,7 +53,6 @@ import type { MoveStep } from "../headless/protocol";
 export class GameService implements IGameService {
   private readonly parts: GameParts;
 
-  private readonly blitzBlockUsed: Set<string>;
 
   public static createMatchState = createMatchState;
 
@@ -91,7 +90,6 @@ export class GameService implements IGameService {
     });
     this.diceController = this.parts.diceController;
     this.flowManager = this.parts.flowManager;
-    this.blitzBlockUsed = this.parts.marks.blitzBlockUsed;
 
     if (this.parts.state.phase === GamePhase.PLAY) {
       this.parts.rerollArbiter.beginHalf([team1.id, team2.id]);
@@ -311,22 +309,26 @@ export class GameService implements IGameService {
     drive.selectKicker(this.parts, playerId);
   }
 
-  async kickBall({
-    isTeam1Kicking,
-    playerId,
-    targetX,
-    targetY,
-  }: Parameters<IGameService["kickBall"]>[0]): Promise<void> {
-    await this.parts.ballManager.kickBall(
-      isTeam1Kicking,
-      playerId,
-      targetX,
-      targetY
-    );
+  async kickBall(kick: Parameters<IGameService["kickBall"]>[0]): Promise<void> {
+    const { isTeam1Kicking, playerId, targetX, targetY } = kick;
+    if (this.isKickUnderWay()) return;
+    await this.parts.ballManager.kickBall(isTeam1Kicking, playerId, targetX, targetY);
   }
 
-  rollKickoff(): void {
-    void this.parts.ballManager.rollKickoff();
+  isKickUnderWay(): boolean {
+    return this.parts.ballManager.isKickUnderWay();
+  }
+
+  kickInTheAir(): Promise<void> | null {
+    return this.parts.ballManager.kickInTheAir();
+  }
+
+  abandonKick(): void {
+    this.parts.ballManager.abandonFlight();
+  }
+
+  resumeKick(): Promise<void> {
+    return this.parts.ballManager.resumeKick();
   }
 
   awardTouchback(playerId: string): boolean {
@@ -345,9 +347,7 @@ export class GameService implements IGameService {
     return this.parts.kickoffEventManager.isResolving();
   }
 
-  getKickoffEventStep():
-    | import("@/game/kickoff/KickoffEventManager").KickoffEventStepState
-    | null {
+  getKickoffEventStep(): ReturnType<IGameService["getKickoffEventStep"]> {
     return this.parts.kickoffEventManager.getStep();
   }
 
@@ -369,6 +369,15 @@ export class GameService implements IGameService {
 
   skipKickoffEventStep(): boolean {
     return this.parts.kickoffEventManager.skipStep();
+  }
+
+  rehearseKickoffEvent: IGameService["rehearseKickoffEvent"] = (rehearsal) => {
+    const { isTeam1Kicking, landing, ...forced } = rehearsal;
+    return this.parts.ballManager.kickTo(isTeam1Kicking, landing, forced);
+  };
+
+  reselectKickoffEventPlayers(): boolean {
+    return this.parts.kickoffEventManager.reselect();
   }
 
   beginCoinFlip(): void {
@@ -404,11 +413,11 @@ export class GameService implements IGameService {
   }
 
   public hasUsedBlitzBlock(playerId: string): boolean {
-    if (!this.blitzBlockUsed.has(playerId)) return false;
-
+    const active = this.parts.state.activePlayer;
     return (
-      this.parts.state.activePlayer?.id === playerId &&
-      this.parts.state.activePlayer.action === "blitz"
+      active?.id === playerId &&
+      active.action === "blitz" &&
+      !!active.blitzBlockUsed
     );
   }
 

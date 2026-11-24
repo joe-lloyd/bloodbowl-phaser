@@ -38,8 +38,12 @@ import { edgeCrossed, isOnPitch } from "../rules/pitchSquares";
 import { activeRules } from "../variants/activeMatch";
 import { BounceOperation } from "../operations/BounceOperation";
 import { type ReactionDecisionAnswer } from "../../types/decisions";
-import { type KickoffEventOutcome } from "../kickoff/kickoffEvents";
-import { kickoffEventMeaning } from "../kickoff/kickoffTables";
+import {
+  type KickRecord,
+  type KickStage,
+  type KickoffRehearsal,
+  newKick,
+} from "../kickoff/kickRecord";
 import { kickLandsAsTouchback } from "../kickoff/ballConditions";
 
 const SCATTER_SHOWN_GUARD_MS = DIE_LANDING_TIMEOUT_MS + 4000;
@@ -50,14 +54,11 @@ interface BallCallbacks {
   onBallPlaced: (x: number, y: number) => void;
   getFlowManager?: () => GameFlowManager;
 
-  resolveKickoffEvent?: (isTeam1Kicking: boolean) => Promise<void>;
+  rollEvent?: (kick: KickRecord) => Promise<void>;
 
-  resolveHighKickStep?: (
-    isTeam1Kicking: boolean,
-    landingSquare: { x: number; y: number }
-  ) => Promise<void>;
+  coachStep?: (kick: KickRecord) => Promise<void>;
 
-  consumeWeatherScatterPending?: () => number;
+  abandonStep?: () => void;
 }
 
 export class BallManager {
@@ -65,11 +66,7 @@ export class BallManager {
   public kickoffController: KickoffController;
   public pickupController: PickupController;
 
-  private pendingTouchback = false;
-
-  private touchbackTeamId: string | null = null;
-
-  private isTeam1Kicking = true;
+  private flight: Promise<void> | null = null;
 
   private eventBus: IEventBus;
   private state: GameState;
@@ -101,38 +98,99 @@ export class BallManager {
     this.pickupController = new PickupController(eventBus, this.diceController);
   }
 
-  public async kickBall(
+  public kickInTheAir(): Promise<void> | null {
+    return this.flight;
+  }
+
+  public isKickUnderWay(): boolean {
+    return this.state.kick !== undefined;
+  }
+
+  public abandonFlight(): void {
+    this.flight = null;
+    if (this.state.kick) this.state.kick = { ...this.state.kick };
+    this.callbacks.abandonStep?.();
+  }
+
+  public forgetKick(): void {
+    delete this.state.kick;
+    this.abandonFlight();
+  }
+
+  public resumeKick(): Promise<void> {
+    const kick = this.state.kick;
+    if (!kick || kick.stage === "landed" || this.flight) return Promise.resolve();
+    if (kick.stage !== "reaction") this.emitKicked(kick);
+    return this.fly(kick);
+  }
+
+  private fly(kick: KickRecord): Promise<void> {
+    const flight = this.runStages(kick).finally(() => {
+      if (this.flight === flight) this.flight = null;
+    });
+    this.flight = flight;
+    return flight;
+  }
+
+  private async runStages(kick: KickRecord): Promise<void> {
+    while (this.state.kick === kick && kick.stage !== "landed")
+      await this.runStage(kick, kick.stage);
+  }
+
+  private runStage(
+    kick: KickRecord,
+    stage: Exclude<KickStage, "landed">
+  ): Promise<void> {
+    switch (stage) {
+      case "reaction":
+        return this.reactToKick(kick);
+      case "event":
+        return this.rollEvent(kick);
+      case "coach":
+        return this.coachStep(kick, "high-kick");
+      case "high-kick":
+        return this.coachStep(kick, "scatter");
+      case "scatter":
+        return this.scatterInTheWind(kick);
+      case "landing":
+        return this.land(kick);
+      case "placing":
+        return this.place(kick);
+    }
+  }
+
+  private async coachStep(kick: KickRecord, next: KickStage): Promise<void> {
+    await this.callbacks.coachStep?.(kick);
+    if (this.state.kick === kick) kick.stage = next;
+  }
+
+  private isTeam1Kicking(): boolean {
+    return this.state.kick?.kickingTeamId !== this.team2.id;
+  }
+
+  private emitKicked({ aim }: KickRecord): void {
+    const ball = this.state.ballPosition;
+    const target = { x: aim?.targetX ?? 0, y: aim?.targetY ?? 0 };
+    const final = ball ?? target;
+    this.eventBus.emit(GameEventNames.BallKicked, {
+      playerId: aim?.playerId ?? "",
+      targetX: target.x,
+      targetY: target.y,
+      direction: 0,
+      distance: 0,
+      finalX: final.x,
+      finalY: final.y,
+      isTouchback: !ball,
+    });
+  }
+
+  public kickBall(
     isTeam1Kicking: boolean,
     playerId: string,
     targetX: number,
     targetY: number
   ): Promise<void> {
-    this.isTeam1Kicking = isTeam1Kicking;
-
     this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.ROLL_KICKOFF);
-
-    if (this.state.kickoffKickResolved) {
-      this.isTeam1Kicking = this.state.kickoffKickResolved.isTeam1Kicking;
-      this.pendingTouchback = this.state.ballPosition === null;
-      if (this.pendingTouchback) {
-        this.eventBus.emit(GameEventNames.UI_Notification, "Touchback!");
-      }
-      this.eventBus.emit(GameEventNames.BallKicked, {
-        playerId,
-        targetX,
-        targetY,
-        direction: 0,
-        distance: 0,
-        finalX: this.state.ballPosition?.x ?? targetX,
-        finalY: this.state.ballPosition?.y ?? targetY,
-        isTouchback: this.pendingTouchback,
-      });
-      await this.delay(900);
-      this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.RESOLVE_KICKOFF);
-      await this.resolveKickoffEvent();
-      await this.finishKickoffResolution();
-      return;
-    }
 
     const kicker = [...this.team1.players, ...this.team2.players].find(
       (p) => p.id === playerId
@@ -150,7 +208,6 @@ export class BallManager {
       { targetX,targetY,isTeam1Kicking,useKickD3,kickingTeamId: isTeam1Kicking? this.team1.id:this.team2.id }    );
 
     this.announceWallHits(result.wallHits);
-    this.pendingTouchback = result.isTouchback;
     if (result.isTouchback) {
       this.state.ballPosition = null;
       this.eventBus.emit(GameEventNames.UI_Notification, "Touchback!");
@@ -158,41 +215,60 @@ export class BallManager {
       this.state.ballPosition = { x: result.finalX, y: result.finalY };
     }
 
-    this.state.kickoffKickResolved = { isTeam1Kicking };
-
-    if (!result.isTouchback) {
-      await this.resolveKickoffOnTheBall(isTeam1Kicking);
-    }
-
-    this.eventBus.emit(GameEventNames.BallKicked, {
-      playerId,
-      targetX,
-      targetY,
-      direction: 0,
-      distance: 0,
-      finalX: result.finalX,
-      finalY: result.finalY,
-      isTouchback: result.isTouchback,
-    });
-
-    await this.delay(900);
-    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.RESOLVE_KICKOFF);
-    await this.resolveKickoffEvent();
-
-    await this.finishKickoffResolution();
+    const kick = {
+      ...newKick(
+        (isTeam1Kicking ? this.team1 : this.team2).id,
+        "reaction",
+        result.isTouchback
+      ),
+      aim: { playerId, targetX, targetY },
+    };
+    this.state.kick = kick;
+    return this.fly(kick);
   }
 
-  public async automaticTouchback(isTeam1Kicking: boolean): Promise<void> {
-    this.isTeam1Kicking = isTeam1Kicking;
-    this.state.kickoffKickResolved = { isTeam1Kicking };
+  public kickTo(
+    isTeam1Kicking: boolean,
+    landing: { x: number; y: number },
+    rehearsal: KickoffRehearsal
+  ): Promise<void> {
+    this.state.kick = {
+      ...newKick((isTeam1Kicking ? this.team1 : this.team2).id, "event"),
+      aim: { playerId: "", targetX: landing.x, targetY: landing.y },
+      rehearsal,
+    };
+    this.state.ballPosition = { ...landing };
+    return this.resumeKick();
+  }
+
+  public automaticTouchback(isTeam1Kicking: boolean): Promise<void> {
+    const kick = newKick(
+      (isTeam1Kicking ? this.team1 : this.team2).id,
+      "placing",
+      true
+    );
+    this.state.kick = kick;
     this.state.ballPosition = null;
-    this.pendingTouchback = true;
     this.eventBus.emit(
       GameEventNames.UI_Notification,
       "No kicker on the pitch: Touchback!"
     );
-    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.PLACE_BALL);
-    await this.resolveBallPlacement();
+    return this.fly(kick);
+  }
+
+  private async reactToKick(kick: KickRecord): Promise<void> {
+    if (!kick.touchback) await this.resolveKickoffOnTheBall(this.isTeam1Kicking());
+    if (this.state.kick !== kick) return;
+    kick.stage = "event";
+    this.emitKicked(kick);
+  }
+
+  private async rollEvent(kick: KickRecord): Promise<void> {
+    await this.delay(900);
+    if (this.state.kick !== kick) return;
+    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.RESOLVE_KICKOFF);
+    await this.callbacks.rollEvent?.(kick);
+    if (this.state.kick === kick) kick.stage = "coach";
   }
 
   private async resolveKickoffOnTheBall(
@@ -253,85 +329,12 @@ export class BallManager {
     }
   }
 
-  public async rollKickoff(): Promise<void> {
-    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.RESOLVE_KICKOFF);
-    await this.resolveKickoffEvent();
-    await this.finishKickoffResolution();
-  }
-
-  private async resolveKickoffEvent(): Promise<void> {
-    if (this.callbacks.resolveKickoffEvent) {
-      await this.callbacks.resolveKickoffEvent(this.isTeam1Kicking);
-    } else {
-      const { roll, event } = this.kickoffController.rollKickoffEvent();
-      const outcome: KickoffEventOutcome = {
-        event,
-        meaning: kickoffEventMeaning(event),
-        perTeam: {},
-      };
-      this.eventBus.emit(GameEventNames.KickoffResult, {
-        roll,
-        event,
-        meaning: outcome.meaning,
-        outcome,
-      });
-    }
-  }
-
-  private async finishKickoffResolution(): Promise<void> {
-    if (this.state.ballPosition && this.callbacks.resolveHighKickStep) {
-      await this.callbacks.resolveHighKickStep(this.isTeam1Kicking, {
-        ...this.state.ballPosition,
-      });
-    }
-
-    await this.scatterInTheWind(
-      this.callbacks.consumeWeatherScatterPending?.() ?? 0
-    );
-    if (
-      this.state.ballPosition &&
-      kickLandsAsTouchback(this.state, this.state.ballPosition)
-    ) {
-      this.pendingTouchback = true;
-      this.state.ballPosition = null;
-    }
-
-    this.eventBus.emit(GameEventNames.KickoffBallLanding, {
-      landingSquare: this.state.ballPosition
-        ? { ...this.state.ballPosition }
-        : null,
-      isTouchback: this.pendingTouchback,
-    });
-
-    await this.delay(1000);
-    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.PLACE_BALL);
-    await this.resolveBallPlacement();
-  }
-
-  private async scatterInTheWind(squares: number): Promise<void> {
-    if (this.state.ballPosition && squares > 0) {
-      const from = { ...this.state.ballPosition };
-      const path = this.movementController.scatter(from, "Scatter", squares);
-      const to = path[path.length - 1];
-      if (!to) throw new Error("Weather scatter produced no path");
-      const kick = settleKick(
-        this.diceController,
-        { lastIn: path[path.length - 2] ?? from, to },
-        this.isTeam1Kicking
-      );
-      this.announceWallHits(kick.wallHits);
-      this.pendingTouchback = kick.landing === null;
-      this.state.ballPosition = kick.landing ? { ...kick.landing } : null;
-      this.eventBus.emit(GameEventNames.BallScattered, {
-        from,
-        to,
-        reason: `Changing Weather: ${this.state.weather === "Nice" ? "Perfect Conditions" : this.state.weather}`,
-      });
-      if (this.state.ballPosition) {
-        this.eventBus.emit(GameEventNames.KickoffAirbornePositionChanged, {
-          ...this.state.ballPosition,
-        });
-      }
+  private async scatterInTheWind(kick: KickRecord): Promise<void> {
+    const squares = kick.scatter;
+    kick.scatter = 0;
+    const from = this.state.ballPosition;
+    if (from && squares > 0) {
+      this.scatterFrom({ ...from }, squares, kick);
       await waitAtMost(
         this.delay,
         DiceWatch.shared(this.eventBus).landed(),
@@ -339,46 +342,90 @@ export class BallManager {
       );
       await this.delay(800);
     }
+    if (this.state.kick !== kick) return;
+    if (
+      this.state.ballPosition &&
+      kickLandsAsTouchback(this.state, this.state.ballPosition)
+    ) {
+      kick.touchback = true;
+      this.state.ballPosition = null;
+    }
+    kick.stage = "landing";
   }
 
-  public async resolveBallPlacement(): Promise<void> {
+  private scatterFrom(
+    from: { x: number; y: number },
+    squares: number,
+    kick: KickRecord
+  ): void {
+    const path = this.movementController.scatter(from, "Scatter", squares);
+    const to = path[path.length - 1];
+    if (!to) throw new Error("Weather scatter produced no path");
+    const settled = settleKick(
+      this.diceController,
+      { lastIn: path[path.length - 2] ?? from, to },
+      this.isTeam1Kicking()
+    );
+    this.announceWallHits(settled.wallHits);
+    kick.touchback = settled.landing === null;
+    this.state.ballPosition = settled.landing ? { ...settled.landing } : null;
+    this.eventBus.emit(GameEventNames.BallScattered, {
+      from,
+      to,
+      reason: `Changing Weather: ${this.state.weather === "Nice" ? "Perfect Conditions" : this.state.weather}`,
+    });
+    if (this.state.ballPosition)
+      this.eventBus.emit(GameEventNames.KickoffAirbornePositionChanged, {
+        ...this.state.ballPosition,
+      });
+  }
+
+  private async land(kick: KickRecord): Promise<void> {
+    this.eventBus.emit(GameEventNames.KickoffBallLanding, {
+      landingSquare: this.state.ballPosition
+        ? { ...this.state.ballPosition }
+        : null,
+      isTouchback: kick.touchback,
+    });
+    await this.delay(1000);
+    if (this.state.kick === kick) kick.stage = "placing";
+  }
+
+  private async place(kick: KickRecord): Promise<void> {
+    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.PLACE_BALL);
     await this.delay(200);
     await whenMomentsComplete(this.eventBus);
+    if (this.state.kick !== kick) return;
 
+    kick.stage = "landed";
     this.eventBus.emit(GameEventNames.KickoffSequenceCompleted, {
-      isTouchback: this.pendingTouchback,
+      isTouchback: kick.touchback,
     });
-
     this.eventBus.emit(GameEventNames.ReadyToStart, undefined);
+    if (kick.touchback) this.awardTouchbackToReceivers(kick);
+    else if (this.state.ballPosition) this.bringDown(this.state.ballPosition);
+  }
 
-    if (this.pendingTouchback) {
-      this.pendingTouchback = false;
-      this.awardTouchbackToReceivers();
-    } else if (this.state.ballPosition) {
-      const landing = { ...this.state.ballPosition };
-      const occupant = this.playerAt(landing);
-      const catcher = occupant ?? this.divingCatcherAt(landing);
-      if (catcher) {
-        this.callbacks.getFlowManager?.()?.add(
-          new CatchOperation(catcher.id, {
+  private bringDown({ x, y }: { x: number; y: number }): void {
+    const landing = { x, y };
+    const occupant = this.playerAt(landing);
+    const catcher = occupant ?? this.divingCatcherAt(landing);
+    this.callbacks.getFlowManager?.().add(
+      catcher
+        ? new CatchOperation(catcher.id, {
             origin: "kick-off",
             divingCatch: !occupant,
             landingPosition: landing,
             kickoff: true,
-          }),
-          true
-        );
-      } else {
-        this.callbacks
-          .getFlowManager?.()
-          ?.add(new BounceOperation(landing, true), true);
-      }
-    }
+          })
+        : new BounceOperation(landing, true),
+      true
+    );
   }
 
   public kickoffBounceTouchback(to: { x: number; y: number }): boolean {
     const touchback = isOnPitch(to)
-      ? isKickingTeamTerritory(to.x, this.isTeam1Kicking)
+      ? isKickingTeamTerritory(to.x, this.isTeam1Kicking())
       : edgeCrossed(to) === "crowd";
     if (!touchback) return false;
     this.touchback();
@@ -387,7 +434,8 @@ export class BallManager {
 
   private touchback(): void {
     this.state.ballPosition = null;
-    this.awardTouchbackToReceivers();
+    this.state.kick ??= newKick(this.team1.id, "landed");
+    this.awardTouchbackToReceivers(this.state.kick);
   }
 
   private announceWallHits(hits: readonly WallHit[]): void {
@@ -396,7 +444,7 @@ export class BallManager {
     }
   }
 
-  private awardTouchbackToReceivers(): void {
+  private awardTouchbackToReceivers(kick: KickRecord): void {
     const team = [this.team1, this.team2].find(
       (t) => t.id === this.state.activeTeamId
     );
@@ -404,10 +452,10 @@ export class BallManager {
     const taker = team?.players.some(
       (p) => p.gridPosition && p.status === PlayerStatus.ACTIVE
     );
-    this.touchbackTeamId = taker ? (team?.id ?? null) : null;
-    if (!this.touchbackTeamId) return;
+    kick.touchbackTeamId = taker ? (team?.id ?? null) : null;
+    if (!kick.touchbackTeamId) return;
     this.eventBus.emit(GameEventNames.TouchbackAwarded, {
-      teamId: this.touchbackTeamId,
+      teamId: kick.touchbackTeamId,
     });
     this.eventBus.emit(
       GameEventNames.UI_Notification,
@@ -416,21 +464,22 @@ export class BallManager {
   }
 
   public awardTouchback(playerId: string): boolean {
-    if (!this.touchbackTeamId) return false;
+    const kick = this.state.kick;
+    if (!kick?.touchbackTeamId) return false;
 
     const player = [...this.team1.players, ...this.team2.players].find(
       (p) => p.id === playerId
     );
     if (
       !player ||
-      player.teamId !== this.touchbackTeamId ||
+      player.teamId !== kick.touchbackTeamId ||
       !player.gridPosition ||
       player.status !== PlayerStatus.ACTIVE
     ) {
       return false;
     }
 
-    this.touchbackTeamId = null;
+    kick.touchbackTeamId = null;
     this.state.ballPosition = { ...player.gridPosition };
     this.callbacks.onBallPlaced(player.gridPosition.x, player.gridPosition.y);
     this.eventBus.emit(
@@ -441,7 +490,7 @@ export class BallManager {
   }
 
   public isTouchbackPending(): boolean {
-    return this.touchbackTeamId !== null;
+    return this.state.kick?.touchbackTeamId != null;
   }
 
   public throwIn(

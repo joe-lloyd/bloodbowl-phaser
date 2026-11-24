@@ -52,6 +52,7 @@ test("a charger under the airborne ball rolls no Pick up, then Catches it", asyn
 
   await app.pitch.clickPlayer(fixtureValue(charger).ref);
   await charge.click();
+  await app.pitch.clickPlayer(fixtureValue(charger).ref);
   await expect(app.hud.actionMenu()).toBeVisible({ timeout: 10_000 });
   await app.hud.actionButton("move").click();
 

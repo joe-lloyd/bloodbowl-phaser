@@ -1,8 +1,8 @@
+import { kickoffTurnOf } from "../game/kickoff/kickRecord";
 import Phaser from "phaser";
 import { GameScene } from "./GameScene";
 import { GamePhase } from "../types/GameState";
-import { TeamFactory } from "../game/TeamFactory";
-import { appearanceOf } from "../game/names/playerIdentity";
+import { sandboxTeam } from "./sandboxTeam";
 import { RosterName } from "../types/Team";
 import { type Team } from "../types/Team";
 
@@ -86,18 +86,6 @@ function scenarioFromConfig(
   };
 }
 
-function sandboxTeam(rosterName: RosterName, teamName: string, color: number): Team {
-  const team = TeamFactory.createTestTeam(rosterName, teamName, color);
-  for (const player of team.players) {
-    const appearance = appearanceOf(
-      { id: `${teamName}-${String(player.number)}`, positionName: player.positionName },
-      rosterName
-    );
-    if (appearance) player.appearance = appearance;
-  }
-  return team;
-}
-
 export class SandboxScene extends GameScene {
   constructor() {
     super("SandboxScene");
@@ -169,7 +157,7 @@ export class SandboxScene extends GameScene {
 
     this.playerMovedHandler = () => {
       const state = this.gameService.getState();
-      state.turn.activatedPlayerIds.clear();
+      if (!kickoffTurnOf(state)) state.turn.activatedPlayerIds.clear();
     };
     this.eventBus.on(GameEventNames.PlayerMoved, this.playerMovedHandler);
 

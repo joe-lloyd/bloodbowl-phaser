@@ -225,7 +225,7 @@ describe("Gutter Bowl sewer kick-off table", () => {
     const { game } = await sewer([4, 5]);
     const parsed = gameSnapshotSchema.parse(structuredClone(game.snapshot()));
 
-    expect(parsed.kickoffResolution?.event).toBe(KickoffEvent.STICKY_SLUDGE);
+    expect(parsed.kick?.resolution?.event).toBe(KickoffEvent.STICKY_SLUDGE);
     expect(parsed.driveEffects?.conditions).toEqual(["sticky-sludge"]);
   });
 

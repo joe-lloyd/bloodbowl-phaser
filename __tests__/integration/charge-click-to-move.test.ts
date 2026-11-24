@@ -136,7 +136,7 @@ describe("Charge! click-to-move on the board", () => {
       expect(gs.confirmKickoffEventStep()).toBe(true);
 
       for (const id of chargers) {
-        expect(gs.getKickoffEventStep()?.charge?.activePlayerId).toBe(id);
+        controller.handlePlayerClick(id);
         expect(menuFor).toBe(id);
         const player = fixtureValue(gs.getPlayerById(id));
         const from = { ...fixtureValue(player.gridPosition) };
@@ -166,7 +166,7 @@ describe("Charge! click-to-move on the board", () => {
     }
   );
 
-  it("refuses a click-to-move for anyone but the charger up now", async () => {
+  it("refuses a click-to-move for anyone who was not picked", async () => {
     const game = await kickedIntoCharge("team2");
     const gs = game.ctx.gameService;
     const { team1, team2 } = game.ctx;
@@ -182,55 +182,6 @@ describe("Charge! click-to-move on the board", () => {
     controller.destroy();
   });
 
-  it("hands a fresh, cancellable activation to the next charger when a move ends the last one", async () => {
-    const game = await kickedIntoCharge("team1");
-    const gs = game.ctx.gameService;
-    const { eventBus, team1 } = game.ctx;
-    const controller = board(game);
-    const chargers = [
-      fixtureValue(team1.players[1]).id,
-      fixtureValue(team1.players[3]).id,
-    ];
-    for (const id of chargers) controller.handlePlayerClick(id);
-    gs.confirmKickoffEventStep();
-
-    let ended = false;
-    eventBus.on(GameEventNames.PlayerMoved, (data: { playerId: string }) => {
-      if (!ended && data.playerId === chargers[0]) {
-        ended = true;
-        gs.finishActivation(chargers[0]);
-      }
-    });
-    const movedInAction: string[] = [];
-    eventBus.on(
-      GameEventNames.PlayerMovedInAction,
-      (data: { playerId: string }) => movedInAction.push(data.playerId)
-    );
-
-    const from = {
-      ...fixtureValue(
-        fixtureValue(gs.getPlayerById(fixtureValue(chargers[0]))).gridPosition
-      ),
-    };
-    const to = { x: from.x + 2, y: from.y };
-    eventBus.emit(GameEventNames.UI_ActionSelected, {
-      action: "move",
-      playerId: fixtureValue(chargers[0]),
-    });
-    controller.handlePointerDown({ worldX: to.x, worldY: to.y }, false);
-    controller.handlePointerDown({ worldX: to.x, worldY: to.y }, false);
-    await settle();
-
-    expect(ended).toBe(true);
-    expect(gs.getKickoffEventStep()?.charge?.activePlayerId).toBe(chargers[1]);
-
-    expect(movedInAction).not.toContain(chargers[1]);
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    eventBus.emit(GameEventNames.UI_CancelAction, undefined);
-    expect(warn).not.toHaveBeenCalledWith("Cannot cancel action after moving");
-    warn.mockRestore();
-    controller.destroy();
-  });
 });
 
 describe("Charge! Blitz block from the block dialog", () => {

@@ -34,13 +34,17 @@ const ACTIONS_WITH_A_MOVE: ReadonlySet<ActionType> = new Set<ActionType>([
   "ballAndChain",
 ]);
 
+export function actionHasMove(action: ActionType): boolean {
+  return ACTIONS_WITH_A_MOVE.has(action);
+}
+
 export function razzleDazzleAllows(
   first: ActionType,
   second: ActionType
 ): boolean {
   return (
     first !== second &&
-    !(ACTIONS_WITH_A_MOVE.has(first) && ACTIONS_WITH_A_MOVE.has(second))
+    !(actionHasMove(first) && actionHasMove(second))
   );
 }
 
@@ -151,7 +155,16 @@ function secondActionAvailability(
     ...withoutSecondAction(input),
     hasMovedInAction: false,
   });
-  const allows = (action: ActionType) => razzleDazzleAllows(first, action);
+  const allowed = restrictAvailability(all, (action) =>
+    razzleDazzleAllows(first, action)
+  );
+  return { ...allowed, standUp: false };
+}
+
+export function restrictAvailability(
+  all: ActionAvailability,
+  allows: (action: ActionType) => boolean
+): ActionAvailability {
   const gate = (key: GatedKey) => all[key] && allows(SECOND_ACTION_TYPE[key]);
   return {
     move: gate("move"),
@@ -163,7 +176,7 @@ function secondActionAvailability(
     punt: gate("punt"),
     handoff: gate("handoff"),
     foul: gate("foul"),
-    standUp: false,
+    standUp: all.standUp && allows("move"),
     secureBall: gate("secureBall"),
     stab: gate("stab"),
     breatheFire: gate("breatheFire"),

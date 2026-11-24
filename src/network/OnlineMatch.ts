@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "../game/kickoff/kickRecord";
 import { assertPregameSaveable } from "../game/inducements/pregame";
 import { type IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
@@ -512,7 +513,7 @@ class OnlineSession {
 
   private isKickoffActor(): boolean {
     const active = this.engine.getActiveTeamId();
-    return this.engine.getPhase() === GamePhase.KICKOFF && active !== null && active !== this.sides.myTeamId;
+    return this.engine.getPhase() === GamePhase.KICKOFF && !kickoffTurnOf(this.engine.getState()) && active !== null && active !== this.sides.myTeamId;
   }
 
   private mayAct(): boolean {
@@ -520,7 +521,7 @@ class OnlineSession {
     if (this.game.pendingDecision()) return this.decidingTeamId() === this.sides.myTeamId;
     const pregame = this.engine.getState().pregameInducements;
     if (pregame && !pregame.complete) return !pregame.offer?.confirmed[this.sides.myTeamId];
-    if (this.engine.getPhase() === GamePhase.KICKOFF) return this.isKickoffActor();
+    if (this.engine.getPhase() === GamePhase.KICKOFF && !kickoffTurnOf(this.engine.getState())) return this.isKickoffActor();
     return this.engine.getActiveTeamId() === this.sides.myTeamId;
   }
 
@@ -541,8 +542,11 @@ class OnlineSession {
   }
 
   private phaseWaitingLabel(): string {
+    const { teamId } = this.engine.getState().turn;
+    const kickoff = kickoffTurnOf(this.engine.getState());
+    if (kickoff) return `${this.teamName(teamId)} is playing ${kickoff.event}…`;
     if (this.engine.getPhase() === GamePhase.KICKOFF) {
-      if (this.engine.getState().kickoffKickResolved != null) return "The kick-off is landing…";
+      if (this.engine.getState().kick) return "The kick-off is landing…";
       if (!this.isKickoffActor()) return `Waiting for ${this.sides.opponentName} to kick off…`;
     }
     if (this.engine.getPhase() === GamePhase.SETUP) return `Waiting for ${this.sides.opponentName} to set up…`;

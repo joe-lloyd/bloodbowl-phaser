@@ -339,58 +339,6 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(receiver.gridPosition).toEqual(landing);
   });
 
-  it("spends Charge action budgets without consuming coming-turn activations", async () => {
-    const found = await findEveryEvent();
-    const { game } = fixtureValue(found.get(KickoffEvent.CHARGE));
-    const players = game.ctx.team1.players.slice(0, 2);
-    for (const player of players) {
-      await game.execute({
-        type: "kickoff-select-player",
-        playerId: player.id,
-      });
-    }
-    await game.execute({ type: "kickoff-confirm" });
-
-    expect(
-      (
-        await game.execute({
-          type: "declare-action",
-          playerId: fixtureValue(players[0]).id,
-          action: "blitz",
-        })
-      ).ok
-    ).toBe(true);
-    expect(game.pendingDecision()).toMatchObject({
-      type: "kickoff-event",
-      charge: { budget: { blitz: 0 } },
-    });
-    await game.execute({
-      type: "end-activation",
-      playerId: fixtureValue(players[0]).id,
-    });
-    expect(game.pendingDecision()).toMatchObject({
-      type: "kickoff-event",
-      charge: { activePlayerId: fixtureValue(players[1]).id },
-    });
-    await game.execute({
-      type: "declare-action",
-      playerId: fixtureValue(players[1]).id,
-      action: "move",
-    });
-    await game.execute({
-      type: "end-activation",
-      playerId: fixtureValue(players[1]).id,
-    });
-
-    expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
-    expect(
-      game.ctx.gameService.hasPlayerActed(fixtureValue(players[0]).id)
-    ).toBe(false);
-    expect(
-      game.ctx.gameService.hasPlayerActed(fixtureValue(players[1]).id)
-    ).toBe(false);
-  });
-
   it("lets the charger up now act, whatever turn the stale ledger holds (regression: Charge! click-to-move)", async () => {
     const found = await findEveryEvent();
     const { game } = fixtureValue(found.get(KickoffEvent.CHARGE));
@@ -480,73 +428,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
       beforeSelect?.selectedPlayerIds
     );
 
-    const toX =
-      fixtureValue(player.gridPosition).x === 0
-        ? 1
-        : fixtureValue(player.gridPosition).x - 1;
-    const moveResponse = await game.execute({
-      type: "kickoff-move-player",
-      playerId: player.id,
-      x: toX,
-      y: fixtureValue(player.gridPosition).y,
-    });
-    expect(moveResponse.ok).toBe(true);
-    const afterMove = game.ctx.gameService.getKickoffEventStep();
-    expect(afterMove).not.toBe(afterSelect);
-    expect(afterMove?.movedPlayerIds).toEqual([player.id]);
-
     await game.execute({ type: "kickoff-skip" });
-  });
-
-  it("Charge!'s active player and step reference advance correctly across advanceCharge() (regression: frozen active player)", async () => {
-    const found = await findEveryEvent();
-    const { game } = fixtureValue(found.get(KickoffEvent.CHARGE));
-    const players = game.ctx.team1.players.slice(0, 2);
-    for (const player of players) {
-      await game.execute({
-        type: "kickoff-select-player",
-        playerId: player.id,
-      });
-    }
-
-    const beforeConfirm = game.ctx.gameService.getKickoffEventStep();
-    await game.execute({ type: "kickoff-confirm" });
-    const afterConfirm = game.ctx.gameService.getKickoffEventStep();
-    expect(afterConfirm).not.toBe(beforeConfirm);
-    expect(afterConfirm?.charge?.activePlayerId).toBe(
-      fixtureValue(players[0]).id
-    );
-
-    await game.execute({
-      type: "declare-action",
-      playerId: fixtureValue(players[0]).id,
-      action: "move",
-    });
-    await game.execute({
-      type: "end-activation",
-      playerId: fixtureValue(players[0]).id,
-    });
-    const afterFirstAdvance = game.ctx.gameService.getKickoffEventStep();
-
-    expect(afterFirstAdvance).not.toBe(afterConfirm);
-    expect(afterFirstAdvance?.charge?.activePlayerId).toBe(
-      fixtureValue(players[1]).id
-    );
-    expect(afterFirstAdvance?.charge?.activePlayerId).not.toBe(
-      afterConfirm?.charge?.activePlayerId
-    );
-
-    await game.execute({
-      type: "declare-action",
-      playerId: fixtureValue(players[1]).id,
-      action: "move",
-    });
-    await game.execute({
-      type: "end-activation",
-      playerId: fixtureValue(players[1]).id,
-    });
-
-    expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
   });
 
   it("lets a Frenzy player finish a Charge Blitz: follow-up, then the second Block", async () => {
@@ -594,45 +476,5 @@ describe("Sevens kickoff events (seeded headless)", () => {
       return;
     }
     throw new Error("no seed rolled Charge! and a Push");
-  });
-
-  it("aborts Charge immediately when the active player is knocked down", async () => {
-    const found = await findEveryEvent();
-    const { game } = fixtureValue(found.get(KickoffEvent.CHARGE));
-    const pending = game.pendingDecision();
-    expect(pending?.type).toBe("kickoff-event");
-    if (pending?.type !== "kickoff-event") return;
-
-    const candidates = game.ctx.team1.players.slice(0, 2);
-    for (const player of candidates) {
-      expect(
-        (
-          await game.execute({
-            type: "kickoff-select-player",
-            playerId: player.id,
-          })
-        ).ok
-      ).toBe(true);
-    }
-    expect((await game.execute({ type: "kickoff-confirm" })).ok).toBe(true);
-
-    const active = game.pendingDecision();
-    expect(active?.type).toBe("kickoff-event");
-    if (active?.type !== "kickoff-event") return;
-    const activeId = active.charge?.activePlayerId;
-    expect(activeId).toBe(fixtureValue(candidates[0]).id);
-
-    game.ctx.eventBus.emit(GameEventNames.PlayerKnockedDown, {
-      playerId: fixtureValue(activeId),
-    });
-    await Promise.resolve();
-
-    expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
-    expect(
-      game.ctx.gameService.hasPlayerActed(fixtureValue(candidates[0]).id)
-    ).toBe(false);
-    expect(
-      game.ctx.gameService.hasPlayerActed(fixtureValue(candidates[1]).id)
-    ).toBe(false);
   });
 });

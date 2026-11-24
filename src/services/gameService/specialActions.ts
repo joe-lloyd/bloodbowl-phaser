@@ -1,3 +1,5 @@
+import { markBlitzBlockUsed } from "./blockActions";
+import { isTurnRunning } from "@/game/kickoff/kickoffTurn";
 import { adjacentSquare } from "./squares";
 import { GamePhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
@@ -237,7 +239,7 @@ export async function performSpecialAction({
   targetId: string;
 }): Promise<boolean> {
   if (awaitingSecondAction(parts, attackerId)) return false;
-  if (parts.state.phase !== GamePhase.PLAY) return false;
+  if (!isTurnRunning(parts.state)) return false;
   const attacker = parts.game.getPlayerById(attackerId);
   if (attacker?.status !== PlayerStatus.ACTIVE) return false;
 
@@ -356,7 +358,7 @@ async function commitBlockReplacement({
   const effectiveAttacker = withDriveModifiers(attacker, parts.state);
   let newMovementUsed: number | undefined;
   if (isBlitz) {
-    if (parts.marks.blitzBlockUsed.has(attackerId)) {
+    if (active.blitzBlockUsed) {
       return { accepted: false, proceed: false };
     }
     const used = parts.state.turn.movementUsed.get(attackerId) ?? 0;
@@ -436,12 +438,7 @@ function fallBeforeTheAttack(parts: GameParts, attacker: Player): void {
 }
 
 function teammateThrowAbilities(parts: GameParts, throwerId: string) {
-  if (
-    parts.state.phase !== GamePhase.PLAY &&
-    !parts.kickoffEventManager.isChargeActive()
-  ) {
-    return;
-  }
+  if (!isTurnRunning(parts.state)) return;
 
   const thrower = parts.game.getPlayerById(throwerId);
   if (thrower?.status !== PlayerStatus.ACTIVE) return;
@@ -480,6 +477,6 @@ function chargeReplacementMovement(
   attackerId: string,
   used: number
 ): void {
-  parts.marks.blitzBlockUsed.add(attackerId);
+  markBlitzBlockUsed(parts);
   parts.state.turn.movementUsed.set(attackerId, used);
 }

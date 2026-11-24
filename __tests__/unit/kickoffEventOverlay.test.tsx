@@ -1,26 +1,24 @@
-import { fixtureValue } from "../../src/testing/fixtureValue";
+import { kickoffTurnOf } from "../../src/game/kickoff/kickRecord";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
-import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { GameEventNames } from "../../src/types/events";
-import { GamePhase } from "../../src/types/GameState";
+import { EventBus } from "../../src/services/EventBus";
 import { KickoffEventOverlay } from "../../src/ui/components/hud/KickoffEventOverlay";
 import { PlayerActionMenu } from "../../src/ui/components/hud/PlayerActionMenu";
-import { createPlayerOnPitch } from "../fixtures/players";
+import { EndTurnButton } from "../../src/ui/components/hud/EndTurnButton";
+import { choose, rehearse } from "../headless/kickoffRehearsal";
 
-describe("KickoffEventOverlay", () => {
+describe("the kick-off turn in the HUD", () => {
   let container: HTMLDivElement;
   let root: Root;
-  let eventBus: EventBus;
 
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    eventBus = new EventBus();
   });
 
   afterEach(async () => {
@@ -31,323 +29,130 @@ describe("KickoffEventOverlay", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps selection on the pitch instead of rendering player/action buttons", async () => {
-    const step = {
-      event: KickoffEvent.ALERT_DEFENCE,
-      teamId: "team1",
-      selectionLimit: 3,
-      selectedPlayerIds: [],
-      movedPlayerIds: [],
-      awaitingPlacement: [],
-    };
-    const gameService = {
-      getMovementUsed: vi.fn(() => 0),
-      getKickoffEventStep: vi.fn(() => step),
-      getTeam: vi.fn(() => ({
-        id: "team1",
-        name: "Reikland Reavers",
-        players: [
-          { id: "p1", playerName: "Griff", status: "Active" },
-          { id: "p2", playerName: "Mighty Zug", status: "Active" },
-        ],
-      })),
-      confirmKickoffEventStep: vi.fn(),
-      skipKickoffEventStep: vi.fn(),
-    };
+  async function show(event: KickoffEvent, players: number) {
+    const run = await rehearse(event, { players });
+    const { gs, game } = run;
     vi.spyOn(ServiceContainer, "isInitialized").mockReturnValue(true);
-    vi.spyOn(ServiceContainer, "getInstance").mockReturnValue({
-      gameService,
-    } as any);
-
-    await act(async () => {
-      root.render(<KickoffEventOverlay eventBus={eventBus} />);
-    });
-    await act(async () => {
-      eventBus.emit(GameEventNames.KickoffEventStepStarted, {
-        event: KickoffEvent.ALERT_DEFENCE,
-        teamId: "team1",
-        selectionLimit: 3,
-      });
-    });
-
-    expect(
-      [...container.querySelectorAll("li")].map((line) => line.textContent)
-    ).toEqual(["1Choose a ringed player", "2Click a green square", "3Press Done"]);
-    expect(container.querySelector("section")?.className).toContain("mt-auto");
-    expect(container.querySelector(".absolute")).toBeNull();
-    expect(container.textContent).not.toContain("Griff");
-    expect(container.textContent).not.toContain("Mighty Zug");
-    expect(
-      [...container.querySelectorAll("button")].map((button) =>
-        button.textContent?.trim()
-      )
-    ).toEqual(["Skip", "Done"]);
-  });
-
-  it("counts players moved, not picked, and finishes only after a move", async () => {
-    const step = {
-      event: KickoffEvent.QUICK_SNAP,
-      teamId: "team1",
-      selectionLimit: 3,
-      selectedPlayerIds: new Array<string>(),
-      movedPlayerIds: new Array<string>(),
-      awaitingPlacement: [],
-    };
-    const gameService = {
-      getMovementUsed: vi.fn(() => 0),
-
-      getKickoffEventStep: vi.fn(() => ({
-        ...step,
-        selectedPlayerIds: [...step.selectedPlayerIds],
-        movedPlayerIds: [...step.movedPlayerIds],
-      })),
-      getTeam: vi.fn(() => ({
-        id: "team1",
-        name: "Reikland Reavers",
-        players: [{ id: "p1", playerName: "Griff", status: "Active" }],
-      })),
-      confirmKickoffEventStep: vi.fn(),
-      skipKickoffEventStep: vi.fn(),
-    };
-    vi.spyOn(ServiceContainer, "isInitialized").mockReturnValue(true);
-    vi.spyOn(ServiceContainer, "getInstance").mockReturnValue({
-      gameService,
-    } as any);
-    const done = () =>
-      fixtureValue([...container.querySelectorAll("button")].find(
-        (button) => button.textContent?.trim() === "Done"
-      ));
-    const current = () =>
-      container.querySelector('[aria-current="step"]')?.textContent;
-    const refresh = () =>
-      act(async () => {
-        eventBus.emit(GameEventNames.KickoffEventStepStarted, {
-          event: KickoffEvent.QUICK_SNAP,
-          teamId: "team1",
-          selectionLimit: 3,
-        });
-      });
-
-    await act(async () => {
-      root.render(<KickoffEventOverlay eventBus={eventBus} />);
-    });
-    await refresh();
-    expect(container.textContent).toContain("0/3 moved");
-    expect(current()).toBe("1Choose a ringed player");
-    expect(done().disabled).toBe(true);
-
-    step.selectedPlayerIds = ["p1"];
-    await act(async () => {
-      eventBus.emit(GameEventNames.KickoffEventStepChanged, undefined);
-    });
-    expect(current()).toBe("2Click a green square");
-    expect(container.textContent).toContain("0/3 moved");
-    expect(done().disabled).toBe(true);
-
-    step.movedPlayerIds = ["p1"];
-    await refresh();
-    expect(container.textContent).toContain("1/3 moved");
-    expect(current()).toBe("1Choose a ringed player");
-    expect(done().disabled).toBe(false);
-
-    step.selectedPlayerIds = ["p1", "p2", "p3"];
-    step.movedPlayerIds = ["p1", "p2", "p3"];
-    await refresh();
-    expect(current()).toBe("3Press Done");
-  });
-
-  it("uses the normal player action menu for the active Charge player", async () => {
-    const player = createPlayerOnPitch("team1", 1, 5, 5);
-    const chargeStep = {
-      event: KickoffEvent.CHARGE,
-      teamId: "team1",
-      selectionLimit: 1,
-      selectedPlayerIds: [player.id],
-      movedPlayerIds: [],
-      awaitingPlacement: [],
-      charge: {
-        queue: [],
-        budget: { blitz: 1, throwTeammate: 1, kickTeammate: 1 },
-        activePlayerId: player.id,
-        aborted: false,
-      },
-    };
-    const gameService = {
-      getMovementUsed: vi.fn(() => 0),
-      getKickoffEventStep: vi.fn(() => chargeStep),
-      getPlayerById: vi.fn(() => player),
-      getState: vi.fn(() => ({ ballPosition: null })),
-      getOpponents: vi.fn(() => []),
-      getTeammates: vi.fn(() => []),
-      getAvailableMovements: vi.fn(() => [{ x: 6, y: 5 }]),
-    };
-    vi.spyOn(ServiceContainer, "isInitialized").mockReturnValue(true);
-    vi.spyOn(ServiceContainer, "getInstance").mockReturnValue({
-      gameService,
-    } as any);
-
-    await act(async () => {
-      root.render(
-        <PlayerActionMenu
-          eventBus={eventBus}
-          turnData={{
-            phase: GamePhase.KICKOFF,
-            activeTeamId: "team2",
-            movementUsed: new Map(),
-            hasBlitzed: false,
-            hasPassed: false,
-            hasHandedOff: false,
-            hasFouled: false,
-          }}
-        />
-      );
-    });
-    await act(async () => {
-      eventBus.emit(GameEventNames.PlayerSelected, { player });
-    });
-
-    expect(container.textContent).toContain("MOVE");
-    expect(container.textContent).toContain("END ACTIVATION");
-    expect(container.textContent).not.toContain("PASS");
-    expect(container.textContent).not.toContain("FOUL");
-  });
-
-  it.each([
-    { phase: GamePhase.KICKOFF, hasBlitzed: true, budget: 1, offered: true },
-    { phase: GamePhase.KICKOFF, hasBlitzed: false, budget: 1, offered: true },
-    { phase: GamePhase.KICKOFF, hasBlitzed: false, budget: 0, offered: false },
-    { phase: GamePhase.PLAY, hasBlitzed: true, budget: 1, offered: false },
-  ])(
-    "uses the current action window for Blitz: $phase, previous turn spent=$hasBlitzed, Charge budget=$budget",
-    async ({ phase, hasBlitzed, budget, offered }) => {
-      const player = createPlayerOnPitch("team1", 1, 5, 5);
-      const defender = createPlayerOnPitch("team2", 1, 7, 5);
-      const gameService = {
-        getMovementUsed: vi.fn(() => 0),
-        getKickoffEventStep: () => ({
-          event: KickoffEvent.CHARGE,
-          teamId: "team1",
-          charge: {
-            activePlayerId: player.id,
-            budget: { blitz: budget, throwTeammate: 1, kickTeammate: 1 },
-          },
-        }),
-        getPlayerById: () => player,
-        getState: () => ({ ballPosition: null }),
-        getOpponents: () => [defender],
-        getTeammates: () => [],
-        getAvailableMovements: () => [{ x: 6, y: 5 }],
-      };
-      vi.spyOn(ServiceContainer, "isInitialized").mockReturnValue(true);
-      vi.spyOn(ServiceContainer, "getInstance").mockReturnValue({
-        gameService,
-      } as any);
-      const selected = vi.fn();
-      eventBus.on(GameEventNames.UI_ActionSelected, selected);
-      const turnData = {
-        phase,
-        activeTeamId: "team1",
-        movementUsed: new Map(),
-        hasBlitzed,
-        hasPassed: false,
-        hasHandedOff: false,
-        hasFouled: false,
-      };
+    vi.spyOn(ServiceContainer, "getInstance").mockReturnValue(
+      Object.assign(Object.create(ServiceContainer.prototype), {
+        gameService: gs,
+      })
+    );
+    const bus = game.ctx.eventBus;
+    if (!(bus instanceof EventBus)) throw new Error("no browser bus");
+    const render = async () => {
+      const { turn, phase } = gs.getState();
       await act(async () => {
         root.render(
-          <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
+          <>
+            <KickoffEventOverlay eventBus={bus} />
+            <PlayerActionMenu
+              eventBus={bus}
+              turnData={{
+                phase,
+                activeTeamId: turn.teamId,
+                hasBlitzed: turn.hasBlitzed,
+                hasPassed: false,
+                hasHandedOff: false,
+                hasFouled: false,
+              }}
+            />
+            <EndTurnButton
+              phase={phase}
+              kickoffTurn={kickoffTurnOf(gs.getState())?.event ?? null}
+              activeTeamId={turn.teamId}
+              onClick={() => undefined}
+            />
+          </>
         );
       });
       await act(async () => {
-        eventBus.emit(GameEventNames.PlayerSelected, { player });
+        bus.emit(GameEventNames.KickoffEventStepChanged, undefined);
       });
-
-      const blitz = container.querySelector<HTMLButtonElement>(
-        '[data-testid="action-blitz"]'
-      );
-      expect(!!blitz).toBe(offered);
-      if (blitz) {
-        await act(async () => {
-          blitz.click();
+    };
+    const select = (playerId: string) =>
+      act(async () => {
+        bus.emit(GameEventNames.PlayerSelected, {
+          player: gs.getPlayerById(playerId) ?? null,
         });
-        expect(selected).toHaveBeenCalledWith({
-          playerId: player.id,
-          action: "blitz",
-        });
-      }
-
-      expect(turnData.hasBlitzed).toBe(hasBlitzed);
-    }
-  );
-
-  it("opens the menu when the Charge starts with the player the coach just picked", async () => {
-    const player = createPlayerOnPitch("team1", 1, 5, 5);
-    const step: {
-      event: KickoffEvent;
-      teamId: string;
-      selectionLimit: number;
-      selectedPlayerIds: string[];
-      movedPlayerIds: string[];
-      awaitingPlacement: string[];
-      charge?: {
-        queue: string[];
-        budget: { blitz: number; throwTeammate: number; kickTeammate: number };
-        activePlayerId: string | null;
-        aborted: boolean;
-      };
-    } = {
-      event: KickoffEvent.CHARGE,
-      teamId: "team1",
-      selectionLimit: 1,
-      selectedPlayerIds: [],
-      movedPlayerIds: [],
-      awaitingPlacement: [],
-    };
-    const gameService = {
-      getMovementUsed: vi.fn(() => 0),
-      getKickoffEventStep: vi.fn(() => ({ ...step })),
-      getPlayerById: vi.fn(() => player),
-      getState: vi.fn(() => ({ ballPosition: null })),
-      getOpponents: vi.fn(() => []),
-      getTeammates: vi.fn(() => []),
-      getAvailableMovements: vi.fn(() => [{ x: 6, y: 5 }]),
-    };
-    vi.spyOn(ServiceContainer, "isInitialized").mockReturnValue(true);
-    vi.spyOn(ServiceContainer, "getInstance").mockReturnValue({
-      gameService,
-    } as any);
-    await act(async () => {
-      root.render(
-        <PlayerActionMenu
-          eventBus={eventBus}
-          turnData={{
-            phase: GamePhase.KICKOFF,
-            activeTeamId: "team2",
-            movementUsed: new Map(),
-            hasBlitzed: false,
-            hasPassed: false,
-            hasHandedOff: false,
-            hasFouled: false,
-          }}
-        />
+      });
+    const todo = () =>
+      [...container.querySelectorAll("li")].map(({ textContent }) => textContent);
+    const current = () =>
+      container.querySelector('[aria-current="step"]')?.textContent;
+    const buttons = () =>
+      [...container.querySelectorAll("button")].map(
+        ({ textContent }) => textContent?.trim() ?? ""
       );
-    });
+    await render();
+    return { ...run, render, select, buttons, todo, current };
+  }
 
-    step.selectedPlayerIds = [player.id];
-    await act(async () => {
-      eventBus.emit(GameEventNames.PlayerSelected, { player });
-    });
-    expect(container.textContent).not.toContain("MOVE");
+  it("counts the picks, then how many are left to play", async () => {
+    const { game, home, render, buttons, todo, current } = await show(KickoffEvent.CHARGE, 2);
+    expect(container.textContent).toContain("0/2 chosen");
+    expect(todo()).toEqual([
+      "1Choose up to 2 ringed players",
+      "2Press Start Charge!",
+      "3Play each one, in any order",
+      "4Press End Charge! to stop early",
+    ]);
+    expect(current()).toBe("1Choose up to 2 ringed players");
+    expect(container.textContent).not.toContain("%");
+    expect(buttons()).toEqual(["Skip", "Start Charge!"]);
 
-    step.charge = {
-      queue: [],
-      budget: { blitz: 1, throwTeammate: 1, kickTeammate: 1 },
-      activePlayerId: player.id,
-      aborted: false,
-    };
-    await act(async () => {
-      eventBus.emit(GameEventNames.PlayerSelected, { player });
-    });
-    expect(container.textContent).toContain("MOVE");
+    await choose(game, [home(1).id, home(2).id]);
+    await render();
+    expect(container.textContent).toContain("2 left");
+    expect(current()).toBe("3Play each one, in any order");
+    expect(buttons()[0]).toBe("Change picks");
+    expect(buttons().at(-1)).toContain("End Charge!");
+  });
+
+  it("offers Move and Blitz to a picked player, and nothing to the rest", async () => {
+    const { game, home, render, select, buttons } = await show(
+      KickoffEvent.CHARGE,
+      1
+    );
+    await choose(game, [home(1).id]);
+    await render();
+    await select(home(1).id);
+    const offered = buttons().join(" | ");
+    expect(offered).toContain("MOVE");
+    expect(offered).toContain("END ACTIVATION");
+    expect(offered).not.toContain("PASS");
+    expect(offered).not.toContain("FOUL");
+
+    await select(home(2).id);
+    expect(buttons().join(" | ")).not.toContain("MOVE");
+  });
+
+  it("offers a Blitz until the turn has used it", async () => {
+    const { game, gs, home, away, render, select } = await show(
+      KickoffEvent.CHARGE,
+      2
+    );
+    await choose(game, [home(1).id, home(2).id]);
+    away(1).gridPosition = { x: 8, y: 4 };
+    await render();
+    await select(home(1).id);
+    const blitz = () => container.querySelector('[data-testid="action-blitz"]');
+    expect(blitz()).not.toBeNull();
+    gs.getState().turn.hasBlitzed = true;
+    await render();
+    expect(blitz()).toBeNull();
+  });
+
+  it("asks for a green square in a one-square turn", async () => {
+    const { game, away, render, select, buttons, current } = await show(
+      KickoffEvent.QUICK_SNAP,
+      2
+    );
+    await choose(game, [away(1).id]);
+    await render();
+    await select(away(1).id);
+    expect(current()).toBe("3Click each one, then a green square");
+    expect(container.textContent).toContain("1 left");
+    expect(buttons().join(" | ")).not.toContain("MOVE");
   });
 });
