@@ -42,6 +42,7 @@ import {
   startDiceLog,
 } from "./matchStart";
 import { followMatchWithCamera } from "./matchCamera";
+import { locateActionOnScreen } from "./actionOnScreen";
 import { subscribeWallHits } from "./wallHitEffects";
 import * as board from "./boardSprites";
 import { subscribeBoardEvents, subscribeTurnMarkers } from "./boardEvents";
@@ -281,6 +282,7 @@ export class GameScene extends Phaser.Scene {
     subscribeTurnMarkers(this);
     subscribeWallHits(this);
     followMatchWithCamera(this);
+    this.busSubscriptions.push(locateActionOnScreen(this));
 
     this.eventBus.emit(GameEventNames.UI_LoadProgress, { progress: 1 });
     if (!this.resumedMatch) this.cameraController.intro();

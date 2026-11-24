@@ -6,6 +6,8 @@ import { MATCH_STYLE } from "../presentation/matchStyle";
 import { ISO } from "../elements/GridUtils";
 import { GameConfig } from "../../config/GameConfig";
 import { isTyping } from "../presentation/keyboardFocus";
+import { PHONE_QUERY, matchesMedia } from "../presentation/phoneLayout";
+import { phoneArea, phoneZoom } from "./phoneCamera";
 
 interface Point {
   x: number;
@@ -97,6 +99,17 @@ export function clearArea(
   return area;
 }
 
+function narrowed(previous: ScreenRect, area: ScreenRect): boolean {
+  return (
+    Math.max(
+      area.left - previous.left,
+      previous.right - area.right,
+      area.top - previous.top,
+      previous.bottom - area.bottom
+    ) > REFRAME_TOLERANCE_PX
+  );
+}
+
 export const CAMERA_INTRO_MS = 1250;
 
 const ZOOM_PER_PIXEL = 0.001;
@@ -112,6 +125,9 @@ export class CameraController {
   private dugoutPoints: Point[];
   private eventBus: (CameraBus) | undefined;
   private manual = false;
+  private coachZoomed = false;
+  private showingOverview = true;
+  private size: { width: number; height: number };
   private minZoom = Number.POSITIVE_INFINITY;
   private followArea: ScreenRect | null = null;
   private fitZoomComplete: (() => void) | undefined;
@@ -125,9 +141,12 @@ export class CameraController {
   private unsubscribers: (() => void)[] = [];
 
   private readonly hudRects: (() => ScreenRect[] | undefined) | undefined;
+  private readonly phone: () => boolean;
   constructor(
-{ scene,pitch,world,dugoutPoints,eventBus,hudRects }: { scene: CameraScene; pitch: CameraPitch; world: { width: number; height: number; }; dugoutPoints: Point[]; eventBus?: CameraBus; hudRects?: () => ScreenRect[]|undefined; }  ) {
+{ scene,pitch,world,dugoutPoints,eventBus,hudRects,phone }: { scene: CameraScene; pitch: CameraPitch; world: { width: number; height: number; }; dugoutPoints: Point[]; eventBus?: CameraBus; hudRects?: () => ScreenRect[]|undefined; phone?: () => boolean; }  ) {
     this.hudRects = hudRects;
+    this.phone = phone ?? (() => matchesMedia(PHONE_QUERY));
+    this.size = { width: scene.scale.width, height: scene.scale.height };
     this.scene = scene;
     this.camera = scene.cameras.main;
     this.pitch = pitch;
@@ -173,7 +192,17 @@ export class CameraController {
   }
 
   private overviewFraming() {
-    return this.frame({ points: [...this.pitchCorners(),...this.dugoutPoints],pad: 1.06,topInset: 96 });
+    const whole = this.frame({ points: [...this.pitchCorners(),...this.dugoutPoints],pad: 1.06,topInset: 96 });
+    if (!this.phone()) return whole;
+    const area = this.clearAreaNow();
+    const pitch = this.frame({ points: this.pitchCorners() });
+    return {
+      zoom: whole.zoom,
+      centre: {
+        x: whole.centre.x,
+        y: this.centreInArea(pitch.centre, area, whole.zoom).y,
+      },
+    };
   }
 
   private snap({ centre, zoom }: { centre: Point; zoom: number }): void {
@@ -185,6 +214,7 @@ export class CameraController {
   private glide(centre: Point, zoom: number, duration = MOVE_MS): void {
     this.stopFollow();
     this.framed = null;
+    this.showingOverview = false;
     if (reducedMotion()) {
       this.snap({ centre, zoom });
       return;
@@ -232,6 +262,7 @@ export class CameraController {
   public intro(duration = CAMERA_INTRO_MS): void {
     this.cancelCameraWork();
     const target = this.overviewFraming();
+    this.showingOverview = true;
     if (reducedMotion()) {
       this.snap(target);
       return;
@@ -253,9 +284,32 @@ export class CameraController {
 
   public overview(duration = MOVE_MS): void {
     this.cancelCameraWork();
+    if (this.keepsCoachZoom()) return;
     const { centre, zoom } = this.overviewFraming();
     this.glide(centre, zoom, duration);
+    this.showingOverview = true;
     this.publishState("neutral", duration);
+  }
+
+  private keepsCoachZoom(): boolean {
+    return this.coachZoomed && this.phone();
+  }
+
+  private fitZoom(box: ScreenRect, area: ScreenRect): number {
+    return Math.min(
+      (area.right - area.left) / ((box.right - box.left) * 1.15),
+      (area.bottom - area.top) / ((box.bottom - box.top) * 1.15),
+      TEAM_MAX_ZOOM
+    );
+  }
+
+  private actionZoom(box: ScreenRect, area: ScreenRect, elsewhere: number): number {
+    if (!this.phone()) return elsewhere;
+    return phoneZoom({
+      fit: this.fitZoom(box, area),
+      current: this.camera.zoom,
+      coachZoomed: this.coachZoomed,
+    });
   }
 
   public focus(point: Point, duration = MOVE_MS, force = false): void {
@@ -299,9 +353,9 @@ export class CameraController {
   private trackPoints(points: FocusPoints, duration: number): void {
     const previous = this.framed;
     this.cancelCameraWork(false);
-    const zoom = this.camera.zoom;
     const area = this.clearAreaNow();
     const box = this.pointBox(points);
+    const zoom = this.actionZoom(box, area, this.camera.zoom);
     const halfWidth = (area.right - area.left) / (2 * 1.15 * zoom);
     const halfHeight = (area.bottom - area.top) / (2 * 1.15 * zoom);
     const along = ({ anchor,low,high,half }: { anchor: number; low: number; high: number; half: number; }) =>
@@ -322,7 +376,7 @@ export class CameraController {
       box.bottom - box.top <= 2 * halfHeight
         ? points
         : points.slice(0, 1);
-    if (previous) {
+    if (previous && zoom === this.camera.zoom) {
       const { width, height } = this.scene.scale;
 
       const held = this.camera.panEffect.isRunning
@@ -343,8 +397,9 @@ export class CameraController {
       });
       if (
         visible &&
-        Math.hypot(centre.x - held.x, centre.y - held.y) * zoom <=
-          PAN_DEADBAND_PX
+        (this.phone() ||
+          Math.hypot(centre.x - held.x, centre.y - held.y) * zoom <=
+            PAN_DEADBAND_PX)
       ) {
         this.framed = { points, area, centre: held };
         return;
@@ -362,11 +417,7 @@ export class CameraController {
     this.cancelCameraWork();
     const area = this.clearAreaNow();
     const box = this.pointBox(points);
-    const zoom = Math.min(
-      (area.right - area.left) / ((box.right - box.left) * 1.15),
-      (area.bottom - area.top) / ((box.bottom - box.top) * 1.15),
-      TEAM_MAX_ZOOM
-    );
+    const zoom = this.actionZoom(box, area, this.fitZoom(box, area));
     const centre = this.centreInArea(
       {
         x: (box.left + box.right) / 2,
@@ -396,10 +447,12 @@ export class CameraController {
 
   public handoff(all: Point[], next: Point[]): void {
     this.release();
+    if (this.phone()) {
+      this.handOver(next.length ? next : all, 650);
+      return;
+    }
     if (reducedMotion()) {
-      if (next.length) this.fitSquares(next, 0);
-      else if (all.length) this.fitSquares(all, 0);
-      else this.overview(0);
+      this.handOver(next.length ? next : all, 0);
       return;
     }
     if (all.length) this.fitSquares(all, 650);
@@ -410,34 +463,49 @@ export class CameraController {
     });
   }
 
+  private handOver(squares: Point[], duration: number): void {
+    if (squares.length) this.fitSquares(squares, duration);
+    else this.overview(duration);
+  }
+
   private reframingSuppressed(): boolean {
     return this.manual || Boolean(this.handoffTimer) || this.camera.zoomEffect.isRunning;
   }
 
   public refreshFraming(reason: "hud" | "resize" = "hud"): void {
     if (this.reframingSuppressed()) return;
+    if (this.showingOverview && this.phone()) {
+      this.slideOverview();
+      return;
+    }
     const previous = this.followArea ?? this.framed?.area;
     if (!previous) return;
     const area = this.clearAreaNow();
-    const narrowed =
-      Math.max(
-        area.left - previous.left,
-        previous.right - area.right,
-        area.top - previous.top,
-        previous.bottom - area.bottom
-      ) > REFRAME_TOLERANCE_PX;
-    if (reason !== "resize" && !narrowed) return;
+    if (reason !== "resize" && !narrowed(previous, area)) return;
+    this.reframe(area);
+  }
+
+  private reframe(area: ScreenRect): void {
     if (this.followArea) this.followInClearArea(area);
     else if (this.framed) this.trackPoints(this.framed.points, REFRAME_MS);
   }
 
+  private slideOverview(): void {
+    const { centre, zoom } = this.overviewFraming();
+    const shown = this.camera.scrollY + this.camera.height / 2;
+    if (Math.abs(centre.y - shown) * zoom <= PAN_DEADBAND_PX / 2) return;
+    this.glide(centre, this.camera.zoom, REFRAME_MS);
+    this.showingOverview = true;
+  }
+
   private clearAreaNow(): ScreenRect {
     const { width, height } = this.scene.scale;
-    return clearArea(
+    const clear = clearArea(
       width,
       height,
       this.hudRects?.() ?? defaultHudRects(width, height)
     );
+    return this.phone() ? phoneArea(clear, { width, height }) : clear;
   }
 
   public follow(target: Phaser.GameObjects.GameObject): void {
@@ -476,6 +544,7 @@ export class CameraController {
 
   public reset(duration = MOVE_MS): void {
     this.release();
+    this.coachZoomed = false;
     this.overview(duration);
   }
 
@@ -489,6 +558,7 @@ export class CameraController {
 
   public zoomAt(x: number, y: number, factor: number): void {
     this.takeOver();
+    this.coachZoomed = true;
     const camera = this.camera;
     const min = this.minZoom;
     const zoom = Math.min(
@@ -573,14 +643,29 @@ export class CameraController {
 
   private takeOver(): void {
     this.manual = true;
+    this.showingOverview = false;
     this.framed = null;
     this.cancelCameraWork();
     this.publishState("active", 0);
   }
 
   private readonly onResize = (): void => {
-    this.refreshFraming("resize");
+    const before = this.size;
+    this.size = { width: this.scene.scale.width, height: this.scene.scale.height };
+    if (this.phone()) this.turnWithPhone(before);
+    else this.refreshFraming("resize");
   };
+
+  private turnWithPhone(before: { width: number; height: number }): void {
+    if (this.showingOverview) {
+      this.cancelCameraWork();
+      this.snap(this.overviewFraming());
+      return;
+    }
+    this.camera.scrollX += (before.width - this.size.width) / 2;
+    this.camera.scrollY += (before.height - this.size.height) / 2;
+    this.refreshFraming("resize");
+  }
 
   public destroy(): void {
     this.unsubscribers.forEach((off) => {
