@@ -1,230 +1,207 @@
-import { Link } from "../ui/components/common/NativeControls";
-import { SECTIONS, VARIANTS } from "./variants";
-import { PAGES_NAV, PagesReview } from "./PagesReview";
-import { ShotLink, SketchCard } from "./GalleryKit";
-import { Eyebrow, Panel } from "../ui/components/componentWarehouse/HudKit";
+import { useState } from "react";
+import { Input, Link } from "../ui/components/common/NativeControls";
+import { Eyebrow } from "../ui/components/componentWarehouse/HudKit";
+import { DriftFinding } from "./DriftFinding";
+import { DRIFT } from "./drift";
+import { Frame } from "./Frame";
+import { type FrameSize, slug } from "./frames";
+import { NOT_SHOWN } from "./notShown";
+import { SizeSwitch } from "./SizeSwitch";
+import { GROUPS, type Group, type Variant } from "./variant";
+import { VARIANTS } from "./variants";
 
-const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+const DRIFT_TITLE = "Drift";
+const NAV = [GROUPS[0], DRIFT_TITLE, ...GROUPS.slice(1), "Not shown"] as const;
 
-const SKETCHES = [
-  {
-    file: "broadcast",
-    name: "A: Stadium Broadcast",
-    note: "Live sports TV graphics. Charcoal glass slabs, gold hairlines, blood red for the thing that matters, condensed type, skewed accents.",
-    chosen: true,
-  },
-  {
-    file: "ironclad",
-    name: "B: Ironclad Dugout",
-    note: "Riveted iron plates, engraved gold, blackletter headings and a parchment slip for rules text.",
-  },
-  {
-    file: "chalk",
-    name: "C: Chalk Talk",
-    note: "The coach's tactics board. Slate green, chalk handwriting, dashed outlines.",
-  },
-];
-
-const SHOTS = [
-  { file: "setup", title: "Setup" },
-  { file: "coin-toss", title: "Coin toss" },
-  { file: "coin-toss-result", title: "Coin toss result" },
-  { file: "action-menu", title: "A selected player and the action menu" },
-  { file: "action-sequence", title: "The action sequence after choosing Move" },
-  { file: "dodge-prompt", title: "A dodge prompt" },
-  { file: "dice-tray", title: "The dice tray with a roll up" },
-  { file: "block-dialog", title: "Block dialog before the roll" },
-  { file: "block-dice", title: "Block dice up for a choice" },
-  {
-    file: "match-options",
-    title: "Match options opened (before: it opened off the top of the screen)",
-  },
-];
-
-const NOT_SHOWN = [
-  "The dice log's chat tab and the online Waiting and Disconnected banners need a live online match; they use the same slab, label and button styles shown here.",
-  "The online lobby room needs a signed-in coach and a live lobby, so the captures show its signed-out state. The Pages section renders its match settings panel live.",
-];
-
-function Frame({
-  id,
-  height = 720,
-  scale = 0.5,
-}: {
-  id: string;
-  height?: number | undefined;
-  scale?: number;
-}) {
-  return (
-    <div
-      className="overflow-hidden rounded-hud border border-white/10 bg-black"
-      style={{ width: 1280 * scale, height: height * scale }}
-    >
-      <iframe
-        title={id}
-        src={`?v=${id}`}
-        loading="lazy"
-        width={1280}
-        height={height}
-        className="origin-top-left border-0"
-        style={{ transform: `scale(${String(scale)})` }}
-      />
-    </div>
-  );
-}
-
-function SectionTitle({
-  id,
-  children,
-}: {
-  id: string;
-  children: React.ReactNode;
-}) {
+function GroupTitle({ children }: { children: string }) {
   return (
     <h2
-      id={id}
-      className="mb-4 mt-14 scroll-mt-6 border-b border-hud-gold/30 pb-2 font-hud-display text-hud-2xl uppercase tracking-[0.03em] text-hud-bone"
+      id={slug(children)}
+      className="mb-4 mt-14 scroll-mt-20 border-b border-hud-gold/30 pb-2 font-hud-display text-hud-2xl uppercase tracking-[0.03em]"
     >
       {children}
     </h2>
   );
 }
 
-export function GalleryIndex() {
+function VariantCard({ variant, size }: { variant: Variant; size: FrameSize }) {
   return (
-    <div className="mx-auto flex max-w-[1400px] gap-10 px-8 py-10">
-      <nav className="sticky top-6 hidden h-[calc(100vh-3rem)] w-52 shrink-0 overflow-y-auto hud-scroll lg:block">
-        <Eyebrow tone="gold">Sections</Eyebrow>
-        <ul className="mt-2 flex flex-col gap-0.5 font-hud-label text-[15px] font-semibold uppercase tracking-[0.04em]">
-          {[
-            "Direction",
-            "Before and after",
-            ...PAGES_NAV,
-            ...SECTIONS,
-            "Not shown",
-          ].map((name) => (
-            <li key={name}>
-              <Link
-                className="block rounded-hud px-2 py-1 text-hud-dim hover:bg-white/5 hover:text-hud-gold"
-                href={`#${slug(name)}`}
-              >
-                {name}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+    <figure id={variant.id} className="min-w-0 scroll-mt-20">
+      <figcaption className="mb-2 flex items-baseline justify-between gap-3">
+        <span className="font-hud-label text-hud-base font-bold">
+          {variant.title}
+        </span>
+        <Link
+          href={`?show=${variant.id}&size=${size}`}
+          className="hud-label shrink-0 hover:text-hud-gold"
+        >
+          Full size
+        </Link>
+      </figcaption>
+      <Frame variant={variant} size={size} />
+    </figure>
+  );
+}
 
-      <main className="min-w-0 flex-1">
-        <header>
-          <Eyebrow tone="gold">Blood Bowl Sevens · Stadium Broadcast</Eyebrow>
-          <h1 className="mt-1 font-hud-display text-hud-4xl uppercase tracking-[0.02em]">
-            HUD and pages gallery
+function GroupSections({
+  group,
+  size,
+  wanted,
+}: {
+  group: Group;
+  size: FrameSize;
+  wanted: readonly Variant[];
+}) {
+  const mine = wanted.filter((variant) => variant.group === group);
+  if (mine.length === 0) return null;
+  const sections = [...new Set(mine.map((variant) => variant.section))];
+  return (
+    <section>
+      <GroupTitle>{group}</GroupTitle>
+      {sections.map((section) => (
+        <div key={section} className="mb-10">
+          <h3 className="mb-3 font-hud-label text-hud-xl font-bold uppercase tracking-[0.04em] text-hud-gold">
+            {section}
+          </h3>
+          <div
+            className={
+              mine.some((v) => v.section === section && v.stage === "sheet")
+                ? "grid gap-6"
+                : "grid gap-6 xl:grid-cols-2"
+            }
+          >
+            {mine
+              .filter((variant) => variant.section === section)
+              .map((variant) => (
+                <VariantCard key={variant.id} variant={variant} size={size} />
+              ))}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function DriftSection({ size }: { size: FrameSize }) {
+  return (
+    <section>
+      <GroupTitle>{DRIFT_TITLE}</GroupTitle>
+      <p className="mb-6 max-w-3xl text-hud-base text-hud-dim">
+        Each box is cut out of the live component, and the page measures the
+        numbers under it as it loads. Nothing here is fixed yet. Pick what each
+        one should be.
+      </p>
+      <div className="grid gap-10">
+        {DRIFT.map((finding) => (
+          <DriftFinding key={finding.id} finding={finding} size={size} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function matching(text: string): Variant[] {
+  const wanted = text.trim().toLowerCase();
+  return VARIANTS.filter((variant) =>
+    `${variant.section} ${variant.title} ${variant.id}`
+      .toLowerCase()
+      .includes(wanted)
+  );
+}
+
+function Sidebar() {
+  return (
+    <nav className="hud-scroll sticky top-20 hidden h-[calc(100vh-6rem)] w-48 shrink-0 overflow-y-auto lg:block">
+      <ul className="flex flex-col gap-0.5 font-hud-label text-hud-base font-semibold uppercase tracking-[0.04em]">
+        {NAV.map((name) => (
+          <li key={name}>
+            <Link
+              className="block rounded-hud px-2 py-1 text-hud-dim hover:bg-white/5 hover:text-hud-gold"
+              href={`#${slug(name)}`}
+            >
+              {name}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+function TopBar({
+  size,
+  onSize,
+  onFind,
+}: {
+  size: FrameSize;
+  onSize: (size: FrameSize) => void;
+  onFind: (text: string) => void;
+}) {
+  return (
+    <div className="sticky top-0 z-50 border-b border-hud-gold/25 bg-hud-sunk/95 px-4 py-3 lg:px-8">
+      <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-3">
+        <span className="mr-auto hidden font-hud-display text-hud-lg uppercase sm:block">
+          UI gallery
+        </span>
+        <div className="w-44">
+          <Input
+            className="hud-field"
+            aria-label="Find a component"
+            placeholder="Find a component"
+            onChange={(event) => {
+              onFind(event.target.value);
+            }}
+          />
+        </div>
+        <SizeSwitch size={size} onChange={onSize} />
+      </div>
+    </div>
+  );
+}
+
+export function GalleryIndex() {
+  const [size, setSize] = useState<FrameSize>("desktop");
+  const [find, setFind] = useState("");
+  const wanted = matching(find);
+  return (
+    <div
+      data-variants={VARIANTS.map((v) => v.id).join(" ")}
+      className="min-h-screen"
+    >
+      <TopBar size={size} onSize={setSize} onFind={setFind} />
+      <div className="mx-auto flex max-w-[1500px] gap-8 px-4 py-8 lg:px-8">
+        <Sidebar />
+        <main className="min-w-0 flex-1">
+          <Eyebrow tone="gold">Blood Bowl Sevens</Eyebrow>
+          <h1 className="mt-1 font-hud-display text-hud-3xl uppercase tracking-[0.02em]">
+            Every component in one place
           </h1>
           <p className="mt-3 max-w-3xl text-hud-base text-hud-dim">
-            Every floating React element in the match, and every page around it,
-            on one design system. The variants below are the real components,
-            rendered with fixture data and a real event bus over a pitch
-            backdrop. Each frame is a live page: hover and click work.
+            {VARIANTS.length} states of the real components, with made-up teams.
+            Every frame is live, so hover and click work. Switch the whole page
+            between a desktop and a phone held sideways with the buttons at the
+            top.
           </p>
-        </header>
-
-        <SectionTitle id="direction">Direction</SectionTitle>
-        <p className="mb-4 max-w-3xl text-hud-base text-hud-dim">
-          Three cheap sketches of the same four elements: the score bar, a
-          decision dialog, the dice tray and the log.
-        </p>
-        <div className="grid gap-5 xl:grid-cols-3">
-          {SKETCHES.map((sketch) => (
-            <SketchCard key={sketch.file} sketch={sketch}>
-              <p className="mt-1 text-hud-sm text-hud-dim">{sketch.note}</p>
-            </SketchCard>
+          <GroupSections group={GROUPS[0]} size={size} wanted={wanted} />
+          {find === "" && <DriftSection size={size} />}
+          {GROUPS.slice(1).map((group) => (
+            <GroupSections
+              key={group}
+              group={group}
+              size={size}
+              wanted={wanted}
+            />
           ))}
-        </div>
-        <Panel accent="gold" className="mt-5 max-w-3xl p-5">
-          <Eyebrow tone="gold">Why Stadium Broadcast</Eyebrow>
-          <p className="mt-2 text-hud-base">
-            It reads fastest over a busy pitch. Big plain numerals and a
-            condensed label face keep scores, stats and target numbers legible
-            at a glance, and the dark slabs sit back from the board instead of
-            competing with it. Gold and blood red give it the Blood Bowl voice
-            without ornament. Ironclad looked the part but its blackletter and
-            heavy frames cost readability and space. Chalk Talk was light on the
-            board but too casual, and handwriting slows down reading a dice
-            result.
-          </p>
-          <p className="mt-3 text-hud-sm text-hud-dim">
-            System: Anton for display, Barlow Condensed for labels and buttons,
-            Barlow for body text. Tailwind tokens under <code>hud-*</code>;
-            primitives in <code>componentWarehouse/HudKit.tsx</code> (Panel,
-            PanelHeader, Eyebrow, HudButton, Chip, Stat, DieFace, DialogShell,
-            DialogActions, HudCoin).
-          </p>
-        </Panel>
-
-        <SectionTitle id="before-and-after">
-          Before and after, in the real game
-        </SectionTitle>
-        <p className="mb-4 max-w-3xl text-hud-base text-hud-dim">
-          Captured by <code>scripts/hud-shots</code> driving sandbox scenarios
-          in the built game, at 1280 by 800. Left is the HUD before this work,
-          right is after.
-        </p>
-        <div className="flex flex-col gap-8">
-          {SHOTS.map((shot) => (
-            <figure key={shot.file}>
-              <figcaption className="mb-2 font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em]">
-                {shot.title}
-              </figcaption>
-              <div className="grid gap-3 lg:grid-cols-2">
-                {(["before", "after"] as const).map((when) => (
-                  <ShotLink
-                    key={when}
-                    src={`./shots/${when}/${shot.file}.jpg`}
-                    alt={`${shot.title}, ${when}`}
-                    side={when}
-                  />
-                ))}
-              </div>
-            </figure>
-          ))}
-        </div>
-
-        <PagesReview SectionTitle={SectionTitle} slug={slug} />
-
-        {SECTIONS.map((section) => (
-          <section key={section}>
-            <SectionTitle id={slug(section)}>{section}</SectionTitle>
-            <div className="flex flex-wrap gap-6">
-              {VARIANTS.filter((v) => v.section === section).map((v) => (
-                <figure key={v.id}>
-                  <Frame id={v.id} height={v.height} />
-                  <figcaption className="mt-2 flex items-center gap-2">
-                    <span className="font-hud-label text-[15px] font-bold uppercase tracking-[0.04em]">
-                      {v.title}
-                    </span>
-                    <Link
-                      href={`?v=${v.id}`}
-                      className="hud-label hover:text-hud-gold"
-                    >
-                      open
-                    </Link>
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
-          </section>
-        ))}
-
-        <SectionTitle id="not-shown">Not shown</SectionTitle>
-        <ul className="mb-16 max-w-3xl list-disc pl-5 text-hud-base text-hud-dim">
-          {NOT_SHOWN.map((line) => (
-            <li key={line} className="mt-1">
-              {line}
-            </li>
-          ))}
-        </ul>
-      </main>
+          <GroupTitle>Not shown</GroupTitle>
+          <ul className="mb-16 max-w-3xl list-disc pl-5 text-hud-base text-hud-dim">
+            {NOT_SHOWN.map((line) => (
+              <li key={line} className="mt-1">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </main>
+      </div>
     </div>
   );
 }

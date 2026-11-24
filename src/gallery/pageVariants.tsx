@@ -1,208 +1,422 @@
-import { Button, Input, Select } from "../ui/components/common/NativeControls";
-import React, { useState } from "react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
-import type { Variant } from "./variants";
-import { seedDevelopmentData } from "../seeding/runner";
-import { seedCompetitionId, seedTeamId } from "../seeding/seedMeta";
-import { loadTeams } from "../game/managers/TeamManager";
-import { MainMenu } from "../ui/components/pages/MainMenu";
-import { TeamManagement } from "../ui/components/pages/TeamManagement";
-import { TeamBuilder } from "../ui/components/pages/TeamBuilder";
-import { TeamSelect } from "../ui/components/pages/TeamSelect";
-import { PlayerPage } from "../ui/components/pages/PlayerPage";
+import { seedCompetitionId } from "../seeding/seedMeta";
+import { TeamLibraryGate } from "../ui/components/TeamManagement/TeamLibraryGate";
+import { setTeamLibraryStatus } from "../game/managers/TeamManager";
+import { ClubFounding } from "../ui/components/club/ClubFounding";
+import { ClubHub } from "../ui/components/club/ClubHub";
+import { ClubPage } from "../ui/components/club/ClubPage";
+import { CompetitionBuilder } from "../ui/components/pages/CompetitionBuilder";
 import { CompetitionHub } from "../ui/components/pages/CompetitionHub";
 import { CompetitionView } from "../ui/components/pages/CompetitionView";
-import { CompetitionBuilder } from "../ui/components/pages/CompetitionBuilder";
+import { FriendsPage } from "../ui/components/pages/FriendsPage";
+import { MainMenu } from "../ui/components/pages/MainMenu";
+import { OnlineLobby } from "../ui/components/pages/OnlineLobby";
+import { PlayerPage } from "../ui/components/pages/PlayerPage";
 import { SharedTeamBrowser } from "../ui/components/pages/SharedTeamBrowser";
-import { SettingsPanel } from "../ui/components/pages/OnlineLobby";
+import { SoundTest } from "../ui/components/pages/SoundTest";
+import { TeamBuilder } from "../ui/components/pages/TeamBuilder";
+import { TeamManagement } from "../ui/components/pages/TeamManagement";
+import { TeamSelect } from "../ui/components/pages/TeamSelect";
 import {
-  Chip,
-  EmptyState,
-  Field,
-  HudButton,
-  hudChoiceClass,
-  Notice,
-  PageHeader,
-  PageShell,
-  Section,
-} from "../ui/components/componentWarehouse/HudKit";
-import type { LobbySettings } from "../firebase/lobby";
+  CLOUD_LEAGUE,
+  guestSeat,
+  hostAlone,
+  hostReady,
+  LOBBY_PATH,
+  openGamesList,
+  organizedByMe,
+  organizedByRival,
+  otherCoaches,
+  RANDOM_ROLL,
+  rolledPlayer,
+  signedIn,
+  teamAt,
+  withClubs,
+  withFriends,
+  withInvites,
+} from "./cloudScenes";
+import { at, pages, routed } from "./pageRoutes";
+import { click, later } from "./variantHelpers";
+import type { Drive, Row, Variant } from "./variant";
 
-const SECTION = "Pages";
-const seed = () => void seedDevelopmentData();
-const firstTeamId = () => loadTeams()[0]?.id ?? seedTeamId("missing");
+const SIGNED_OUT = "Signed out";
+const teamPages = (section: string, list: readonly Row[]) =>
+  pages("Team pages", section, list);
+const competitionPages = (section: string, list: readonly Row[]) =>
+  pages("Competitions", section, list);
+const teamList = routed("/build-team", <TeamManagement />);
 
-const at = (path: string, pattern: string, element: React.ReactNode) => (
-  <MemoryRouter initialEntries={[path]}>
-    <Routes>
-      <Route path={pattern} element={element} />
-    </Routes>
-  </MemoryRouter>
+const nothing = () => undefined;
+
+const press =
+  (label: string): Drive =>
+  () =>
+    later(400, () => {
+      click("button", label);
+    });
+
+const menu = routed("/", <MainMenu />);
+const select = (query: string) =>
+  routed(`/select-team${query}`, <TeamSelect mode="play" />);
+
+const MENU = pages("Pre-match", "Main menu", [
+  { id: "page-menu", title: SIGNED_OUT, view: menu },
+  {
+    id: "page-menu-signed-in",
+    title: "Signed in, two invitations",
+    prepare: withInvites,
+    view: menu,
+  },
+  {
+    id: "page-sign-in",
+    title: "Sign in",
+    view: menu,
+    drive: press("Host Game"),
+  },
+]);
+
+const SELECT = pages("Pre-match", "Team selection", [
+  { id: "page-select", title: "Two coaches", view: select("") },
+  {
+    id: "page-select-computer",
+    title: "Against the computer",
+    view: select(""),
+    drive: press("Versus computer"),
+  },
+  {
+    id: "page-select-gutter",
+    title: "Gutter Bowl",
+    view: select("?gameType=gutter-bowl"),
+  },
+  {
+    id: "page-select-empty",
+    title: "Not enough teams",
+    prepare: nothing,
+    view: select(""),
+  },
+]);
+
+const showAdvancement = () =>
+  later(500, () => {
+    const sections = [...document.querySelectorAll("section")];
+    sections.at(-1)?.scrollIntoView({ block: "end" });
+  });
+
+const playerPage = () => {
+  const team = teamAt(0);
+  return at({
+    path: `/build-team/${team.id}/player/${String(team.players[0]?.id)}`,
+    pattern: "/build-team/:teamId/player/:playerId",
+    element: <PlayerPage />,
+  });
+};
+
+const builder = (index: number) => () =>
+  at({
+    path: `/build-team/${teamAt(index).id}`,
+    pattern: "/build-team/:teamId",
+    element: <TeamBuilder />,
+  });
+
+const TEAMS = teamPages("Teams", [
+  {
+    id: "page-teams",
+    title: "The team list",
+    view: teamList,
+  },
+  {
+    id: "page-teams-empty",
+    title: "No teams yet",
+    prepare: nothing,
+    view: teamList,
+  },
+  ...(["loading", "failed"] as const).map(
+    (status): Row => ({
+      id: `page-library-${status}`,
+      title:
+        status === "loading" ? "The library is loading" : "The library failed",
+      prepare: () => {
+        setTeamLibraryStatus(status);
+      },
+      view: routed(
+        "/build-team",
+        <TeamLibraryGate>
+          <TeamManagement />
+        </TeamLibraryGate>
+      ),
+    })
+  ),
+]);
+
+const BUILDER = teamPages("Team builder", [
+  {
+    id: "page-builder-new",
+    title: "Choosing a roster",
+    view: routed("/build-team/new-team", <TeamBuilder />),
+  },
+  { id: "page-builder", title: "A team", view: builder(0) },
+  { id: "page-builder-other", title: "Another roster", view: builder(3) },
+]);
+
+const PLAYER = teamPages("Player development", [
+  { id: "page-player", title: "A player", view: playerPage },
+  {
+    id: "page-player-spp",
+    title: "Enough points for any advancement",
+    prepare: rolledPlayer(),
+    view: playerPage,
+    drive: showAdvancement,
+  },
+  {
+    id: "page-player-random",
+    title: "Two random skills to choose from",
+    prepare: rolledPlayer(RANDOM_ROLL),
+    view: playerPage,
+    drive: showAdvancement,
+  },
+  {
+    id: "page-player-dice",
+    title: "Rolling the characteristic die",
+    prepare: rolledPlayer(),
+    view: playerPage,
+    drive: (fx) => {
+      const stop = press("Characteristic")(fx);
+      later(800, () => {
+        click("button", "Roll D8");
+        showAdvancement();
+      });
+      return stop;
+    },
+  },
+  {
+    id: "page-player-missing",
+    title: "Player not found",
+    view: routed("/build-team/x/player/y", <PlayerPage />),
+  },
+]);
+
+const CLUBS = teamPages("Clubs", [
+  {
+    id: "page-clubs",
+    title: "The clubs",
+    prepare: withClubs,
+    view: routed("/clubs", <ClubHub />),
+  },
+  {
+    id: "page-clubs-empty",
+    title: "No clubs yet",
+    prepare: signedIn,
+    view: routed("/clubs", <ClubHub />),
+  },
+  {
+    id: "page-club",
+    title: "A club",
+    prepare: withClubs,
+    view: () =>
+      at({
+        path: `/clubs/${teamAt(0).id}`,
+        pattern: "/clubs/:teamId",
+        element: <ClubPage />,
+      }),
+  },
+  {
+    id: "page-club-founding",
+    title: "Founding a club",
+    prepare: signedIn,
+    view: routed("/clubs/new", <ClubFounding />),
+  },
+]);
+
+const league = (name: string) => () =>
+  at({
+    path: `/leagues/${seedCompetitionId("league", name)}`,
+    pattern: "/leagues/:id",
+    element: <CompetitionView type="league" />,
+  });
+
+const bracket = (name: string) => () =>
+  at({
+    path: `/tournaments/${seedCompetitionId("tournament", name)}`,
+    pattern: "/tournaments/:id",
+    element: <CompetitionView type="tournament" />,
+  });
+
+const cloudLeague = () =>
+  at({
+    path: CLOUD_LEAGUE,
+    pattern: "/leagues/:id",
+    element: <CompetitionView type="league" />,
+  });
+
+const hub = routed("/leagues", <CompetitionHub type="league" />);
+
+const COMPETITIONS = competitionPages("Lists", [
+  { id: "page-leagues", title: "Leagues", view: hub },
+  { id: "page-leagues-empty", title: "None yet", prepare: nothing, view: hub },
+  {
+    id: "page-leagues-online",
+    title: "Signed in, with open sign-ups",
+    prepare: organizedByRival,
+    view: hub,
+  },
+  {
+    id: "page-tournaments",
+    title: "Tournaments",
+    view: routed("/tournaments", <CompetitionHub type="tournament" />),
+  },
+]);
+
+const LEAGUES = competitionPages("Leagues", [
+  { id: "page-league", title: "Draft", view: league("founders-league") },
+  { id: "page-league-active", title: "Running", view: league("autumn-league") },
+  { id: "page-league-done", title: "Finished", view: league("legends-league") },
+  {
+    id: "page-league-signup",
+    title: "Online sign-ups, entering a team",
+    prepare: organizedByRival,
+    view: cloudLeague,
+  },
+  {
+    id: "page-league-organizer",
+    title: "Online sign-ups, the organizer",
+    prepare: organizedByMe,
+    view: cloudLeague,
+  },
+]);
+
+const TOURNAMENTS = competitionPages("Tournaments", [
+  { id: "page-bracket", title: "Running", view: bracket("winter-gauntlet") },
+  { id: "page-bracket-done", title: "Finished", view: bracket("founders-cup") },
+  {
+    id: "page-bracket-draft",
+    title: "Draft",
+    view: bracket("rookie-rumble"),
+  },
+]);
+
+const newTournament = routed(
+  "/tournaments/new",
+  <CompetitionBuilder type="tournament" />
 );
 
-const page = (
-  id: string,
-  title: string,
-  view: () => React.ReactNode,
-  prepare: (() => void) | undefined = seed
-): Variant => ({
-  id: `page-${id}`,
-  section: SECTION,
-  title,
-  stage: "page",
-  prepare,
-  view,
-});
+const BUILDERS = competitionPages("Creating one", [
+  { id: "page-new-tournament", title: "A tournament", view: newTournament },
+  {
+    id: "page-new-league",
+    title: "A league",
+    view: routed("/leagues/new", <CompetitionBuilder type="league" />),
+  },
+  {
+    id: "page-new-online",
+    title: "An online tournament",
+    prepare: signedIn,
+    view: newTournament,
+    drive: press("Online"),
+  },
+]);
 
-function PageKit() {
-  const [picked, setPicked] = useState("Human Founders");
-  return (
-    <PageShell
-      actionBar={
-        <>
-          <HudButton variant="ghost">Back</HudButton>
-          <span className="hud-label">The sticky action bar</span>
-          <HudButton variant="primary">Main action</HudButton>
-        </>
-      }
-    >
-      <PageHeader
-        eyebrow="Eyebrow"
-        title="Page header"
-        subtitle="One line of context under the title. Actions sit on the right."
-        back={{ label: "Back to Menu", onClick: () => {} }}
-        actions={
-          <>
-            <HudButton>Secondary</HudButton>
-            <HudButton variant="primary">Primary</HudButton>
-          </>
-        }
-      />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Section title="Section" aside="Aside label">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Text field">
-              <Input className="hud-field" placeholder="Placeholder" />
-            </Field>
-            <Field label="Select" hint="A hint under the control.">
-              <Select className="hud-field">
-                <option>Option one</option>
-              </Select>
-            </Field>
-          </div>
-          <label className="mt-4 flex items-center gap-3 text-hud-base">
-            <Input type="checkbox" className="hud-check" defaultChecked />A
-            checkbox with its label
-          </label>
-          <div className="mt-4 flex flex-col gap-2">
-            {["Human Founders", "Orc Founders", "Dwarf Founders"].map((n) => (
-              <Button
-                key={n}
-                aria-pressed={picked === n}
-                onClick={() => {
-                  setPicked(n);
-                }}
-                className={`${hudChoiceClass(picked === n)} px-3 py-2 font-hud-label font-bold uppercase`}
-              >
-                {n}
-              </Button>
-            ))}
-          </div>
-        </Section>
-        <div className="flex flex-col gap-4">
-          <Notice tone="warn" title="Notice, warn">
-            Not yet legal for play or competition entry.
-          </Notice>
-          <Notice tone="bad" role="alert">
-            Give the competition a name.
-          </Notice>
-          <div className="flex flex-wrap gap-2">
-            <Chip tone="gold">Active</Chip>
-            <Chip>Draft</Chip>
-            <Chip tone="blood">Illegal</Chip>
-            <Chip tone="info">Advanced League</Chip>
-            <Chip tone="good">Ready</Chip>
-          </div>
-          <EmptyState
-            title="Nothing here yet"
-            action={<HudButton variant="primary">Make the first one</HudButton>}
-          >
-            An empty list says so and offers the way forward.
-          </EmptyState>
-        </div>
-      </div>
-    </PageShell>
-  );
-}
-
-function LobbySettingsDemo({ readOnly }: { readOnly: boolean }) {
-  const [settings, setSettings] = useState<LobbySettings>({
-    turnSeconds: 120,
-    timeoutBankMs: 5 * 60 * 1000,
-    progressionEnabled: false,
+const lobbyRoom = () =>
+  at({
+    path: LOBBY_PATH,
+    pattern: "/online/lobby/:code",
+    element: <OnlineLobby mode="host" />,
   });
-  return (
-    <PageShell width="narrow">
-      <SettingsPanel
-        settings={settings}
-        readOnly={readOnly}
-        onChange={setSettings}
-      />
-    </PageShell>
-  );
-}
+
+const LOBBIES = pages("Online", "Lobby", [
+  {
+    id: "page-lobby-host",
+    title: "Host, waiting for an opponent",
+    prepare: hostAlone,
+    view: lobbyRoom,
+  },
+  {
+    id: "page-lobby-picked",
+    title: "Host, both teams picked",
+    prepare: hostReady(false),
+    view: lobbyRoom,
+  },
+  {
+    id: "page-lobby-ready",
+    title: "Host, ready to start",
+    prepare: hostReady(true),
+    view: lobbyRoom,
+  },
+  {
+    id: "page-lobby-guest",
+    title: "Guest",
+    prepare: guestSeat,
+    view: lobbyRoom,
+  },
+  {
+    id: "page-lobby-closed",
+    title: "The lobby has closed",
+    prepare: signedIn,
+    view: lobbyRoom,
+  },
+  {
+    id: "page-lobby-signed-out",
+    title: SIGNED_OUT,
+    view: lobbyRoom,
+  },
+  {
+    id: "page-join",
+    title: "Join a game",
+    prepare: openGamesList,
+    view: routed("/online/join", <OnlineLobby mode="join" />),
+  },
+]);
+
+const friends = routed("/friends", <FriendsPage />);
+const shared = routed("/shared-teams", <SharedTeamBrowser />);
+
+const SOCIAL = pages("Online", "Friends and other coaches", [
+  {
+    id: "page-friends",
+    title: "Friends, a request and invitations",
+    prepare: withInvites,
+    view: friends,
+  },
+  {
+    id: "page-friends-empty",
+    title: "No friends yet",
+    prepare: signedIn,
+    view: friends,
+  },
+  { id: "page-friends-signed-out", title: SIGNED_OUT, view: friends },
+  {
+    id: "page-shared",
+    title: "Other coaches",
+    prepare: otherCoaches,
+    view: shared,
+  },
+  { id: "page-shared-signed-out", title: SIGNED_OUT, view: shared },
+]);
+
+const SOUND = teamPages("Sound test", [
+  {
+    id: "page-sound",
+    title: "Every sound",
+    prepare: withFriends,
+    view: (fx) =>
+      at({
+        path: "/music",
+        pattern: "/music",
+        element: <SoundTest eventBus={fx.bus} />,
+      }),
+  },
+]);
 
 export const PAGE_VARIANTS: Variant[] = [
-  page("kit", "The page kit", () => <PageKit />, undefined),
-  page("menu", "Main menu", () => at("/", "/", <MainMenu />)),
-  page("teams", "Teams", () =>
-    at("/build-team", "/build-team", <TeamManagement />)
-  ),
-  page("builder", "Team builder", () =>
-    at(`/build-team/${firstTeamId()}`, "/build-team/:teamId", <TeamBuilder />)
-  ),
-  page("player", "Player development", () => {
-    const team = loadTeams()[0];
-    return at(
-      `/build-team/${String(team?.id)}/player/${String(team?.players[0]?.id)}`,
-      "/build-team/:teamId/player/:playerId",
-      <PlayerPage />
-    );
-  }),
-  page("select", "Team selection", () =>
-    at("/select-team", "/select-team", <TeamSelect mode="play" />)
-  ),
-  page("leagues", "Leagues", () =>
-    at("/leagues", "/leagues", <CompetitionHub type="league" />)
-  ),
-  page("league", "A league", () =>
-    at(
-      `/leagues/${seedCompetitionId("league", "founders-league")}`,
-      "/leagues/:id",
-      <CompetitionView type="league" />
-    )
-  ),
-  page("bracket", "A tournament bracket", () =>
-    at(
-      `/tournaments/${seedCompetitionId("tournament", "winter-gauntlet")}`,
-      "/tournaments/:id",
-      <CompetitionView type="tournament" />
-    )
-  ),
-  page("new-tournament", "Create a tournament", () =>
-    at(
-      "/tournaments/new",
-      "/tournaments/new",
-      <CompetitionBuilder type="tournament" />
-    )
-  ),
-  page("shared", "Other coaches, signed out", () =>
-    at("/shared-teams", "/shared-teams", <SharedTeamBrowser />)
-  ),
-  page("lobby-settings", "Lobby match settings, host", () => (
-    <LobbySettingsDemo readOnly={false} />
-  )),
-  page("lobby-settings-guest", "Lobby match settings, guest", () => (
-    <LobbySettingsDemo readOnly />
-  )),
+  ...MENU,
+  ...SELECT,
+  ...TEAMS,
+  ...BUILDER,
+  ...PLAYER,
+  ...CLUBS,
+  ...SOUND,
+  ...COMPETITIONS,
+  ...LEAGUES,
+  ...TOURNAMENTS,
+  ...BUILDERS,
+  ...LOBBIES,
+  ...SOCIAL,
 ];

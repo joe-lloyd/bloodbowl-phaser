@@ -1,39 +1,30 @@
-import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "../ui/styles/global.css";
-import { setupMatch } from "./fixtures";
-import { type Variant, VARIANTS } from "./variants";
+import { frame, touchStyles } from "./isolate";
+import { VARIANTS } from "./variants";
 import { GalleryIndex } from "./GalleryIndex";
+import { ShowOne, Stage } from "./Stage";
+import { isFrameSize } from "./frames";
 
-function Stage({ variant }: { variant: Variant }) {
-  const [fx] = useState(() => {
-    variant.prepare?.();
-    return setupMatch(variant.fixture);
-  });
-  useEffect(() => variant.drive?.(fx) ?? undefined, [variant, fx]);
+const size = frame.get("size");
+const variant = VARIANTS.find(
+  (v) => v.id === (frame.get("v") ?? frame.get("show"))
+);
+
+function page() {
+  if (!variant) return <GalleryIndex />;
+  if (frame.has("v")) return <Stage variant={variant} />;
   return (
-    <div
-      className="relative w-[1280px] overflow-hidden bg-hud-ink bg-cover bg-center"
-      style={{
-        height: variant.height ?? 720,
-        backgroundImage:
-          variant.stage === "page"
-            ? undefined
-            : "linear-gradient(rgba(8,9,11,0.35), rgba(8,9,11,0.55)), url(./shots/pitch.jpg)",
-      }}
-    >
-      {variant.view(fx)}
-    </div>
+    <ShowOne
+      variant={variant}
+      initialSize={isFrameSize(size) ? size : "desktop"}
+    />
   );
 }
 
-const id = new URLSearchParams(window.location.search).get("v");
-const variant = id ? VARIANTS.find((v) => v.id === id) : undefined;
+if (size === "phone") touchStyles();
 document.documentElement.style.colorScheme = "dark";
-document.body.className = variant
-  ? "m-0 overflow-hidden bg-hud-ink"
-  : "m-0 bg-hud-ink text-hud-bone font-hud-body";
+document.body.className = "m-0 bg-hud-ink font-hud-body text-hud-bone";
 
-createRoot(document.getElementById("root")!).render(
-  variant ? <Stage variant={variant} /> : <GalleryIndex />
-);
+const root = document.getElementById("root");
+if (root) createRoot(root).render(page());

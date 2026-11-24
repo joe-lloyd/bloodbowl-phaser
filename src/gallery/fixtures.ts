@@ -1,3 +1,4 @@
+import { setActiveOnlineMatch } from "../network/OnlineMatch";
 import { EventBus } from "../services/EventBus";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { GameService } from "../services/GameService";
@@ -49,12 +50,23 @@ export function setupMatch(options: FixtureOptions = {}): MatchFixture {
   const bus = new EventBus();
   const state = scenario
     ? applyScenario(scenario, team1, team2)
-    : GameService.createInitialState({ team1: team1, team2: team2, startingPhase: options.phase ?? GamePhase.PLAY }
-      );
+    : GameService.createInitialState({
+        team1: team1,
+        team2: team2,
+        startingPhase: options.phase ?? GamePhase.PLAY,
+      });
   if (options.phase) state.phase = options.phase;
 
+  setActiveOnlineMatch(null);
   ServiceContainer.reset();
-  const services = ServiceContainer.initialize({ eventBus: bus, team1: team1, team2: team2, initialState: state, seed: 7, progressionEnabled: options.progression ?? false });
+  const services = ServiceContainer.initialize({
+    eventBus: bus,
+    team1: team1,
+    team2: team2,
+    initialState: state,
+    seed: 7,
+    progressionEnabled: options.progression ?? false,
+  });
   services.gameService.seedTurnCounts(state.turn.turnNumber || 1);
 
   const player = (team: 1 | 2, index: number) => {

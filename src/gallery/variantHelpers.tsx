@@ -1,7 +1,7 @@
 import React from "react";
 import { MemoryRouter } from "react-router-dom";
 import { GameEventNames } from "../types/events";
-import { GamePhase, SubPhase } from "../types/GameState";
+import { SubPhase } from "../types/GameState";
 import type { SetupTeamStatus } from "../types/SetupTypes";
 import type { OnlineMatch } from "../network/OnlineMatch";
 import type { LobbyDoc } from "../firebase/lobby";
@@ -9,9 +9,8 @@ import {
   FormationManager,
   type FormationEntry,
 } from "../game/managers/FormationManager";
+import type { BlockRollData } from "../services/BlockResolutionService";
 import { type MatchFixture } from "./fixtures";
-import { ScoreBoard } from "../ui/components/hud/ScoreBoard";
-import { TurnIndicator } from "../ui/components/hud/TurnIndicator";
 
 export const later = (ms: number, fn: () => void) => {
   const t = setTimeout(fn, ms);
@@ -41,7 +40,6 @@ export const click = (selector: string, text?: string) => {
   target?.click();
 };
 
-
 function presets(isTeam1: boolean): FormationEntry[] {
   return new FormationManager().listAllFormations("gallery", isTeam1);
 }
@@ -49,7 +47,12 @@ function presets(isTeam1: boolean): FormationEntry[] {
 function withSaved(): FormationEntry[] {
   return [
     ...presets(true),
-    { name: "My cage", builtIn: false, use: "any", positions: new FormationManager().getDefaultFormation(true) },
+    {
+      name: "My cage",
+      builtIn: false,
+      use: "any",
+      positions: new FormationManager().getDefaultFormation(true),
+    },
   ];
 }
 
@@ -112,13 +115,6 @@ export function setScore(
   state.score[fx.team2.id] = b;
   state.turn.isHalf2 = half2;
 }
-
-export const score = (fx: MatchFixture) => (
-  <div className="absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center">
-    <ScoreBoard eventBus={fx.bus} />
-    <TurnIndicator turnNumber={3} phase={GamePhase.PLAY} />
-  </div>
-);
 
 const LOG_ROWS: [
   string,
@@ -214,6 +210,19 @@ export function fillLog(fx: MatchFixture, rounds: number) {
   }
 }
 
+export const rollBlock = (
+  fx: MatchFixture,
+  roll: Pick<BlockRollData, "results"> & Partial<BlockRollData>
+) => {
+  fx.bus.emit(GameEventNames.BlockDiceRolled, {
+    attackerId: fx.player(2, 0).id,
+    defenderId: fx.player(1, 0).id,
+    numDice: roll.results.length,
+    isAttackerChoice: true,
+    ...roll,
+  });
+};
+
 export const BLOCK_FACES = {
   skull: { type: "skull" as const, icon: "", label: "Attacker Down" },
   bothDown: { type: "both-down" as const, icon: "", label: "Both Down" },
@@ -234,9 +243,14 @@ export function onlineMatch(
     mayAct: () => true,
     decidingTeamId: () => null,
     pendingDecision: () => null,
-    setClockPaused: () => {},
+    waitingLabel: () => "Grimgutz's turn (Gouged Eye)…",
+    chatHistory: () => [],
+    onChatMessage: () => () => undefined,
+    onFatalError: () => () => undefined,
+    sendChat: () => undefined,
+    setClockPaused: () => undefined,
     coachName: () => "Grimgutz",
-    run: async () => {},
+    run: () => Promise.resolve(),
     ...overrides,
   } as unknown as OnlineMatch;
 }
