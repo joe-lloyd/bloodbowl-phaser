@@ -262,11 +262,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       return;
     }
 
-    if (playerBoxOf(this.player) !== "pitch") {
-      this.setVisible(false);
-      return;
-    }
-    this.setVisible(true);
+    this.setVisible(playerBoxOf(this.player) === "pitch");
     if (this.isDown()) {
       if (this.anim !== "fall") this.play("fall", animate);
     } else if (this.anim === "fall") {
