@@ -40,8 +40,8 @@ interface PickArgs {
 }
 
 function kickoffNote(ground: KickoffGround, { intent }: Activation): string {
-  if (intent.kind === "blitz") return `blitzes ${intent.target.playerName}`;
-  if (intent.kind === "block") return `blocks ${intent.target.playerName}`;
+  if (intent.kind === "blitz") return "blitzes";
+  if (intent.kind === "block") return "blocks";
   if (intent.kind !== "reposition") return "moves";
   if (intent.role === "mark") return "marks a likely receiver";
   const { landing } = ground;
@@ -124,7 +124,7 @@ export function kickoffPick(
   if (next && selecting >= 0)
     return {
       index: selecting,
-      note: `${event}: ${next.player.playerName} ${next.what}`,
+      note: `${event}: ${next.what}`,
     };
   const type = wanted.length > 0 ? "kickoff-confirm" : "kickoff-skip";
   return {
@@ -159,7 +159,7 @@ function nextStep(args: TurnArgs): KickoffMove {
   const [step] = bestSteps(ground, waiting, 1);
   const index = step ? stepIndex(candidates, step) : -1;
   if (!step || index < 0) return { kind: "done" };
-  const note = `${turn.event}: ${step.player.playerName} ${step.what}`;
+  const note = `${turn.event}: ${step.what}`;
   return { kind: "choice", choice: { index, note } };
 }
 
@@ -192,6 +192,6 @@ export function kickoffMove(args: TurnArgs): KickoffMove {
   return {
     kind: "plan",
     plan,
-    note: `${turn.event}: ${plan.player.playerName} ${kickoffNote(ground, plan)}`,
+    note: `${turn.event}: ${kickoffNote(ground, plan)}`,
   };
 }

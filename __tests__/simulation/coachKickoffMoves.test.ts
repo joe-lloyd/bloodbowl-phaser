@@ -142,7 +142,7 @@ describe("the computer coach plays its kick-off moves", () => {
     away(0).stats.ST = 2;
     const { commands, notes } = await coachPlays(game);
     expect(commands).toContain("block");
-    expect(notes.join()).toContain(`blitzes ${away(0).playerName}`);
+    expect(notes.join()).toContain("Charge!: blitzes");
   });
 
   it("Alert Defence: steps towards the ball and stays out of contact", async () => {
