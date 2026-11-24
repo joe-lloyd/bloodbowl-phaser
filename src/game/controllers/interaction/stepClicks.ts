@@ -270,7 +270,7 @@ function teamMateClickFor(
   selectedId: string,
   click: SquareClick
 ): StepClick | null {
-  if (c.ttmTeammateId) return throwTeamMateAt;
+  if (c.ttmTeammateId && c.currentStepId === "throw") return throwTeamMateAt;
   const thrower = c.gameService.getPlayerById(selectedId);
   const mate = teamMateToThrow(thrower, click);
   if (mate)
