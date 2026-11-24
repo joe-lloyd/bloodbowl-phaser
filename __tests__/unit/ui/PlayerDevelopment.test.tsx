@@ -10,13 +10,21 @@ import {
   rollPendingRandomPrimary,
 } from "../../../src/game/progression/progression";
 import { createPlayer } from "../../../src/types/Player";
-import { getSkill, SkillCategory, SkillType } from "../../../src/types/Skills";
+import {
+  getSkill,
+  SKILL_DEFINITIONS,
+  SkillCategory,
+  SkillType,
+} from "../../../src/types/Skills";
 import {
   calculateTeamValue,
   createTeam,
   RosterName,
   type Team,
 } from "../../../src/types/Team";
+
+const playRoll = vi.hoisted(() => vi.fn<[HTMLElement, unknown], unknown>());
+vi.mock("../../../src/ui/dice/diceScene", () => ({ playRoll }));
 
 function savedTeam(spp: number): { team: Team; playerId: string } {
   const roster = getRosterByRosterName(RosterName.HUMAN);
@@ -47,6 +55,8 @@ describe("PlayerDevelopment", () => {
 
   beforeEach(() => {
     localStorage.clear();
+    playRoll.mockReset();
+    playRoll.mockReturnValue({ landed: Promise.resolve([]), stop: vi.fn() });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -110,6 +120,22 @@ describe("PlayerDevelopment", () => {
     });
   }
 
+  const waitForDice = () =>
+    vi.waitFor(
+      async () => {
+        await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+        expect(
+          container.querySelector('[data-testid="advancement-form"]')
+        ).not.toBeNull();
+      },
+      { timeout: 4500 }
+    );
+
+  const offered = () =>
+    Array.from(
+      container.querySelectorAll<HTMLElement>('[data-testid="random-candidate"]')
+    ).map((button) => button.dataset["skill"]);
+
   function buttonWithText(text: string) {
     return Array.from(container.querySelectorAll("button")).find((button) =>
       button.textContent?.includes(text)
@@ -161,13 +187,9 @@ describe("PlayerDevelopment", () => {
         : [];
 
     await reload(team.id, playerId, dice(6));
-    const shown = Array.from(
-      container.querySelectorAll('[data-testid="random-candidate"]')
-    ).map((button) => button.textContent ?? "");
+    const shown = offered();
     expect(shown.length).toBeGreaterThan(0);
-    shown.forEach((text) => {
-      expect(rolledSkills.some((skill) => text.endsWith(skill))).toBe(true);
-    });
+    expect(rolledSkills).toEqual(expect.arrayContaining(shown));
     expect(buttonWithText("Roll two candidates")).toBeUndefined();
 
     expect(option("chosen-primary").disabled).toBe(true);
@@ -230,7 +252,21 @@ describe("PlayerDevelopment", () => {
     const shownNow = () =>
       Array.from(
         container.querySelectorAll('[data-testid="random-candidate"]')
-      ).map((button) => button.textContent);
+      ).map((button) => button.firstElementChild?.textContent);
+    expect(shownNow()).toEqual([]);
+    await waitForDice();
+    expect(playRoll.mock.calls.map(([, roll]) => roll)).toMatchObject([
+      { kind: "d6", values: [4, 1] },
+      { kind: "d6", values: [1, 3] },
+    ]);
+    expect(
+      Array.from(
+        container.querySelectorAll('[data-testid="random-candidate"]')
+      ).map((button) => button.lastElementChild?.textContent)
+    ).toEqual([
+      SKILL_DEFINITIONS[SkillType.STEADY_FOOTING].description,
+      SKILL_DEFINITIONS[SkillType.FEND].description,
+    ]);
     expect(shownNow()).toEqual(expected);
     const saved = fixtureValue(fixtureValue(loadTeams()
       .find((t) => t.id === team.id))
@@ -251,6 +287,12 @@ describe("PlayerDevelopment", () => {
     await renderFromStorage(team.id, playerId, dice(3));
     click(option("characteristic"));
     click(fixtureValue(buttonWithText("Roll D8")));
+    expect(container.textContent).not.toContain("Rolled 3");
+    await waitForDice();
+    expect(playRoll.mock.calls[0]?.[1]).toMatchObject({
+      kind: "d8",
+      values: [3],
+    });
     expect(container.textContent).toContain("Rolled 3");
 
     await reload(team.id, playerId, dice(8));
@@ -274,6 +316,7 @@ describe("PlayerDevelopment", () => {
       category
     );
     click(fixtureValue(buttonWithText("Roll two candidates")));
+    await waitForDice();
   }
 
   it("keeps a roll another tab already saved instead of rolling again", async () => {
@@ -294,17 +337,13 @@ describe("PlayerDevelopment", () => {
     expect(storedPlayer(team.id, playerId).pendingAdvancementRoll).toEqual(
       otherRoll
     );
-    const shown = Array.from(
-      container.querySelectorAll('[data-testid="random-candidate"]')
-    ).map((button) => button.textContent ?? "");
+    const shown = offered();
     const otherSkills =
       otherRoll.kind === "random-primary"
         ? otherRoll.candidates.map((candidate) => candidate.skill)
         : [];
     expect(shown.length).toBeGreaterThan(0);
-    shown.forEach((text) => {
-      expect(otherSkills.some((skill) => text.endsWith(skill))).toBe(true);
-    });
+    expect(otherSkills).toEqual(expect.arrayContaining(shown));
   });
 
   it("shows no roll and says so when the roll cannot be saved", async () => {
@@ -321,9 +360,9 @@ describe("PlayerDevelopment", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "could not be saved"
     );
-    expect(
-      container.querySelectorAll('[data-testid="random-candidate"]')
-    ).toHaveLength(0);
+    expect(offered()).toEqual([]);
+    expect(playRoll).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="roll-tray"]')).toBeNull();
     vi.mocked(Storage.prototype.setItem).mockRestore();
     expect(
       storedPlayer(team.id, playerId).pendingAdvancementRoll
@@ -382,9 +421,11 @@ describe("PlayerDevelopment", () => {
 
     const spent = roll.candidates[0].skill;
     expect(roll.candidates[1].skill).not.toBe(spent);
-    const stale = fixtureValue(Array.from(
-      container.querySelectorAll('[data-testid="random-candidate"]')
-    ).find((button) => !button.textContent?.endsWith(spent)));
+    const stale = fixtureValue(
+      container.querySelector(
+        `[data-testid="random-candidate"]:not([data-skill="${spent}"])`
+      )
+    );
     click(stale);
 
     const after = storedPlayer(team.id, playerId);

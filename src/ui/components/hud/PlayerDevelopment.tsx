@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { type Player } from "../../../types/Player";
+import {
+  type PendingAdvancementRoll,
+  type Player,
+} from "../../../types/Player";
 import type { SkillCategory, SkillType } from "../../../types/Skills";
 import { calculateTeamValue, type Team } from "../../../types/Team";
 import { loadTeams } from "../../../game/managers/TeamManager";
@@ -15,6 +18,9 @@ import {
   rollPendingRandomPrimary,
 } from "../../../game/progression/progression";
 import { AdvancementForm, type SkillAccess } from "../shared/AdvancementForm";
+import { advancementThrows, type RollThrow } from "../shared/rollThrows";
+import { RollStage } from "../shared/RollTray";
+import { useRollTray } from "../shared/useRollTray";
 import { restoreTeam } from "../../../headless/serialization";
 import { commitPlayerChange } from "./commitPlayerChange";
 
@@ -44,6 +50,7 @@ export function PlayerDevelopment({
   const [category, setCategory] = useState<SkillCategory | "">("");
   const [skill, setSkill] = useState<SkillType | "">("");
   const [error, setError] = useState("");
+  const dice = useRollTray(team);
   const [, setRevision] = useState(0);
 
   const costs = nextAdvancementCosts(player);
@@ -72,11 +79,16 @@ export function PlayerDevelopment({
     }
   };
 
-  const rollAndSave = (roll: (latestPlayer: Player) => void) => {
+  const rollAndSave = (
+    roll: (latestPlayer: Player) => PendingAdvancementRoll
+  ) => {
     attempt(() => {
+      let throws: RollThrow[] = [];
       commitPlayerChange(team, player.id, (_latestTeam, latestPlayer) => {
-        if (!latestPlayer.pendingAdvancementRoll) roll(latestPlayer);
+        if (latestPlayer.pendingAdvancementRoll) return;
+        throws = advancementThrows(roll(latestPlayer));
       });
+      dice.roll(throws);
       setCategory("");
       setSkill("");
       setRevision((value) => value + 1);
@@ -125,6 +137,7 @@ export function PlayerDevelopment({
         }
         throw cause;
       }
+      dice.clear();
       setSelectedKind(null);
       setAccess("primary");
       setCategory("");
@@ -135,45 +148,47 @@ export function PlayerDevelopment({
 
   return (
     <>
-      <AdvancementForm
-        player={player}
-        savedRoll={savedRoll}
-        kind={kind}
-        setKind={(next) => {
-          setSelectedKind(next);
-          setAccess(next === "chosen-secondary" ? "secondary" : "primary");
-          setCategory("");
-          setSkill("");
-          setError("");
-        }}
-        access={access}
-        setAccess={(next) => {
-          setAccess(next);
-          setCategory("");
-          setSkill("");
-        }}
-        category={activeCategory}
-        setCategory={(next) => {
-          setCategory(next);
-          setSkill("");
-        }}
-        categories={categories}
-        skill={skill}
-        setSkill={setSkill}
-        skills={skills}
-        rollRandom={() =>
-          category &&
-          rollAndSave((latestPlayer) =>
-            rollPendingRandomPrimary(latestPlayer, category, rngService)
-          )
-        }
-        rollCharacteristic={() => {
-          rollAndSave((latestPlayer) =>
-            rollPendingCharacteristic(latestPlayer, rngService)
-          );
-        }}
-        applyChoice={applyChoice}
-      />
+      <RollStage dice={dice}>
+        <AdvancementForm
+          player={player}
+          savedRoll={savedRoll}
+          kind={kind}
+          setKind={(next) => {
+            setSelectedKind(next);
+            setAccess(next === "chosen-secondary" ? "secondary" : "primary");
+            setCategory("");
+            setSkill("");
+            setError("");
+          }}
+          access={access}
+          setAccess={(next) => {
+            setAccess(next);
+            setCategory("");
+            setSkill("");
+          }}
+          category={activeCategory}
+          setCategory={(next) => {
+            setCategory(next);
+            setSkill("");
+          }}
+          categories={categories}
+          skill={skill}
+          setSkill={setSkill}
+          skills={skills}
+          rollRandom={() =>
+            category &&
+            rollAndSave((latestPlayer) =>
+              rollPendingRandomPrimary(latestPlayer, category, rngService)
+            )
+          }
+          rollCharacteristic={() => {
+            rollAndSave((latestPlayer) =>
+              rollPendingCharacteristic(latestPlayer, rngService)
+            );
+          }}
+          applyChoice={applyChoice}
+        />
+      </RollStage>
       {error && (
         <Notice tone="bad" role="alert" className="mt-3">
           {error}

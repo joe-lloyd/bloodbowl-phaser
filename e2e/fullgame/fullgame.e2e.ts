@@ -266,7 +266,7 @@ test("a full Sevens match, built and played through the UI", async ({
     log(`manage ${team} buttons=${JSON.stringify(await visibleButtons(page))}`);
     for (let k = 0; k < 15; k++) {
       const recipient = page.getByLabel("Skill Selection recipient");
-      const named = page.getByLabel("Named skill");
+      const named = page.getByTestId("skill-option");
       if (await visible(recipient)) {
         const opts = await recipient
           .first()
@@ -283,16 +283,8 @@ test("a full Sevens match, built and played through the UI", async ({
           .first()
           .click();
       } else if (await visible(named)) {
-        const opts = (
-          await named.first().locator("option").allTextContents()
-        ).slice(1);
-        const prompt = await named.first().locator("xpath=../..").innerText();
-        const done = (/Named so far: (.*)\./.exec(prompt)?.[1] ?? "").split(
-          ", "
-        );
-        const pick = opts.find((o) => !done.includes(o)) ?? opts[0];
-        log(`  ${String(prompt.split("\n")[0])} -> ${String(pick)}`);
-        await named.first().selectOption(fixtureValue(pick));
+        log(`  named ${await named.first().innerText()}`);
+        await named.first().click();
         await page.getByRole("button", { name: "Name skill" }).first().click();
       } else if (await clickIf(page, /^Roll D3$/)) {
         await page.waitForTimeout(800);
