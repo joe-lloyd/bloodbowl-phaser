@@ -400,7 +400,7 @@ function replacementCommand({
   targetId: string;
   replacement: BlockReplacement;
 }) {
-  if (parts.state.phase !== GamePhase.PLAY) return null;
+  if (!isTurnRunning(parts.state)) return null;
   const attacker = parts.game.getPlayerById(attackerId);
   const target = parts.game.getPlayerById(targetId);
   const active = parts.state.activePlayer;

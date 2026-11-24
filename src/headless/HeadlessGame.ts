@@ -39,6 +39,11 @@ export const tick: () => Promise<void> =
           })
       : () => new Promise((resolve) => setTimeout(resolve, 0));
 
+const RESTORABLE_PENDING: ReadonlySet<PendingDecision["type"]> = new Set([
+  "kickoff-event",
+  "touchback",
+]);
+
 export interface GameFork {
   save: MatchSave;
   since: HeadlessCommand[];
@@ -189,6 +194,7 @@ export class HeadlessGame {
     const { gameService } = this.ctx;
     return (
       this.inFlight === null &&
+      (this.pending === null || RESTORABLE_PENDING.has(this.pending.type)) &&
       gameService.getDecisionService().pending() === null &&
       (gameService.kickInTheAir() === null ||
         gameService.getKickoffEventStep() !== null)
