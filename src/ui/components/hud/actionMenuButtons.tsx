@@ -8,11 +8,13 @@ import {
 } from "../componentWarehouse/HudKit";
 import { useHotkey, type Hotkey } from "../../hotkeys";
 import type { Player } from "../../../types/Player";
-import type { ActionType } from "../../../types/events";
+import type { ActionType, MovementHalf } from "../../../types/events";
 import {
   BLOCK_REPLACEMENT_DEFINITIONS,
   type BlockReplacement,
 } from "../../../types/BlockReplacement";
+import { MoveSplit } from "./MoveSplit";
+import { MOVEMENT_HALVES } from "./movementHalves";
 import type { ActionAvailability } from "../../../game/rules/actionAvailability";
 
 const DEFAULT_ACTION_TONE: HudTone = "info";
@@ -35,8 +37,16 @@ interface ActionButtonProps {
   color?: string;
   onClick?: () => void;
   blockReplacement?: BlockReplacement;
+  half?: MovementHalf;
   hotkey?: Hotkey;
 }
+
+export interface ActionChoice {
+  blockReplacement?: BlockReplacement | undefined;
+  half?: MovementHalf | undefined;
+}
+
+type OnAction = (action: ActionType, choice: ActionChoice) => void;
 
 type AvailabilityFlag = {
   [K in keyof ActionAvailability]: ActionAvailability[K] extends boolean
@@ -210,9 +220,8 @@ export function MenuHeader({
 }
 
 interface ActionListProps {
-  onAction: (action: ActionType, replacement?: BlockReplacement) => void;
+  onAction: OnAction;
   availability: ActionAvailability;
-  isProne: boolean;
   hasActed: boolean;
   compact: boolean;
   canRazzle: boolean;
@@ -241,6 +250,7 @@ export function ActionList(props: ActionListProps) {
             : "flex flex-col gap-1"
         }
       >
+        <MoveOffer availability={a} compact={compact} onAction={onAction} />
         {offers.map(({ id, ...button }) => (
           <ActionButton
             key={id}
@@ -277,7 +287,6 @@ function actionOffers(props: ActionListProps): MenuButton[] {
     canRazzle,
     razzleOn,
     onToggleRazzle,
-    isProne,
   } = props;
   const buttons: MenuButton[] = [];
   if (canRazzle)
@@ -288,17 +297,6 @@ function actionOffers(props: ActionListProps): MenuButton[] {
       color: razzleOn ? "yellow" : "gray",
       onClick: onToggleRazzle,
     });
-  if (a.move) {
-    const sub = moveActionSub(isProne, a.jump);
-    buttons.push({
-      id: "move",
-      action: "move",
-      label: "MOVE",
-      hotkey: "m",
-      ...(sub === undefined ? {} : { sub }),
-      color: "green",
-    });
-  }
   buttons.push(...offeredActions(BLOCK_ACTIONS, a));
   for (const replacement of a.blitzBlockReplacements)
     buttons.push({
@@ -310,16 +308,6 @@ function actionOffers(props: ActionListProps): MenuButton[] {
       color: "red",
     });
   buttons.push(...offeredActions(OTHER_ACTIONS, a));
-  if (isProne)
-    buttons.push({
-      id: "standUp",
-      action: "standUp",
-      label: "STAND UP",
-      hotkey: "u",
-      sub: "3 MA",
-      disabled: !a.standUp,
-      color: "blue",
-    });
   if (a.secureBall)
     buttons.push({
       id: "secureBall",
@@ -338,14 +326,35 @@ function offeredActions(
     .filter(({ when }) => availability[when])
     .map(({ when, ...button }) => ({ ...button, id: when }));
 }
-function moveActionSub(prone: boolean, jump: boolean): string | undefined {
-  if (prone) return "Stand + Move";
-  return jump ? "Jump" : undefined;
+
+function offeredHalf(a: ActionAvailability): MovementHalf | null {
+  if (a.standUp) return "standup";
+  return a.jump ? "jump" : null;
+}
+
+function MoveOffer({
+  availability: a,
+  compact,
+  onAction,
+}: Pick<ActionListProps, "availability" | "compact" | "onAction">) {
+  const half = offeredHalf(a);
+  if (!a.move && !half) return null;
+  const shared = { action: "move", color: "green", compact, onAction } as const;
+  const move = (
+    <ActionButton {...shared} label="MOVE" hotkey="m" disabled={!a.move} />
+  );
+  if (!half) return move;
+  return (
+    <MoveSplit>
+      {move}
+      <ActionButton {...shared} {...MOVEMENT_HALVES[half]} half={half} />
+    </MoveSplit>
+  );
 }
 
 interface ActionButtonContextProps extends ActionButtonProps {
   compact: boolean;
-  onAction: (action: ActionType, replacement?: BlockReplacement) => void;
+  onAction: OnAction;
 }
 
 interface ActionButtonRenderProps {
@@ -364,6 +373,7 @@ function ActionButton(props: ActionButtonContextProps) {
     color = "blue",
     onClick,
     blockReplacement,
+    half,
     hotkey,
     compact,
     onAction,
@@ -371,12 +381,13 @@ function ActionButton(props: ActionButtonContextProps) {
   const tone = ACTION_TONES[color] ?? DEFAULT_ACTION_TONE;
   const press = () => {
     if (onClick) onClick();
-    else if (action) onAction(action, blockReplacement);
+    else if (action) onAction(action, { blockReplacement, half });
   };
   const button = useRef<HTMLButtonElement | null>(null);
   useHotkey(hotkey, press, !disabled, button);
-  const testId = blockReplacement
-    ? `action-${action ?? "block"}-${blockReplacement}`
+  const variant = blockReplacement ?? half;
+  const testId = variant
+    ? `action-${action ?? "block"}-${variant}`
     : `action-${action ?? label.toLowerCase().replace(/\s+/g, "-")}`;
   const rendered = { button, press, testId, tone, props };
   return compact ? (

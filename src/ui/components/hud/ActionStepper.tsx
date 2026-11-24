@@ -1,9 +1,11 @@
 import React, { useRef } from "react";
 import { RouteSummary } from "./RollPreviews";
-import { GameEventNames } from "../../../types/events";
+import { GameEventNames, type ActionStep } from "../../../types/events";
 import type { EventBus } from "../../../services/EventBus";
-import { HudButton } from "../componentWarehouse/HudKit";
-import { useHotkey } from "../../hotkeys";
+import { HudButton, KeyBadge } from "../componentWarehouse/HudKit";
+import { useHotkey, type Hotkey } from "../../hotkeys";
+import { MoveSplit } from "./MoveSplit";
+import { MOVEMENT_HALVES } from "./movementHalves";
 
 const CheckIcon = () => (
   <svg
@@ -22,7 +24,7 @@ const CheckIcon = () => (
 );
 
 interface ActionStepperProps {
-  steps: { id: string; label: string }[];
+  steps: ActionStep[];
   currentStepId: string;
   eventBus: EventBus;
   hasMovedInAction: boolean;
@@ -85,6 +87,7 @@ function StepButton({
   isPast,
   compact,
   numbered,
+  hotkey,
   onSelect,
 }: {
   step: { id: string; label: string };
@@ -93,11 +96,12 @@ function StepButton({
   isPast: boolean;
   compact: boolean;
   numbered: boolean;
+  hotkey: Hotkey | undefined;
   onSelect: (stepId: string) => void;
 }) {
   const button = useRef<HTMLButtonElement>(null);
   useHotkey(
-    numbered && index < 9 ? String(index + 1) : undefined,
+    hotkey,
     () => {
       onSelect(step.id);
     },
@@ -131,6 +135,7 @@ function StepButton({
         {step.label}
       </span>
 
+      {hotkey && !numbered && !compact && <KeyBadge hotkey={hotkey} />}
       {isActive && !compact && (
         <span className="text-hud-gold animate-pulse">◄</span>
       )}
@@ -193,7 +198,7 @@ function ActionSteps({
         const isActive = step.id === currentStepId;
         const isPast = steps.findIndex((s) => s.id === currentStepId) > index;
 
-        return (
+        const button = (
           <StepButton
             key={step.id}
             step={step}
@@ -201,9 +206,27 @@ function ActionSteps({
             isActive={isActive}
             isPast={isPast}
             compact={compact}
-            numbered={!singleMove}
+            numbered={!singleMove && !(compact && step.half)}
+            hotkey={singleMove || index > 8 ? undefined : String(index + 1)}
             onSelect={onSelect}
           />
+        );
+        if (!step.half) return button;
+        const { label, hotkey } = MOVEMENT_HALVES[step.half];
+        return (
+          <MoveSplit key={step.id}>
+            {button}
+            <StepButton
+              step={{ id: step.half, label }}
+              index={index}
+              isActive={currentStepId === step.half}
+              isPast={false}
+              compact={compact}
+              numbered={false}
+              hotkey={hotkey}
+              onSelect={onSelect}
+            />
+          </MoveSplit>
         );
       })}
     </div>

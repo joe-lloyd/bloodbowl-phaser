@@ -5,6 +5,7 @@ import { GameplayInteractionController } from "../../src/game/controllers/Gamepl
 import { MovementValidator } from "../../src/game/validators/MovementValidator";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames, type ActionType, type AllEvents } from "../../src/types/events";
+import type { InteractionMarker, InteractionPitch } from "../../src/game/controllers/interaction/ports";
 import type { PlayerPlacement } from "../../src/types/Scenario";
 
 type Plan = AllEvents[typeof GameEventNames.UI_ActionPlan];
@@ -15,7 +16,37 @@ afterEach(() => {
   destroy = null;
 });
 
-export function board(team1Placements: PlayerPlacement[], team2Placements: PlayerPlacement[]) {
+function quietPitch(): InteractionPitch {
+  const marker: InteractionMarker = { destroy: vi.fn(), setName: () => marker };
+  return {
+    worldToGrid: (x: number, y: number) => ({ x, y }),
+    getPixelPosition: (x: number, y: number) => ({ x, y }),
+    highlightSquare: () => marker,
+    clearPassVisualization: vi.fn(),
+    clearLayer: vi.fn(),
+    drawJumpTargets: vi.fn(),
+    drawMovementPath: vi.fn(),
+    drawRangeOverlay: vi.fn(),
+    drawSprintRisks: vi.fn(),
+    drawTackleZones: vi.fn(),
+    drawPassZones: vi.fn(),
+    drawPassLine: vi.fn(),
+    drawInterceptZone: vi.fn(),
+    drawHandoffTargets: vi.fn(),
+    highlightHoverSquare: vi.fn(),
+    drawAssistRings: vi.fn(),
+    drawInterceptionRolls: vi.fn(),
+    clearHighlights: vi.fn(),
+    clearPath: vi.fn(),
+    clearHover: vi.fn(),
+  };
+}
+
+export function board(
+  team1Placements: PlayerPlacement[],
+  team2Placements: PlayerPlacement[],
+  ballPosition = { x: 1, y: 1 }
+) {
   const game = new HeadlessGame({
     seed: 1,
     scenario: {
@@ -28,31 +59,24 @@ export function board(team1Placements: PlayerPlacement[], team2Placements: Playe
         activeTeam: "team1",
         phase: GamePhase.PLAY,
         subPhase: SubPhase.TURN_RECEIVING,
-        ...(team1Placements.some((p) => p.hasBall) ? {} : { ballPosition: { x: 1, y: 1 } }),
+        ...(team1Placements.some((p) => p.hasBall) ? {} : { ballPosition }),
       },
     },
-  });
-  const members: Record<string, unknown> = {
-    worldToGrid: (x: number, y: number) => ({ x, y }),
-    getPixelPosition: (x: number, y: number) => ({ x, y }),
-    highlightSquare: () => ({ destroy: vi.fn() }),
-  };
-  const pitch = new Proxy(members, {
-    get: (target, key: string) => (target[key] ??= vi.fn()),
   });
   const controller = new GameplayInteractionController({
     scene: {
       team1: game.ctx.team1,
       team2: game.ctx.team2,
+      kickingTeam: game.ctx.team2,
       events: { on: vi.fn(), off: vi.fn() },
       highlightPlayer: vi.fn(),
       unhighlightPlayer: vi.fn(),
       cameras: { main: { worldView: { x: 0, y: 0 }, zoom: 1 } },
       scale: { width: 800, height: 600 },
-    } as never,
+    },
     gameService: game.ctx.gameService,
     eventBus: game.ctx.eventBus,
-    pitch: pitch as never,
+    pitch: quietPitch(),
     movementValidator: new MovementValidator(),
   });
   destroy = () => {

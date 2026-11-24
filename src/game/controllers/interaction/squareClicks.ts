@@ -10,12 +10,11 @@ import {
 import { legalBlockReplacementTargets } from "../../rules/blockReplacements";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { attack, type SquareClick, stepClickFor } from "./stepClicks";
-import { computeJumpTargets } from "./previews";
-import { addWaypoint, refreshPlayerVisualization } from "./routes";
+import { plannedJumpTargets, showSteps } from "./movement";
+import { addWaypoint, drawCurrentPath, refreshPlayerVisualization } from "./routes";
 import { askGates, defersGates, enterActionMode, selectAction } from "./actionModes";
 import { PLANNED_MOVE, finishKindAt, plannedActionFor } from "./plan";
-import { declarePlanned, goPlan, planFinishAt } from "./planRun";
-import { publishPlan } from "./planSummary";
+import { goPlan, planFinishAt } from "./planRun";
 
 export function clickTouchback(
   c: GameplayInteractionController,
@@ -30,12 +29,16 @@ export function clickTouchback(
   );
 }
 
-export async function handleJumpClick(
-{ c,playerId,x,y }: { c: GameplayInteractionController; playerId: string; x: number; y: number; }): Promise<void> {
-  const player = c.gameService.getPlayerById(playerId);
-  if (!player?.gridPosition) return;
-  const landing = computeJumpTargets(c, player).some(
-    (t) => t.dest.x === x && t.dest.y === y
+export function planJumpAt(
+  c: GameplayInteractionController,
+  square: { x: number; y: number }
+): void {
+  const player = c.selectedPlayerId
+    ? c.gameService.getPlayerById(c.selectedPlayerId)
+    : undefined;
+  if (!player) return;
+  const landing = plannedJumpTargets(c, player).find(
+    ({ dest }) => dest.x === square.x && dest.y === square.y
   );
   if (!landing) {
     c.eventBus.emit(
@@ -45,28 +48,10 @@ export async function handleJumpClick(
     return;
   }
   c.jumpTargeting = false;
-  c.pitch.clearPath();
-  c.clearWaypoints();
-  c.dropFinish();
-  if (c.undeclared && !(await declarePlanned(c, player.id))) return;
-  try {
-    await c.gameService.jumpPlayer(player.id, { x, y });
-  } catch (err) {
-    c.eventBus.emit(
-      GameEventNames.UI_Notification,
-      `Cannot Jump: ${String(err)}`
-    );
-  }
-  const after = c.gameService.getPlayerById(player.id);
-  if (
-    after?.status === PlayerStatus.ACTIVE &&
-    c.gameService.canActivate(player.id)
-  ) {
-    refreshPlayerVisualization(c, player.id);
-    publishPlan(c);
-  } else {
-    c.deselectPlayer();
-  }
+  c.waypoints.push({ ...landing.dest, over: landing.over });
+  showSteps(c);
+  drawCurrentPath(c);
+  refreshPlayerVisualization(c, player.id);
 }
 
 function isDownedOpponent(

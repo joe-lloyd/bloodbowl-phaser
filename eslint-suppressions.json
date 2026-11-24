@@ -30,11 +30,6 @@
       "count": 3
     }
   },
-  "__tests__/integration/action-plan-review.test.ts": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    }
-  },
   "__tests__/integration/charge-click-to-move.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 4
@@ -2595,9 +2590,6 @@
     },
     "@typescript-eslint/switch-exhaustiveness-check": {
       "count": 1
-    },
-    "sonarjs/no-duplicated-branches": {
-      "count": 1
     }
   },
   "e2e/support/browserRunner.ts": {
@@ -3808,21 +3800,12 @@
       "count": 1
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
-    "@typescript-eslint/prefer-optional-chain": {
-      "count": 2
+      "count": 1
     },
     "@typescript-eslint/prefer-promise-reject-errors": {
       "count": 2
     },
-    "complexity": {
-      "count": 1
-    },
     "max-params": {
-      "count": 1
-    },
-    "max-statements": {
       "count": 1
     }
   },
@@ -3973,7 +3956,7 @@
       "count": 1
     },
     "max-params": {
-      "count": 2
+      "count": 1
     },
     "max-statements": {
       "count": 1

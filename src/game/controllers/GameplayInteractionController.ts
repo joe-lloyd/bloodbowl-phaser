@@ -7,15 +7,15 @@ import { GamePhase } from "../../types/GameState";
 import { isWallSquare } from "../rules/pitchSquares";
 import { type IEventBus } from "../../services/EventBus";
 import { type Player } from "@/types/Player";
-import { type ActionType, GameEventNames, type UIEvents } from "@/types/events";
+import { type ActionStep, type ActionType, GameEventNames, type MovementHalf, type UIEvents } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 import { DiceWatch } from "../presentation/diceWatch";
 import type { PassController } from "./PassController";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
 import { type BlockReplacement } from "../../types/BlockReplacement";
+import type { RouteStep } from "../rules/jump";
 import type { DecisionRequest, WizardSpell } from "../../types/decisions";
 import { type TargetRollPreview } from "../rules/rollPreview";
-import { type ActionStep } from "./interaction/actionSteps";
 import { BiteAndSpellTargets } from "./interaction/BiteAndSpellTargets";
 import { Confirmations } from "./interaction/Confirmations";
 import { PushPicker } from "./interaction/PushPicker";
@@ -47,7 +47,7 @@ import { playerClickTarget } from "./interaction/stepClicks";
 import {
   clickInPlay,
   clickTouchback,
-  handleJumpClick,
+  planJumpAt,
 } from "./interaction/squareClicks";
 
 interface Square {
@@ -66,7 +66,7 @@ export class GameplayInteractionController {
 
   selectedPlayerId: string | null = null;
   lastHoverGrid: Square | null = null;
-  waypoints: Square[] = [];
+  waypoints: RouteStep[] = [];
 
   finish: PlanFinish | null = null;
   undeclared: PlannedDeclaration | null = null;
@@ -123,6 +123,8 @@ export class GameplayInteractionController {
   hasMovedInAction = false;
 
   jumpTargeting = false;
+
+  shownHalf: MovementHalf | null = null;
 
   ttmTeammateId: string | null = null;
 
@@ -391,7 +393,7 @@ export class GameplayInteractionController {
     const playerAtSquare = this.getPlayerAt(x, y);
 
     if (this.jumpTargeting && this.selectedPlayerId) {
-      await handleJumpClick({ c: this,playerId: this.selectedPlayerId,x,y });
+      planJumpAt(this, { x, y });
       return;
     }
 

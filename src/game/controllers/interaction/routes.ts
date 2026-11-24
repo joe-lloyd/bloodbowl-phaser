@@ -7,7 +7,7 @@ import { type Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { isTurnRunning } from "../../kickoff/kickoffTurn";
 import { getActiveOnlineMatch } from "@/network/OnlineMatch";
-import { moveAllowance, standUpCost } from "../../skills/movement";
+import { moveAllowance } from "../../skills/movement";
 import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { planMoveLegs, stepRolls } from "../../rules/moveLegs";
 import {
@@ -24,6 +24,9 @@ import type { GameplayInteractionController } from "../GameplayInteractionContro
 import { climbRequest } from "./Confirmations";
 import { plannedActionFor } from "./plan";
 import { publishPlan } from "./planSummary";
+import { movementAfterRoute, movementStarted, syncMovementHalf } from "./movement";
+import { routeSquares, type RouteStep } from "../../rules/jump";
+import { usesBaseMove } from "../../rules/actionAvailability";
 import type { MoveStep } from "@/headless/protocol";
 
 interface Square {
@@ -56,7 +59,7 @@ export function findLeg(
   if (!startPos) return { valid: false, path: [], rolls: [], cost: 0 };
   const { opponents, teammates } = sidesOf(c, player);
   const mockPlayer = { ...effectivePlayer, gridPosition: startPos };
-  return c.movementValidator.findPath({ player: mockPlayer, targetX: x, targetY: y, opponents: opponents, teammates: teammates, movementUsed: c.gameService.getMovementUsed(player.id) + c.waypoints.length });
+  return c.movementValidator.findPath({ player: mockPlayer, targetX: x, targetY: y, opponents: opponents, teammates: teammates, movementUsed: c.gameService.getMovementUsed(player.id) + routeSquares(c.waypoints) });
 }
 
 export function addWaypoint(
@@ -117,7 +120,7 @@ export function rerollSources(
 function planLegs(
   c: GameplayInteractionController,
   player: Player,
-  route: Square[]
+  route: RouteStep[]
 ) {
   const state = c.gameService.getState();
   const mover = withDriveModifiers(player, state);
@@ -139,9 +142,7 @@ function planLegs(
     player: mover,
     ma: mover.stats.MA,
     allowance: moveAllowance(mover),
-    used:
-      c.gameService.getMovementUsed(player.id) +
-      (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0),
+    used: movementStarted(c, mover),
     rushModifier: rushRollModifier(state, player),
     dodgeModifier: souvenirModifier(state, player.id, "dodge"),
 
@@ -152,7 +153,7 @@ function planLegs(
 export function routeRolls(
   c: GameplayInteractionController,
   player: Player,
-  route: Square[]
+  route: RouteStep[]
 ): RouteRoll[] {
   return planLegs(c, player, route).flatMap((leg) =>
     leg.risk ? stepRolls(leg.risk, leg.path[0]) : []
@@ -162,15 +163,13 @@ export function routeRolls(
 function drawPlannedRoute(
   c: GameplayInteractionController,
   player: Player,
-  fullPath: Square[]
+  fullPath: RouteStep[]
 ): RoutePreview {
   const rolls = routeRolls(c, player, fullPath.slice(1));
   const mover = withDriveModifiers(player, c.gameService.getState());
   const left = Math.max(
     0,
-    mover.stats.MA -
-      c.gameService.getMovementUsed(player.id) -
-      (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0)
+    mover.stats.MA - movementStarted(c, mover)
   );
   c.pitch.drawMovementPath(fullPath, rolls, left);
   const route: RoutePreview = {
@@ -240,20 +239,14 @@ function drawMoveRange(
   player: Player,
   effectivePlayer: Player
 ): void {
-  let used = c.gameService.getMovementUsed(player.id);
-
-  if (player.status === "Prone") {
-    const standUpCost = Math.min(3, effectivePlayer.stats.MA);
-    used += standUpCost;
-  }
-
+  const used = movementAfterRoute(c, effectivePlayer);
   let reachable: { x: number; y: number; cost?: number }[];
   const lastNode = c.waypoints.at(-1);
   if (lastNode) {
     const { opponents, teammates } = sidesOf(c, player);
     const remainingAllowance = Math.max(
       0,
-      moveAllowance(effectivePlayer) - used - c.waypoints.length
+      moveAllowance(effectivePlayer) - used
     );
     reachable = c.movementValidator
       .findReachableSquares(
@@ -262,7 +255,6 @@ function drawMoveRange(
         teammates
       )
       .filter((m) => m.cost <= remainingAllowance);
-    used += c.waypoints.length;
   } else {
     reachable = c.gameService.getAvailableMovements(player.id);
   }
@@ -283,7 +275,13 @@ function tackleZoneSquares(opponents: Player[]): Square[] {
     ? adjacentSquares(opponent.gridPosition, { width: 26, height: 15 }) : []);
 }
 
-const MOVEMENT_MODES = new Set<GameplayInteractionController["currentActionMode"]>([null, "move", "blitz", "secureBall"]);
+const MOVEMENT_MODES = new Set<GameplayInteractionController["currentActionMode"]>([null, "move", "blitz", "handoff", "foul", "secureBall"]);
+
+function routesInMode(c: GameplayInteractionController): boolean {
+  const mode = c.currentActionMode;
+  if (MOVEMENT_MODES.has(mode)) return true;
+  return mode !== null && c.currentStepId === "move" && usesBaseMove(mode);
+}
 
 function routesClosed(c: GameplayInteractionController): boolean {
   if (c.isBusy || c.push.active) return true;
@@ -291,8 +289,7 @@ function routesClosed(c: GameplayInteractionController): boolean {
   const state = c.gameService.getState();
   if (!isTurnRunning(state) || kickoffTurnOf(state)?.play.kind === "one-square")
     return true;
-  const mode = c.currentActionMode;
-  return !MOVEMENT_MODES.has(mode);
+  return !routesInMode(c);
 }
 
 function selectedRouteEndpoint(c: GameplayInteractionController, x: number, y: number): Player | null {
@@ -336,6 +333,7 @@ function rewindRoute({ c, player, start, x, y }: Parameters<typeof dragRouteTo>[
 }
 
 function extendRoute(c: GameplayInteractionController, start: Square, { x, y }: Square): void {
+  c.jumpTargeting = false;
   const route = c.waypoints;
   const before = route[route.length - 2] ?? start;
   if (
@@ -413,7 +411,19 @@ async function legPath(c: GameplayInteractionController, player: Player, leg: Pl
   return [answer === "alternative" ? { ...step, reckless: true } : step];
 }
 
-export async function walkRoute(c: GameplayInteractionController, playerId: string, route: Square[]): Promise<boolean> {
+async function takeLeg(c: GameplayInteractionController, player: Player, leg: PlannedLeg): Promise<boolean> {
+  if ("jump" in leg) {
+    await c.dice.landed();
+    const [{ x, y }] = leg.path;
+    await c.gameService.jumpPlayer(player.id, { x, y });
+    return true;
+  }
+  const path = await legPath(c, player, leg);
+  if (path) await c.gameService.movePlayer(player.id, path);
+  return path !== null;
+}
+
+export async function walkRoute(c: GameplayInteractionController, playerId: string, route: RouteStep[]): Promise<boolean> {
   let rest = route;
   let walked = false;
   while (rest.length > 0) {
@@ -421,9 +431,7 @@ export async function walkRoute(c: GameplayInteractionController, playerId: stri
     if (!player?.gridPosition) break;
     const [leg] = planLegs(c, player, rest);
     if (!leg) break;
-    const path = await legPath(c, player, leg);
-    if (!path) break;
-    await c.gameService.movePlayer(playerId, path);
+    if (!(await takeLeg(c, player, leg))) break;
     walked = true;
     await c.scene.playerSettled?.(playerId);
     const end = leg.path.reduce((_, square) => square, leg.path[0]);
@@ -441,6 +449,7 @@ export function refreshPlayerVisualization(
   const player = c.gameService.getPlayerById(playerId);
   if (!player) return;
   const effectivePlayer = withDriveModifiers(player, state);
+  syncMovementHalf(c);
 
   const canActivate = c.gameService.canActivate(playerId);
   const isOwnTurn = state.activeTeamId === player.teamId;

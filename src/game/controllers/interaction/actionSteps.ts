@@ -1,13 +1,8 @@
-import type { ActionType } from "@/types/events";
+import type { ActionStep, ActionType } from "@/types/events";
 import {
   type BlockReplacement,
   BLOCK_REPLACEMENT_DEFINITIONS,
 } from "@/types/BlockReplacement";
-
-export interface ActionStep {
-  id: string;
-  label: string;
-}
 
 export const SPECIAL_ACTION_MODES = new Set<string>([
   "stab",
@@ -47,8 +42,6 @@ const ACTION_STEPS: Partial<Record<ActionType, ActionStep[]>> = {
   secureBall: [{ id: "move", label: "Move to secure the ball" }],
 };
 
-const MOVE_STEPS: ActionStep[] = [MOVE, { id: "jump", label: "Jump" }];
-
 export function actionStepsFor(
   action: ActionType,
   blockReplacement: BlockReplacement | null
@@ -62,6 +55,6 @@ export function actionStepsFor(
             label: BLOCK_REPLACEMENT_DEFINITIONS[blockReplacement].label,
           },
         ]
-      : (ACTION_STEPS[action] ?? MOVE_STEPS);
+      : (ACTION_STEPS[action] ?? [MOVE]);
   return steps.map((step) => ({ ...step }));
 }

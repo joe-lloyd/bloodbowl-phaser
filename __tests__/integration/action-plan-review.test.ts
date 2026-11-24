@@ -20,6 +20,8 @@ describe("action plan review fixes", () => {
 
     game.ctx.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "jump" });
     await controller.onSquareClicked(12, 5);
+    expect(seen.dice).toEqual([]);
+    await controller.onSquareClicked(12, 5);
 
     expect(seen.dice[0]).toContain("Bone Head");
     expect(game.ctx.gameService.getState().activePlayer?.action).toBe("move");
@@ -39,6 +41,8 @@ describe("action plan review fixes", () => {
     expect(fixtureValue(seen.plan).squares).toBe(1);
 
     game.ctx.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "jump" });
+    await controller.onSquareClicked(12, 5);
+    expect(fixtureValue(seen.plan).squares).toBe(3);
     await controller.onSquareClicked(12, 5);
 
     await vi.waitFor(() => {
@@ -60,9 +64,10 @@ describe("action plan review fixes", () => {
 
     game.ctx.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "jump" });
     await controller.onSquareClicked(12, 5);
+    await controller.onSquareClicked(12, 5);
 
-    expect(seen.notes).toContain("Cannot Jump: Error: refused");
-    expect(jumper.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(seen.notes).toContain("Cannot move: Error: refused");
+    expect(jumper.gridPosition).toEqual({ x: 10, y: 6 });
     expect(controller.selectedPlayerId).toBe(jumper.id);
     expect(seen.plan).toBeNull();
   });

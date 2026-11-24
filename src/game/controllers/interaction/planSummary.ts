@@ -4,6 +4,8 @@ import { SkillType, hasSkill } from "@/types/Skills";
 import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { activationGates } from "../../skills";
 import { moveAllowance, standUpCost } from "../../skills/movement";
+import { standUpTarget } from "../../skills/rules/TimmberRule";
+import { routeSquares } from "../../rules/jump";
 import { activeRules } from "../../variants/activeMatch";
 import { requiredRoll } from "../../rules/rollTargets";
 import { weatherEffects } from "../../rules/weather";
@@ -30,6 +32,7 @@ import {
   needsContact,
   plannedActor,
 } from "./plan";
+import { movementAfterRoute, syncMovementHalf } from "./movement";
 import { adjacentTo } from "./squares";
 import { interceptions } from "./previews";
 import { rerollSources, routeRolls } from "./routes";
@@ -83,8 +86,23 @@ function gateStage(c: GameplayInteractionController, player: Player): PlanStage 
   };
 }
 
+function standStage(c: GameplayInteractionController, mover: Player): PlanStage | null {
+  const rises = c.waypoints.length > 0 || currentFinish(c) !== null;
+  if (mover.status !== PlayerStatus.PRONE || !rises) return null;
+  const target = standUpTarget({
+    player: mover,
+    teammates: c.gameService.getTeammates(mover.id),
+    opponents: c.gameService.getOpponents(mover.teamId),
+  });
+  return {
+    label: "Stand up",
+    rolls: target === null ? [] : [{ kind: "standUp", name: "Stand up", target }],
+    notes: target === null ? [`Uses ${String(standUpCost(mover))} movement.`] : [],
+  };
+}
+
 function routeStage(c: GameplayInteractionController, player: Player): PlanStage | null {
-  const squares = c.waypoints.length;
+  const squares = routeSquares(c.waypoints);
   if (squares === 0) return null;
   return {
     label: `Move ${String(squares)} ${squares === 1 ? "square" : "squares"}`,
@@ -122,11 +140,6 @@ function throwStages(c: GameplayInteractionController, actor: Player, finish: Pl
     });
   }
   return stages;
-}
-
-function movementAfterRoute(c: GameplayInteractionController, player: Player): number {
-  const prone = player.status === PlayerStatus.PRONE ? standUpCost(player) : 0;
-  return c.gameService.getMovementUsed(player.id) + prone + c.waypoints.length;
 }
 
 function blockStage(c: GameplayInteractionController, actor: Player, target: Player): PlanStage {
@@ -246,12 +259,12 @@ function buildPlan(c: GameplayInteractionController): ActionPlanSummary | null {
   if (!c.undeclared && c.waypoints.length === 0 && !finish) return null;
   const mover = withDriveModifiers(player, c.gameService.getState());
   const actor = plannedActor(c, mover);
-  const stages = [gateStage(c, mover), routeStage(c, player), ...(finish ? finishStages(c, actor, finish) : [])]
+  const stages = [gateStage(c, mover), standStage(c, mover), routeStage(c, player), ...(finish ? finishStages(c, actor, finish) : [])]
     .filter((stage): stage is PlanStage => stage !== null);
   const action = c.undeclared?.action ?? c.currentActionMode ?? "move";
   return {
     title: TITLES[action] ?? "Plan",
-    squares: c.waypoints.length,
+    squares: routeSquares(c.waypoints),
     stages,
     rerolls: [
       ...rerollSources(c, mover, stages.flatMap((stage) => stage.rolls.map((roll) => roll.kind))),
@@ -262,5 +275,6 @@ function buildPlan(c: GameplayInteractionController): ActionPlanSummary | null {
 }
 
 export function publishPlan(c: GameplayInteractionController): void {
+  syncMovementHalf(c);
   c.eventBus.emit(GameEventNames.UI_ActionPlan, buildPlan(c));
 }

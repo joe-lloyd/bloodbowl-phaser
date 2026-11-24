@@ -134,6 +134,12 @@ export class HudPage {
     await this.rollNegatraitIfAsked(playerRef);
   }
 
+  async standUp(playerRef: string): Promise<void> {
+    const step = this.page.getByTestId("action-step-standup");
+    if (await step.isVisible()) await step.click();
+    else await this.declareAction(playerRef, "move-standup");
+  }
+
   negatraitConfirm(): Locator {
     return this.page
       .getByTestId("confirmation-modal")

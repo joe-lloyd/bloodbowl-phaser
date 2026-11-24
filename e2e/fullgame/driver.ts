@@ -282,13 +282,15 @@ export async function perform(
         break;
       }
       case "jump":
-        await app.pitch.clickSquare({
-          x: command["x"] as number,
-          y: command["y"] as number,
-        });
+        await app.hud.selectActionStep("jump");
+        for (let click = 0; click < 2; click++)
+          await app.pitch.clickSquare({
+            x: command["x"] as number,
+            y: command["y"] as number,
+          });
         break;
       case "stand-up":
-        await app.hud.declareAction(command["playerId"] as string, "standUp");
+        await app.hud.standUp(command["playerId"] as string);
         break;
       case "block":
         await app.pitch.clickPlayer(command["defenderId"] as string);

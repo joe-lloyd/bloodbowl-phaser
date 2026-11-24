@@ -167,7 +167,7 @@ export const PLAYER_VARIANTS: Variant[] = [
         fx.bus.emit(GameEventNames.UI_UpdateActionSteps, {
           currentStepId: "pass",
           steps: [
-            { id: "move", label: "Move" },
+            { id: "move", label: "Move", half: "jump" },
             { id: "pass", label: "Pass" },
           ],
         });
