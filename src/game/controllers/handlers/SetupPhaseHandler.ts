@@ -270,6 +270,7 @@ export class SetupPhaseHandler implements PhaseHandler {
   private emitFormationList(key: string, isTeam1: boolean): void {
     this.eventBus.emit(GameEventNames.UI_FormationsUpdated, {
       formations: this.scene.formationManager.listAllFormations(key, isTeam1),
+      isTeam1,
     });
   }
 

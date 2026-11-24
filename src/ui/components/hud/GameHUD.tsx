@@ -327,7 +327,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <div
               className={
                 drawer === "log"
-                  ? "h-[min(60dvh,320px)] w-full shrink-0"
+                  ? "h-[min(34vh,320px)] w-full shrink-0"
                   : "hidden"
               }
             >
@@ -480,7 +480,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       bottomLeft={
         <>
           <PlayerInfoPanel eventBus={eventBus} />
-          <div className="h-[22vh] max-h-[220px] min-h-[120px] w-full shrink-0">
+          <div className="min-h-[160px] w-full flex-[0_1_50vh]">
             <DiceLog eventBus={eventBus} />
           </div>
         </>

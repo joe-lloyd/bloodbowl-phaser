@@ -4,6 +4,8 @@ import { type PhaseHandler } from "./PhaseHandler";
 import { type GameEventMap, type IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { registerActionCommands } from "./actionCommands";
+import { KickTargetMarker } from "./KickTargetMarker";
+import { GamePhase } from "../../../types/GameState";
 
 export class KickoffPhaseHandler implements PhaseHandler {
   private removeHandlers: (() => void)[] = [];
@@ -12,6 +14,7 @@ export class KickoffPhaseHandler implements PhaseHandler {
   private scene: KickoffScene;
   private gameService: KickoffService;
   private eventBus: IEventBus;
+  private readonly kickTarget: KickTargetMarker;
   constructor(
     scene: KickoffScene,
     gameService: KickoffService,
@@ -20,6 +23,7 @@ export class KickoffPhaseHandler implements PhaseHandler {
     this.scene = scene;
     this.gameService = gameService;
     this.eventBus = eventBus;
+    this.kickTarget = new KickTargetMarker(scene, eventBus);
   }
 
   enter(): void {
@@ -29,6 +33,7 @@ export class KickoffPhaseHandler implements PhaseHandler {
 
   exit(): void {
     this.removeListeners();
+    this.kickTarget.clear();
   }
 
   private register<K extends keyof GameEventMap>(
@@ -79,6 +84,14 @@ export class KickoffPhaseHandler implements PhaseHandler {
     this.register(GameEventNames.KickoffAirbornePositionChanged, ({ x, y }) => {
       if (!this.ballIsAirborne) return;
       this.moveAirborneBallTo(x, y);
+      this.kickTarget.showOnceRolled({ x, y });
+    });
+
+    this.register(GameEventNames.GameStateRestored, (state) => {
+      const { ballPosition: square, phase } = state;
+      const stillFalling = this.ballIsAirborne && phase === GamePhase.KICKOFF;
+      if (stillFalling && square) this.kickTarget.showOnceRolled(square);
+      else this.kickTarget.clear();
     });
 
     this.register(GameEventNames.PlayerMoved, this.handlePlayerMoved1);
@@ -109,6 +122,7 @@ export class KickoffPhaseHandler implements PhaseHandler {
 
     this.register(GameEventNames.KickoffSequenceCompleted, () => {
       this.ballIsAirborne = false;
+      this.kickTarget.clear();
     });
 
     this.register(GameEventNames.ReadyToStart, () => {
@@ -125,6 +139,9 @@ export class KickoffPhaseHandler implements PhaseHandler {
   }
 
   private readonly handleBallKicked0 = (data: GameEventMap[typeof GameEventNames.BallKicked]) => {
+      if (data.isTouchback) this.kickTarget.clear();
+      else this.kickTarget.showOnceRolled({ x: data.finalX, y: data.finalY });
+
       let startX = data.targetX;
       let startY = data.targetY;
 
@@ -171,6 +188,7 @@ export class KickoffPhaseHandler implements PhaseHandler {
 
   private readonly handleKickoffBallLanding2 = ({ landingSquare, isTouchback }: GameEventMap[typeof GameEventNames.KickoffBallLanding]) => {
         const ball = this.ball();
+        if (isTouchback || !landingSquare || !ball) this.kickTarget.clear();
         if (!ball) return;
 
         if (isTouchback || !landingSquare) {
@@ -190,7 +208,10 @@ export class KickoffPhaseHandler implements PhaseHandler {
         );
         void ball
           .flyTo(position, { duration: 650, apex: 0, ease: "Quad.easeIn" })
-          .then(() => ball.bounce());
+          .then(() => {
+            this.kickTarget.clear();
+            return ball.bounce();
+          });
       };
 
   private readonly handleKickoffResult3 = (data: GameEventMap[typeof GameEventNames.KickoffResult]) => {

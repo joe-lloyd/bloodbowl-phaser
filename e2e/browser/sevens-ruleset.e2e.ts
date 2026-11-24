@@ -85,7 +85,7 @@ test("a coach resumes Swarming and places an eighth player through the canvas", 
   await expect(
     page.getByRole("button", { name: /FINISH SWARMING/ })
   ).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator("optgroup[label=Presets]")).toHaveCount(0);
+  await expect(page.getByTestId("formation-menu")).toHaveCount(0);
   const square = await page.evaluate((id) => {
     const scene = (window.game)!.scene
       .getScenes(true)

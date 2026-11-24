@@ -46,10 +46,7 @@ export const SETUP_VARIANTS: Variant[] = [
   ),
 
   setupPanel({ id: "setup-incomplete", title: "Placing players" }, (fx) => {
-    showPlacing(fx, [
-      { name: "Balanced", builtIn: true },
-      { name: "My cage", builtIn: false },
-    ]);
+    showPlacing(fx);
   }),
   setupPanel(
     { id: "setup-ready", title: "Ready to confirm, offense" },

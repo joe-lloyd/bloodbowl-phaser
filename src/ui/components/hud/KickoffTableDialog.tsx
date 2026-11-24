@@ -14,11 +14,15 @@ import {
   activeKickoffTableId,
 } from "../../../game/kickoff/kickoffTables";
 import { kickoffEventSummary } from "../../../game/kickoff/kickoffMoment";
-import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
-import { WeatherStage } from "./WeatherReveal";
+import { HudButton } from "../componentWarehouse/HudKit";
+import { DiceWatch } from "../../../game/presentation/diceWatch";
+import { PHONE_QUERY, matchesMedia } from "../../../game/presentation/phoneLayout";
+import { RollTablePanel } from "./RollTablePanel";
 import { useWeatherThrow } from "./weatherThrow";
 
 const RESULT_READ_MS = 1600;
+
+const DEVIATION_READ_MS = 1200;
 
 interface Opened {
   readyId: string;
@@ -28,19 +32,33 @@ interface Opened {
 export function KickoffTableDialog({ eventBus }: { eventBus: IEventBus }) {
   const [opened, setOpened] = useState<Opened | null>(null);
 
+  const waitingFor = useRef<string | null>(null);
+
+  const close = () => {
+    waitingFor.current = null;
+    setOpened(null);
+  };
+
+  useEffect(
+    () => () => {
+      waitingFor.current = null;
+    },
+    []
+  );
+
   useEventBus(eventBus, GameEventNames.KickoffTableReady, (data) => {
-    setOpened({
-      readyId: data.presentationId,
-      kickingTeamId: data.kickingTeamId,
+    const readyId = data.presentationId;
+    waitingFor.current = readyId;
+    void deviationRead(eventBus).then(() => {
+      if (waitingFor.current !== readyId) return;
+      setOpened({ readyId, kickingTeamId: data.kickingTeamId });
     });
   });
 
-  useEventBus(eventBus, GameEventNames.KickoffResult, () => {
-    setOpened(null);
-  });
+  useEventBus(eventBus, GameEventNames.KickoffResult, close);
 
   useEventBus(eventBus, GameEventNames.GameStateRestored, () => {
-    if (!tableResolving()) setOpened(null);
+    if (!tableResolving()) close();
   });
 
   if (!opened) return null;
@@ -49,11 +67,16 @@ export function KickoffTableDialog({ eventBus }: { eventBus: IEventBus }) {
       key={opened.readyId}
       eventBus={eventBus}
       opened={opened}
-      onDone={() => {
-        setOpened(null);
-      }}
+      onDone={close}
     />
   );
+}
+
+async function deviationRead(eventBus: IEventBus): Promise<void> {
+  const dice = DiceWatch.shared(eventBus);
+  if (!dice.inAir()) return;
+  await dice.landed();
+  await new Promise((resolve) => setTimeout(resolve, DEVIATION_READ_MS));
 }
 
 function tableResolving(): boolean {
@@ -61,6 +84,13 @@ function tableResolving(): boolean {
     ServiceContainer.isInitialized() &&
     ServiceContainer.getInstance().gameService.isKickoffTableResolving()
   );
+}
+
+function useBallClearOfStrip(eventBus: IEventBus) {
+  useEffect(() => {
+    if (matchesMedia(PHONE_QUERY)) return;
+    eventBus.emit(GameEventNames.Camera_TrackBall, { animationDuration: 600 });
+  }, [eventBus]);
 }
 
 function TableDialog({
@@ -97,6 +127,8 @@ function TableDialog({
     });
   };
 
+  useBallClearOfStrip(eventBus);
+
   useEffect(() => {
     if (online) roll();
   }, []);
@@ -129,49 +161,11 @@ function TableDialog({
   );
 }
 
-function KickoffTable({ result }: { result: KickoffEvent | null }) {
-  const list = useRef<HTMLUListElement>(null);
-
-  useEffect(() => {
-    list.current
-      ?.querySelector("[data-current]")
-      ?.scrollIntoView({ block: "nearest" });
-  }, [result]);
-  return (
-    <ul
-      ref={list}
-      className="max-h-[min(360px,40dvh)] space-y-0.5 overflow-y-auto hud-scroll text-left"
-      data-testid="kickoff-table"
-    >
-      {Object.entries(KICKOFF_TABLES[activeKickoffTableId()]).map(([total, event]) => {
-        const hit = event === result;
-        return (
-          <li
-            key={total}
-            data-current={hit ? "" : undefined}
-            className={`grid grid-cols-[2rem_1fr] items-baseline gap-3 rounded-hud border px-3 py-0.5 ${
-              hit
-                ? "border-hud-gold bg-hud-gold/15 text-hud-bone"
-                : "border-white/5 text-hud-dim"
-            }`}
-          >
-            <span className="font-hud-label text-hud-base font-bold tabular-nums">
-              {total}
-            </span>
-            <span>
-              <span className="font-hud-label font-bold uppercase tracking-[0.04em]">
-                {event}
-              </span>
-              <span className="ml-2 text-hud-xs">
-                {kickoffEventSummary(event)}
-              </span>
-            </span>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
+const tableRow = (total: string, event: KickoffEvent) => ({
+  label: total,
+  name: event,
+  detail: kickoffEventSummary(event),
+});
 
 interface TableDialogViewProps {
   step: WeatherStep;
@@ -191,47 +185,31 @@ function TableDialogView({
   online,
   roll,
 }: TableDialogViewProps) {
+  const rows = Object.entries(KICKOFF_TABLES[activeKickoffTableId()]).map(
+    ([label, event]) => tableRow(label, event)
+  );
   return (
-    <DialogShell
+    <RollTablePanel
+      kind="kickoff"
+      title="Kick-off table"
+      intro={`${kicking?.name ?? "The kicking team"} rolls for what happens before the ball lands.`}
+      columns="grid-cols-6"
+      rows={rows}
+      result={result && (rows.find((row) => row.name === result) ?? null)}
+      total={total}
+      step={step}
+      stage={stage}
       zClass="z-[120]"
-      placement="center"
-      backdrop="heavy"
-      titleAs="h1"
-      title="KICK-OFF TABLE"
-      width="w-[600px]"
-      className="text-center"
-      testId="kickoff-table-dialog"
-    >
-      <div className="space-y-3 [@media(max-height:600px)]:space-y-1">
-        {step === "waiting" && (
-          <p className="text-hud-dim">
-            The ball is in the air. Roll 2D6 for{" "}
-            {kicking?.name ?? "the kicking team"} on the Kick-off Table to see
-            what happens before it lands.
-          </p>
-        )}
-        <WeatherStage stage={stage} step={step} />
-        {result && (
-          <div className="animate-hud-in" data-testid="kickoff-table-result">
-            <div className="font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-gold">
-              {result}
-            </div>
-            <p className="text-hud-dim">
-              {total !== null && <>Rolled {total} · </>}
-              {kickoffEventSummary(result)}
-            </p>
-          </div>
-        )}
-        <KickoffTable result={result} />
-        {step === "waiting" &&
-          (online ? (
-            <p className="hud-label">Rolling…</p>
-          ) : (
-            <HudButton variant="primary" size="lg" block onClick={roll}>
-              ROLL KICK-OFF
-            </HudButton>
-          ))}
-      </div>
-    </DialogShell>
+      action={
+        step === "waiting" &&
+        (online ? (
+          <p className="hud-label">Rolling…</p>
+        ) : (
+          <HudButton variant="primary" size="lg" block onClick={roll}>
+            ROLL KICK-OFF
+          </HudButton>
+        ))
+      }
+    />
   );
 }

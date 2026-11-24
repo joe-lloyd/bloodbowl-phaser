@@ -17,10 +17,10 @@ type Graphics = Commands<Pick<Phaser.GameObjects.Graphics, "destroy" | "setDepth
   "fillPoints" | "fillCircle" | "setPosition" | "setScale">>;
 type SceneTweens = Commands<Pick<Phaser.Tweens.TweenManager, "add" | "addCounter">>;
 
-export type KickoffScene = Pick<GameScene, "kickingTeam" | "placeBallVisual" | "refreshDugouts"> & {
+export type KickoffScene = Pick<GameScene, "team1" | "team2" | "kickingTeam" | "placeBallVisual" | "refreshDugouts"> & {
   ballSprite: BallVisual | null;
   playerSprites: ReadonlyMap<string, PlayerVisual>;
-  pitch: PhasePitch;
+  pitch: PhasePitch & Pick<Pitch, "markKickTarget" | "clearKickTarget">;
   tweens: SceneTweens;
 };
 

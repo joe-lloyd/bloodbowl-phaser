@@ -2,6 +2,7 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DiceWatch } from "../../src/game/presentation/diceWatch";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
@@ -74,6 +75,33 @@ describe("KickoffTableDialog", () => {
       fixtureValue(roll).click();
     });
     expect(answers).toEqual(["kickoff-ready-1"]);
+  });
+
+  it("stays away until the kick's own dice have landed and been read", async () => {
+    vi.useFakeTimers();
+    DiceWatch.shared(bus);
+    const dice = (landedThrough: number) => {
+      bus.emit(GameEventNames.UI_DiceInAir, {
+        count: 2 - landedThrough,
+        thrown: 2,
+        landedThrough,
+      });
+    };
+    await act(async () => {
+      dice(0);
+      bus.emit(GameEventNames.KickoffTableReady, {
+        presentationId: "kickoff-ready-5",
+        kickingTeamId: "team1",
+      });
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(dialog()).toBeNull();
+    await act(async () => {
+      dice(2);
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(dialog()).not.toBeNull();
+    vi.useRealTimers();
   });
 
   it("never opens for a kick an online page replays while catching up", async () => {

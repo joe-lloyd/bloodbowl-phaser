@@ -122,4 +122,26 @@ describe("KickoffEventOverlay", () => {
     );
     expect(buttons).toEqual(["Skip", "Done"]);
   });
+
+  it("asks for one click on a High Kick, with nothing to confirm", async () => {
+    const { eventBus, team1 } = setup();
+    const services = ServiceContainer.getInstance();
+    services.gameService.getKickoffEventStep = () => ({
+      event: KickoffEvent.HIGH_KICK,
+      teamId: team1.id,
+      selectionLimit: 1,
+      selectedPlayerIds: [],
+      movedPlayerIds: [],
+      awaitingPlacement: [],
+    });
+
+    await render(eventBus);
+
+    expect(
+      [...container.querySelectorAll("li")].map((line) => line.textContent)
+    ).toEqual(["1Choose a ringed player to stand under the ball"]);
+    expect(
+      [...container.querySelectorAll("button")].map((b) => b.textContent)
+    ).toEqual(["Skip"]);
+  });
 });

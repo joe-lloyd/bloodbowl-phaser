@@ -255,7 +255,7 @@ describe("Charge! Blitz block from the block dialog", () => {
     });
     expect(gs.getState().activePlayer?.id).toBe(fixtureValue(attacker).id);
     const handler = new KickoffPhaseHandler(
-      { playerSprites: new Map() } as never,
+      { playerSprites: new Map(), pitch: { clearKickTarget: vi.fn() } } as never,
       gs,
       eventBus
     );

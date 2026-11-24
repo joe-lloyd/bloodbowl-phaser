@@ -16,6 +16,7 @@ import {
   pixelToGrid,
   squareCorners,
 } from "./GridUtils";
+import { drawKickTarget, KICK_TARGET_LAYER } from "./kickTargetRing";
 
 const ROLL_LETTER: Record<RouteRoll["type"], string> = {
   dodge: "D",
@@ -125,6 +126,16 @@ export class Pitch {
       inset: 0.04,
       crowd: options.crowd ?? false,
     }).setName("highlight");
+  }
+
+  public markKickTarget(square: GridPosition, color: number): void {
+    this.clearKickTarget();
+    if (!this.isOnPitch(square)) return;
+    this.container.add(drawKickTarget(this.scene, square, color));
+  }
+
+  public clearKickTarget(): void {
+    this.clearTweenedLayer(KICK_TARGET_LAYER);
   }
 
   public highlightHoverSquare(gridX: number, gridY: number): void {
@@ -457,8 +468,12 @@ export class Pitch {
   }
 
   private clearSetupZone(): void {
+    this.clearTweenedLayer("setup_zone_");
+  }
+
+  private clearTweenedLayer(prefix: string): void {
     this.container.getAll().forEach((child) => {
-      if (!child.name.startsWith("setup_zone_")) return;
+      if (!child.name.startsWith(prefix)) return;
       this.scene.tweens.killTweensOf(child);
       child.destroy();
     });

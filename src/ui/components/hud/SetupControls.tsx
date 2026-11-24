@@ -4,6 +4,8 @@ import { useEventBus } from "../../hooks/useEventBus";
 
 import { SubPhase } from "../../../types/GameState";
 import { GameEventNames } from "../../../types/events";
+import type { FormationEntry } from "../../../game/managers/FormationManager";
+import { FormationPicker } from "./FormationPicker";
 import { SetupChecklist } from "./SetupChecklist";
 import { type SetupTeamStatus } from "../../../types/SetupTypes";
 import {
@@ -79,9 +81,8 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
     name: string;
   } | null>(null);
   const [subPhase, setSubPhase] = useState<SubPhase>(SubPhase.SETUP_KICKING);
-  const [formations, setFormations] = useState<
-    { name: string; builtIn: boolean }[]
-  >([]);
+  const [formations, setFormations] = useState<FormationEntry[]>([]);
+  const [isTeam1, setIsTeam1] = useState(true);
   const [selectedFormation, setSelectedFormation] = useState("");
   const [saveName, setSaveName] = useState("");
   const [status, setStatus] = useState<SetupTeamStatus | null>(null);
@@ -99,6 +100,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
 
   useEventBus(eventBus, GameEventNames.UI_FormationsUpdated, (data) => {
     setFormations(data.formations);
+    setIsTeam1(data.isTeam1);
     setSelectedFormation((current) =>
       data.formations.some((f) => f.name === current)
         ? current
@@ -171,6 +173,8 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
             saveName={saveName}
             onSaveName={setSaveName}
             compact={compact}
+            isTeam1={isTeam1}
+            kicking={subPhase === SubPhase.SETUP_KICKING}
             concessionPending={concessionPending}
             onAction={handleAction}
           />
@@ -246,32 +250,20 @@ function ConcessionOffer({
   );
 }
 
-function FormationTools({
+function FormationSelect({
   formations,
-  selectedFormation,
-  onSelectFormation,
-  saveName,
-  onSaveName,
-  compact,
-  concessionPending,
-  onAction,
+  selected,
+  onSelect,
 }: {
-  formations: { name: string; builtIn: boolean }[];
-  selectedFormation: string;
-  onSelectFormation: (name: string) => void;
-  saveName: string;
-  onSaveName: (name: string) => void;
-  compact: boolean;
-  concessionPending: boolean;
-  onAction: SetupAction;
+  formations: readonly FormationEntry[];
+  selected: string;
+  onSelect: (name: string) => void;
 }) {
-  const selected = formations.find((f) => f.name === selectedFormation);
   return (
-    <>
       <select
-        value={selectedFormation}
+        value={selected}
         onChange={(e) => {
-          onSelectFormation(e.target.value);
+          onSelect(e.target.value);
         }}
         className="hud-field cursor-pointer"
       >
@@ -296,6 +288,54 @@ function FormationTools({
           </optgroup>
         )}
       </select>
+  );
+}
+
+function FormationTools({
+  formations,
+  isTeam1,
+  kicking,
+  selectedFormation,
+  onSelectFormation,
+  saveName,
+  onSaveName,
+  compact,
+  concessionPending,
+  onAction,
+}: {
+  formations: FormationEntry[];
+  isTeam1: boolean;
+  kicking: boolean;
+  selectedFormation: string;
+  onSelectFormation: (name: string) => void;
+  saveName: string;
+  onSaveName: (name: string) => void;
+  compact: boolean;
+  concessionPending: boolean;
+  onAction: SetupAction;
+}) {
+  const selected = formations.find((f) => f.name === selectedFormation);
+  return (
+    <>
+      {compact ? (
+        <FormationSelect
+          formations={formations}
+          selected={selectedFormation}
+          onSelect={onSelectFormation}
+        />
+      ) : (
+        <FormationPicker
+          formations={formations}
+          selected={selectedFormation}
+          isTeam1={isTeam1}
+          kicking={kicking}
+          disabled={concessionPending}
+          onPick={(name) => {
+            onSelectFormation(name);
+            onAction("load", name);
+          }}
+        />
+      )}
 
       <div className="flex gap-2">
         <SetupActionButton

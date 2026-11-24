@@ -26,6 +26,10 @@ The [project README](../README.md) shows the game and its main features.
 | [Art pipeline](../scripts/sprites/README.md)               | Building and rendering the game art                       |
 | [Utility scripts](../scripts/README.md)                    | Capture, performance and test tooling                     |
 
+## Work in progress
+
+- [Playtest list, November 2026](PLAYTEST_2026-11.md)
+
 ## Open investigations
 
 Findings and options awaiting a product decision. They are not requirements.

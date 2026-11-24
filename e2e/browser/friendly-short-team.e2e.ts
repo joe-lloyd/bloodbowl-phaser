@@ -3,6 +3,7 @@ import { confirmPregame } from "../support/pregame";
 
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
+import { pickFormation } from "../support/setup";
 import { seedAllRosters } from "../support/seedTeams";
 import { GameEventNames } from "../../src/types/events";
 
@@ -59,16 +60,7 @@ test("a friendly fields the player due to miss the next league game, with no Jou
   expect(names.some((name) => name.includes("Journeyman"))).toBe(false);
   expect(short.players).toHaveLength(7);
 
-  const select = page
-    .locator("select")
-    .filter({ has: page.locator("optgroup[label=Presets]") });
-  const options = await select
-    .locator("optgroup[label=Presets] option")
-    .allTextContents();
-  await select.selectOption(
-    fixtureValue(options.find((o) => /balanced/i.test(o)) ?? options[0])
-  );
-  await page.getByRole("button", { name: /LOAD/ }).click();
+  await pickFormation(page, /balanced/i);
   const checklist = page.getByTestId("setup-checklist");
   await expect(checklist).toContainText("Line of scrimmage 3/3");
   await expect(checklist).toContainText("Players placed 7/7");

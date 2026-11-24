@@ -46,7 +46,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     return <PhonePlayerPanels subjects={subjects} renderPanel={renderPanel} />;
 
   return (
-    <div className="flex w-full flex-col items-end gap-3 empty:hidden">
+    <div className="flex w-full shrink-0 flex-col items-end gap-3 empty:hidden">
       {selectedPlayer && renderPanel(selectedPlayer, false)}
       {hoveredPlayer &&
         hoveredPlayer.id !== selectedPlayer?.id &&

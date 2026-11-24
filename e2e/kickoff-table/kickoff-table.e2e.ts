@@ -295,8 +295,8 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
         break;
       }
       case KickoffEvent.HIGH_KICK: {
-        const confirm = page.getByRole("button", { name: "Confirm" });
-        await expect(confirm).toBeVisible({ timeout: 30_000 });
+        const skip = page.getByRole("button", { name: "Skip" });
+        await expect(skip).toBeVisible({ timeout: 30_000 });
         const view = await engine(page);
         const landing = fixtureValue(fixtureValue(view.step).landingSquare);
 
@@ -318,7 +318,6 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
           .toEqual(landing);
         await page.waitForTimeout(1200);
 
-        if (await confirm.isVisible()) await confirm.click();
         checked.push(
           `${fixtureValue(receiver).name} (${String(view.teamNames[fixtureValue(receiving)])}) placed under the ball at (${String(landing.x)},${String(landing.y)})`
         );

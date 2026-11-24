@@ -50,6 +50,8 @@ export function sceneWith(teams: { team1?: Partial<Team>; team2?: Partial<Team> 
     pitch: {
       getPixelPosition: vi.fn((x: number, y: number) => ({ x: x * 60, y: y * 60 })),
       getPointPosition: vi.fn((x: number, y: number) => ({ x: x * 60, y: y * 60 })),
+      markKickTarget: vi.fn<[{ x: number; y: number }, number], undefined>(),
+      clearKickTarget: vi.fn<[], undefined>(),
     },
     tweens: { add: vi.fn(), addCounter: vi.fn() },
     input: {

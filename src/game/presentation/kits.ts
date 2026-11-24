@@ -4,7 +4,7 @@ const CLASH = 140;
 
 const CHANGE_SHIRTS = [0xffffff, 0x1e3a5f, 0xd6b25e, 0x000000];
 
-function distance(a: number, b: number): number {
+export function colorDistance(a: number, b: number): number {
   const [r1, g1, b1] = [(a >> 16) & 255, (a >> 8) & 255, a & 255];
   const [r2, g2, b2] = [(b >> 16) & 255, (b >> 8) & 255, b & 255];
   const redMean = (r1 + r2) / 2;
@@ -19,7 +19,7 @@ export function matchKits(
   home: TeamColors,
   away: TeamColors
 ): { home: TeamColors; away: TeamColors } {
-  const apart = (shirt: number, from: number) => distance(shirt, from) >= CLASH;
+  const apart = (shirt: number, from: number) => colorDistance(shirt, from) >= CLASH;
   if (apart(away.primary, home.primary)) return { home, away };
 
   const shirt = [away.secondary, ...CHANGE_SHIRTS].find(
