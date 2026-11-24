@@ -228,13 +228,20 @@ export function ActionList(props: ActionListProps) {
     hasActed,
     onAction,
   } = props;
+  const offers = actionOffers(props);
   const note = compact ? null : menuNote(a, secondActionAfter);
   return (
     <div
       className={`hud-scroll flex min-h-0 flex-1 flex-col overflow-y-auto ${compact ? "" : "p-2"}`}
     >
-      <div className={`flex flex-col ${compact ? "gap-1.5" : "gap-1"}`}>
-        {actionOffers(props).map(({ id, ...button }) => (
+      <div
+        className={
+          compact
+            ? `grid gap-1.5 [direction:rtl] ${offers.length > 3 ? "landscape:grid-cols-[112px_112px]" : ""} grid-cols-[112px]`
+            : "flex flex-col gap-1"
+        }
+      >
+        {offers.map(({ id, ...button }) => (
           <ActionButton
             key={id}
             {...button}
@@ -414,7 +421,7 @@ function CompactActionButton(rendered: ActionButtonRenderProps) {
   return (
     <ActionButtonShell
       render={rendered}
-      className="relative flex min-h-[44px] w-full flex-col items-start justify-center overflow-hidden rounded-hud border border-white/10 bg-hud-ink/90 py-1 pl-3 pr-1.5 text-left shadow-hud active:bg-hud-edge disabled:opacity-45"
+      className="relative flex min-h-[44px] w-full flex-col items-start justify-center overflow-hidden rounded-hud border border-white/10 bg-hud-ink/90 py-1 pl-3 pr-1.5 text-left [direction:ltr] shadow-hud active:bg-hud-edge disabled:opacity-45"
     >
       <span
         className={`font-hud-label text-hud-sm font-bold uppercase leading-tight tracking-[0.04em] ${

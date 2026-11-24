@@ -7,7 +7,6 @@ import { GameScene } from "../../scenes/GameScene";
 import { SandboxScene } from "../../scenes/SandboxScene";
 import { GameHUD, type OnlineMatchMenuProps } from "../components/hud/GameHUD";
 import { LoadingScreen } from "../components/hud/LoadingScreen";
-import { RotatePrompt } from "../components/hud/RotatePrompt";
 import { ServiceContainer } from "../../services/ServiceContainer";
 import { type Team } from "../../types/Team";
 import {
@@ -15,6 +14,7 @@ import {
   competitionPath,
 } from "../../competition/types";
 import { GamePhase } from "../../types/GameState";
+import { keepCanvasFitted } from "../../game/presentation/fitCanvas";
 import { renderOnlyOnChange } from "../../game/presentation/renderOnChange";
 import { type MatchSave } from "../../headless/serialization";
 import {
@@ -112,18 +112,6 @@ export function GamePage({
   }, [eventBus]);
 
   useEffect(() => {
-    const meta = document.querySelector<HTMLMetaElement>(
-      'meta[name="viewport"]'
-    );
-    if (!meta) return;
-    const before = meta.content;
-    meta.content = `${before}, viewport-fit=cover`;
-    return () => {
-      meta.content = before;
-    };
-  }, []);
-
-  useEffect(() => {
     const { team1, team2 } = matchTeams ?? {};
     const enableProgression =
       progressionEnabled ?? routeState.progressionEnabled ?? false;
@@ -187,7 +175,16 @@ export function GamePage({
       }
     });
 
+    const container = document.getElementById("game-container");
+    const releaseCanvas = container
+      ? keepCanvasFitted(
+          () => (game.isBooted ? game.scale : null),
+          container
+        )
+      : undefined;
+
     return () => {
+      releaseCanvas?.();
       if (
         !teams &&
         ServiceContainer.isInitialized() &&
@@ -230,7 +227,6 @@ export function GamePage({
           : {})}
       />
 
-      <RotatePrompt />
     </div>
   );
 }

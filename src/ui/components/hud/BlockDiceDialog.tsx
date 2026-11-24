@@ -17,6 +17,7 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
 import { useHotkey } from "../../hotkeys";
+import { PHONE_QUERY, matchesMedia } from "../../../game/presentation/phoneLayout";
 
 interface BlockDiceDialogProps {
   eventBus: EventBus;
@@ -269,7 +270,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       }
     >
       <div className="flex items-stretch gap-2">
-        <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-good/30 bg-black/35 py-1.5">
+        <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-good/30 bg-black/35 py-1.5 phone:flex-row phone:justify-center phone:gap-2 phone:py-0">
           <span className="hud-label">ATTACKER</span>
           <span className="font-hud-display text-hud-2xl text-hud-good">
             {attackerST}
@@ -278,7 +279,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
         <div className="flex items-center px-1 font-hud-display text-hud-xl text-hud-gold">
           VS
         </div>
-        <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-bad/30 bg-black/35 py-1.5">
+        <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-bad/30 bg-black/35 py-1.5 phone:flex-row phone:justify-center phone:gap-2 phone:py-0">
           <span className="hud-label">DEFENDER</span>
           <span className="font-hud-display text-hud-2xl text-hud-bad">
             {defenderST}
@@ -444,8 +445,8 @@ function DiceCount({
   isUphill: boolean;
 }) {
   return (
-    <div className="mt-3 flex items-center justify-center gap-3">
-      <div className="font-hud-label text-hud-xl font-bold uppercase tracking-[0.06em] text-hud-bone">
+    <div className="mt-3 phone:mt-1 flex items-center justify-center gap-3">
+      <div className="font-hud-label text-hud-xl phone:text-hud-base font-bold uppercase tracking-[0.06em] text-hud-bone">
         {diceCount} {diceCount === 1 ? "DIE" : "DICE"}{" "}
         {isUphill ? <span className="text-hud-bad">(UPHILL)</span> : ""}
       </div>
@@ -478,13 +479,13 @@ function BlockChoices({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mt-3">
+    <div className="mt-3 phone:mt-1">
       {canAct && rerollFirst && (
         <HudButton data-testid="block-keep-dice" block onClick={onKeep}>
           Keep dice
         </HudButton>
       )}
-      <div className="flex justify-center gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         {canAct &&
           (!rerollFirst || proMode) &&
           roll.results.map((result, idx) => (
@@ -500,7 +501,7 @@ function BlockChoices({
             </DieChoice>
           ))}
       </div>
-      <div className="rounded-hud border border-hud-gold/30 bg-hud-gold/10 px-3 py-2 text-center font-hud-label text-hud-base font-semibold text-hud-gold">
+      <div className="rounded-hud border border-hud-gold/30 bg-hud-gold/10 px-3 py-2 phone:mt-1.5 phone:py-0.5 phone:text-hud-sm text-center font-hud-label text-hud-base font-semibold text-hud-gold">
         {choiceStatus({
           chosen,
           proMode,
@@ -536,12 +537,14 @@ function choiceStatus({
 }): string {
   if (chosen) return `Chosen: ${chosen.replace(/-/g, " ").toUpperCase()}`;
   if (proMode)
-    return `Pro: click a die in the tray, or press ${dieKeys(diceShown)}, to re-roll it (3+)`;
+    return `Pro: ${pickText(diceShown)}, to re-roll it (3+)`;
   if (getActiveOnlineMatch()?.mayAct() === false)
     return "The other coach is choosing…";
   if (rerollFirst)
     return `${attackingTeamName ?? "Attacking team"}: re-roll first?`;
-  return `Click a die in the tray, or press ${dieKeys(diceShown)}, to choose the result`;
+  return matchesMedia(PHONE_QUERY)
+    ? "Tap a result"
+    : `Click a die in the tray, or press ${dieKeys(diceShown)}, to choose the result`;
 }
 
 function BlockRerolls({
@@ -609,6 +612,12 @@ function BlockRerolls({
   );
 }
 
+function pickText(diceShown: number): string {
+  return matchesMedia(PHONE_QUERY)
+    ? "tap a die"
+    : `click a die in the tray, or press ${dieKeys(diceShown)}`;
+}
+
 const dieKeys = (count: number) =>
   count === 1 ? "1" : count === 2 ? "1 or 2" : `1 to ${String(count)}`;
 
@@ -631,7 +640,7 @@ function DieChoice({
       data-testid={`block-die-${String(index)}`}
       data-block-result={result}
       onClick={onPick}
-      className="sr-only focus:not-sr-only focus:rounded-hud focus:border focus:border-hud-gold focus:bg-hud-raise focus:px-3 focus:py-1 focus:font-hud-label focus:text-hud-sm focus:font-bold focus:text-hud-bone"
+      className="sr-only phone:not-sr-only phone:min-h-[48px] phone:min-w-[84px] phone:flex-1 phone:rounded-hud phone:border phone:border-hud-gold/60 phone:bg-hud-raise phone:px-2 phone:font-hud-label phone:text-hud-base phone:font-bold phone:text-hud-bone focus:not-sr-only focus:rounded-hud focus:border focus:border-hud-gold focus:bg-hud-raise focus:px-3 focus:py-1 focus:font-hud-label focus:text-hud-sm focus:font-bold focus:text-hud-bone"
     >
       {children}
     </button>

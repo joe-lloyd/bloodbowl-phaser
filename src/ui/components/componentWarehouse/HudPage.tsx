@@ -22,10 +22,10 @@ export function PageShell({
   className?: string;
 }) {
   return (
-    <div className="hud-page hud-scroll flex h-screen flex-col overflow-y-auto pointer-events-auto">
+    <div className="hud-page hud-scroll flex h-[100dvh] flex-col pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] overflow-y-auto pointer-events-auto">
       <main
         className={cx(
-          "mx-auto w-full flex-1 px-6 pb-12 pt-8 lg:px-10",
+          "mx-auto w-full flex-1 px-6 pb-12 pt-8 lg:px-10 phone:px-4 phone:pb-6 phone:pt-4",
           PAGE_WIDTH[width],
           className
         )}
@@ -33,10 +33,10 @@ export function PageShell({
         {children}
       </main>
       {actionBar && (
-        <div className="sticky bottom-0 z-40 border-t border-hud-gold/25 bg-hud-sunk/95 backdrop-blur-sm">
+        <div className="sticky bottom-0 z-40 border-t border-hud-gold/25 bg-hud-sunk/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm">
           <div
             className={cx(
-              "mx-auto flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 lg:px-10",
+              "mx-auto flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 lg:px-10 phone:flex-nowrap phone:px-4 phone:py-2 phone:[&_button]:px-3 phone:[&_button]:text-[16px]",
               PAGE_WIDTH[width]
             )}
           >
@@ -63,12 +63,12 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="mb-8">
+    <header className="mb-8 phone:mb-4">
       {back && <BackLink {...back} />}
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div className="min-w-0">
           {eyebrow && <Eyebrow tone="gold">{eyebrow}</Eyebrow>}
-          <h1 className="mt-1 break-words font-hud-display text-[40px] uppercase leading-[1.05] tracking-[0.02em] text-hud-bone lg:text-[48px]">
+          <h1 className="mt-1 break-words font-hud-display text-[40px] uppercase leading-[1.05] tracking-[0.02em] text-hud-bone lg:text-[48px] phone:text-[28px]">
             {title}
           </h1>
           {subtitle && (

@@ -49,7 +49,7 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
     <div
       className={
         compact
-          ? "flex flex-col rounded-hud border border-white/10 bg-hud-ink/90 p-1.5 shadow-hud"
+          ? "flex w-[176px] flex-col rounded-hud border border-white/10 bg-hud-ink/90 p-1.5 shadow-hud"
           : "flex min-w-[220px] flex-col p-2"
       }
     >
@@ -146,7 +146,7 @@ function ActionFooter({
   firstOfTwo: boolean;
 }) {
   return (
-    <div className="mt-2 flex flex-col gap-1.5 border-t border-white/10 pt-2">
+    <div className="mt-2 flex flex-col gap-1.5 border-t border-white/10 pt-2 phone:flex-row phone:[&>button]:min-h-[44px] phone:[&>button]:px-1">
       {!hasMovedInAction && (
         <HudButton
           variant="ghost"

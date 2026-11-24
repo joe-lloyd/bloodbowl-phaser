@@ -3,6 +3,12 @@ export default {
   content: ["./index.html", "./gallery/index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      // Same query as PHONE_QUERY in src/game/presentation/phoneLayout.ts.
+      screens: {
+        phone: {
+          raw: "(pointer: coarse) and (max-height: 599px), (pointer: coarse) and (max-width: 599px)",
+        },
+      },
       colors: {
         // "Stadium Broadcast", the match HUD and every page around it: dark
         // slabs, gold hairlines, blood red for the thing that matters. Dark only.

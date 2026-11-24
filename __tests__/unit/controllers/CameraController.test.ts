@@ -595,7 +595,9 @@ describe("CameraController", () => {
 
   it("cuts straight to the new team under reduced motion with no delayed work", () => {
     vi.useFakeTimers();
-    vi.stubGlobal("matchMedia", () => ({ matches: true }));
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("reduced-motion"),
+    }));
     const { controller, camera } = setup(
       { width: 1280, height: 720 },
       () => []

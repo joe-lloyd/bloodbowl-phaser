@@ -144,8 +144,9 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
 
   return (
     <Panel
+      data-testid="setup-controls"
       accent="gold"
-      className="w-full shrink-0 flex flex-col pointer-events-auto animate-hud-in z-50"
+      className="w-full phone:landscape:w-[220px] shrink-0 flex flex-col pointer-events-auto animate-hud-in z-50"
     >
       {compact ? (
         <div className="hud-label px-2.5 pt-2 text-hud-gold">{title}</div>

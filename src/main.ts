@@ -5,10 +5,12 @@ import { EventBus } from "./services/EventBus";
 import { connectTeamPersistenceToAuth } from "./firebase/cloudTeamRepository";
 import { connectMatchSavePersistenceToAuth } from "./firebase/cloudMatchSaveRepository";
 import { connectDiceLogsToAuth } from "./firebase/cloudDiceLog";
+import { startPwa } from "./boundary/pwa";
 import { signInHouseBot } from "./firebase/houseBot";
 
 const eventBus = new EventBus();
 
+startPwa();
 connectTeamPersistenceToAuth();
 connectMatchSavePersistenceToAuth();
 connectDiceLogsToAuth();

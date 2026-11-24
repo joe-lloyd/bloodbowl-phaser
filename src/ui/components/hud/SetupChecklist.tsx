@@ -8,7 +8,7 @@ export function SetupChecklist({ status }: { status: SetupTeamStatus }) {
     <ul
       data-testid="setup-checklist"
       aria-label="Setup requirements"
-      className="space-y-1 border-t border-white/10 pt-2 font-hud-body text-hud-xs leading-snug"
+      className="space-y-1 border-t border-white/10 pt-2 phone:space-y-0 phone:pt-1 font-hud-body text-hud-xs leading-snug"
     >
       {rules.map((rule) => (
         <li

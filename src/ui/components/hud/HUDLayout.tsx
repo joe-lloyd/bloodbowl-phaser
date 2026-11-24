@@ -2,7 +2,6 @@ import {
   useEffect,
   useRef,
   type ReactNode,
-  type CSSProperties,
   type SyntheticEvent,
 } from "react";
 import { HUD_PANELS_ATTRIBUTE } from "../../../game/presentation/hudRects";
@@ -24,12 +23,7 @@ const bottom = `${stack} mt-auto shrink-0`;
 const filling = `${stack} flex-1 [justify-content:safe_flex-end]`;
 const panels = { [HUD_PANELS_ATTRIBUTE]: "" };
 const phoneColumn =
-  "absolute flex w-[min(300px,44vw)] flex-col gap-3 overflow-y-auto no-scrollbar";
-const phoneInset = (side: "left" | "right"): CSSProperties => ({
-  top: "calc(env(safe-area-inset-top) + 60px)",
-  bottom: "calc(env(safe-area-inset-bottom) + 8px)",
-  [side]: `calc(env(safe-area-inset-${side}) + 8px)`,
-});
+  "phone-column absolute flex flex-col gap-2 overflow-y-auto no-scrollbar";
 
 export function HUDLayout({
   topLeft,
@@ -44,7 +38,7 @@ export function HUDLayout({
     <div
       className={
         phone
-          ? "absolute inset-0 pointer-events-none touch-manipulation select-none [&:has([data-decision-dialog])_[data-testid=move-hint]]:hidden"
+          ? "absolute inset-0 pointer-events-none touch-manipulation select-none phone-hud"
           : "absolute inset-0 pointer-events-none"
       }
       onMouseDown={startPress}
@@ -107,13 +101,14 @@ function HudColumn({
 }) {
   const right = side === "right";
   const inset = right ? "right-4" : "left-4";
-  const columnClass = phone ? phoneColumn : `${column} ${inset}`;
+  const columnClass = phone
+    ? `${phoneColumn} phone-column-${side}`
+    : `${column} ${inset}`;
   const bottomClass = right || phone ? bottom : filling;
   const slotClass = right ? " w-full items-end" : "";
   return (
     <div
       className={`${columnClass}${right ? " items-end" : ""}`}
-      style={phone ? phoneInset(side) : undefined}
     >
       <div className={`${top}${slotClass}`} {...panels}>
         {topSlot}

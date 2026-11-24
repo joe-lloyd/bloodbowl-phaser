@@ -4,6 +4,8 @@ import { GameEventNames, type GameEvents } from "../types/events";
 import { PlayerStatus } from "../types/Player";
 import { PassController } from "../game/controllers/PassController";
 import { activeLayout } from "../game/variants/activeMatch";
+import { PHONE_QUERY, matchesMedia } from "../game/presentation/phoneLayout";
+import { squaresOf, type BlockPair } from "./actionOnScreen";
 import { isInsideLayout } from "../game/variants/pitchLayouts";
 
 export function followMatchWithCamera(scene: GameScene): void {
@@ -39,10 +41,10 @@ export function followMatchWithCamera(scene: GameScene): void {
   subscribe(GameEventNames.DecisionRequested, (request) => {
     if (request.type !== "interception") return;
     choosingInterceptor = true;
-    const squares = request.candidates.flatMap(({ playerId }) => {
-      const square = gameService().getPlayerById(playerId)?.gridPosition;
-      return square ? [square] : [];
-    });
+    const squares = squaresOf(
+      scene,
+      request.candidates.map(({ playerId }) => playerId)
+    );
     camera().release();
     camera().focusSquares(squares);
   });
@@ -62,7 +64,8 @@ export function followMatchWithCamera(scene: GameScene): void {
     if (target) camera().follow(target);
   });
   subscribe(GameEventNames.Camera_Reset, (data) => {
-    camera().reset(data.duration || 800);
+    camera().release();
+    camera().overview(data.duration || 800);
   });
   subscribe(GameEventNames.PlayerSelected, ({ player }) => {
     if (player) nextPlayerChoice = null;
@@ -80,6 +83,13 @@ export function followMatchWithCamera(scene: GameScene): void {
     if (scene.isSetupActive || choosingInterceptor) return;
     frameReach(scene, playerId, to, 900);
   });
+  const framePair = (pair: BlockPair) => {
+    if (!matchesMedia(PHONE_QUERY)) return;
+    camera().release();
+    camera().focusSquares(squaresOf(scene, [pair.attackerId, pair.defenderId]));
+  };
+  subscribe(GameEventNames.UI_BlockDialog, framePair);
+  subscribe(GameEventNames.BlockDiceRolled, framePair);
   subscribe(GameEventNames.PhaseChanged, ({ phase }) => {
     if (phase === GamePhase.SETUP) camera().reset();
   });

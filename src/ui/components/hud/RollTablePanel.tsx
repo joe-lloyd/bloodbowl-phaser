@@ -197,7 +197,7 @@ function RollTableDialog(props: RollTablePanelProps) {
     <DialogShell
       zClass={props.zClass}
       placement="center"
-      backdrop="heavy"
+      backdrop="light"
       titleAs="h1"
       title={title}
       width={kind === "kickoff" ? "w-[600px]" : "w-[480px]"}
@@ -207,17 +207,24 @@ function RollTableDialog(props: RollTablePanelProps) {
       {props.header}
       <div className="space-y-3 [@media(max-height:600px)]:space-y-1">
         {step === "waiting" && <p className="text-hud-dim">{intro}</p>}
-        <Stage
-          stage={stage}
-          step={step}
-          className="mx-auto h-[min(180px,28dvh)] w-full"
-        />
-        <ResultLine kind={kind} result={result} total={total} />
+        <div className="landscape:flex landscape:items-center landscape:justify-center landscape:gap-4">
+          <Stage
+            stage={stage}
+            step={step}
+            className="mx-auto h-[min(150px,22dvh)] w-full landscape:mx-0 landscape:w-[200px]"
+          />
+          <ResultLine kind={kind} result={result} total={total} />
+        </div>
         <DialogRows {...props} />
         {props.action}
       </div>
     </DialogShell>
   );
+}
+
+function rowColumns(kind: RollTablePanelProps["kind"], rolled: boolean) {
+  if (kind === "kickoff") return "grid-cols-2 landscape:grid-cols-3";
+  return rolled ? "landscape:grid-cols-3" : "";
 }
 
 function DialogRows({ kind, rows, result }: RollTablePanelProps) {
@@ -230,11 +237,7 @@ function DialogRows({ kind, rows, result }: RollTablePanelProps) {
   return (
     <ul
       ref={list}
-      className={
-        kind === "kickoff"
-          ? "max-h-[min(360px,40dvh)] space-y-0.5 overflow-y-auto hud-scroll text-left"
-          : "space-y-1 text-left"
-      }
+      className={`grid gap-1 text-left ${rowColumns(kind, result !== null)}`}
       data-testid={`${kind}-table`}
     >
       {rows.map((row) => {
@@ -243,7 +246,7 @@ function DialogRows({ kind, rows, result }: RollTablePanelProps) {
           <li
             key={row.label}
             data-current={hit ? "" : undefined}
-            className={`grid grid-cols-[3.5rem_1fr] items-baseline gap-3 rounded-hud border px-3 py-0.5 ${
+            className={`grid grid-cols-[2.5rem_1fr] items-baseline gap-2 rounded-hud border px-2 py-0.5 leading-tight ${
               hit
                 ? "border-hud-gold bg-hud-gold/15 text-hud-bone"
                 : "border-white/5 text-hud-dim"
@@ -256,7 +259,11 @@ function DialogRows({ kind, rows, result }: RollTablePanelProps) {
               <span className="font-hud-label font-bold uppercase tracking-[0.04em]">
                 {row.name}
               </span>
-              <span className="ml-2 text-hud-xs">{row.detail}</span>
+              {kind === "weather" && (
+                <span
+                  className={`ml-2 text-hud-xs ${result ? "landscape:hidden" : ""}`}
+                >{row.detail}</span>
+              )}
             </span>
           </li>
         );

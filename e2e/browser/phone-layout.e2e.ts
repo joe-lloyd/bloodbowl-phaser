@@ -68,19 +68,25 @@ async function tapSquare(page: Page, app: GameApp, square: Point) {
   await page.touchscreen.tap(at.x, at.y);
 }
 
-test("a phone held upright is asked to turn sideways", async ({ page }) => {
-  await openScenario(page, "near-corner-blitz");
-  await expect(page.getByTestId("rotate-prompt")).toBeHidden();
+test("the match plays on in both orientations", async ({ page }) => {
+  const app = await openScenario(page, "near-corner-blitz");
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByTestId("rotate-prompt")).toBeVisible();
-  await expect(page.getByTestId("rotate-prompt")).toHaveAccessibleName(
-    "Turn your phone sideways"
+  await app.pitch.waitForCameraToSettle();
+  await tapSquare(page, app, await app.pitch.squareOf("team1:0"));
+  await expect(page.getByTestId("player-chip")).toBeVisible();
+  const menu = fixtureValue(
+    await page.getByTestId("player-action-menu").boundingBox()
   );
+  expect(menu.x + menu.width).toBeLessThanOrEqual(390);
+  expect(menu.y + menu.height).toBeLessThanOrEqual(844);
   await page.setViewportSize({ width: 844, height: 390 });
-  await expect(page.getByTestId("rotate-prompt")).toBeHidden();
+  await expect(page.getByTestId("player-chip")).toBeVisible();
+  await expect
+    .poll(() => app.pitch.canvasSize())
+    .toEqual({ width: 844, height: 390 });
 });
 
-test("a tap selects at the current zoom, a tap plans, Go walks", async ({
+test("a tap selects, a tap plans, Go walks", async ({
   page,
 }) => {
   const app = await openScenario(page, "near-corner-blitz");
@@ -89,9 +95,10 @@ test("a tap selects at the current zoom, a tap plans, Go walks", async ({
     "Your turn · tap a player"
   );
 
-  const zoom = (await cameraState(page)).zoom;
   await tapSquare(page, app, start);
   await expect(page.getByTestId("player-chip")).toBeVisible();
+  await app.pitch.waitForCameraToSettle();
+  const zoom = (await cameraState(page)).zoom;
   await expect(page.getByTestId("action-move")).toBeVisible();
 
   await page.getByTestId("player-chip").tap();

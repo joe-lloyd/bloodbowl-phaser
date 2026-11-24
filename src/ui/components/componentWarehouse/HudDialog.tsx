@@ -62,23 +62,23 @@ export function DialogShell({
         className={cx(
           "max-w-full animate-hud-pop",
           placement === "dock"
-            ? "w-full px-4 py-3"
-            : `px-6 pb-5 pt-5 ${width} max-h-[calc(100dvh-1rem)] overflow-y-auto [@media(max-height:500px)]:px-4 [@media(max-height:500px)]:py-3`,
+            ? "w-full px-4 py-3 phone:px-3 phone:py-2"
+            : `px-6 pb-5 pt-5 ${width} max-h-[calc(100dvh-1rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto [@media(max-height:500px)]:px-4 [@media(max-height:500px)]:py-3`,
           className
         )}
       >
         {eyebrow && (
           <Eyebrow tone={tone === "gold" ? undefined : tone}>{eyebrow}</Eyebrow>
         )}
-        <Heading className="mt-1 font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-bone">
+        <Heading className="mt-1 phone:mt-0 font-hud-display text-hud-2xl phone:text-hud-xl phone:leading-tight uppercase tracking-[0.02em] text-hud-bone">
           {title}
         </Heading>
         {children && (
-          <div className="mt-3 font-hud-body text-hud-base text-[#ddd5c6]">
+          <div className="mt-3 phone:mt-1 font-hud-body phone:text-hud-sm text-hud-base text-[#ddd5c6]">
             {children}
           </div>
         )}
-        {actions && <div className="mt-5">{actions}</div>}
+        {actions && <div className="mt-5 phone:mt-2">{actions}</div>}
       </Panel>
     </div>
   );

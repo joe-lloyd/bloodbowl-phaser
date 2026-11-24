@@ -7,7 +7,7 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { TurnCatchUpCard } from "./TurnCatchUpCard";
 import { HalfTimeCard } from "./HalfTimeCard";
 import { TurnIndicator } from "./TurnIndicator";
-import { MatchStrip } from "./MatchStrip";
+import { MatchStrip, WeatherNote } from "./MatchStrip";
 import { ScoreBoard } from "./ScoreBoard";
 import { EndTurnButton } from "./EndTurnButton";
 import { KeyList } from "./KeyList";
@@ -245,7 +245,15 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const menuEntries: MatchOptionsMenuEntry[] = [
     ...computeMatchOptionsMenu(menuContext),
     { type: "panel", id: "sound-settings", render: () => <SoundToggle /> },
-    { type: "panel", id: "keys", render: () => <KeyList /> },
+    ...(phone
+      ? [
+          {
+            type: "panel" as const,
+            id: "weather",
+            render: () => <WeatherNote />,
+          },
+        ]
+      : [{ type: "panel" as const, id: "keys", render: () => <KeyList /> }]),
   ];
 
   const reportMenuActionFailed = (error: unknown) => {
@@ -295,7 +303,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const takeovers = (
     <>
       <DiceTray eventBus={eventBus} />
-      <RollBanner eventBus={eventBus} />
+      {!phone && <RollBanner eventBus={eventBus} />}
 
       <WeatherOverlay eventBus={eventBus} />
       <KickoffTableDialog eventBus={eventBus} />
@@ -327,7 +335,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <div
               className={
                 drawer === "log"
-                  ? "h-[min(34vh,320px)] w-full shrink-0"
+                  ? "h-[min(60dvh,420px)] w-full shrink-0"
                   : "hidden"
               }
             >
@@ -353,7 +361,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <SetupControls eventBus={eventBus} compact />
             <div className="flex w-full min-h-0 flex-col items-end [&:has([data-decision-dialog])_.decision-actions]:hidden">
               {decisionDock}
-              <div className="decision-actions flex w-[112px] flex-col gap-2">
+              <div className="decision-actions flex w-fit min-w-[112px] flex-col items-end gap-2">
                 <PlayerActionMenu
                   eventBus={eventBus}
                   turnData={turnData}
@@ -372,76 +380,63 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         overlays={
           <>
             <div
-              className="absolute z-50 flex gap-2 pointer-events-auto"
-              style={{
-                top: "calc(env(safe-area-inset-top) + 8px)",
-                left: "calc(env(safe-area-inset-left) + 8px)",
-              }}
+              className="phone-top-bar pointer-events-none absolute z-50"
               data-hud-panels=""
             >
-              <MatchOptionsMenu
-                compact
-                entries={menuEntries}
-                onSelect={handleMenuSelect}
-              />
-              <button
-                type="button"
-                data-testid="dice-log-toggle"
-                aria-expanded={drawer === "log"}
-                onClick={() => {
-                  setDrawer(drawer === "log" ? null : "log");
-                }}
-                className={phoneBarButton}
-              >
-                Log
-              </button>
-            </div>
-            <div
-              className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center pointer-events-none z-50"
-              style={{ top: "calc(env(safe-area-inset-top) + 6px)" }}
-              data-hud-panels=""
-              data-hud-frame="top"
-            >
-              <ScoreBoard eventBus={eventBus} compact />
-              <MatchStrip eventBus={eventBus}>
-                <TurnIndicator
-                  turnNumber={turnData.turnNumber}
-                  phase={turnData.phase}
+              <div className="pointer-events-auto flex gap-2">
+                <MatchOptionsMenu
+                  compact
+                  entries={menuEntries}
+                  onSelect={handleMenuSelect}
                 />
-              </MatchStrip>
-            </div>
-            <div
-              className="absolute z-50 flex gap-2 pointer-events-auto"
-              style={{
-                top: "calc(env(safe-area-inset-top) + 8px)",
-                right: "calc(env(safe-area-inset-right) + 8px)",
-              }}
-              data-hud-panels=""
-            >
-              {mode === "sandbox" && (
                 <button
                   type="button"
-                  data-testid="sandbox-toggle"
-                  aria-expanded={drawer === "sandbox"}
+                  data-testid="dice-log-toggle"
+                  aria-expanded={drawer === "log"}
                   onClick={() => {
-                    setDrawer(drawer === "sandbox" ? null : "sandbox");
+                    setDrawer(drawer === "log" ? null : "log");
                   }}
                   className={phoneBarButton}
                 >
-                  Scenario
+                  Log
                 </button>
-              )}
-              <FullscreenButton />
+              </div>
+              <div
+                className="phone-score flex min-w-0 flex-col items-start"
+                data-hud-frame="top"
+              >
+                <ScoreBoard eventBus={eventBus} compact />
+                <div className="phone-strip">
+                  <MatchStrip eventBus={eventBus}>
+                    <TurnIndicator
+                      turnNumber={turnData.turnNumber}
+                      phase={turnData.phase}
+                    />
+                  </MatchStrip>
+                </div>
+              </div>
+              <div className="pointer-events-auto flex gap-2">
+                {mode === "sandbox" && (
+                  <button
+                    type="button"
+                    data-testid="sandbox-toggle"
+                    aria-expanded={drawer === "sandbox"}
+                    onClick={() => {
+                      setDrawer(drawer === "sandbox" ? null : "sandbox");
+                    }}
+                    className={phoneBarButton}
+                  >
+                    Scenario
+                  </button>
+                )}
+                <FullscreenButton />
+              </div>
             </div>
-            <div
-              className="absolute left-1/2 -translate-x-1/2 pointer-events-none z-40"
-              style={{ bottom: "calc(env(safe-area-inset-bottom) + 72px)" }}
-            >
+            <div className="phone-notice-bar absolute left-1/2 -translate-x-1/2 pointer-events-none z-40">
               <PhoneNotice eventBus={eventBus} />
             </div>
             <div
-              className="absolute left-1/2 -translate-x-1/2 pointer-events-none z-40"
-              style={{ bottom: "calc(env(safe-area-inset-bottom) + 8px)" }}
+              className="phone-bottom-bar absolute left-1/2 flex w-max max-w-[96vw] -translate-x-1/2 pointer-events-none z-[55]"
               data-hud-panels=""
             >
               <MovePlanBar

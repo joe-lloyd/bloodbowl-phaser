@@ -129,14 +129,9 @@ test("direct teammate selection after movement holds zoom for every frame and se
 for (const viewport of [
   { width: 1280, height: 720 },
   { width: 1920, height: 1080 },
-  { width: 844, height: 390 },
 ]) {
   test.describe(`${String(viewport.width)}x${String(viewport.height)}`, () => {
-    test.use({
-      viewport,
-      hasTouch: viewport.width === 844,
-      isMobile: viewport.width === 844,
-    });
+    test.use({ viewport });
     test("explicit End activation fits every eligible teammate in the measured gap", async ({
       page,
     }) => {

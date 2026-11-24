@@ -5,7 +5,7 @@ import { d16Geometry, d16Labelling } from "./d16";
 import { faceMaterial } from "./diceFaces";
 import { labelling, simulate, upFace } from "./dicePhysics";
 import { clack, loadClacks } from "./diceSound";
-import { createStage, faceForward, liftEase } from "./diceStage";
+import { createStage, drawStage, faceForward, liftEase } from "./diceStage";
 import { indexed } from "./diceValues";
 import type { Stage } from "./diceStage";
 
@@ -57,6 +57,8 @@ function scaleTarget(marked: number | null, index: number): number {
   return marked === index ? 1.2 : 0.75;
 }
 
+const CLOSE_DICE = 2;
+
 class DiceAnimation implements Control {
   private readonly input;
   private readonly sim;
@@ -76,13 +78,17 @@ class DiceAnimation implements Control {
     host: HTMLElement;
     roll: DiceRoll;
     sound: boolean;
+    close: boolean;
     pick: (index: number) => void;
     resolve: (values: number[]) => void;
   }) {
     this.input = input;
     this.sim = simulate(input.roll.values.length, input.roll.kind);
     if (input.sound) void loadClacks();
-    this.stage = createStage(input.host);
+    this.stage = createStage(
+      input.host,
+      input.close && input.roll.values.length <= CLOSE_DICE
+    );
     this.geometry =
       input.roll.kind === "d16"
         ? d16Geometry()
@@ -113,7 +119,7 @@ class DiceAnimation implements Control {
   }
 
   private render(): void {
-    this.stage.gl.render(this.stage.scene, this.stage.camera);
+    drawStage(this.stage);
   }
 
   private applyFrame(frame: Simulation["frames"][number]): void {
@@ -247,6 +253,7 @@ export function throwDice(input: {
   host: HTMLElement;
   roll: DiceRoll;
   sound: boolean;
+  close: boolean;
   pick: (index: number) => void;
   ready: (control: Control) => void;
 }): Promise<number[]> {

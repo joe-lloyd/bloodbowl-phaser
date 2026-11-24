@@ -87,7 +87,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   };
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-[112px]">
       {hint && (
         <div
           role="status"
