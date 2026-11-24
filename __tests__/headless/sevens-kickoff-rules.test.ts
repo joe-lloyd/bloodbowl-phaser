@@ -199,7 +199,7 @@ describe("K5: High Kick", () => {
       (p) => p.gridPosition?.x === 17 && p.gridPosition.y === 5
     );
     expect([candidate.label, under?.positionName]).toEqual([
-      "High Kick: Human Lineman #1 at (14,2) stands under the ball",
+      "Place Human Lineman #1 at (14,2) under the ball",
       "Human Lineman",
     ]);
   });

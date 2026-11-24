@@ -44,6 +44,7 @@ function pricedHit(ground: KickoffGround, plan: Activation): Activation {
     attacker: player,
     target: intent.target,
     from,
+    blitz: intent.kind === "blitz",
   });
   return { ...plan, value: plan.value + knockdown * c.w.cageBreak };
 }
