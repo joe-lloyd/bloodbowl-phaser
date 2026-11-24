@@ -15,18 +15,33 @@ const TYPES = {
   ".svg": "image/svg+xml",
   ".webmanifest": "application/manifest+json",
 };
-let marker = "deploy-one";
+const BUNDLES = { one: await entryOf(), two: "index-Deploy02.js" };
+let deploy = "one";
+
+async function entryOf() {
+  const page = await readFile(join(DIST, "index.html"), "utf8");
+  return /assets\/(index-[\w-]{8}\.js)/.exec(page)[1];
+}
+
+async function deployedFile(file) {
+  if (file === "index.html") {
+    const page = await readFile(join(DIST, file), "utf8");
+    return page.replaceAll(BUNDLES.one, BUNDLES[deploy]);
+  }
+  if (file.startsWith("assets/index-") && file.endsWith(".js")) {
+    if (file !== `assets/${BUNDLES[deploy]}`) throw new Error("not in this deploy");
+    const code = await readFile(join(DIST, "assets", BUNDLES.one), "utf8");
+    return `document.documentElement.dataset.bundle="${deploy}";${code}`;
+  }
+  return readFile(join(DIST, file));
+}
 
 const server = createServer(async (request, response) => {
   const path = new URL(request.url, ORIGIN).pathname;
   const send = async (file) => {
-    const body = await readFile(join(DIST, file));
+    const body = await deployedFile(file);
     response.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" });
-    response.end(
-      file === "index.html"
-        ? body.toString().replace("<title>", `<meta name="deploy" content="${marker}"><title>`)
-        : body
-    );
+    response.end(body);
   };
   try {
     await send(path === "/" ? "index.html" : path.slice(1));
@@ -44,7 +59,17 @@ const check = (name, passed, detail = "") => {
 const profile = await mkdtemp(join(tmpdir(), "bb-pwa-"));
 const context = await chromium.launchPersistentContext(profile, { channel: "chromium" });
 const page = await context.newPage();
-const deployOf = () => page.locator('meta[name="deploy"]').getAttribute("content");
+const mounted = () =>
+  page
+    .getByRole("heading", { name: "BLOOD BOWL", exact: true })
+    .waitFor({ timeout: 20_000 })
+    .then(() => true, () => false);
+const running = () => page.locator("html").getAttribute("data-bundle");
+const checkRuns = async (name, bundle) => {
+  const up = await mounted();
+  const now = await running();
+  check(name, up && now === bundle, `mounted ${up}, bundle ${now}`);
+};
 const cached = () =>
   page.evaluate(async () => {
     const out = {};
@@ -70,13 +95,14 @@ const { installabilityErrors } = await cdp.send("Page.getInstallabilityErrors");
 check("no installability errors", installabilityErrors.length === 0, JSON.stringify(installabilityErrors));
 
 await page.reload();
+await checkRuns("the first deploy runs", "one");
 await page.waitForTimeout(1500);
-check("first deploy shown", (await deployOf()) === "deploy-one");
-marker = "deploy-two";
+deploy = "two";
 await page.reload();
-check("a new deploy reaches the player on the next load", (await deployOf()) === "deploy-two");
-await page.goto(`${ORIGIN}/online/play/ABC123`);
-check("a deep link loads", (await deployOf()) === "deploy-two");
+await checkRuns("a new deploy's bundle runs on the next load", "two");
+await page.goto(`${ORIGIN}/leagues`);
+check("a deep link runs the new bundle", (await running()) === "two");
+await page.waitForTimeout(800);
 
 const before = await cached();
 check(
@@ -84,7 +110,10 @@ check(
   Object.values(before).flat().every((url) => /\/index\.html$|\/assets\/[^/]+-[\w-]{8}\.(js|css)$/.test(url)),
   JSON.stringify(before)
 );
-check("the scripts are cached", (before["bb-assets-v1"] ?? []).some((url) => url.includes("/assets/index-")));
+check(
+  "the new bundle is cached",
+  (before["bb-assets-v1"] ?? []).some((url) => url.endsWith(BUNDLES.two))
+);
 
 await page.evaluate(() => fetch("/assets/gone-AAAAAAAA.js"));
 await page.waitForTimeout(300);
@@ -103,7 +132,7 @@ check("an old cache is removed on activate", !("bb-assets-v0" in (await cached()
 server.closeAllConnections();
 await new Promise((resolve) => server.close(resolve));
 await page.reload();
-check("the page opens offline", (await deployOf()) === "deploy-two");
+await checkRuns("the game starts offline", "two");
 
 await context.close();
 await rm(profile, { recursive: true, force: true });
