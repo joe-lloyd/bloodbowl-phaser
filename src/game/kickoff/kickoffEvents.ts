@@ -1,4 +1,5 @@
 import { type Player, PlayerStatus } from "../../types/Player";
+import { hasSkill, SkillType } from "../../types/Skills";
 import {
   type SevensKickoffEvent,
   VARIANT_EVENT_MEANING,
@@ -141,11 +142,22 @@ function isOpenKickoffPlayer(player: Player, opponents: Player[]): boolean {
     && Math.max(Math.abs(opponent.gridPosition.x - position.x), Math.abs(opponent.gridPosition.y - position.y)) === 1);
 }
 
+const ACTION_PICKS: ReadonlySet<KickoffEvent> = new Set([
+  KickoffEvent.CHARGE,
+  KickoffEvent.BLITZ,
+  KickoffEvent.QUICK_ATTACK,
+]);
+
 export function isPickableKickoffPlayer(
   event: KickoffEvent,
   player: Player,
   opponents: Player[]
 ): boolean {
+  if (
+    ACTION_PICKS.has(event) &&
+    hasSkill(player.skills, SkillType.BALL_AND_CHAIN)
+  )
+    return false;
   if (event !== KickoffEvent.QUICK_ATTACK) return isOpenKickoffPlayer(player, opponents);
   return player.status === PlayerStatus.ACTIVE && !!player.gridPosition;
 }

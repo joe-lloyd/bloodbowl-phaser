@@ -385,3 +385,16 @@ describe("Get Ready, Lads! with fewer players allowed", () => {
     });
   });
 });
+
+describe("a Ball & Chain player", () => {
+  it("cannot take a Charge pick", async () => {
+    const { game, home } = await rehearse(KickoffEvent.CHARGE, { players: 1 });
+    const fanatic = home(1);
+    fanatic.skills = [...fanatic.skills, getSkill(SkillType.BALL_AND_CHAIN)];
+    const picked = await game.execute({
+      type: "kickoff-select-player",
+      playerId: fanatic.id,
+    });
+    expect(picked.ok).toBe(false);
+  });
+});
