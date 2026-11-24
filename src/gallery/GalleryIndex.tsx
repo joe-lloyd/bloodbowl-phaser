@@ -17,7 +17,7 @@ function GroupTitle({ children }: { children: string }) {
   return (
     <h2
       id={slug(children)}
-      className="mb-4 mt-14 scroll-mt-20 border-b border-hud-gold/30 pb-2 font-hud-display text-hud-2xl uppercase tracking-[0.03em]"
+      className="mb-4 mt-14 scroll-mt-28 sm:scroll-mt-20 border-b border-hud-gold/30 pb-2 font-hud-display text-hud-2xl uppercase tracking-[0.03em]"
     >
       {children}
     </h2>
@@ -26,7 +26,7 @@ function GroupTitle({ children }: { children: string }) {
 
 function VariantCard({ variant, size }: { variant: Variant; size: FrameSize }) {
   return (
-    <figure id={variant.id} className="min-w-0 scroll-mt-20">
+    <figure id={variant.id} className="min-w-0 scroll-mt-28 sm:scroll-mt-20">
       <figcaption className="mb-2 flex items-baseline justify-between gap-3">
         <span className="font-hud-label text-hud-base font-bold">
           {variant.title}

@@ -9,7 +9,7 @@ import { GALLERY_ROSTER_MODELS } from "./src/gallery/galleryModels";
 const here = (file: string) => path.resolve(import.meta.dirname, file);
 const PUBLIC = here("public");
 const OUT = here("dist-gallery");
-const PUBLIC_PATH = /(["'`])\/(sprites|stadium|venues|assets)\//g;
+const PUBLIC_PATH = /(["'`])\/(sprites|stadium|venues|assets)(?=[/"'`])/g;
 
 const venueImages = readdirSync(`${PUBLIC}/venues`).map(
   (venue) => `venues/${venue}/card.webp`
@@ -29,7 +29,7 @@ function relativePublicFiles(): Plugin {
     enforce: "pre",
     transform: (code, id) =>
       id.includes("/src/") && /\.tsx?$/.test(id.split("?")[0] ?? "")
-        ? code.replace(PUBLIC_PATH, "$1./$2/")
+        ? code.replace(PUBLIC_PATH, "$1./$2")
         : undefined,
     closeBundle: () => {
       for (const file of PUBLISHED)
