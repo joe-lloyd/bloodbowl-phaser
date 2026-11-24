@@ -1,9 +1,11 @@
 import { ballOnSquare } from "@/game/rules/ballInTheAir";
+import { DIE_LANDING_TIMEOUT_MS, DiceWatch } from "../presentation/diceWatch";
 import { whenMomentsComplete } from "../presentation/momentQueue";
 import {
   type DelayProvider,
   type GameFlowManager,
   realTimeDelay,
+  waitAtMost,
 } from "../core/GameFlowManager";
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState, GamePhase, SubPhase } from "@/types/GameState";
@@ -39,6 +41,8 @@ import { type ReactionDecisionAnswer } from "../../types/decisions";
 import { type KickoffEventOutcome } from "../kickoff/kickoffEvents";
 import { kickoffEventMeaning } from "../kickoff/kickoffTables";
 import { kickLandsAsTouchback } from "../kickoff/ballConditions";
+
+const SCATTER_SHOWN_GUARD_MS = DIE_LANDING_TIMEOUT_MS + 4000;
 
 interface BallCallbacks {
   onTurnover: (reason: string) => void;
@@ -328,6 +332,11 @@ export class BallManager {
           ...this.state.ballPosition,
         });
 
+        await waitAtMost(
+          this.delay,
+          DiceWatch.shared(this.eventBus).landed(),
+          SCATTER_SHOWN_GUARD_MS
+        );
         await this.delay(800);
       }
     }
