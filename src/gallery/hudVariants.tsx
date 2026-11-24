@@ -79,11 +79,7 @@ export const HUD_VARIANTS: Variant[] = [
           phase: GamePhase.SETUP,
           subPhase: SubPhase.SETUP_KICKING,
         });
-        showPlacing(fx, [
-          { name: "Balanced", builtIn: true },
-          { name: "Wedge", builtIn: true },
-          { name: "My cage", builtIn: false },
-        ]);
+        showPlacing(fx);
         fx.bus.emit(GameEventNames.UI_LogEntry, {
           category: "weather",
           headline: "Nice Weather",

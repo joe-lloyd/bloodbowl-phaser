@@ -1,3 +1,4 @@
+import { pickFormation } from "../support/setup";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { type Page, type Locator } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
@@ -225,15 +226,7 @@ export async function perform(
       case "auto-setup":
       case "confirm-setup":
       case "setup": {
-        const select = page
-          .locator("select")
-          .filter({ has: page.locator("optgroup[label=Presets]") });
-        const options = await select
-          .locator("optgroup[label=Presets] option")
-          .allTextContents();
-        const want = options.find((o) => /balanced/i.test(o)) ?? options[0];
-        await select.selectOption(fixtureValue(want));
-        await clickIf(page, /LOAD/);
+        await pickFormation(page, /balanced/i);
         await page.waitForTimeout(600);
         await clickIf(page, /CONFIRM SETUP/);
         await page.waitForTimeout(1200);

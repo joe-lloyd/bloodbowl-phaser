@@ -1,3 +1,4 @@
+import type { FormationEntry } from "../../game/managers/FormationManager";
 import { GameEventNames } from "./names";
 import { SubPhase } from "../GameState";
 import { type Team } from "../Team";
@@ -62,7 +63,8 @@ export interface CommonUIEvents {
   [GameEventNames.UI_SetupAction]: { action: string; name?: string };
 
   [GameEventNames.UI_FormationsUpdated]: {
-    formations: { name: string; builtIn: boolean }[];
+    formations: FormationEntry[];
+    isTeam1: boolean;
   };
 
   [GameEventNames.UI_Notification]: string;

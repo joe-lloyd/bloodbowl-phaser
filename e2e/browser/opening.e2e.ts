@@ -4,6 +4,7 @@ import { confirmPregame } from "../support/pregame";
 import { test, expect } from "@playwright/test";
 import { sampleCamera, finishCameraSample } from "../support/camera";
 import { GameApp } from "../support/pages/game";
+import { pickFormation } from "../support/setup";
 import { seedAllRosters } from "../support/seedTeams";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
@@ -157,10 +158,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     .click();
 
   for (let team = 0; team < 2; team++) {
-    const select = page
-      .locator("select")
-      .filter({ has: page.locator("optgroup[label=Presets]") });
-    await expect(select).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("formation-menu")).toBeVisible({ timeout: 15_000 });
 
     expect(
       (await app.bridge.pitchLayers())
@@ -173,13 +171,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     await expect(page.getByTestId("setup-checklist")).toContainText(
       "Wide zones: at most 1 each (top 0, bottom 0)"
     );
-    const options = await select
-      .locator("optgroup[label=Presets] option")
-      .allTextContents();
-    await select.selectOption(
-      fixtureValue(options.find((o) => /balanced/i.test(o)) ?? options[0])
-    );
-    await page.getByRole("button", { name: /LOAD/ }).click();
+    await pickFormation(page, /balanced/i);
     await expect(page.getByTestId("setup-checklist")).toContainText(
       "Line of scrimmage 3/3"
     );

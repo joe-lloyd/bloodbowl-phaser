@@ -5,6 +5,10 @@ import { GamePhase, SubPhase } from "../types/GameState";
 import type { SetupTeamStatus } from "../types/SetupTypes";
 import type { OnlineMatch } from "../network/OnlineMatch";
 import type { LobbyDoc } from "../firebase/lobby";
+import {
+  FormationManager,
+  type FormationEntry,
+} from "../game/managers/FormationManager";
 import { type MatchFixture } from "./fixtures";
 import { ScoreBoard } from "../ui/components/hud/ScoreBoard";
 import { TurnIndicator } from "../ui/components/hud/TurnIndicator";
@@ -37,7 +41,17 @@ export const click = (selector: string, text?: string) => {
   target?.click();
 };
 
-const BALANCED = [{ name: "Balanced", builtIn: true }];
+
+function presets(): FormationEntry[] {
+  return new FormationManager().listAllFormations("gallery", true);
+}
+
+function withSaved(): FormationEntry[] {
+  return [
+    ...presets(),
+    { name: "My cage", builtIn: false, use: "any", positions: new FormationManager().getDefaultFormation(true) },
+  ];
+}
 
 export function showSetup(
   fx: MatchFixture,
@@ -45,12 +59,12 @@ export function showSetup(
     subPhase,
     activeTeam,
     status,
-    formations = BALANCED,
+    formations = presets(),
   }: {
     subPhase: SubPhase;
     activeTeam: { id: string; name: string };
     status: Partial<SetupTeamStatus>;
-    formations?: { name: string; builtIn: boolean }[];
+    formations?: FormationEntry[];
   }
 ) {
   fx.bus.emit(GameEventNames.UI_ShowSetupControls, {
@@ -67,18 +81,15 @@ export function showSetup(
       ...status,
     },
   });
-  fx.bus.emit(GameEventNames.UI_FormationsUpdated, { formations });
+  fx.bus.emit(GameEventNames.UI_FormationsUpdated, { formations, isTeam1: true });
 }
 
-export function showPlacing(
-  fx: MatchFixture,
-  formations: { name: string; builtIn: boolean }[]
-) {
+export function showPlacing(fx: MatchFixture) {
   showSetup(fx, {
     subPhase: SubPhase.SETUP_KICKING,
     activeTeam: { id: fx.team1.id, name: fx.team1.name },
     status: { placedPlayerCount: 4 },
-    formations,
+    formations: withSaved(),
   });
 }
 

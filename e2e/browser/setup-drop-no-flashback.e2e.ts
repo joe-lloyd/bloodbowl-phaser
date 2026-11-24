@@ -4,6 +4,7 @@ import { confirmPregame } from "../support/pregame";
 import { test, expect, type Page } from "@playwright/test";
 import { writeFileSync } from "node:fs";
 import { GameApp } from "../support/pages/game";
+import { pickFormation } from "../support/setup";
 import { seedAllRosters } from "../support/seedTeams";
 import { GamePhase } from "../../src/types/GameState";
 
@@ -324,14 +325,7 @@ async function startComputerSetup(page: Page, app: GameApp) {
 }
 
 async function loadPreset(page: Page, name: RegExp): Promise<void> {
-  const select = page
-    .locator("select")
-    .filter({ has: page.locator("optgroup[label=Presets]") });
-  const options = await select
-    .locator("optgroup[label=Presets] option")
-    .allTextContents();
-  await select.selectOption(fixtureValue(options.find((o) => name.test(o))));
-  await page.getByRole("button", { name: /LOAD/ }).click();
+  await pickFormation(page, name);
   await expect(page.getByTestId("setup-checklist")).toContainText(
     "Players placed 7/7"
   );

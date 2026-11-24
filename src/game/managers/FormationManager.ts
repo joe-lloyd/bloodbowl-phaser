@@ -20,6 +20,10 @@ export interface FormationEntry {
   name: string;
 
   builtIn: boolean;
+
+  use: DeploymentUse;
+
+  positions: FormationPosition[];
 }
 
 export class FormationManager {
@@ -47,12 +51,14 @@ export class FormationManager {
   listAllFormations(teamKey: string, isTeam1: boolean): FormationEntry[] {
     return [
       ...this.getBuiltInFormations(isTeam1).map((f) => ({
-        name: f.name,
+        ...f,
         builtIn: true,
       })),
-      ...this.listFormations(teamKey).map((name) => ({
-        name,
+      ...(this.getAllFormations()[teamKey] ?? []).map((f) => ({
+        name: f.name,
         builtIn: false,
+        use: "any" as const,
+        positions: f.positions,
       })),
     ];
   }

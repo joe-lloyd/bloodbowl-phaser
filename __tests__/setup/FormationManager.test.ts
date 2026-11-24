@@ -204,8 +204,18 @@ describe("FormationManager", () => {
     it("lists built-ins before the team's saved formations", () => {
       manager.saveFormation("Human:left", [], "My Wall");
       const all = manager.listAllFormations("Human:left", true);
-      expect(all[0]).toEqual({ name: "Balanced", builtIn: true });
-      expect(all).toContainEqual({ name: "My Wall", builtIn: false });
+      expect(all[0]).toMatchObject({
+        name: "Balanced",
+        builtIn: true,
+        use: "any",
+        positions: manager.getFormation("Human:left", "Balanced", true),
+      });
+      expect(all).toContainEqual({
+        name: "My Wall",
+        builtIn: false,
+        use: "any",
+        positions: [],
+      });
     });
 
     it("resolves customs over built-ins and falls back to presets", () => {
