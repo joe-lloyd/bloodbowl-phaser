@@ -62,6 +62,15 @@ export interface TurnFlags {
   hasPunted?: boolean;
 }
 
+const UNSPENT_FLAGS: TurnFlags = {
+  hasBlitzed: false,
+  hasPassed: false,
+  hasHandedOff: false,
+  hasFouled: false,
+  hasThrownTeamMate: false,
+  hasKickedTeamMate: false,
+};
+
 export interface ActionAvailabilityInput {
   player: Player;
   ballPosition: { x: number; y: number } | null;
@@ -375,6 +384,46 @@ function skillActions(board: ActingBoard) {
     (isStanding(player) || player.status === PlayerStatus.PRONE) &&
     canHaveBall;
   return { gaze, throwTeammate, kickTeammate, throwBomb, punt };
+}
+
+type AfterMove = Extract<
+  ActionType,
+  "pass" | "punt" | "handoff" | "foul" | "gaze" | "throwTeamMate"
+>;
+
+const LEFT_AFTER_MOVE: Record<
+  AfterMove,
+  (available: ActionAvailability) => boolean
+> = {
+  pass: ({ pass }) => pass,
+  punt: ({ punt }) => punt,
+  handoff: ({ handoff }) => handoff,
+  foul: ({ foul }) => foul,
+  gaze: ({ gaze }) => gaze,
+  throwTeamMate: ({ throwTeammate, kickTeammate }) =>
+    throwTeammate || kickTeammate,
+};
+
+const endsWithAnAct = (action: ActionType): action is AfterMove =>
+  action in LEFT_AFTER_MOVE;
+
+export function actsFromHere(
+  action: ActionType,
+  board: Pick<
+    ActionAvailabilityInput,
+    "player" | "ballPosition" | "opponents" | "teammates"
+  >
+): boolean {
+  if (!endsWithAnAct(action) || board.player.status !== PlayerStatus.ACTIVE)
+    return false;
+  return LEFT_AFTER_MOVE[action](
+    computeActionAvailability({
+      ...board,
+      reachable: [],
+      turn: UNSPENT_FLAGS,
+      hasMovedInAction: false,
+    })
+  );
 }
 
 export function computeActionAvailability(

@@ -18,6 +18,7 @@ import {
 } from "./serialization";
 import { type CommandHost, dispatchCommand } from "./commandHandlers";
 import { validateShape } from "./commandShape";
+import { currentCommand } from "./legacyCommand";
 import { enumerateLegalActions } from "./legalActions";
 import { engineDecision, requestedDecision } from "./pendingDecisions";
 import { GameEventNames } from "../types/events";
@@ -210,7 +211,7 @@ export class HeadlessGame {
     const shapeError = validateShape(command);
     if (shapeError) return this.reject(shapeError);
 
-    const cmd = command as HeadlessCommand;
+    const cmd = currentCommand(command as HeadlessCommand);
 
     if (cmd.type === "state") {
       return this.respond(true);

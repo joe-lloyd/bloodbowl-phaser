@@ -17,7 +17,6 @@ import {
   type DodgeDeclaredContext,
   type DodgeResolvedContext,
 } from "../skills";
-import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import {
   bananaSkinTeam,
@@ -37,6 +36,7 @@ import {
   dropThroughTrapdoor,
   fallOver,
   findPlayer,
+  finishIfSpent,
   heldInSquare,
   isBallAt,
   movementUsed,
@@ -621,11 +621,9 @@ function finishMove(run: MoveRun, end: MoveEnd): void {
     return;
   }
 
-  if (
-    end === "heldFast" ||
-    end === "securedBall" ||
-    run.preUsed + run.stepsTaken >= moveAllowance(run.maView)
-  ) {
+  if (end === "heldFast" || end === "securedBall") {
     deps.callbacks.onActivationFinished(player.id);
+    return;
   }
+  finishIfSpent(deps, player);
 }

@@ -21,6 +21,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import {
   type MovementDeps,
   findPlayer,
+  finishIfSpent,
   movementUsed,
   rise,
   standToMove,
@@ -165,9 +166,7 @@ export class MovementManager {
 
     if (!(await standToMove(this.deps, player, maView))) return;
 
-    if (this.getMovementUsed(playerId) >= allowance) {
-      this.callbacks.onActivationFinished(playerId);
-    }
+    finishIfSpent(this.deps, player);
   }
 
   public movePlayer(

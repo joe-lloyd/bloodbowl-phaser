@@ -1,7 +1,7 @@
 import { activeRules } from "@/game/variants/activeMatch";
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
-import { ballOnSquare } from "@/game/rules/ballInTheAir";
+import { ballOnSquare, groundBall } from "@/game/rules/ballInTheAir";
 import { type Team } from "@/types/Team";
 import {
   type Player,
@@ -27,7 +27,13 @@ import {
   type StandUpRollContext,
 } from "../skills/SkillRule";
 import { rushModifier } from "../inducements/matchInducements";
-import { STAND_UP_TARGET, standUpCost } from "../skills/movement";
+import {
+  STAND_UP_TARGET,
+  moveAllowance,
+  standUpCost,
+} from "../skills/movement";
+import { withDriveModifiers } from "../kickoff/driveEffects";
+import { actsFromHere } from "../rules/actionAvailability";
 
 export interface Square {
   x: number;
@@ -110,6 +116,25 @@ async function rollToStand(
   const check = deps.diceController.rollSkillCheck(
     { reason: "Stand Up",target: STAND_UP_TARGET,modifier: ctx.modifiers,playerName: player.playerName }  );
   return check.success;
+}
+
+function actionContinues(deps: MovementDeps, player: Player): boolean {
+  const { activePlayer } = deps.state;
+  if (activePlayer?.id !== player.id || !activePlayer.action) return false;
+  const { own, opp } = teamsOf(deps, player);
+  return actsFromHere(activePlayer.action, {
+    player,
+    ballPosition: groundBall(deps.state),
+    opponents: opp.players,
+    teammates: own.players.filter(({ id }) => id !== player.id),
+  });
+}
+
+export function finishIfSpent(deps: MovementDeps, player: Player): void {
+  const allowance = moveAllowance(withDriveModifiers(player, deps.state));
+  if (movementUsed(deps.state, player.id) < allowance) return;
+  if (actionContinues(deps, player)) return;
+  deps.callbacks.onActivationFinished(player.id);
 }
 
 export async function standToMove(

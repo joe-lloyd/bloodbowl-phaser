@@ -23,6 +23,7 @@ import {
   dropThroughTrapdoor,
   fallOver,
   findPlayer,
+  finishIfSpent,
   heldInSquare,
   isBallAt,
   movementUsed,
@@ -285,7 +286,7 @@ function landJump(
   } else if (context && isBallAt(deps.state, destination)) {
     return context;
   }
-  finishIfSpent(jump);
+  finishIfSpent(jump.deps, jump.player);
   return undefined;
 }
 
@@ -305,13 +306,7 @@ function finishAfterPickup(jump: JumpRun): void {
     jump.deps.callbacks.onActivationFinished(jump.player.id);
     return;
   }
-  finishIfSpent(jump);
-}
-
-function finishIfSpent(jump: JumpRun): void {
-  if (jump.preUsed + JUMP_COST >= moveAllowance(jump.maView)) {
-    jump.deps.callbacks.onActivationFinished(jump.player.id);
-  }
+  finishIfSpent(jump.deps, jump.player);
 }
 
 function fallFromJump(jump: JumpRun, roll: number): void {

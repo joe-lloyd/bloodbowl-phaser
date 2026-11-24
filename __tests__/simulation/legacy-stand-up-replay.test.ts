@@ -12,9 +12,11 @@ it("executes a recorded Stand Up declaration and its stand-up", async () => {
   const scenario = fixtureValue(SCENARIOS.find(({ id }) => id === "base-move"));
   const game = new HeadlessGame({ scenario, seed: 1 });
   const playerId = fixtureValue(game.ctx.team1.players[1]).id;
-  const declared = await game.execute(
-    JSON.parse(`{"type":"declare-action","playerId":"${playerId}","action":"standUp"}`)
-  );
+  const declared = await game.execute({
+    type: "declare-action",
+    playerId,
+    action: "standUp",
+  });
   const stood = await game.execute({ type: "stand-up", playerId });
   expect([declared.ok, stood.ok]).toEqual([true, true]);
   const player = game.ctx.gameService.getPlayerById(playerId);
