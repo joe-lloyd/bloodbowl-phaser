@@ -401,7 +401,6 @@ function fanOutcome(lead: number): "win" | "loss" | "draw" {
 
 export function resetActivationMarks(marks: GameParts["marks"]): void {
   marks.blitzBlockUsed.clear();
-  marks.puntUsedThisTurn = false;
   marks.ballAndChainSquare = null;
   marks.crowdRolledFor = null;
 }
@@ -416,5 +415,6 @@ function resetTurnUsage(state: GameParts["state"]): void {
   state.turn.hasThrownTeamMate = false;
   state.turn.hasKickedTeamMate = false;
   state.turn.hasThrownBomb = false;
+  delete state.turn.hasPunted;
   delete state.turnUsage;
 }

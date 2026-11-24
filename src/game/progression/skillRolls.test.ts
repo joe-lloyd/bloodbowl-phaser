@@ -4,7 +4,7 @@ import { SkillCategory, SkillType, getSkill } from "../../types/Skills";
 import { fixtureValue } from "../../testing/fixtureValue";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { RosterName } from "../../types/Team";
-import { rollRandomPrimaryCandidates } from "./progression";
+import { rollRandomPrimaryCandidates, savedRollStands } from "./progression";
 
 function devious(skills: readonly SkillType[]) {
   const template = fixtureValue(
@@ -65,5 +65,23 @@ describe("rolling a random skill", () => {
       "Dirty Player",
       "Dirty Player",
     ]);
+  });
+
+  it("drops a saved roll that holds a skill the player may not take", () => {
+    const candidate = (skill: SkillType) => ({
+      skill,
+      firstD6: 6,
+      secondD6: 6,
+    });
+    const saved = {
+      kind: "random-primary" as const,
+      category: SkillCategory.DEVIOUS,
+      candidates: [
+        candidate(SkillType.VIOLENT_INNOVATOR),
+        candidate(SkillType.EYE_GOUGE),
+      ] satisfies [unknown, unknown],
+    };
+    expect(savedRollStands(devious([]), saved)).toBe(false);
+    expect(savedRollStands(devious([SkillType.STAB]), saved)).toBe(true);
   });
 });

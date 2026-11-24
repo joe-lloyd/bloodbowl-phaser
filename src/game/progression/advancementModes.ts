@@ -317,7 +317,7 @@ export function skillSelectionDecision(
       };
     }
     case "secondary":
-      return progress.rolled
+      return progress.rolled && rollStands(player, progress.rolled)
         ? {
             type: "choose-secondary-skill",
             playerId: player.id,
@@ -329,6 +329,13 @@ export function skillSelectionDecision(
             categories: categoriesFor(player, "secondary"),
           };
   }
+}
+
+function rollStands(
+  player: Player,
+  rolled: { candidates: readonly SkillRollCandidate[] }
+): boolean {
+  return rolled.candidates.every(({ skill }) => isSkillLegal(player, skill));
 }
 
 function requireNoRoute(entry: SkillSelectionEntry): void {
@@ -426,10 +433,11 @@ export function rollSecondaryCandidates(
   rng: Rng
 ): void {
   const progress = entry.progress;
-  if (progress?.route !== "secondary" || progress.rolled) {
+  if (progress?.route !== "secondary")
     throw new Error("No Secondary category is waiting to be chosen.");
-  }
   const player = eligiblePlayer(team, entry, progress.playerId);
+  if (progress.rolled && rollStands(player, progress.rolled))
+    throw new Error("No Secondary category is waiting to be chosen.");
   if (!categoriesFor(player, "secondary").includes(category)) {
     throw new Error(
       `${category} is not a Secondary category for ${player.playerName}.`

@@ -297,6 +297,16 @@ function requireCost(player: Player, cost: keyof AdvancementCosts): void {
   if ((player.spp ?? 0) < costs[cost]) throw new Error("Not enough SPP");
 }
 
+export function savedRollStands(
+  player: Player,
+  roll: PendingAdvancementRoll
+): boolean {
+  return (
+    roll.kind !== "random-primary" ||
+    roll.candidates.every(({ skill }) => isSkillLegal(player, skill))
+  );
+}
+
 export function rollPendingRandomPrimary(
   player: Player,
   category: SkillCategory,

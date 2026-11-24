@@ -52,6 +52,7 @@ export interface TurnFlags {
 
   hasThrownTeamMate: boolean;
   hasKickedTeamMate: boolean;
+  hasPunted?: boolean;
 }
 
 export interface ActionAvailabilityInput {
@@ -363,6 +364,7 @@ function skillActions(board: ActingBoard) {
     isStanding(player) &&
     !input.hasMovedInAction;
   const punt =
+    !input.turn.hasPunted &&
     hasSkill(player.skills, SkillType.PUNT) &&
     (isStanding(player) || player.status === PlayerStatus.PRONE) &&
     canHaveBall;

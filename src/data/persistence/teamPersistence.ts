@@ -1,3 +1,4 @@
+import { savedRollStands } from "../../game/progression/progression";
 import { readGameType, type GameType } from "../../game/variants/gameTypes";
 import {
   DRAFT_KEEP_VALUE_INCREASE,
@@ -326,7 +327,10 @@ export function hydratePlayer(
   };
   if (hydrationWarning) player.hydrationWarning = hydrationWarning;
   if (stored.veteran) player.veteran = true;
-  if (stored.pendingAdvancementRoll) {
+  if (
+    stored.pendingAdvancementRoll &&
+    savedRollStands(player, stored.pendingAdvancementRoll)
+  ) {
     player.pendingAdvancementRoll = stored.pendingAdvancementRoll;
   }
   if (stored.appearance) player.appearance = stored.appearance;

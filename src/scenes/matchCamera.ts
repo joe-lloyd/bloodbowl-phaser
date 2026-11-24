@@ -71,10 +71,11 @@ export function followMatchWithCamera(scene: GameScene): void {
     if (player) nextPlayerChoice = null;
     if (!player?.gridPosition || scene.isSetupActive || choosingInterceptor)
       return;
+    if (gameService().getKickoffEventStep()) return;
     camera().release();
 
     if (gameService().getPhase() === GamePhase.KICKOFF) {
-      if (!gameService().getKickoffEventStep()) camera().overview();
+      camera().overview();
       return;
     }
     frameReach(scene, player.id, player.gridPosition);

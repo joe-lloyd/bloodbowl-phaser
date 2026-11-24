@@ -4718,11 +4718,6 @@
       "count": 2
     }
   },
-  "src/game/skills/rules/ViolentInnovatorRule.ts": {
-    "@typescript-eslint/prefer-optional-chain": {
-      "count": 1
-    }
-  },
   "src/game/skills/rules/WrestleRule.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1

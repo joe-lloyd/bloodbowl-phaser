@@ -385,7 +385,7 @@ function otherTraitsAllow(
         hasSkill(player.skills, SkillType.KICK_TEAM_MATE))
     );
   }
-  if (action === "punt" && parts.marks.puntUsedThisTurn) return false;
+  if (action === "punt" && parts.state.turn.hasPunted) return false;
   const moveFirst = MOVE_FIRST_ACTION_SKILL[action];
   if (moveFirst) {
     return canDeclareMoveFirst(player) && hasSkill(player.skills, moveFirst);

@@ -92,7 +92,7 @@ export class BombardierOperation extends GameOperation {
         GameEventNames.UI_Notification,
         `Fumble! The bomb goes off in ${thrower.playerName}'s square!`
       );
-      explodeBomb(context, { ...thrower.gridPosition });
+      explodeBomb(context, { ...thrower.gridPosition }, throwerId);
       gameService.triggerTurnover("Fumbled Bomb");
       return;
     }
