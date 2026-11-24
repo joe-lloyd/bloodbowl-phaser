@@ -65,6 +65,7 @@ type Play = (
 interface Table {
   game: HeadlessGame;
   play: Play;
+  guarded: boolean;
 
   agreed(): void;
 }
@@ -73,6 +74,7 @@ function hotseat(seed: number): Table {
   const game = new HeadlessGame({ scenario, seed });
   return {
     game,
+    guarded: false,
     play: (_team, command) => game.execute(command),
     agreed: () => {},
   };
@@ -116,6 +118,7 @@ function online(seed: number): Table {
   };
   return {
     game,
+    guarded: true,
     play: async (team, command) => {
       const response = await (team === hostTeamId ? host : guest).run(command);
       await settle();
@@ -162,6 +165,54 @@ function mover(game: HeadlessGame, teamId: string, skip: string[] = []) {
   throw new Error("nobody can move");
 }
 
+async function playMiniTurn(
+  { game, play, guarded }: Table,
+  owner: string,
+  event: KickoffEvent
+) {
+  const first = mover(game, owner).player;
+  const second = mover(game, owner, [first.id]).player;
+  for (const { id } of [first, second])
+    await play(owner, { type: "kickoff-select-player", playerId: id });
+  expect((await play(owner, { type: "kickoff-confirm" })).ok).toBe(true);
+
+  const other = [game.ctx.team1.id, game.ctx.team2.id].find((id) => id !== owner);
+  if (guarded) {
+    const trespass = await play(fixtureValue(other), {
+      type: "declare-action",
+      playerId: second.id,
+      action: "move",
+    });
+    expect(trespass.ok).toBe(false);
+  }
+
+  for (const { id } of [second, first]) {
+    const others = fixtureValue(game.ctx.gameService.getTeam(owner))
+      .players.map((player) => player.id)
+      .filter((playerId) => playerId !== id);
+    const { to } = mover(game, owner, others);
+    if (event !== KickoffEvent.CHARGE) {
+      const stepped = await play(owner, {
+        type: "kickoff-move-player",
+        playerId: id,
+        ...to,
+      });
+      expect(stepped.ok, stepped.reason).toBe(true);
+      continue;
+    }
+    const commands: HeadlessCommand[] = [
+      { type: "declare-action", playerId: id, action: "move" },
+      { type: "move", playerId: id, path: [to] },
+      { type: "end-activation", playerId: id },
+    ];
+    for (const command of commands) {
+      const done = await play(owner, command);
+      expect(done.ok, done.reason).toBe(true);
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 async function resolveOpening(table: Table) {
   const { game, play } = table;
   for (let guard = 0; guard < 30; guard++) {
@@ -176,57 +227,11 @@ async function resolveOpening(table: Table) {
     if (pending.type !== "kickoff-event") {
       throw new Error(`unexpected ${pending.type} in the opening`);
     }
-    if (pending.charge?.activePlayerId) {
-      const playerId = pending.charge.activePlayerId;
-      const at = fixtureValue(fixtureValue(game.ctx.gameService.getPlayerById(playerId)).gridPosition);
-      expect(
-        (
-          await play(owner, {
-            type: "declare-action",
-            playerId,
-            action: "move",
-          })
-        ).ok
-      ).toBe(true);
-      const to = fixtureValue([
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-      ]
-        .map(([dx, dy]) => ({ x: at.x + fixtureValue(dx), y: at.y + fixtureValue(dy) }))
-        .find((s) => isFree(game, s.x, s.y)));
-      expect(
-        (await play(owner, { type: "move", playerId, path: [to] })).ok
-      ).toBe(true);
-
-      expect(
-        fixtureValue(game.ctx.gameService.getPlayerById(playerId)).gridPosition
-      ).toEqual(to);
-      await play(owner, { type: "end-activation", playerId });
-      continue;
-    }
     switch (pending.event) {
       case KickoffEvent.CHARGE:
       case KickoffEvent.ALERT_DEFENCE:
       case KickoffEvent.QUICK_SNAP: {
-        const { player, to } = mover(game, owner);
-        await play(owner, {
-          type: "kickoff-select-player",
-          playerId: player.id,
-        });
-        if (pending.event !== KickoffEvent.CHARGE) {
-          expect(
-            (
-              await play(owner, {
-                type: "kickoff-move-player",
-                playerId: player.id,
-                ...to,
-              })
-            ).ok
-          ).toBe(true);
-        }
-        await play(owner, { type: "kickoff-confirm" });
+        await playMiniTurn(table, owner, pending.event);
         break;
       }
       default:

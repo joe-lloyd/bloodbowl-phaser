@@ -1,3 +1,5 @@
+import { kickoffTurnOf } from "../game/kickoff/kickRecord";
+import { reopenBlockChoice } from "./reopenBlockChoice";
 import { assertPregameSaveable } from "../game/inducements/pregame";
 import { type IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
@@ -254,7 +256,7 @@ function resumeParts(saved: ReturnType<typeof startingState>["saved"]) {
     matchStats: resume?.matchStats,
     turnManager,
     kickingTeamId: turnManager?.driveKickingTeamId ?? null,
-    applied: resume?.applied ?? 0,
+    commands: { applied: 0, replay: [], ...resume },
   };
 }
 
@@ -350,8 +352,10 @@ class OnlineSession {
         team1, team2, seed: options.seed, matchStats: this.container.matchStats },
       kickingTeamId: resume.kickingTeamId,
     });
-    this.session = this.createSession(resume.applied);
+    this.session = this.createSession(resume.commands.applied);
+    void this.session.replaySaved(resume.commands.replay);
     void this.session.sendHello();
+    this.eventBus.on(GameEventNames.GameStateRestored, this.showOpenChoice);
     this.subscriptions = [
       subscribeSelectionForwarding(this.eventBus, this.sides.myTeamId, (playerId) => void this.session.sendSelection(playerId)),
       subscribePromptForwarding(this.eventBus, this.sides.myTeamId, (prompt) => void this.session.sendPrompt(prompt)),
@@ -386,18 +390,15 @@ class OnlineSession {
 
   private saveNow(): void {
     if (this.engine.getState().pregameInducements?.resolving) return;
-    void persistMatch(this.options.lobby.code, this.game.snapshot(), {
-      teams: structuredClone([this.sides.team1, this.sides.team2]),
-      rng: this.container.rngService.captureState(), matchStats: this.container.matchStats.captureState(),
-      applied: this.session.appliedCommands(),
-    }).catch((error: unknown) => { console.warn("[Online] save failed:", error); });
+    const { snapshot, teams, rng, matchStats, applied, replay } = this.session.captureState();
+    void persistMatch(this.options.lobby.code, snapshot, { teams: structuredClone(teams), rng, matchStats, applied, replay: structuredClone(replay) }).catch((error: unknown) => { console.warn("[Online] save failed:", error); });
   }
 
   private saveIfTurnChanged(): void {
     const { phase, turn } = this.engine.getState();
     const key = `${phase}:${turn.teamId}:${String(turn.turnNumber)}`;
     if (key === this.savedTurn) return;
-    this.savedTurn = key;
+    if (this.game.isAtRest()) this.savedTurn = key;
     this.saveNow();
   }
 
@@ -461,25 +462,15 @@ class OnlineSession {
     const subPhase = this.engine.getSubPhase();
     this.eventBus.emit(GameEventNames.PhaseChanged, { phase: this.engine.getPhase(), ...(subPhase === undefined ? {} : { subPhase }) });
     this.eventBus.emit(GameEventNames.GameStateRestored, this.engine.getState());
-    const pending = this.game.pendingDecision();
-    if (pending?.type === "block-dice") this.restoreBlockDice(pending);
-    else this.eventBus.emit(GameEventNames.UI_BlockRollCancelled, undefined);
+    if (this.game.pendingDecision()?.type !== "block-dice") this.eventBus.emit(GameEventNames.UI_BlockRollCancelled, undefined);
     this.eventBus.emit(GameEventNames.UI_SyncBoard, { positions: true });
   }
 
-  private restoreBlockDice(pending: Extract<PendingDecision, { type: "block-dice" }>): void {
-    const attacker = this.engine.getPlayerById(pending.attackerId);
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, {
-      attackerId: pending.attackerId, defenderId: pending.defenderId,
-      numDice: pending.options.length, isAttackerChoice: pending.chooserTeamId === attacker?.teamId,
-      results: pending.options,
-      ...(pending.choiceStage === undefined ? {} : { choiceStage: pending.choiceStage }),
-      ...(pending.teamRerollAvailable === undefined ? {} : { teamRerollAvailable: pending.teamRerollAvailable }),
-      ...(pending.proAvailable === undefined ? {} : { proAvailable: pending.proAvailable }),
-      ...(pending.brawlerAvailable === undefined ? {} : { brawlerAvailable: pending.brawlerAvailable }),
-      ...(pending.veteranRerollAvailable === undefined ? {} : { veteranRerollAvailable: pending.veteranRerollAvailable }),
-    });
-  }
+  private readonly showOpenChoice = (): void => {
+    const request = this.engine.getDecisionService().pending();
+    if (request) this.eventBus.emit(GameEventNames.DecisionRequested, request);
+    else reopenBlockChoice(this.game.pendingDecision(), this.engine, this.eventBus);
+  };
 
   private startComputer(resuming: boolean): void {
     if (!this.options.computer) return;
@@ -512,7 +503,7 @@ class OnlineSession {
 
   private isKickoffActor(): boolean {
     const active = this.engine.getActiveTeamId();
-    return this.engine.getPhase() === GamePhase.KICKOFF && active !== null && active !== this.sides.myTeamId;
+    return this.engine.getPhase() === GamePhase.KICKOFF && !kickoffTurnOf(this.engine.getState()) && active !== null && active !== this.sides.myTeamId;
   }
 
   private mayAct(): boolean {
@@ -520,7 +511,7 @@ class OnlineSession {
     if (this.game.pendingDecision()) return this.decidingTeamId() === this.sides.myTeamId;
     const pregame = this.engine.getState().pregameInducements;
     if (pregame && !pregame.complete) return !pregame.offer?.confirmed[this.sides.myTeamId];
-    if (this.engine.getPhase() === GamePhase.KICKOFF) return this.isKickoffActor();
+    if (this.engine.getPhase() === GamePhase.KICKOFF && !kickoffTurnOf(this.engine.getState())) return this.isKickoffActor();
     return this.engine.getActiveTeamId() === this.sides.myTeamId;
   }
 
@@ -541,8 +532,11 @@ class OnlineSession {
   }
 
   private phaseWaitingLabel(): string {
+    const { teamId } = this.engine.getState().turn;
+    const kickoff = kickoffTurnOf(this.engine.getState());
+    if (kickoff) return `${this.teamName(teamId)} is playing ${kickoff.event}…`;
     if (this.engine.getPhase() === GamePhase.KICKOFF) {
-      if (this.engine.getState().kickoffKickResolved != null) return "The kick-off is landing…";
+      if (this.engine.getState().kick) return "The kick-off is landing…";
       if (!this.isKickoffActor()) return `Waiting for ${this.sides.opponentName} to kick off…`;
     }
     if (this.engine.getPhase() === GamePhase.SETUP) return `Waiting for ${this.sides.opponentName} to set up…`;

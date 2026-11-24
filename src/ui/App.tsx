@@ -21,6 +21,7 @@ import { CompetitionBuilder } from "./components/pages/CompetitionBuilder";
 import { CompetitionView } from "./components/pages/CompetitionView";
 import { FriendsPage } from "./components/pages/FriendsPage";
 import { GamePage } from "./pages/GamePage";
+import { KickoffPlaygroundPage } from "./pages/KickoffPlaygroundPage";
 import { ComputerPlayPage } from "./pages/ComputerPlayPage";
 import { OnlinePlayPage } from "./pages/OnlinePlayPage";
 import { type ReactElement } from "react";
@@ -149,6 +150,14 @@ export function App({ eventBus }: AppProps) {
           element={
             <AdminRoute>
               <GamePage eventBus={eventBus} mode="sandbox" />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/kickoff-playground"
+          element={
+            <AdminRoute>
+              <KickoffPlaygroundPage eventBus={eventBus} />
             </AdminRoute>
           }
         />

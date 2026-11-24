@@ -1,5 +1,4 @@
 import {
-  kickoffMomentDetail,
   kickoffOutcomeLine,
   kickoffRevealLine,
 } from "./kickoffMoment";
@@ -12,10 +11,10 @@ import {
 import { whenMomentsComplete } from "../presentation/momentQueue";
 import { DIE_LANDING_TIMEOUT_MS, DiceWatch } from "../presentation/diceWatch";
 import { type IEventBus } from "../../services/EventBus";
-import { GameEventNames, type ActionType } from "../../types/events";
+import { GameEventNames, type AllEvents } from "../../types/events";
 import { type GameState } from "@/types/GameState";
 import { type Team } from "@/types/Team";
-import { type Player, PlayerStatus } from "@/types/Player";
+import { type Player } from "@/types/Player";
 import type { DiceController } from "../controllers/DiceController";
 import type { WeatherManager } from "../managers/WeatherManager";
 import { isStandableSquare } from "../rules/pitchSquares";
@@ -26,64 +25,43 @@ import {
   KickoffEvent,
   type KickoffEventOutcome,
   grantEffect,
-  isChargeStepEvent,
-  isOneSquareMoveEvent,
   kickoffEventOwner,
-  isOpenKickoffPlayer,
+  isPickableKickoffPlayer,
 } from "./kickoffEvents";
 import {
+  KICKOFF_TABLES,
   activeKickoffTableId,
   kickoffEventForRoll,
   kickoffEventMeaning,
 } from "./kickoffTables";
+import { type KickoffTurnStart, kickoffTurnPlay, mayReselect } from "./kickoffTurn";
+import {
+  type KickoffChoice,
+  type KickoffRehearsal,
+  type KickRecord,
+  kickoffChoiceOf,
+  kickoffTurnOf,
+} from "./kickRecord";
 import { kickoffEventResolvers } from "./kickoffResolvers";
 import type { GameFlowManager } from "../core/GameFlowManager";
 
-export interface ChargeBudget {
-  blitz: number;
-  throwTeammate: number;
-  kickTeammate: number;
-}
-
-export interface KickoffEventStepState {
-  event: KickoffEvent;
-
-  teamId: string;
-  selectionLimit: number;
-  selectedPlayerIds: string[];
-
+export interface KickoffEventStepState extends Omit<KickoffChoice, "stage"> {
   movedPlayerIds: string[];
 
   awaitingPlacement: string[];
 
-  landingSquare?: { x: number; y: number };
+  stage: "choose" | "play";
 
-  charge?: {
-    queue: string[];
-    budget: ChargeBudget;
-    activePlayerId: string | null;
-    aborted: boolean;
-  };
+  canReselect: boolean;
 }
 
 const KICKOFF_RESULT = "kickoff-result";
-
-function chargeBudget(event: KickoffEvent): ChargeBudget {
-  if (event === KickoffEvent.QUICK_ATTACK) {
-    return { blitz: 0, throwTeammate: 0, kickTeammate: 0 };
-  }
-  const kickTeammate =
-    event === KickoffEvent.CHARGE && activeKickoffTableId() === "sevens" ? 1 : 0;
-  return { blitz: 1, throwTeammate: 1, kickTeammate };
-}
 
 const ROLL_READY_GUARD_MS = 30 * 60_000;
 
 const TABLE_SHOWN_GUARD_MS = DIE_LANDING_TIMEOUT_MS + 4000;
 
 const STEP_READ_MS = 900;
-
-type StepResolver = (skipped: boolean) => void;
 
 interface KickoffManagerOptions {
 eventBus: IEventBus;
@@ -96,19 +74,27 @@ flowManager: GameFlowManager;
 callbacks: {
       getTurnNumber: (teamId: string) => number;
       moveTurnMarkers: (delta: number) => void;
+      startTurn: (start: KickoffTurnStart) => boolean;
+      closeTurn: () => void;
+      finishActivation: (playerId: string) => void;
     };
 delay: DelayProvider;
 }
 
-export class KickoffEventManager {
-  private step: KickoffEventStepState | null = null;
-  private stepResolver: StepResolver | null = null;
+function choosingStep(choice: KickoffChoice): KickoffEventStepState {
+  return {
+    ...choice,
+    selectedPlayerIds: [...choice.selectedPlayerIds],
+    movedPlayerIds: [],
+    awaitingPlacement: [],
+    canReselect: false,
+  };
+}
 
-  private weatherScatterPending = 0;
-  private lastEvent: KickoffEvent | null = null;
+export class KickoffEventManager {
+  private closeStep: (() => void) | null = null;
 
   private resolving = false;
-  private chargePreviousActiveTeamId: string | null = null;
   private readonly setupValidator = new SetupValidator();
 
   private readonly resolvers: ReturnType<typeof kickoffEventResolvers>;
@@ -119,6 +105,7 @@ export class KickoffEventManager {
   private team2: Team;
   private diceController: DiceController;
   private readonly delay: DelayProvider;
+  private readonly callbacks: KickoffManagerOptions["callbacks"];
   constructor({ eventBus, state, team1, team2, diceController, weatherManager, flowManager, callbacks, delay }: KickoffManagerOptions) {
     this.eventBus = eventBus;
     this.state = state;
@@ -126,6 +113,7 @@ export class KickoffEventManager {
     this.team2 = team2;
     this.diceController = diceController;
     this.delay = delay;
+    this.callbacks = callbacks;
     this.resolvers = kickoffEventResolvers({
       eventBus,
       state,
@@ -135,7 +123,7 @@ export class KickoffEventManager {
       getTurnNumber: callbacks.getTurnNumber,
       moveTurnMarkers: callbacks.moveTurnMarkers,
       onWeatherScatter: (squares) => {
-        this.weatherScatterPending = squares;
+        if (this.state.kick) this.state.kick.scatter = squares;
       },
       diceShown: () => this.diceShown(),
     });
@@ -150,36 +138,30 @@ export class KickoffEventManager {
     await this.delay(STEP_READ_MS);
   }
 
-  public async rollAndResolve(isTeam1Kicking: boolean): Promise<void> {
-    const existing = this.state.kickoffResolution;
-    if (existing) {
-      this.lastEvent = existing.event;
+  private sides(kick: KickRecord) {
+    const isTeam1Kicking = kick.kickingTeamId === this.team1.id;
+    return {
+      isTeam1Kicking,
+      kickingTeam: isTeam1Kicking ? this.team1 : this.team2,
+      receivingTeam: isTeam1Kicking ? this.team2 : this.team1,
+    };
+  }
 
-      delete this.state.chargeTeamId;
-      this.eventBus.emit(GameEventNames.KickoffResult, {
-        roll: existing.roll,
-        event: existing.event,
-        meaning: existing.meaning,
-        outcome: existing.outcome,
-      });
-      this.announceMoment(existing.outcome, isTeam1Kicking);
-      return;
-    }
-
-    const kickingTeam = isTeam1Kicking ? this.team1 : this.team2;
-    const receivingTeam = isTeam1Kicking ? this.team2 : this.team1;
-
+  public async rollAndResolve(kick: KickRecord): Promise<void> {
+    const { isTeam1Kicking, kickingTeam, receivingTeam } = this.sides(kick);
     this.resolving = true;
-    const { roll, event } = await this.revealTable(kickingTeam, receivingTeam);
+    const rolled = kick.rehearsal ? this.rehearsedRoll(kick.rehearsal) : await this.revealTable(kick);
+    if (!rolled || this.state.kick !== kick) return;
+    const { roll, event } = rolled;
     const table = activeKickoffTableId();
     const outcome: KickoffEventOutcome = { event, meaning: kickoffEventMeaning(event, table), perTeam: {} };
     await this.resolvers[event]({ isTeam1Kicking, kickingTeam, receivingTeam, outcome, table });
     this.grantInteractiveEffect(outcome, kickingTeam, receivingTeam);
-    this.state.kickoffResolution = { roll, event, meaning: outcome.meaning, outcome };
+    const resolution = { roll, event, meaning: outcome.meaning, outcome };
+    kick.resolution = resolution;
     this.resolving = false;
-    this.eventBus.emit(GameEventNames.KickoffResult, { roll, event, meaning: outcome.meaning, outcome });
+    this.eventBus.emit(GameEventNames.KickoffResult, resolution);
     this.announceOutcome(outcome, kickingTeam, receivingTeam);
-    await this.resolveCoachStep(event, kickingTeam, receivingTeam);
   }
 
   private async waitUntilReady(kickingTeamId: string): Promise<void> {
@@ -196,11 +178,12 @@ export class KickoffEventManager {
     await shown;
   }
 
-  private async revealTable(kickingTeam: Team, receivingTeam: Team) {
+  private async revealTable(kick: KickRecord) {
+    const { kickingTeam, receivingTeam } = this.sides(kick);
     await this.waitUntilReady(kickingTeam.id);
+    if (this.state.kick !== kick) return null;
     const roll = this.diceController.roll2D6(KICKOFF_TABLE_ROLL, kickingTeam.id);
     const event = kickoffEventForRoll(roll);
-    this.lastEvent = event;
     await this.showTable(roll, event);
     this.eventBus.emit(GameEventNames.UI_Announce, {
       kind: KICKOFF_RESULT, headline: event, subtitle: kickoffRevealLine(event, kickingTeam, receivingTeam),
@@ -220,57 +203,67 @@ export class KickoffEventManager {
     if (decided) this.eventBus.emit(GameEventNames.UI_Announce, { kind: KICKOFF_RESULT, headline: outcome.event, subtitle: decided });
   }
 
-  private async resolveCoachStep(event: KickoffEvent, kickingTeam: Team, receivingTeam: Team): Promise<void> {
-    if (!INTERACTIVE_KICKOFF_EVENTS.has(event) || event === KickoffEvent.HIGH_KICK) return;
-    const ownerTeamId = kickoffEventOwner(event, kickingTeam.id, receivingTeam.id);
-    await this.openStep({ event, teamId: ownerTeamId, selectionLimit: this.stepSize(event, ownerTeamId) });
+  public async coachStep(kick: KickRecord): Promise<void> {
+    if (!kick.step) this.openStep(kick);
+    else if (kick.step.stage === "choose") this.announceChoice(kick.step);
+    if (!kick.step) return;
+    await new Promise<void>((resolve) => {
+      this.closeStep = resolve;
+    });
   }
 
-  private stepSize(event: KickoffEvent, ownerTeamId: string): number {
+  private openStep(kick: KickRecord): void {
+    const choice =
+      kick.stage === "coach" ? this.eventChoice(kick) : this.highKickChoice(kick);
+    if (choice) this.chooseFrom(kick, choice);
+  }
+
+  private eventChoice(kick: KickRecord): KickoffChoice | null {
+    const event = kick.resolution?.event;
+    if (!event || !INTERACTIVE_KICKOFF_EVENTS.has(event) || event === KickoffEvent.HIGH_KICK) return null;
+    const { kickingTeam, receivingTeam } = this.sides(kick);
+    const teamId = kickoffEventOwner(event, kickingTeam.id, receivingTeam.id);
+    const selectionLimit = this.stepSize(kick, event, teamId);
+    return {
+      stage: "choose",
+      event,
+      teamId,
+      selectionLimit,
+      selectedPlayerIds: event === KickoffEvent.GET_READY_LADS ? this.eligiblePlayerIds(event, teamId).slice(0, selectionLimit) : [],
+    };
+  }
+
+  private rehearsedRoll({ event }: KickoffRehearsal) {
+    const table = KICKOFF_TABLES[activeKickoffTableId()];
+    const roll = Object.entries(table).find((entry) => entry[1] === event);
+    return { roll: Number(roll?.[0] ?? 0), event };
+  }
+
+  private stepSize(kick: KickRecord, event: KickoffEvent, ownerTeamId: string): number {
+    if (kick.rehearsal?.selectionLimit) return kick.rehearsal.selectionLimit;
     if (event === KickoffEvent.QUICK_ATTACK) return 1;
     if (event === KickoffEvent.GET_READY_LADS) {
-      return this.stepPlayers(ownerTeamId).filter((player) => this.isOpen(player)).length;
+      return this.eligiblePlayerIds(event, ownerTeamId).length;
     }
     return this.diceController.rollD3(`${event}: D3 + 1 players`, ownerTeamId) + 1;
-  }
-
-  private announceMoment(
-    outcome: KickoffEventOutcome,
-    isTeam1Kicking: boolean
-  ): void {
-    if (INTERACTIVE_KICKOFF_EVENTS.has(outcome.event)) return;
-    this.eventBus.emit(GameEventNames.UI_Announce, {
-      kind: KICKOFF_RESULT,
-      headline: outcome.event,
-      subtitle: kickoffMomentDetail(
-        outcome,
-        isTeam1Kicking ? this.team1 : this.team2,
-        isTeam1Kicking ? this.team2 : this.team1
-      ),
-    });
   }
 
   public isResolving(): boolean {
     return this.resolving;
   }
 
-  public getLastEvent(): KickoffEvent | null {
-    return this.lastEvent;
-  }
+  private highKickChoice(kick: KickRecord): KickoffChoice | null {
+    const landing = this.state.ballPosition;
+    if (kick.resolution?.event !== KickoffEvent.HIGH_KICK || !landing) return null;
 
-  public async resolveHighKickStep(
-    isTeam1Kicking: boolean,
-    landingSquare: { x: number; y: number }
-  ): Promise<void> {
-    if (this.lastEvent !== KickoffEvent.HIGH_KICK) return;
-
-    const { x, y } = landingSquare;
+    const { x, y } = landing;
+    const { isTeam1Kicking, receivingTeam } = this.sides(kick);
     if (!this.setupValidator.isInSetupZone(x, y, !isTeam1Kicking)) {
       this.eventBus.emit(
         GameEventNames.UI_GameLog,
         "High Kick: the ball lands in No Man's Land, so no player may be placed under it."
       );
-      return;
+      return null;
     }
 
     const holder = [...this.team1.players, ...this.team2.players].find(
@@ -281,82 +274,84 @@ export class KickoffEventManager {
         GameEventNames.UI_GameLog,
         `High Kick: ${holder.playerName} already stands where the ball will land, so no one else may be placed there.`
       );
-      return;
+      return null;
     }
-    const receivingTeamId = (isTeam1Kicking ? this.team2 : this.team1).id;
-    await this.openStep({ event: KickoffEvent.HIGH_KICK, teamId: receivingTeamId, selectionLimit: 1, landingSquare: landingSquare }
-    );
-  }
-
-  public consumeWeatherScatterPending(): number {
-    const pending = this.weatherScatterPending;
-    this.weatherScatterPending = 0;
-    return pending;
+    return { stage: "choose", event: KickoffEvent.HIGH_KICK, teamId: receivingTeam.id, selectionLimit: 1, selectedPlayerIds: [], landingSquare: { x, y } };
   }
 
   public getStep(): KickoffEventStepState | null {
-    if (!this.step) return null;
+    const choice = kickoffChoiceOf(this.state);
+    return choice ? choosingStep(choice) : this.playingStep();
+  }
+
+  private playingStep(): KickoffEventStepState | null {
+    const turn = kickoffTurnOf(this.state);
+    if (!turn) return null;
+    const { teamId, activatedPlayerIds } = this.state.turn;
     return {
-      ...this.step,
-      selectedPlayerIds: [...this.step.selectedPlayerIds],
-      movedPlayerIds: [...this.step.movedPlayerIds],
-      awaitingPlacement: [...this.step.awaitingPlacement],
-      ...(this.step.charge ? { charge: { ...this.step.charge, queue: [...this.step.charge.queue] } } : {}),
+      event: turn.event,
+      teamId,
+      selectionLimit: turn.selectionLimit,
+      selectedPlayerIds: [...turn.playerIds],
+      movedPlayerIds: turn.playerIds.filter((id) => activatedPlayerIds.has(id)),
+      awaitingPlacement: [],
+      stage: "play",
+      canReselect: mayReselect(this.state),
     };
   }
 
-  private openStep({ event, teamId, selectionLimit, landingSquare }: Pick<KickoffEventStepState, "event" | "teamId" | "selectionLimit" | "landingSquare">): Promise<boolean> {
-    this.step = {
+  private chooseFrom(kick: KickRecord, choice: KickoffChoice): void {
+    kick.step = choice;
+    this.announceChoice(choice);
+  }
+
+  private announceChoice(choice: KickoffChoice): void {
+    const { event, teamId, selectionLimit, landingSquare } = choice;
+    this.eventBus.emit(GameEventNames.KickoffEventStepStarted, {
       event,
       teamId,
       selectionLimit,
-      selectedPlayerIds: [],
-      movedPlayerIds: [],
-      awaitingPlacement: [],
       ...(landingSquare === undefined ? {} : { landingSquare }),
-    };
-    return new Promise((resolve) => {
-      this.stepResolver = resolve;
-      this.eventBus.emit(GameEventNames.KickoffEventStepStarted, {
-        event,
-        teamId,
-        selectionLimit,
-        ...(landingSquare === undefined ? {} : { landingSquare }),
-      });
     });
   }
 
   private finishStep(skipped: boolean): void {
-    if (!this.step) return;
-    const { event, teamId } = this.step;
-    if (isChargeStepEvent(event)) {
-      this.state.activePlayer = null;
-      this.state.activeTeamId = this.chargePreviousActiveTeamId;
-      this.chargePreviousActiveTeamId = null;
-      delete this.state.chargeTeamId;
+    const choice = kickoffChoiceOf(this.state);
+    if (choice) this.closeWith({ event: choice.event, teamId: choice.teamId, skipped });
+  }
+
+  private closeWith(
+    resolved: AllEvents[typeof GameEventNames.KickoffEventStepResolved]
+  ): void {
+    const { kick } = this.state;
+    if (kick) {
+      kick.step = null;
+      kick.stage = kick.stage === "coach" ? "high-kick" : "scatter";
     }
-    this.step = null;
-    this.eventBus.emit(GameEventNames.KickoffEventStepResolved, {
-      event,
-      teamId,
-      skipped,
-    });
-    this.stepResolver?.(skipped);
-    this.stepResolver = null;
+    this.eventBus.emit(GameEventNames.KickoffEventStepResolved, resolved);
+    this.abandonStep();
+  }
+
+  public abandonStep(): void {
+    const close = this.closeStep;
+    this.closeStep = null;
+    this.resolving = false;
+    close?.();
   }
 
   public getActingTeamId(): string | null {
-    return this.step?.teamId ?? null;
-  }
-
-  private isOpen(player: Player): boolean {
-    const opponents = player.teamId === this.team1.id ? this.team2.players : this.team1.players;
-    return isOpenKickoffPlayer(player, opponents);
+    return this.getStep()?.teamId ?? null;
   }
 
   private selectable(player: Player, event: KickoffEvent): boolean {
-    if (event !== KickoffEvent.QUICK_ATTACK) return this.isOpen(player);
-    return player.status === PlayerStatus.ACTIVE && !!player.gridPosition;
+    const opponents = player.teamId === this.team1.id ? this.team2.players : this.team1.players;
+    return isPickableKickoffPlayer(event, player, opponents);
+  }
+
+  private eligiblePlayerIds(event: KickoffEvent, teamId: string): string[] {
+    return this.stepPlayers(teamId)
+      .filter((player) => this.selectable(player, event))
+      .map((player) => player.id);
   }
 
   private stepPlayers(teamId: string): Player[] {
@@ -365,28 +360,28 @@ export class KickoffEventManager {
   }
 
   public togglePlayerSelection(playerId: string): boolean {
-    if (!this.step) return false;
-    const player = this.stepPlayers(this.step.teamId).find(
+    const choice = kickoffChoiceOf(this.state);
+    if (!choice) return false;
+    const player = this.stepPlayers(choice.teamId).find(
       (candidate) => candidate.id === playerId
     );
-    if (!player || !this.selectable(player, this.step.event)) return false;
-    if (this.step.movedPlayerIds.includes(playerId)) return false;
-    const selected = this.step.selectedPlayerIds;
+    if (!player || !this.selectable(player, choice.event)) return false;
+    const selected = choice.selectedPlayerIds;
     const index = selected.indexOf(playerId);
     if (index >= 0) {
       selected.splice(index, 1);
       return true;
     }
-    if (selected.length >= this.step.selectionLimit) return false;
+    if (selected.length >= choice.selectionLimit) return false;
     selected.push(playerId);
     return true;
   }
 
   public movePlayer(playerId: string, x: number, y: number): boolean {
-    if (!this.step || !isOneSquareMoveEvent(this.step.event)) return false;
-    if (!this.step.selectedPlayerIds.includes(playerId)) return false;
-    if (this.step.movedPlayerIds.includes(playerId)) return false;
-    const player = this.stepPlayers(this.step.teamId).find(
+    const { teamId, activatedPlayerIds } = this.state.turn;
+    if (kickoffTurnOf(this.state)?.play.kind !== "one-square") return false;
+    if (activatedPlayerIds.has(playerId)) return false;
+    const player = this.stepPlayers(teamId).find(
       (candidate) => candidate.id === playerId
     );
     const from = player?.gridPosition;
@@ -397,13 +392,13 @@ export class KickoffEventManager {
     if (!this.isFreeDestination(playerId, x, y)) return false;
 
     player.gridPosition = { x, y };
-    this.step.movedPlayerIds.push(playerId);
     this.eventBus.emit(GameEventNames.PlayerMoved, {
       playerId,
       from,
       to: { x, y },
       path: [{ x, y }],
     });
+    this.callbacks.finishActivation(playerId);
     return true;
   }
 
@@ -413,155 +408,58 @@ export class KickoffEventManager {
   }
 
   public placePlayer(playerId: string, x: number, y: number): boolean {
-    if (!this.step) return false;
-    const player = this.stepPlayers(this.step.teamId).find(
+    const choice = kickoffChoiceOf(this.state);
+    const landing = choice?.landingSquare;
+    if (landing?.x !== x || landing.y !== y) return false;
+    if (!choice?.selectedPlayerIds.includes(playerId)) return false;
+    const player = this.stepPlayers(choice.teamId).find(
       (candidate) => candidate.id === playerId
     );
-    if (!player) return false;
-
-    if (this.step.event === KickoffEvent.HIGH_KICK) {
-      const landing = this.step.landingSquare;
-      if (landing?.x !== x || y !== landing.y) return false;
-      if (!this.step.selectedPlayerIds.includes(playerId)) return false;
-      const occupied = [...this.team1.players, ...this.team2.players].some(
-        (other) =>
-          other.id !== playerId &&
-          other.gridPosition?.x === x &&
-          other.gridPosition.y === y
-      );
-      if (occupied) return false;
-      player.gridPosition = { x, y };
-      this.eventBus.emit(GameEventNames.PlayerPlaced, { playerId, x, y });
-      this.finishStep(false);
-      return true;
-    }
-
-    return false;
-  }
-
-  public confirmStep(): boolean {
-    if (!this.step) return false;
-    if (isChargeStepEvent(this.step.event)) {
-      if (this.step.charge) return false;
-      if (this.step.selectedPlayerIds.length === 0) {
-        this.finishStep(true);
-        return true;
-      }
-      this.step.charge = {
-        queue: [...this.step.selectedPlayerIds],
-        budget: chargeBudget(this.step.event),
-        activePlayerId: null,
-        aborted: false,
-      };
-      this.chargePreviousActiveTeamId = this.state.activeTeamId;
-      this.state.activeTeamId = this.step.teamId;
-      this.state.chargeTeamId = this.step.teamId;
-      this.advanceCharge();
-      return true;
-    }
-
+    if (!player || !this.isFreeDestination(playerId, x, y)) return false;
+    player.gridPosition = { x, y };
+    this.eventBus.emit(GameEventNames.PlayerPlaced, { playerId, x, y });
     this.finishStep(false);
     return true;
   }
 
-  public skipStep(): boolean {
-    if (!this.step) return false;
-    if (isChargeStepEvent(this.step.event) && this.step.charge) {
-      this.step.charge.queue = [];
-      this.step.charge.activePlayerId = null;
+  public confirmStep(): boolean {
+    const choice = kickoffChoiceOf(this.state);
+    if (!choice) return false;
+    const { event, teamId, selectedPlayerIds, selectionLimit } = choice;
+    if (!kickoffTurnPlay(event)) {
       this.finishStep(false);
       return true;
     }
+    if (selectedPlayerIds.length === 0) return this.skipStep();
+    return this.callbacks.startTurn({
+      event,
+      teamId,
+      selectionLimit,
+      playerIds: selectedPlayerIds,
+    });
+  }
+
+  public skipStep(): boolean {
+    if (!kickoffChoiceOf(this.state)) return false;
     this.finishStep(true);
     return true;
   }
 
-  public getChargeActivePlayerId(): string | null {
-    return this.step?.charge?.activePlayerId ?? null;
+  public reselect(): boolean {
+    const playing = this.playingStep();
+    const { kick } = this.state;
+    if (!kick || !playing?.canReselect) return false;
+    this.callbacks.closeTurn();
+    const { event, teamId, selectionLimit, selectedPlayerIds } = playing;
+    this.chooseFrom(kick, { stage: "choose", event, teamId, selectionLimit, selectedPlayerIds });
+    return true;
   }
 
-  public getChargeBudget(): ChargeBudget | null {
-    return this.step?.charge?.budget ?? null;
-  }
-
-  private advanceCharge(): void {
-    const charge = this.step?.charge;
-    if (!this.step || !charge) return;
-    const next = charge.aborted ? undefined : charge.queue.shift();
-    if (next === undefined) {
-      charge.activePlayerId = null;
-      this.finishStep(false);
-      return;
-    }
-    charge.activePlayerId = next;
-
-    this.state.turn.movementUsed.delete(charge.activePlayerId);
-    const player = this.stepPlayers(this.step.teamId).find(
-      (candidate) => candidate.id === charge.activePlayerId
-    );
-    if (player) {
-      this.eventBus.emit(GameEventNames.PlayerSelected, { player });
-    }
-    this.eventBus.emit(
-      GameEventNames.UI_Notification,
-      `Charge! ${player?.playerName ?? ""} activates`
-    );
-  }
-
-  public canChargeAct(playerId: string, action: ActionType): boolean {
-    const charge = this.step?.charge;
-    if (charge?.activePlayerId !== playerId) return false;
-    if (this.step?.event === KickoffEvent.QUICK_ATTACK) return action === "block";
-    if (action === "move") return true;
-    if (action === "blitz") return charge.budget.blitz > 0;
-    return action === "throwTeamMate" && (charge.budget.throwTeammate > 0 || charge.budget.kickTeammate > 0);
-  }
-
-  public noteChargeActionDeclared(
-    action: ActionType,
-    mode?: "throw" | "kick"
-  ): void {
-    const charge = this.step?.charge;
-    if (!charge) return;
-    if (action === "blitz" && charge.budget.blitz > 0) charge.budget.blitz--;
-    if (action === "throwTeamMate") {
-      if (mode === "kick" && charge.budget.kickTeammate > 0) {
-        charge.budget.kickTeammate--;
-      } else if (charge.budget.throwTeammate > 0) {
-        charge.budget.throwTeammate--;
-      } else if (charge.budget.kickTeammate > 0) {
-        charge.budget.kickTeammate--;
-      }
-    }
-  }
-
-  public noteChargeActivationEnded(playerId: string): void {
-    const step = this.step;
-    const charge = step?.charge;
-    if (!step || charge?.activePlayerId !== playerId) return;
-    const player = this.stepPlayers(step.teamId).find(
-      (candidate) => candidate.id === playerId
-    );
-    if (player?.status !== PlayerStatus.ACTIVE) {
-      charge.aborted = true;
-    }
-    this.advanceCharge();
-  }
-
-  public noteChargePlayerDown(playerId: string): void {
-    const charge = this.step?.charge;
-    if (charge?.activePlayerId !== playerId) return;
-    charge.aborted = true;
-    charge.queue = [];
-    charge.activePlayerId = null;
-    this.finishStep(false);
-  }
-
-  public isChargeActive(): boolean {
-    return !!this.step?.charge?.activePlayerId;
+  public finishTurn(event: KickoffEvent, teamId: string): void {
+    this.closeWith({ event, teamId, skipped: false });
   }
 
   public isStepOpen(): boolean {
-    return this.step !== null;
+    return this.getStep() !== null;
   }
 }

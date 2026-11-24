@@ -39,6 +39,7 @@ const KNOWN_COMMAND_TYPES = new Set<HeadlessCommand["type"]>([
   "kickoff-place-player",
   "kickoff-confirm",
   "kickoff-skip",
+  "kickoff-reselect",
   "declare-action",
   "cancel-action",
   "move",

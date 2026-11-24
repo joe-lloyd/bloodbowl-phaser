@@ -50,15 +50,15 @@ When a kickoff event requires the coach to act, the kickoff sequence SHALL pause
 - **THEN** the ball remains airborne and the receiving team's normal turn does not begin until the event is confirmed or skipped and all of its actions are complete
 
 ### Requirement: The event step UI always reflects current engine state
-The kickoff event step's displayed selection progress (e.g. an x/x count) and, during Charge!, the currently active player and instructions SHALL always reflect the engine's current step state. A UI consumer polling or subscribing to the step SHALL observe every selection, move, placement, or Charge! advancement as it happens, not a stale snapshot from when the step began.
+The kickoff event step's displayed selection progress (e.g. an x/x count) and, while the chosen players are played, the number left SHALL always reflect the engine's current step state. A UI consumer polling or subscribing to the step SHALL observe every selection, move, placement, or finished activation as it happens, not a stale snapshot from when the step began.
 
 #### Scenario: The selection counter updates live
 - **WHEN** a coach selects or deselects an eligible player during an event step
 - **THEN** the displayed selection count updates to match immediately
 
-#### Scenario: Charge!'s active player updates as the sequence advances
-- **WHEN** Charge! advances from one selected player to the next
-- **THEN** the displayed active player and instructions update to the new player without requiring the step to end first
+#### Scenario: The count of players left updates during the kick-off turn
+- **WHEN** a chosen player finishes their activation or their one-square move
+- **THEN** the panel shows how many chosen players are left to play
 
 ### Requirement: The kickoff panel is positioned above hover/selection content and does not move
 The kickoff event panel SHALL render above the selected-player and hovered-player info panels in the match HUD, in that top-to-bottom order: kickoff panel, then selected player, then hovered player. Showing or hiding hovered-player content SHALL NOT change the kickoff panel's position.
@@ -70,6 +70,25 @@ The kickoff event panel SHALL render above the selected-player and hovered-playe
 #### Scenario: Order is kickoff, then selected, then hovered
 - **WHEN** a kickoff panel, a selected player, and a hovered player are all shown at once
 - **THEN** they appear top to bottom in that order
+
+### Requirement: A kick-off event with moves is a miniature turn
+Charge!, Blitz!, Quick Attack, Alert Defence, Quick Snap and Get Ready, Lads! SHALL run in two stages. The coach first chooses up to the event's number of players. The coach then starts the event, and it runs as a turn of that team in which every other player on both teams counts as already activated and is shown dimmed. The turn record SHALL list who may act and what they may do: a set of Actions, or one square. The turn SHALL end when every chosen player has finished, when the coach ends it, or on a turnover, and SHALL then leave no activation, movement or per-turn count behind.
+
+#### Scenario: Chosen players act in any order
+- **WHEN** the coach starts Charge! with four chosen players
+- **THEN** the coach may select and play those four in any order, and may switch between them before one is committed
+
+#### Scenario: Picks can change until somebody moves
+- **WHEN** the coach has started the event and nobody has been committed, moved or finished
+- **THEN** the coach may return to choosing and start again with different players
+
+#### Scenario: Nobody else may act
+- **WHEN** a player who was not chosen is told to move, stand up or declare an Action
+- **THEN** the command is refused
+
+#### Scenario: The coach ends the turn early
+- **WHEN** the coach ends the turn while chosen players are left
+- **THEN** the kick lands and the receiving team's turn begins
 
 ### Requirement: Solid Defence repositions up to D3+1 kicking players directly on the pitch
 On a result of 4, the kicking coach SHALL roll D3+1 and may redeploy up to that many of their own Open players. Each redeployment SHALL be one direct drag from the player's current pitch square to a legal new setup square, subject to all the normal setup restrictions for their team. A Solid Defence player SHALL NOT be sent to or staged in the Reserves box, and the coach SHALL NOT need to select every player before placing them. Only a successful drop SHALL spend one redeployment. The step SHALL resolve while the ball is airborne and before it lands.
@@ -125,9 +144,9 @@ On a result of 9, the receiving coach SHALL roll D3+1 and may select up to that 
 - **THEN** the move is refused
 
 ### Requirement: Charge! gives up to D3+1 kicking players a free activation
-On a result of 10, the kicking coach SHALL roll D3+1 and may select up to that many of their own Open players. The selected players SHALL then be activated one at a time, exactly as in their team's turn, each performing a free Move Action. Within the sequence, one selected player MAY instead perform a free Blitz Action, one MAY instead perform a free Throw Team-mate Action, and one MAY instead perform a free Kick Team-mate Action.
+On a result of 10, the kicking coach SHALL roll D3+1 and may select up to that many of their own Open players. The selected players SHALL then be activated one at a time, in any order, exactly as in their team's turn, each performing a free Move Action. Within the sequence, one selected player MAY instead perform a free Blitz Action, one MAY instead perform a free Throw Team-mate Action, and one MAY instead perform a free Kick Team-mate Action.
 
-#### Scenario: Selected players activate in sequence
+#### Scenario: Only selected players activate
 - **WHEN** the kicking coach selects three players for Charge!
 - **THEN** those players are chosen directly on the pitch and activated one at a time through the normal player context menu and action window, each taking a free Move Action, and no other player may act
 

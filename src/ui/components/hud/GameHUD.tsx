@@ -1,6 +1,7 @@
+import { kickoffTurnOf } from "../../../game/kickoff/kickRecord";
 import { PushChoicePrompt } from "./PushChoicePrompt";
 import { BiteTargetPrompt } from "./BiteTargetPrompt";
-import React, { useState, useEffect } from "react";
+import React, { type ReactNode, useState, useEffect } from "react";
 import type { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
@@ -92,6 +93,8 @@ export interface OnlineMatchMenuProps {
 interface GameHUDProps {
   eventBus: EventBus;
   mode?: "normal" | "sandbox";
+
+  sandboxPanel?: ReactNode;
   onlineMenu?: OnlineMatchMenuProps;
 
   leaveTo?: string;
@@ -113,6 +116,7 @@ interface TurnData {
 export const GameHUD: React.FC<GameHUDProps> = ({
   eventBus,
   mode = "normal",
+  sandboxPanel = <SandboxOverlay eventBus={eventBus} />,
   onlineMenu,
   leaveTo,
   fixtureContext,
@@ -121,6 +125,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const phone = useMediaQuery(PHONE_QUERY);
 
   const [drawer, setDrawer] = useState<"log" | "sandbox" | null>(null);
+  const [kickoffTurn, setKickoffTurn] = useState<string | null>(null);
   const [turnData, setTurnData] = useState<TurnData>({
     turnNumber: null,
     activeTeamName: null,
@@ -199,7 +204,15 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     }
   };
   useEventBus(eventBus, GameEventNames.TurnStarted, showTurn);
+  const showKickoffTurn = () => {
+    const state = ServiceContainer.getInstance().gameService.getState();
+    setKickoffTurn(kickoffTurnOf(state)?.event ?? null);
+    showTurn(state.turn);
+  };
+  useEventBus(eventBus, GameEventNames.KickoffTurnStarted, showKickoffTurn);
+  useEventBus(eventBus, GameEventNames.KickoffTurnEnded, showKickoffTurn);
   useEventBus(eventBus, GameEventNames.GameStateRestored, (state) => {
+    setKickoffTurn(kickoffTurnOf(state)?.event ?? null);
     showTurn(state.turn);
   });
 
@@ -349,7 +362,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <>
             {mode === "sandbox" && (
               <div className={drawer === "sandbox" ? "w-full" : "hidden"}>
-                <SandboxOverlay eventBus={eventBus} />
+                {sandboxPanel}
               </div>
             )}
             <KickoffEventOverlay eventBus={eventBus} />
@@ -369,6 +382,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 />
                 <EndTurnButton
                   phase={turnData.phase}
+                  kickoffTurn={kickoffTurn}
                   activeTeamId={turnData.activeTeamId}
                   onClick={handleEndTurn}
                   hold
@@ -468,7 +482,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               onSelect={handleMenuSelect}
             />
           </div>
-          {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
+          {mode === "sandbox" && sandboxPanel}
           <KickoffEventOverlay eventBus={eventBus} />
         </>
       }
@@ -490,6 +504,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
               <EndTurnButton
                 phase={turnData.phase}
+                kickoffTurn={kickoffTurn}
                 activeTeamId={turnData.activeTeamId}
                 onClick={handleEndTurn}
               />

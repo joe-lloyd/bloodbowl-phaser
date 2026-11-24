@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import { useLocation, useNavigate } from "react-router-dom";
 import { EventBus } from "../../services/EventBus";
 import { BootScene } from "../../scenes/BootScene";
 import { GameScene } from "../../scenes/GameScene";
 import { SandboxScene } from "../../scenes/SandboxScene";
+import { KickoffPlaygroundScene } from "../../scenes/KickoffPlaygroundScene";
 import { GameHUD, type OnlineMatchMenuProps } from "../components/hud/GameHUD";
 import { LoadingScreen } from "../components/hud/LoadingScreen";
 import { ServiceContainer } from "../../services/ServiceContainer";
@@ -26,9 +27,11 @@ import { SoundSuite } from "../sound/SoundSuite";
 import type { GameType } from "../../game/variants/gameTypes";
 import type { Venue } from "../../game/variants/pitchLayouts";
 
+type GameMode = "normal" | "sandbox" | "playground";
+
 interface GamePageProps {
   eventBus: EventBus;
-  mode?: "normal" | "sandbox";
+  mode?: GameMode;
 
   teams?: { team1: Team; team2: Team };
   progressionEnabled?: boolean | undefined;
@@ -37,6 +40,8 @@ interface GamePageProps {
   onlineMenu?: OnlineMatchMenuProps | undefined;
 
   resumed?: boolean;
+
+  panel?: ReactNode;
 }
 
 interface RouteState {
@@ -48,6 +53,17 @@ interface RouteState {
   gameType?: GameType;
   venue?: Venue;
 }
+
+const SCENES: Record<GameMode, Phaser.Types.Scenes.SceneType[]> = {
+  normal: [BootScene, GameScene, SandboxScene],
+  sandbox: [BootScene, SandboxScene],
+  playground: [BootScene, KickoffPlaygroundScene],
+};
+
+const FREE_SCENES: Record<Exclude<GameMode, "normal">, string> = {
+  sandbox: "SandboxScene",
+  playground: "KickoffPlaygroundScene",
+};
 
 function fixtureContextFor(
   competitionContext: CompetitionContext | undefined,
@@ -81,6 +97,7 @@ export function GamePage({
   competitionContext,
   onlineMenu,
   resumed,
+  panel,
 }: GamePageProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const location = useLocation();
@@ -88,7 +105,7 @@ export function GamePage({
   const routeState = (location.state as RouteState | null) ?? {};
 
   const [persistedResumeSave] = useState(() => {
-    if (teams || mode === "sandbox") return undefined;
+    if (teams || mode !== "normal") return undefined;
     const save = readMatchSave();
     return save && !save.computer ? save : undefined;
   });
@@ -129,10 +146,7 @@ export function GamePage({
       pixelArt: true,
 
       maxTextures: 1,
-      scene:
-        mode === "sandbox"
-          ? [BootScene, SandboxScene]
-          : [BootScene, GameScene, SandboxScene],
+      scene: SCENES[mode],
       physics: {
         default: "arcade",
         arcade: {
@@ -155,8 +169,8 @@ export function GamePage({
     window.game = game;
 
     game.events.once("ready", () => {
-      if (mode === "sandbox") {
-        game.scene.start("SandboxScene", {});
+      if (mode !== "normal") {
+        game.scene.start(FREE_SCENES[mode], {});
       } else if (team1 && team2) {
         game.scene.start("GameScene", {
           team1,
@@ -186,6 +200,7 @@ export function GamePage({
     return () => {
       releaseCanvas?.();
       if (
+        mode === "normal" &&
         !teams &&
         ServiceContainer.isInitialized() &&
         ServiceContainer.getInstance().gameService.getPhase() ===
@@ -220,7 +235,8 @@ export function GamePage({
 
       <GameHUD
         eventBus={eventBus}
-        mode={mode}
+        mode={mode === "normal" ? "normal" : "sandbox"}
+        {...(panel === undefined ? {} : { sandboxPanel: panel })}
         {...(onlineMenu === undefined ? {} : { onlineMenu })}
         {...(fixtureContext
           ? { leaveTo: competitionPath(fixtureContext), fixtureContext }

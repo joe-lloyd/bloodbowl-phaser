@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "../../../game/kickoff/kickRecord";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { type IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
@@ -34,10 +35,12 @@ export function MovePlanBar({
   useEventBus(eventBus, GameEventNames.BallKicked, bump);
   useEventBus(eventBus, GameEventNames.KickoffEventStepStarted, bump);
   useEventBus(eventBus, GameEventNames.KickoffEventStepResolved, bump);
+  useEventBus(eventBus, GameEventNames.KickoffTurnStarted, bump);
+  useEventBus(eventBus, GameEventNames.KickoffTurnEnded, bump);
 
   if (isAimingKick(phase) && !getActiveOnlineMatch())
     return <MoveHint>Tap your kicker, then a square in their half</MoveHint>;
-  if (phase !== GamePhase.PLAY) return null;
+  if (!movesRun(phase)) return null;
 
   if (plan) return <PhonePlanBar eventBus={eventBus} plan={plan} />;
 
@@ -45,6 +48,13 @@ export function MovePlanBar({
   const mine = online ? online.myTeamId === activeTeamId : true;
   if (!mine) return null;
   return <MovePlanBarView selected={selected} activeTeamId={activeTeamId} />;
+}
+
+function movesRun(phase: GamePhase): boolean {
+  if (phase === GamePhase.PLAY) return true;
+  if (!ServiceContainer.isInitialized()) return false;
+  const state = ServiceContainer.getInstance().gameService.getState();
+  return kickoffTurnOf(state)?.play.kind === "actions";
 }
 
 function isAimingKick(phase: GamePhase): boolean {

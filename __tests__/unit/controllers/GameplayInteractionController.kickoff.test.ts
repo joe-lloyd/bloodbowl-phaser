@@ -1,11 +1,12 @@
+import { newKick } from "../../../src/game/kickoff/kickRecord";
 import { serviceSpies } from "./GameplayInteractionController.setup";
 import { markerWith } from "./controllerFixtures";
-import { playerWith } from "./controllerFixtures";
 import { stateWith } from "./GameplayInteractionController.setup";
 import { dispatchAction } from "./GameplayInteractionController.setup";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
 import { GamePhase } from "../../../src/types/GameState";
+import type { KickoffTurn } from "../../../src/game/kickoff/kickoffTurn";
 import { KickoffEvent } from "../../../src/game/kickoff/kickoffEvents";
 import {
   mockScene,
@@ -26,117 +27,74 @@ describe("GameplayInteractionController", () => {
   });
 
   describe("Kickoff event pitch interaction", () => {
-    it("moves a selected Alert Defence player to an adjacent pitch square", () => {
+    const playing = (
+      event: KickoffEvent,
+      play: KickoffTurn["play"],
+      playerIds: string[]
+    ) => {
       mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
-
-      const step = {
-        event: KickoffEvent.ALERT_DEFENCE,
+      mockGameService.getState.mockReturnValue(
+        stateWith({
+          activeTeamId: team1Id,
+          phase: GamePhase.KICKOFF,
+          turn: { teamId: team1Id },
+          kick: {
+            ...newKick(team1Id, "coach"),
+            step: {
+              stage: "play",
+              event,
+              play,
+              playerIds,
+              selectionLimit: 2,
+              resume: { activeTeamId: team2Id, teamId: team2Id, turnNumber: 1 },
+            },
+          },
+        })
+      );
+      mockGameService.getKickoffEventStep.mockReturnValue({
+        event,
         teamId: team1Id,
         selectionLimit: 2,
-        selectedPlayerIds: new Array<string>(),
+        selectedPlayerIds: playerIds,
         movedPlayerIds: [],
         awaitingPlacement: [],
-      };
-      mockGameService.getKickoffEventStep.mockImplementation(() => step);
-      mockGameService.selectKickoffEventPlayer.mockImplementation(
-        (id: string) => {
-          step.selectedPlayerIds.push(id);
-          return true;
-        }
-      );
-      mockGameService.getPlayerById.mockReturnValue(player1);
+        stage: "play",
+        canReselect: true,
+      });
       mockGameService.getTeam.mockReturnValue(mockScene.team1);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+    };
+
+    it.each([KickoffEvent.ALERT_DEFENCE, KickoffEvent.QUICK_SNAP])(
+      "steps a picked %s player to an adjacent square",
+      (event) => {
+        playing(event, { kind: "one-square" }, [player1.id]);
+        controller.handlePlayerClick(player1.id);
+        void controller.onSquareClicked(6, 5);
+        expect(serviceSpies.selectKickoffEventPlayer).not.toHaveBeenCalled();
+        expect(serviceSpies.moveKickoffEventPlayer).toHaveBeenCalledWith(
+          player1.id,
+          6,
+          5
+        );
+      }
+    );
+
+    it("shows the empty squares around the player the coach selected", () => {
+      mockPitch.highlightSquare.mockReturnValue(markerWith({ destroy: vi.fn() }));
+      playing(KickoffEvent.ALERT_DEFENCE, { kind: "one-square" }, [player1.id]);
+      controller.syncKickoffStepInteraction();
+      expect(mockPitch.highlightSquare).not.toHaveBeenCalled();
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith(player1.id, 0xffd700);
 
       controller.handlePlayerClick(player1.id);
-      void (controller).onSquareClicked(6, 5);
-
-      expect(serviceSpies.selectKickoffEventPlayer).toHaveBeenCalledWith(
-        player1.id
-      );
-      expect(serviceSpies.moveKickoffEventPlayer).toHaveBeenCalledWith(
-        player1.id,
-        6,
-        5
-      );
-      expect(serviceSpies.placeKickoffEventPlayer).not.toHaveBeenCalled();
-    });
-
-    it("marks already-moved Alert Defence players as selected", () => {
-      mockGameService.getKickoffEventStep.mockReturnValue({
-        event: KickoffEvent.ALERT_DEFENCE,
-        teamId: team1Id,
-        selectionLimit: 2,
-        selectedPlayerIds: [player1.id],
-        movedPlayerIds: [player1.id],
-        awaitingPlacement: [],
-      });
-      mockGameService.getTeam.mockReturnValue(mockScene.team1);
-
-      (controller).syncKickoffStepInteraction();
-
-      expect(mockScene.highlightPlayer).not.toHaveBeenCalledWith(
-        player1.id,
-        0x38bdf8
-      );
-      expect(mockScene.highlightPlayer).toHaveBeenCalledWith(
-        player1.id,
-        0xffd700
-      );
-    });
-
-    it("shows the empty squares a picked Alert Defence player may step to", () => {
-      mockPitch.highlightSquare.mockReturnValue(markerWith({ destroy: vi.fn() }));
-      mockGameService.getKickoffEventStep.mockReturnValue({
-        event: KickoffEvent.ALERT_DEFENCE,
-        teamId: team1Id,
-        selectionLimit: 2,
-        selectedPlayerIds: [player1.id],
-        movedPlayerIds: [],
-        awaitingPlacement: [],
-      });
-      mockGameService.getTeam.mockReturnValue(mockScene.team1);
-
-      (controller).syncKickoffStepInteraction();
-
-      const green = mockPitch.highlightSquare.mock.calls
-        .filter(([, colour]) => colour === 0x22c55e)
-        .map(([square]) => `${String(square.x)},${String(square.y)}`)
-        .sort();
-      expect(green).toEqual(
-        ["4,4", "4,5", "4,6", "5,4", "5,6", "6,4", "6,5"].sort()
-      );
-    });
-
-    it("marks squares only around the latest pick, the one a click moves", () => {
-      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
-      mockPitch.highlightSquare.mockReturnValue(markerWith({ destroy: vi.fn() }));
-      const second = playerWith({ ...player1, id: "p3", gridPosition: { x: 10, y: 2 } });
-      mockScene.team1.players = [player1, second];
-      mockGameService.getKickoffEventStep.mockReturnValue({
-        event: KickoffEvent.QUICK_SNAP,
-        teamId: team1Id,
-        selectionLimit: 3,
-        selectedPlayerIds: [player1.id, second.id],
-        movedPlayerIds: [],
-        awaitingPlacement: [],
-      });
-      mockGameService.getTeam.mockReturnValue(mockScene.team1);
-
-      (controller).syncKickoffStepInteraction();
       const green = new Set(
-        mockPitch.highlightSquare.mock.calls
-          .filter(([, colour]) => colour === 0x22c55e)
-          .map(([square]) => `${String(square.x)},${String(square.y)}`)
+        mockPitch.highlightSquare.mock.calls.map(
+          ([square]) => `${String(square.x)},${String(square.y)}`
+        )
       );
       expect([...green].sort()).toEqual(
-        ["9,1", "9,2", "9,3", "10,1", "10,3", "11,1", "11,2", "11,3"].sort()
-      );
-
-      void (controller).onSquareClicked(11, 2);
-      expect(serviceSpies.moveKickoffEventPlayer).toHaveBeenCalledWith(
-        "p3",
-        11,
-        2
+        ["4,4", "4,5", "4,6", "5,4", "5,6", "6,4", "6,5"].sort()
       );
     });
 
@@ -149,6 +107,8 @@ describe("GameplayInteractionController", () => {
         selectedPlayerIds: [],
         movedPlayerIds: [],
         awaitingPlacement: [],
+        stage: "choose",
+        canReselect: false,
         landingSquare: { x: 12, y: 6 },
       });
       mockGameService.getPlayerById.mockReturnValue(player2);
@@ -166,72 +126,21 @@ describe("GameplayInteractionController", () => {
       );
     });
 
-    it("moves a selected Quick Snap player to an adjacent pitch square", () => {
-      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
-
-      const step = {
-        event: KickoffEvent.QUICK_SNAP,
-        teamId: team1Id,
-        selectionLimit: 2,
-        selectedPlayerIds: new Array<string>(),
-        movedPlayerIds: [],
-        awaitingPlacement: [],
-      };
-      mockGameService.getKickoffEventStep.mockImplementation(() => step);
-      mockGameService.selectKickoffEventPlayer.mockImplementation(
-        (id: string) => {
-          step.selectedPlayerIds.push(id);
-          return true;
-        }
-      );
-      mockGameService.getPlayerById.mockReturnValue(player1);
-      mockGameService.getTeam.mockReturnValue(mockScene.team1);
-
-      controller.handlePlayerClick(player1.id);
-      void (controller).onSquareClicked(6, 5);
-
-      expect(serviceSpies.selectKickoffEventPlayer).toHaveBeenCalledWith(
-        player1.id
-      );
-      expect(serviceSpies.moveKickoffEventPlayer).toHaveBeenCalledWith(
+    it("lets a picked Charge! player use normal board actions", async () => {
+      playing(KickoffEvent.CHARGE, { kind: "actions", actions: ["move"] }, [
         player1.id,
-        6,
-        5
-      );
-    });
-
-    it("lets an active Charge player use normal board actions", async () => {
-      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
-      mockGameService.getKickoffEventStep.mockReturnValue({
-        event: KickoffEvent.CHARGE,
-        teamId: team1Id,
-        selectionLimit: 1,
-        selectedPlayerIds: [player1.id],
-        movedPlayerIds: [],
-        awaitingPlacement: [],
-        charge: {
-          queue: [],
-          budget: { blitz: 1, throwTeammate: 1, kickTeammate: 1 },
-          activePlayerId: player1.id,
-          aborted: false,
-        },
-      });
+      ]);
       mockGameService.isTouchbackPending.mockReturnValue(false);
-      mockGameService.getState.mockReturnValue(stateWith({ activeTeamId: team1Id }));
-      mockGameService.getPlayerById.mockReturnValue(player1);
       mockGameService.declareAction.mockReturnValue(true);
-      mockGameService.getTeam.mockReturnValue(mockScene.team1);
-      (controller).selectedPlayerId = player1.id;
+      controller.selectedPlayerId = player1.id;
 
-      await dispatchAction({
+      await dispatchAction({ playerId: player1.id, action: "move" });
+
+      expect(serviceSpies.declareAction).toHaveBeenCalledWith({
         playerId: player1.id,
         action: "move",
       });
-
-      expect(serviceSpies.declareAction).toHaveBeenCalledWith(
-        { playerId: player1.id, action: "move" }
-      );
-      expect((controller).currentActionMode).toBe("move");
+      expect(controller.currentActionMode).toBe("move");
     });
   });
 });

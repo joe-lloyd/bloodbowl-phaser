@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
 import { isBallAt } from "@/game/managers/movementShared";
 import { GameEventNames } from "@/types/events";
 import { type Player, PlayerStatus } from "@/types/Player";
@@ -42,6 +43,8 @@ export async function multipleBlock({
   defender2Id: string;
 }): Promise<void> {
   if (awaitingSecondAction(parts, attackerId)) return;
+  if (kickoffTurnOf(parts.state))
+    throw new Error("player-not-in-kickoff-turn");
   await parts.blockManager.startMultipleBlock(
     attackerId,
     defender1Id,
@@ -76,7 +79,7 @@ export async function rollBlockDice({
     parts.state.activePlayer.id === attackerId
   ) {
     if (!(await parts.game.chargeBlitzBlockSquare(attackerId))) return;
-    parts.marks.blitzBlockUsed.add(attackerId);
+    markBlitzBlockUsed(parts);
   }
 
   await parts.blockManager.rollBlockDice(
@@ -85,6 +88,10 @@ export async function rollBlockDice({
     numDice,
     isAttackerChoice
   );
+}
+
+export function markBlitzBlockUsed({ state }: GameParts): void {
+  if (state.activePlayer) state.activePlayer.blitzBlockUsed = true;
 }
 
 export async function chargeBlitzBlockSquare(

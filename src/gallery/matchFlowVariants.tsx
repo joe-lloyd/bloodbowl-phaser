@@ -23,13 +23,15 @@ import {
 import type { Variant } from "./variants";
 
 function kickoffStep(fx: MatchFixture, step: Partial<KickoffEventStepState>) {
-  const full = {
+  const full: KickoffEventStepState = {
     event: KickoffEvent.ALERT_DEFENCE,
     teamId: fx.team1.id,
     selectionLimit: 3,
     selectedPlayerIds: [],
     movedPlayerIds: [],
     awaitingPlacement: [],
+    stage: "choose",
+    canReselect: false,
     ...step,
   };
   fx.services.gameService.getKickoffEventStep = () => full;

@@ -12,6 +12,8 @@ interface EndTurnButtonProps {
   disabled?: boolean;
   phase: GamePhase;
 
+  kickoffTurn?: string | null;
+
   activeTeamId: string | null;
 
   hold?: boolean;
@@ -21,6 +23,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   onClick,
   disabled,
   phase,
+  kickoffTurn = null,
   activeTeamId,
   hold = false,
 }) => {
@@ -40,8 +43,10 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
 
   const online = getActiveOnlineMatch();
   const shown =
-    phase === GamePhase.PLAY && (!online || online.myTeamId === activeTeamId);
+    (phase === GamePhase.PLAY || kickoffTurn !== null) &&
+    (!online || online.myTeamId === activeTeamId);
 
+  const label = kickoffTurn ? `End ${kickoffTurn}` : "End Turn";
   useHotkey("shift+e", onClick, shown && !disabled && !held && !hold, button);
   if (!shown) {
     return null;
@@ -56,7 +61,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
         disabled={disabled || held}
         className={`${hudButtonClass("primary", "lg")} min-h-[56px] px-10 font-hud-display !text-hud-xl !font-normal !tracking-[0.08em]`}
       >
-        End Turn
+        {label}
         <KeyBadge hotkey="shift+e" />
       </button>
     );
@@ -93,7 +98,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
           role="status"
           className="absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-hud border border-hud-gold/50 bg-hud-ink/95 px-2.5 py-1.5 font-hud-label text-hud-sm font-bold uppercase tracking-[0.05em] text-hud-gold shadow-hud"
         >
-          Hold to end the turn
+          Hold to end {kickoffTurn ?? "the turn"}
         </div>
       )}
       <button
@@ -120,7 +125,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
               : "0ms",
           }}
         />
-        <span className="relative leading-none">End Turn</span>
+        <span className="relative leading-none">{label}</span>
         <span className="relative font-hud-label text-hud-2xs font-bold tracking-[0.12em] opacity-80">
           Hold
         </span>

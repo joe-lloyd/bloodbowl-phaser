@@ -1,3 +1,4 @@
+import type { KickRecord } from "../game/kickoff/kickRecord";
 import type { ActionType } from "./events";
 import type { Weather } from "../game/rules/weather";
 import type { LostBall } from "../game/kickoff/ballConditions";
@@ -99,6 +100,8 @@ export interface GameState {
 
     blockReplacementUsed?: boolean;
 
+    blitzBlockUsed?: boolean;
+
     committed?: boolean;
 
     bloodlustUnsated?: boolean;
@@ -136,8 +139,6 @@ export interface GameState {
 
   turnUsage?: TurnUsage;
 
-  chargeTeamId?: string;
-
   raisedDead?: Record<string, string>;
 
   fanFactors?: Record<string, number>;
@@ -150,15 +151,6 @@ export interface GameState {
 
   result?: MatchResult;
 
-  kickoffResolution?: {
-    roll: number;
-    event: import("../game/kickoff/kickoffEvents").KickoffEvent;
-    meaning: string;
-    outcome: import("../game/kickoff/kickoffEvents").KickoffEventOutcome;
-  };
-
-  kickoffKickResolved?: {
-    isTeam1Kicking: boolean;
-  };
+  kick?: KickRecord;
 }
 import { type BlockReplacement } from "./BlockReplacement";

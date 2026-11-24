@@ -83,6 +83,9 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     type: z.literal("kickoff-skip"),
   }),
   z.looseObject({
+    type: z.literal("kickoff-reselect"),
+  }),
+  z.looseObject({
     type: z.literal("declare-action"),
     playerId: z.string(),
     action: actionTypeSchema,

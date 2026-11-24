@@ -156,6 +156,7 @@ describe("online HUD cards", () => {
 
 const ENGINE_ONLY = [
   "addTouchdown",
+  "abandonKick",
   "announceFullTime",
   "awaitingSecondAction",
   "biteBeforeBallAction",
@@ -169,6 +170,7 @@ const ENGINE_ONLY = [
   "getOrCreateInducementSession",
   "getScore",
   "handleTurnEnding",
+  "isKickUnderWay",
   "holdForSecondAction",
   "offerSportsEspionage",
   "onPlayerDowned",

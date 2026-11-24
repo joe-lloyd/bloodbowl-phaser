@@ -33,9 +33,9 @@ import {
   selectStep,
 } from "./interaction/actionModes";
 import {
-  followChargeSelection,
   handleKickoffClick,
   kickoffPlayerClick,
+  playsKickoffActions,
   syncKickoffStep,
 } from "./interaction/kickoffInteraction";
 import { previewSquare } from "./interaction/previews";
@@ -113,9 +113,6 @@ export class GameplayInteractionController {
   kickoffSquareMarkers: InteractionMarker[] = [];
   private kickoffStepSyncHandler = () => {
     this.syncKickoffStepInteraction();
-  };
-  private kickoffPlayerSelectedHandler = (data: { player: Player | null }) => {
-    followChargeSelection(this, data.player);
   };
 
   currentActionMode: ActionType | null = null;
@@ -226,7 +223,10 @@ export class GameplayInteractionController {
     this.eventBus.on(GameEventNames.PlayerMoved, this.kickoffStepSyncHandler);
     this.eventBus.on(GameEventNames.PlayerPlaced, this.kickoffStepSyncHandler);
     this.eventBus.on(GameEventNames.PlayerRemoved, this.kickoffStepSyncHandler);
-    this.eventBus.on( GameEventNames.PlayerSelected, this.kickoffPlayerSelectedHandler );
+    this.eventBus.on(GameEventNames.PlayerSelected, this.kickoffStepSyncHandler);
+    this.eventBus.on(GameEventNames.PlayerActivated, this.kickoffStepSyncHandler);
+    this.eventBus.on(GameEventNames.KickoffTurnStarted, this.onKickoffTurnChanged);
+    this.eventBus.on(GameEventNames.KickoffTurnEnded, this.onKickoffTurnChanged);
   }
 
   private onDecisionRequested = (request: DecisionRequest) => {
@@ -263,6 +263,11 @@ export class GameplayInteractionController {
 
   private onEndActivation = () => {
     endActivation(this);
+  };
+
+  private onKickoffTurnChanged = () => {
+    this.deselectPlayer();
+    this.syncKickoffStepInteraction();
   };
 
   private onRazzleDazzleSecondAction = ({ playerId }: { playerId: string }) => {
@@ -390,10 +395,7 @@ export class GameplayInteractionController {
       return;
     }
 
-    if (
-      phase === GamePhase.KICKOFF &&
-      !this.gameService.getKickoffEventStep()?.charge?.activePlayerId
-    ) {
+    if (phase === GamePhase.KICKOFF && !playsKickoffActions(this)) {
       handleKickoffClick({ c: this,x,y,playerAtSquare });
       return;
     }

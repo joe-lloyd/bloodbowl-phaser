@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { kickoffEventSchema } from "./KickoffEvent";
 import { gridPositionSchema } from "./GridPosition";
-import { chargeBudgetSchema } from "./ChargeBudget";
 import { blockResultSchema } from "./BlockResult";
 import { rerollSourceSchema } from "./RerollSource";
 import { inducementChoiceDecisionRequestSchema } from "./InducementChoiceDecisionRequest";
@@ -18,14 +17,6 @@ export const pendingDecisionSchema: z.ZodType<PendingDecision> = z.union([
     movedPlayerIds: z.string().array(),
     awaitingPlacement: z.string().array(),
     landingSquare: gridPositionSchema.exactOptional(),
-    charge: z
-      .looseObject({
-        queue: z.string().array(),
-        budget: chargeBudgetSchema,
-        activePlayerId: z.union([z.null(), z.string()]),
-        aborted: z.boolean(),
-      })
-      .exactOptional(),
   }),
   z.looseObject({
     type: z.literal("block-dice"),

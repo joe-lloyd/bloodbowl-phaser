@@ -18,10 +18,17 @@ export function readLobbySeats(value: unknown) {
 
 const appliedCountSchema = z
   .object({
-    resume: z.object({ applied: z.number() }).nullable().exactOptional(),
+    resume: z
+      .object({
+        applied: z.number(),
+        replay: z.array(z.unknown()).exactOptional(),
+      })
+      .nullable()
+      .exactOptional(),
   })
   .optional();
 
 export function readAppliedCommandCount(value: unknown): number | undefined {
-  return appliedCountSchema.parse(value)?.resume?.applied;
+  const resume = appliedCountSchema.parse(value)?.resume;
+  return resume ? resume.applied + (resume.replay?.length ?? 0) : undefined;
 }

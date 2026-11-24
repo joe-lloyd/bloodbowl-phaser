@@ -54,6 +54,8 @@ describe("KickoffEventOverlay", () => {
       selectedPlayerIds: [],
       movedPlayerIds: [],
       awaitingPlacement: [],
+      stage: "choose",
+      canReselect: false,
     };
 
     services.gameService.getKickoffEventStep = () => step;
@@ -82,7 +84,7 @@ describe("KickoffEventOverlay", () => {
     });
   }
 
-  it("shows Skip/Done to the deciding coach", async () => {
+  it("shows Skip and Start to the deciding coach", async () => {
     const { eventBus, team1 } = setup();
     setActiveOnlineMatch(fakeMatch(team1.id, true));
 
@@ -93,13 +95,13 @@ describe("KickoffEventOverlay", () => {
       (b) => b.textContent === "Skip"
     );
     const done = [...container.querySelectorAll("button")].find(
-      (b) => b.textContent === "Done"
+      (b) => b.textContent === "Start Alert Defence"
     );
     expect(skip).toBeDefined();
     expect(done).toBeDefined();
   });
 
-  it("hides Skip/Done from the non-deciding coach, but still shows the event", async () => {
+  it("hides Skip and Start from the non-deciding coach, but still shows the event", async () => {
     const { eventBus, team2 } = setup();
 
     setActiveOnlineMatch(fakeMatch(team2.id, false));
@@ -111,7 +113,7 @@ describe("KickoffEventOverlay", () => {
     expect(container.textContent).toContain("Waiting for");
   });
 
-  it("shows Skip/Done with no online match at all (local/offline play)", async () => {
+  it("shows Skip and Start with no online match at all (local/offline play)", async () => {
     const { eventBus } = setup();
     expect(getActiveOnlineMatch()).toBeNull();
 
@@ -120,7 +122,7 @@ describe("KickoffEventOverlay", () => {
     const buttons = [...container.querySelectorAll("button")].map(
       (b) => b.textContent
     );
-    expect(buttons).toEqual(["Skip", "Done"]);
+    expect(buttons).toEqual(["Skip", "Start Alert Defence"]);
   });
 
   it("asks for one click on a High Kick, with nothing to confirm", async () => {
@@ -133,6 +135,8 @@ describe("KickoffEventOverlay", () => {
       selectedPlayerIds: [],
       movedPlayerIds: [],
       awaitingPlacement: [],
+      stage: "choose",
+      canReselect: false,
     });
 
     await render(eventBus);

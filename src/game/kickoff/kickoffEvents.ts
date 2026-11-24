@@ -1,4 +1,5 @@
 import { type Player, PlayerStatus } from "../../types/Player";
+import { hasSkill, SkillType } from "../../types/Skills";
 import {
   type SevensKickoffEvent,
   VARIANT_EVENT_MEANING,
@@ -108,34 +109,6 @@ export const INTERACTIVE_KICKOFF_EVENTS = new Set<KickoffEvent>([
   ...RECEIVING_TEAM_STEPS,
 ]);
 
-const CHARGE_STEPS = new Set<KickoffEvent>([
-  KickoffEvent.CHARGE,
-  KickoffEvent.BLITZ,
-  KickoffEvent.QUICK_ATTACK,
-]);
-
-export function isChargeStepEvent(event: KickoffEvent): boolean {
-  return CHARGE_STEPS.has(event);
-}
-
-export function steppingPlayerId(step: {
-  selectedPlayerIds: string[];
-  movedPlayerIds: string[];
-}): string | null {
-  const waiting = step.selectedPlayerIds.filter(
-    (id) => !step.movedPlayerIds.includes(id)
-  );
-  return waiting[waiting.length - 1] ?? null;
-}
-
-export function isOneSquareMoveEvent(event: KickoffEvent): boolean {
-  return (
-    event === KickoffEvent.ALERT_DEFENCE ||
-    event === KickoffEvent.QUICK_SNAP ||
-    event === KickoffEvent.GET_READY_LADS
-  );
-}
-
 export function kickoffEventOwner(
   event: KickoffEvent,
   kickingTeamId: string,
@@ -167,4 +140,24 @@ export function isOpenKickoffPlayer(player: Player, opponents: Player[]): boolea
   if (!position || player.status !== PlayerStatus.ACTIVE) return false;
   return !opponents.some((opponent) => opponent.status === PlayerStatus.ACTIVE && opponent.gridPosition
     && Math.max(Math.abs(opponent.gridPosition.x - position.x), Math.abs(opponent.gridPosition.y - position.y)) === 1);
+}
+
+const ACTION_PICKS: ReadonlySet<KickoffEvent> = new Set([
+  KickoffEvent.CHARGE,
+  KickoffEvent.BLITZ,
+  KickoffEvent.QUICK_ATTACK,
+]);
+
+export function isPickableKickoffPlayer(
+  event: KickoffEvent,
+  player: Player,
+  opponents: Player[]
+): boolean {
+  if (
+    ACTION_PICKS.has(event) &&
+    hasSkill(player.skills, SkillType.BALL_AND_CHAIN)
+  )
+    return false;
+  if (event !== KickoffEvent.QUICK_ATTACK) return isOpenKickoffPlayer(player, opponents);
+  return player.status === PlayerStatus.ACTIVE && !!player.gridPosition;
 }

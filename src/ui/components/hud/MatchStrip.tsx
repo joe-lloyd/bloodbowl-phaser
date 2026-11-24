@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { type IEventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { type AllEvents, GameEventNames } from "../../../types/events";
-import { GamePhase } from "../../../types/GameState";
+import { isTurnRunning } from "../../../game/kickoff/kickoffTurn";
 import { Chip } from "../componentWarehouse/HudKit";
 import {
   driveEffectText,
@@ -16,7 +16,7 @@ function readStrip() {
   if (!ServiceContainer.isInitialized()) return null;
   const gs = ServiceContainer.getInstance().gameService;
   const state = gs.getState();
-  const playing = state.phase === GamePhase.PLAY;
+  const playing = isTurnRunning(state);
   const spent = playing ? spentSummary(spentActions(state.turn)) : null;
   return {
     weather: weatherSummary(state.weather),
@@ -65,6 +65,8 @@ export function MatchStrip({
     const events: (keyof AllEvents)[] = [
       GameEventNames.PhaseChanged,
       GameEventNames.TurnStarted,
+      GameEventNames.KickoffTurnStarted,
+      GameEventNames.KickoffTurnEnded,
       GameEventNames.TurnDataUpdated,
       GameEventNames.GameStateRestored,
       GameEventNames.WeatherChanged,

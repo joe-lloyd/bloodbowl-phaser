@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "../game/kickoff/kickRecord";
 import { isCommandOf } from "./commandKinds";
 import { nextComputerPregameCommand } from "../game/inducements/computerPurchases";
 import { whenEngineQuiet } from "../game/core/GameFlowManager";
@@ -13,6 +14,7 @@ import { type Coach } from "../simulation/coach";
 import { plannerCoach } from "../simulation/ai/planner";
 import { type Candidate, enumerateDecision } from "../simulation/candidates";
 import { createCoachRng } from "../simulation/rng";
+import { isTurnRunning } from "../game/kickoff/kickoffTurn";
 import { GameEventNames } from "../types/events";
 import { GamePhase, type GameState, SubPhase } from "../types/GameState";
 import { decisionOwner, gateContextOf } from "./OwnershipGate";
@@ -94,7 +96,7 @@ function ownsSetup(state: GameState, teamId: string): boolean {
 }
 
 function ownsKickoff(state: GameState, teamId: string): boolean {
-  return state.activeTeamId !== null && state.activeTeamId !== teamId && state.kickoffKickResolved == null;
+  return state.activeTeamId !== null && state.activeTeamId !== teamId && !state.kick;
 }
 
 export function computerOwnsDecision(
@@ -110,8 +112,8 @@ export function computerOwnsDecision(
   if (state.pregameInducements && !state.pregameInducements.complete)
     return !state.pregameInducements.offer?.confirmed[teamId];
   if (state.phase === GamePhase.SETUP) return ownsSetup(state, teamId);
-  if (state.phase === GamePhase.KICKOFF) return ownsKickoff(state, teamId);
-  return state.phase === GamePhase.PLAY && active === teamId;
+  if (state.phase === GamePhase.KICKOFF && !kickoffTurnOf(state)) return ownsKickoff(state, teamId);
+  return isTurnRunning(state) && active === teamId;
 }
 
 declare global {

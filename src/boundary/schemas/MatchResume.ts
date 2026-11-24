@@ -1,3 +1,4 @@
+import { headlessCommandSchema } from "./HeadlessCommand";
 import { z } from "zod";
 import { teamSchema } from "./Team";
 import { rNGStateSchema } from "./RNGState";
@@ -9,4 +10,5 @@ export const matchResumeSchema: z.ZodType<MatchResume> = z.looseObject({
   rng: rNGStateSchema,
   matchStats: matchStatsSnapshotSchema,
   applied: z.number(),
+  replay: z.array(headlessCommandSchema).exactOptional(),
 });

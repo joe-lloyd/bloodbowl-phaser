@@ -1,3 +1,7 @@
+import { GamePhase } from "../../../src/types/GameState";
+import { HeadlessGame } from "../../../src/headless/HeadlessGame";
+import { KickoffEvent } from "../../../src/game/kickoff/kickoffEvents";
+import { newKick } from "../../../src/game/kickoff/kickRecord";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { KickoffPhaseHandler } from "../../../src/game/controllers/handlers/KickoffPhaseHandler";
 import { colorDistance } from "../../../src/game/presentation/kits";
@@ -66,6 +70,24 @@ describe("the landing square marker", () => {
     dice(2, 2);
     await settled();
     expect(marked).toEqual({ x: 13, y: 7 });
+  });
+
+  it("comes back on a board restored mid-Charge, and goes with the landing", async () => {
+    const state = new HeadlessGame({ seed: 1 }).ctx.gameService.getState();
+    state.phase = GamePhase.KICKOFF;
+    state.ballPosition = { x: 14, y: 4 };
+    state.kick = newKick("team1", "coach");
+    eventBus.emit(GameEventNames.GameStateRestored, state);
+    await settled();
+    expect(marked).toEqual({ x: 14, y: 4 });
+    eventBus.emit(GameEventNames.KickoffTurnStarted, {
+      event: KickoffEvent.CHARGE,
+      teamId: "team1",
+    });
+    await settled();
+    expect(marked).toEqual({ x: 14, y: 4 });
+    eventBus.emit(GameEventNames.KickoffSequenceCompleted, { isTouchback: false });
+    expect(marked).toBeNull();
   });
 
   it("follows a ball the wind moves, then goes when the ball lands", async () => {

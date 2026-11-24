@@ -7,6 +7,7 @@ import {
   type PlayerActions,
 } from "./protocol";
 import { type ActionType } from "../types/events";
+import { isTurnRunning, kickoffTurnAllows } from "../game/kickoff/kickoffTurn";
 import { GamePhase, type GameState } from "../types/GameState";
 import { type Player, PlayerStatus } from "../types/Player";
 import { FormationManager } from "../game/managers/FormationManager";
@@ -48,7 +49,7 @@ export function enumerateLegalActions({
     activeTeamId: state.activeTeamId,
     pendingDecision: pending,
     players: pending ? [] : playActions(ctx, focusPlayerId),
-    canEndTurn: state.phase === GamePhase.PLAY && !pending,
+    canEndTurn: isTurnRunning(state) && !pending,
   };
   const setup = pending ? undefined : setupActions(ctx);
   if (setup) legal.setup = setup;
@@ -62,7 +63,7 @@ function playActions(
   const gs = ctx.gameService;
   const state = gs.getState();
   const team = state.activeTeamId ? gs.getTeam(state.activeTeamId) : undefined;
-  if (state.phase !== GamePhase.PLAY || !team) return [];
+  if (!isTurnRunning(state) || !team) return [];
   const opponents = gs.getOpponents(team.id);
   return team.players.flatMap((player) => {
     const entry = playerActions({
@@ -124,7 +125,7 @@ function playerActions({
       canFoul: !foulSpent(state, teamId),
       carriesBall: ballOnSquare(state, square),
       canBlock: adjacentStanding.length > 0,
-    })
+    }).filter((action) => kickoffTurnAllows(state, action))
   );
   if (actions.length === 0) return null;
 

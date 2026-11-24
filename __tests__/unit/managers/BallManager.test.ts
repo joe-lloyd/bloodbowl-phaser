@@ -1,3 +1,4 @@
+import { newKick } from "../../../src/game/kickoff/kickRecord";
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { BallManager } from "../../../src/game/managers/BallManager";
@@ -110,23 +111,6 @@ describe("BallManager", () => {
     });
   });
 
-  describe("Roll Kickoff", () => {
-    it("should transition to RESOLVE_KICKOFF phase", () => {
-      manager.rollKickoff();
-
-      expect(mockCallbacks.onPhaseChange).toHaveBeenCalledWith(
-        GamePhase.KICKOFF,
-        SubPhase.RESOLVE_KICKOFF
-      );
-    });
-
-    it("should roll 2d6 via DiceController", () => {
-      manager.rollKickoff();
-
-      expect(mockDiceController.roll2D6).toHaveBeenCalledWith("Kickoff Event");
-    });
-  });
-
   describe("Kickoff Landing", () => {
     it("queues a normal bounce when the landing square is empty", async () => {
       const add = vi.fn();
@@ -143,7 +127,8 @@ describe("BallManager", () => {
         async () => {}
       );
 
-      await manager.resolveBallPlacement();
+      mockState.kick = newKick("team1", "placing");
+      await manager.resumeKick();
 
       expect(add).toHaveBeenCalledTimes(1);
       expect(add.mock.calls[0][0].name).toBe("BounceOperation");

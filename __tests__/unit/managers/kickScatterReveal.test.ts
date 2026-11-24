@@ -1,3 +1,4 @@
+import { newKick } from "../../../src/game/kickoff/kickRecord";
 import { describe, expect, it } from "vitest";
 import { DiceController } from "../../../src/game/controllers/DiceController";
 import { BallManager } from "../../../src/game/managers/BallManager";
@@ -43,15 +44,14 @@ function scatteredKick(from: { x: number; y: number }, seed: number) {
       onTurnover: () => undefined,
       onPhaseChange: () => undefined,
       onBallPlaced: () => undefined,
-      resolveKickoffEvent: () => Promise.resolve(),
-      consumeWeatherScatterPending: () => 3,
     },
     (ms) =>
       ms > GUARD_MS || seen.length > 1
         ? new Promise<void>(() => undefined)
         : Promise.resolve()
   );
-  void manager.rollKickoff();
+  state.kick = { ...newKick(team1.id, "scatter"), scatter: 3 };
+  void manager.resumeKick();
   return { seen, tray };
 }
 

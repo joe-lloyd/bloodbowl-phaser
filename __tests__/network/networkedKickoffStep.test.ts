@@ -26,7 +26,7 @@ describe("a kick-off event step on a networked board", () => {
     const eventBus = new EventBus();
     let changed = 0;
     eventBus.on(GameEventNames.KickoffEventStepChanged, () => changed++);
-    const board = new NetworkedGameService({ inner: {} as never, dispatch: () => new Promise<CommandResponse>((resolve) => (answer = resolve)), pendingDecision: () => pending, eventBus: eventBus });
+    const board = new NetworkedGameService({ inner: { getKickoffEventStep: () => null } as never, dispatch: () => new Promise<CommandResponse>((resolve) => (answer = resolve)), pendingDecision: () => pending, eventBus: eventBus });
 
     expect(board.selectKickoffEventPlayer("p1")).toBe(true);
 
@@ -44,7 +44,7 @@ describe("a kick-off event step on a networked board", () => {
   it("still shows while a move is on its way behind a pick that has landed", async () => {
     let pending: PendingDecision | null = quickSnap([]);
     const answers: ((response: CommandResponse) => void)[] = [];
-    const board = new NetworkedGameService({ inner: {} as never, dispatch: () => new Promise<CommandResponse>((resolve) => answers.push(resolve)), pendingDecision: () => pending, eventBus: new EventBus() });
+    const board = new NetworkedGameService({ inner: { getKickoffEventStep: () => null } as never, dispatch: () => new Promise<CommandResponse>((resolve) => answers.push(resolve)), pendingDecision: () => pending, eventBus: new EventBus() });
 
     board.selectKickoffEventPlayer("p1");
     board.moveKickoffEventPlayer("p1", 5, 5);
@@ -59,7 +59,7 @@ describe("a kick-off event step on a networked board", () => {
     const eventBus = new EventBus();
     let changed = 0;
     eventBus.on(GameEventNames.KickoffEventStepChanged, () => changed++);
-    const board = new NetworkedGameService({ inner: {} as never, dispatch: () => Promise.reject(new Error("connection lost")), pendingDecision: () => quickSnap([]), eventBus: eventBus });
+    const board = new NetworkedGameService({ inner: { getKickoffEventStep: () => null } as never, dispatch: () => Promise.reject(new Error("connection lost")), pendingDecision: () => quickSnap([]), eventBus: eventBus });
     board.selectKickoffEventPlayer("p1");
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(changed).toBe(1);
@@ -67,7 +67,7 @@ describe("a kick-off event step on a networked board", () => {
 
   it("shows no step once Done has ended it", async () => {
     let pending: PendingDecision | null = quickSnap(["p1"]);
-    const board = new NetworkedGameService({ inner: {} as never, dispatch: async () => {
+    const board = new NetworkedGameService({ inner: { getKickoffEventStep: () => null } as never, dispatch: async () => {
         pending = null;
         return { ok: true, events: [] } as unknown as CommandResponse;
       }, pendingDecision: () => pending, eventBus: new EventBus() });

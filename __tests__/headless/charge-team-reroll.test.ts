@@ -9,6 +9,7 @@ import { GameEventNames } from "../../src/types/events";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 import { SkillType, getSkill } from "../../src/types/Skills";
 import { deserializeGameState } from "../../src/headless/serialization";
+import { settle } from "./kickoffRehearsal";
 import { forceDice } from "../utils/test-helpers";
 
 const scenario: Scenario = {
@@ -83,11 +84,10 @@ describe("Team Re-rolls during Charge!", () => {
       });
     }
     await game.execute({ type: "kickoff-confirm" });
-    expect(game.snapshot().chargeTeamId).toBe(game.ctx.team1.id);
-
-    expect(deserializeGameState(game.snapshot()).chargeTeamId).toBe(
-      game.ctx.team1.id
-    );
+    expect(deserializeGameState(game.snapshot())).toMatchObject({
+      turn: { teamId: game.ctx.team1.id },
+      kick: { step: { stage: "play", event: KickoffEvent.CHARGE } },
+    });
 
     fixtureValue(first).gridPosition = { x: 9, y: 5 };
     fixtureValue(firstMarker).gridPosition = { x: 10, y: 5 };
@@ -141,7 +141,7 @@ describe("Team Re-rolls during Charge!", () => {
     });
 
     expect(gs.getKickoffEventStep()).toBeNull();
-    expect(game.snapshot().chargeTeamId).toBeUndefined();
+    expect(game.snapshot().kick?.step).toBeNull();
     expect(gs.getState().turn.teamId).toBe(game.ctx.team2.id);
     await game.execute({ type: "end-turn" });
     expect(gs.getState().turn.teamId).toBe(game.ctx.team1.id);
@@ -165,20 +165,15 @@ describe("a save taken during Charge!", () => {
     }
     await game.execute({ type: "kickoff-confirm" });
     const save = game.matchSave();
-    expect(save.snapshot.chargeTeamId).toBe(game.ctx.team1.id);
+    expect(save.snapshot.turn.teamId).toBe(game.ctx.team1.id);
 
     const resumed = new HeadlessGame({ matchSave: save });
     const gs = resumed.ctx.gameService;
-    const kick = await resumed.execute({
-      type: "kick-ball",
-      playerId: fixtureValue(resumed.ctx.team1.players[0]).id,
-      x: 14,
-      y: 5,
-    });
-    expect(kick.ok).toBe(true);
+    expect((await resumed.execute({ type: "end-turn" })).ok).toBe(true);
+    await settle();
     expect(gs.getState().phase).toBe(GamePhase.PLAY);
     expect(gs.getState().turn.teamId).toBe(resumed.ctx.team2.id);
-    expect(resumed.snapshot().chargeTeamId).toBeUndefined();
+    expect(resumed.snapshot().kick?.step).toBeNull();
     expect(gs.getRerollArbiter().nextTeamReroll(resumed.ctx.team2.id)).toBe(
       "team"
     );

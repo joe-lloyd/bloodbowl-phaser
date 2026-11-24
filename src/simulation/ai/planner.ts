@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "../../game/kickoff/kickRecord";
 import { type FieldPlayer as Player } from "./board";
 import { type HeadlessCommand } from "../../headless/protocol";
 import { GamePhase } from "../../types/GameState";
@@ -269,7 +270,7 @@ export interface PlannerCoach extends Coach {
 
 function turnKey(board: Board): string {
   const state = board.gs.getState();
-  return `${state.turn.teamId}/${String(state.turn.turnNumber)}/${String(state.turn.isHalf2)}/${String(state.turn.extraTime)}/${String(state.chargeTeamId)}`;
+  return `${state.turn.teamId}/${String(state.turn.turnNumber)}/${String(state.turn.isHalf2)}/${String(state.turn.extraTime)}/${String(kickoffTurnOf(state)?.event)}`;
 }
 
 function possessionKey(board: Board): string {

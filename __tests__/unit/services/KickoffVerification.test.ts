@@ -80,15 +80,11 @@ describe("Kickoff Verification", () => {
         done();
       });
 
-      gameService.rollKickoff();
-    }));
-
-  it("should emit specific events for specific rolls (mocked)", () =>
-    new Promise<void>((done) => {
-      eventBus.on(GameEventNames.KickoffResult, (data: any) => {
-        console.log(`Rolled ${String(data.roll)}: ${String(data.event)}`);
-        done();
+      void gameService.kickBall({
+        isTeam1Kicking: true,
+        playerId: fixtureValue(team1.players[0]).id,
+        targetX: 15,
+        targetY: 5,
       });
-      gameService.rollKickoff();
     }));
 });

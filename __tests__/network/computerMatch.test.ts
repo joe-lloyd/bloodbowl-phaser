@@ -283,7 +283,7 @@ describe("a match against the computer", () => {
           !match.mayAct() ||
           (snapshot.phase === GamePhase.KICKOFF &&
             !game.pendingDecision() &&
-            game.ctx.gameService.getState().kickoffKickResolved)
+            game.ctx.gameService.getState().kick)
         ) {
           await tick();
           continue;

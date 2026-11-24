@@ -1,17 +1,19 @@
+import { kickoffTurnOf } from "../../../game/kickoff/kickRecord";
 import type { BlockReplacement } from "../../../types/BlockReplacement";
 import { type UIEvents } from "../../../types/events";
 import { useState } from "react";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { PlayerStatus, type Player } from "../../../types/Player";
+import { type Player } from "../../../types/Player";
 import { GamePhase, type GameState } from "../../../types/GameState";
 import type { ActionType, GameEventNames } from "../../../types/events";
 import {
   computeActionAvailability,
   noActionAvailability,
+  restrictAvailability,
   type ActionAvailability,
   type TurnFlags,
 } from "../../../game/rules/actionAvailability";
-import type { KickoffEventStepState } from "../../../game/kickoff/KickoffEventManager";
+import { kickoffTurnAllows } from "../../../game/kickoff/kickoffTurn";
 import { groundBall } from "../../../game/rules/ballInTheAir";
 import { holdsMeasure } from "../../../game/inducements/matchInducements";
 import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
@@ -29,25 +31,20 @@ export interface MenuTurnData {
 const EMPTY_AVAILABILITY: ActionAvailability = noActionAvailability();
 
 export function actingSide(
-  turnData: { phase?: GamePhase; activeTeamId?: string | null } | null
-): {
-  activeCharge: KickoffEventStepState | null;
-  effectiveActiveTeamId: string | null | undefined;
-} {
-  const kickoffStep = ServiceContainer.isInitialized()
-    ? ServiceContainer.getInstance().gameService.getKickoffEventStep()
-    : null;
-  const activeCharge =
-    turnData?.phase === GamePhase.KICKOFF && kickoffStep?.charge?.activePlayerId
-      ? kickoffStep
-      : null;
-  return {
-    activeCharge,
-    effectiveActiveTeamId: activeCharge?.teamId ?? turnData?.activeTeamId,
-  };
+  turnData: { phase: GamePhase; activeTeamId: string | null },
+  player: Player | null
+): string | null {
+  if (turnData.phase !== GamePhase.KICKOFF) return turnData.activeTeamId;
+  if (!player || !ServiceContainer.isInitialized()) return null;
+  const { gameService } = ServiceContainer.getInstance();
+  const state = gameService.getState();
+  const acts =
+    kickoffTurnOf(state)?.play.kind === "actions" &&
+    gameService.canActivate(player.id);
+  return acts ? state.turn.teamId : null;
 }
 
-export function razzleDazzle(player: Player | null, charging: boolean) {
+export function razzleDazzle(player: Player | null) {
   const state = ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance().gameService.getState()
     : null;
@@ -62,13 +59,12 @@ export function razzleDazzle(player: Player | null, charging: boolean) {
   return {
     declaration,
     secondActionAfter: declaredSecondAction(declaration),
-    canRazzle: canOfferRazzle(state, player, { charging, declaration }),
+    canRazzle: canOfferRazzle(state, player, declaration),
   };
 }
 
 function menuTurnFlags({
   turnData,
-  activeCharge,
   state,
   teamId,
 }: {
@@ -78,24 +74,17 @@ function menuTurnFlags({
     hasHandedOff?: boolean | null;
     hasFouled?: boolean | null;
   };
-  activeCharge: KickoffEventStepState | null;
   state: GameState;
   teamId: string;
 }): TurnFlags {
   return {
-    hasBlitzed: activeCharge?.charge
-      ? activeCharge.charge.budget.blitz <= 0
-      : !!turnData.hasBlitzed,
+    hasBlitzed: !!turnData.hasBlitzed,
     hasPassed: !!turnData.hasPassed,
     hasHandedOff: !!turnData.hasHandedOff,
-    hasPunted: !activeCharge?.charge && !!state.turn.hasPunted,
+    hasPunted: !!state.turn.hasPunted,
 
-    hasThrownTeamMate: activeCharge?.charge
-      ? activeCharge.charge.budget.throwTeammate <= 0
-      : state.turn.hasThrownTeamMate,
-    hasKickedTeamMate: activeCharge?.charge
-      ? activeCharge.charge.budget.kickTeammate <= 0
-      : state.turn.hasKickedTeamMate,
+    hasThrownTeamMate: state.turn.hasThrownTeamMate,
+    hasKickedTeamMate: state.turn.hasKickedTeamMate,
 
     hasFouled:
       !!turnData.hasFouled &&
@@ -129,7 +118,6 @@ interface AvailabilityRequest {
   selectedPlayer: Player | null;
   effectiveActiveTeamId: string | null | undefined;
   turnData: MenuTurnData;
-  activeCharge: KickoffEventStepState | null;
   hasMovedInAction: boolean;
   secondActionAfter: ActionType | undefined;
 }
@@ -138,7 +126,6 @@ export function readMenuAvailability({
   selectedPlayer,
   effectiveActiveTeamId,
   turnData,
-  activeCharge,
   hasMovedInAction,
   secondActionAfter,
 }: AvailabilityRequest): ActionAvailability {
@@ -158,7 +145,6 @@ export function readMenuAvailability({
       reachable: gs.getAvailableMovements(selectedPlayer.id),
       turn: menuTurnFlags({
         turnData: turnData,
-        activeCharge: activeCharge,
         state: gs.getState(),
         teamId: selectedPlayer.teamId,
       }),
@@ -167,28 +153,13 @@ export function readMenuAvailability({
         ? {}
         : { secondActionAfter: secondActionAfter }),
     });
-    return chargeAvailability(normal, live, activeCharge);
+    const state = gs.getState();
+    return restrictAvailability(normal, (action) =>
+      kickoffTurnAllows(state, action)
+    );
   } catch {
     return EMPTY_AVAILABILITY;
   }
-}
-
-function chargeAvailability(
-  normal: ActionAvailability,
-  live: Player,
-  activeCharge: KickoffEventStepState | null
-): ActionAvailability {
-  if (!activeCharge || activeCharge.charge?.activePlayerId !== live.id) {
-    return normal;
-  }
-  const budget = activeCharge.charge.budget;
-  return {
-    ...EMPTY_AVAILABILITY,
-    move: live.status === PlayerStatus.ACTIVE,
-    blitz: budget.blitz > 0 && normal.blitz,
-    throwTeammate: budget.throwTeammate > 0 && normal.throwTeammate,
-    kickTeammate: budget.kickTeammate > 0 && normal.kickTeammate,
-  };
 }
 
 function declaredSecondAction(
@@ -221,13 +192,10 @@ export function menuActionRequest(
 function canOfferRazzle(
   state: GameState,
   player: Player,
-  {
-    charging,
-    declaration,
-  }: { charging: boolean; declaration: GameState["activePlayer"] }
+  declaration: GameState["activePlayer"]
 ): boolean {
   return (
-    !charging &&
+    !kickoffTurnOf(state) &&
     !declaration?.committed &&
     !declaration?.razzleDazzle &&
     holdsMeasure(state, player.teamId, DesperateMeasure.RAZZLE_DAZZLE)

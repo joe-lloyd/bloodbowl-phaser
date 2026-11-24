@@ -1,3 +1,4 @@
+import { newKick } from "../../src/game/kickoff/kickRecord";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -38,7 +39,7 @@ async function charge(
 
   const state = game.ctx.gameService.getState();
   state.phase = GamePhase.KICKOFF;
-  state.kickoffKickResolved = { isTeam1Kicking: true };
+  state.kick = newKick(game.ctx.team1.id, "coach");
   state.ballPosition = { ...landing };
   const ballEvents: string[] = [];
 

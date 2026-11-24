@@ -133,6 +133,9 @@ describe("Firebase data boundaries", () => {
   });
   it("reads the applied command count without requiring unrelated lobby fields", () => {
     expect(readAppliedCommandCount({ resume: { applied: 9 } })).toBe(9);
+    expect(
+      readAppliedCommandCount({ resume: { applied: 5, replay: [{}, {}] } })
+    ).toBe(7);
     expect(readAppliedCommandCount(undefined)).toBeUndefined();
     expect(() =>
       readAppliedCommandCount({ resume: { applied: "nine" } })

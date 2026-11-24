@@ -1,3 +1,4 @@
+import { type KickRecord, type KickResolution, newKick } from "../game/kickoff/kickRecord";
 import type { GameType } from "../game/variants/gameTypes";
 import type { Venue } from "../game/variants/pitchLayouts";
 import { parseMatchSave, normalizeMatchSave } from "../boundary/matchSave";
@@ -41,6 +42,7 @@ export interface TurnSnapshot {
   hasThrownBomb: boolean;
   hasPunted?: boolean;
   movementUsed: Record<string, number>;
+
 }
 
 export interface PlayerSnapshot {
@@ -112,8 +114,6 @@ export interface GameSnapshot {
 
   turnUsage?: GameState["turnUsage"];
 
-  chargeTeamId?: GameState["chargeTeamId"];
-
   raisedDead?: GameState["raisedDead"];
 
   fanFactors?: GameState["fanFactors"];
@@ -123,9 +123,11 @@ export interface GameSnapshot {
 
   matchInducements?: GameState["matchInducements"];
 
-  kickoffResolution?: GameState["kickoffResolution"];
+  kick?: KickRecord;
 
-  kickoffKickResolved?: GameState["kickoffKickResolved"];
+  kickoffResolution?: KickResolution;
+
+  kickoffKickResolved?: { isTeam1Kicking: boolean };
 
   turnManager?: import("../game/managers/TurnManager").TurnManagerState;
 }
@@ -198,13 +200,12 @@ function inducementFields(source: GameState | GameSnapshot) {
     ...(source.inducements === undefined ? {} : { inducements: structuredClone(source.inducements) }),
     ...(source.pregameInducements === undefined ? {} : { pregameInducements: structuredClone(source.pregameInducements) }),
     ...(source.matchInducements === undefined ? {} : { matchInducements: structuredClone(source.matchInducements) }),
-    ...(source.kickoffResolution === undefined ? {} : { kickoffResolution: structuredClone(source.kickoffResolution) }),
-    ...(source.kickoffKickResolved === undefined ? {} : { kickoffKickResolved: structuredClone(source.kickoffKickResolved) }),
+    ...(source.kick === undefined ? {} : { kick: structuredClone(source.kick) }),
     ...(source.result === undefined ? {} : { result: structuredClone(source.result) }),
   };
 }
 
-function optionalTurnFields(turn: Pick<TurnSnapshot, "hasPunted">) {
+function optionalTurnFields(turn: TurnData | TurnSnapshot) {
   return {
     ...(turn.hasPunted ? { hasPunted: true } : {}),
   };
@@ -251,7 +252,6 @@ export function serializeGameState(
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
-    ...(state.chargeTeamId ? { chargeTeamId: state.chargeTeamId } : {}),
     setup: state.setup ? structuredClone(state.setup) : null,
     teams: teams.map((team) => ({
       id: team.id,
@@ -294,6 +294,20 @@ function matchFlags(snapshot: GameSnapshot) {
   };
 }
 
+function legacyKick(snapshot: GameSnapshot): { kick?: KickRecord } {
+  const { kickoffKickResolved: kicked, kickoffResolution: resolution } = snapshot;
+  const kicker = snapshot.teams[kicked?.isTeam1Kicking ? 0 : 1];
+  if (snapshot.kick || !kicked || !kicker) return {};
+  const flying = resolution ? "high-kick" : "event";
+  const stage = snapshot.phase === GamePhase.KICKOFF ? flying : "landed";
+  return {
+    kick: {
+      ...newKick(kicker.id, stage, stage !== "landed" && snapshot.ballPosition === null),
+      resolution: resolution ?? null,
+    },
+  };
+}
+
 export function deserializeGameState(snapshot: GameSnapshot): GameState {
   const turn: TurnData = {
     teamId: snapshot.turn.teamId,
@@ -309,8 +323,8 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     hasThrownTeamMate: snapshot.turn.hasThrownTeamMate,
     hasKickedTeamMate: snapshot.turn.hasKickedTeamMate,
     hasThrownBomb: snapshot.turn.hasThrownBomb,
-    ...optionalTurnFields(snapshot.turn),
     movementUsed: new Map(Object.entries(snapshot.turn.movementUsed)),
+    ...optionalTurnFields(snapshot.turn),
   };
 
   return {
@@ -322,12 +336,12 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     ...rerollFields(snapshot),
     ...driveFields(snapshot),
     ...inducementFields(snapshot),
+    ...legacyKick(snapshot),
 
     ...matchFlags(snapshot),
     weather: snapshot.weather,
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
-    ...(snapshot.chargeTeamId === undefined ? {} : { chargeTeamId: snapshot.chargeTeamId }),
     ...(snapshot.setup ? { setup: structuredClone(snapshot.setup) } : {}),
   };
 }

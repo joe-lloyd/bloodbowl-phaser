@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
 import { actFirstBlocks } from "@/game/inducements/potionHooks";
 import type { Team } from "@/types/Team";
 import { groundBall } from "@/game/rules/ballInTheAir";
@@ -36,12 +37,6 @@ export function canActivate(parts: GameParts, playerId: string): boolean {
   const player = parts.game.getPlayerById(playerId);
   if (!player) return false;
 
-  if (parts.kickoffEventManager.isChargeActive()) {
-    return (
-      parts.kickoffEventManager.getChargeActivePlayerId() === playerId &&
-      player.status === PlayerStatus.ACTIVE
-    );
-  }
   const team = player.teamId === parts.team1.id ? parts.team1 : parts.team2;
   return (
     activationValidator.canActivate(player, parts.state.turn) &&
@@ -51,9 +46,6 @@ export function canActivate(parts: GameParts, playerId: string): boolean {
 }
 
 export function hasPlayerActed(parts: GameParts, playerId: string): boolean {
-  if (parts.kickoffEventManager.getChargeActivePlayerId() === playerId) {
-    return false;
-  }
   return parts.state.turn.activatedPlayerIds.has(playerId);
 }
 
@@ -95,7 +87,7 @@ export function finishActivation(parts: GameParts, playerId: string): void {
   }
 
   if (holdForSecondAction(parts, playerId)) {
-    parts.marks.blitzBlockUsed.delete(playerId);
+    delete parts.state.activePlayer?.blitzBlockUsed;
     return;
   }
 
@@ -112,13 +104,6 @@ export function finishActivation(parts: GameParts, playerId: string): void {
 }
 
 function finishRemainingActivation(parts: GameParts, playerId: string): void {
-  if (parts.kickoffEventManager.isChargeActive()) {
-    parts.state.activePlayer = null;
-    parts.kickoffEventManager.noteChargeActivationEnded(playerId);
-    parts.eventBus.emit(GameEventNames.ActionResolved, { playerId });
-    return;
-  }
-
   if (takeStalling(parts, playerId)) {
     parts.flowManager.add(
       new CrowdTakesActionOperation(playerId, () => {
@@ -128,7 +113,6 @@ function finishRemainingActivation(parts: GameParts, playerId: string): void {
     return;
   }
   parts.marks.crowdRolledFor = null;
-  parts.marks.blitzBlockUsed.delete(playerId);
 
   checkSecureBallEnd(parts, playerId);
   if (parts.state.activePlayer?.id === playerId) {
@@ -291,10 +275,7 @@ export async function finishStabActivation(
 }
 
 export function triggerTurnover(parts: GameParts, reason: string): void {
-  if (
-    parts.state.phase === GamePhase.KICKOFF ||
-    parts.kickoffEventManager.isChargeActive()
-  ) {
+  if (parts.state.phase === GamePhase.KICKOFF && !kickoffTurnOf(parts.state)) {
     return;
   }
 

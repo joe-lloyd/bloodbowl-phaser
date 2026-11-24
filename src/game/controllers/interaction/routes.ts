@@ -1,10 +1,11 @@
+import { kickoffTurnOf } from "../../kickoff/kickRecord";
 import { isOwnActor } from "./players";
 import { souvenirModifier } from "../../inducements/souvenirModifiers";
 import { adjacentSquares } from "./squares";
 import { GameEventNames } from "@/types/events";
 import { type Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
-import { GamePhase } from "@/types/GameState";
+import { isTurnRunning } from "../../kickoff/kickoffTurn";
 import { getActiveOnlineMatch } from "@/network/OnlineMatch";
 import { moveAllowance, standUpCost } from "../../skills/movement";
 import { withDriveModifiers } from "../../kickoff/driveEffects";
@@ -288,9 +289,8 @@ function routesClosed(c: GameplayInteractionController): boolean {
   if (c.isBusy || c.push.active) return true;
   if (getActiveOnlineMatch()?.mayAct() === false) return true;
   const state = c.gameService.getState();
-  const charging =
-    !!c.gameService.getKickoffEventStep()?.charge?.activePlayerId;
-  if (state.phase !== GamePhase.PLAY && !charging) return true;
+  if (!isTurnRunning(state) || kickoffTurnOf(state)?.play.kind === "one-square")
+    return true;
   const mode = c.currentActionMode;
   return !MOVEMENT_MODES.has(mode);
 }
@@ -366,10 +366,8 @@ function isStillActing(
   c: GameplayInteractionController,
   playerId: string
 ): boolean {
-  const chargerId = c.gameService.getKickoffEventStep()?.charge?.activePlayerId;
-  if (chargerId) return chargerId === playerId;
   return (
-    c.gameService.getState().phase === GamePhase.PLAY &&
+    isTurnRunning(c.gameService.getState()) &&
     !c.gameService.hasPlayerActed(playerId)
   );
 }

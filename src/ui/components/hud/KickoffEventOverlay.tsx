@@ -2,12 +2,9 @@ import React from "react";
 import { type IEventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { GameEventNames } from "../../../types/events";
-import {
-  KickoffEvent,
-  isOneSquareMoveEvent,
-} from "../../../game/kickoff/kickoffEvents";
+import { KickoffEvent } from "../../../game/kickoff/kickoffEvents";
+import { type KickoffTodo, kickoffTodo, playersLeft } from "./kickoffSteps";
 import type { KickoffEventStepState } from "../../../game/kickoff/KickoffEventManager";
-import { type KickoffTodo, kickoffTodo } from "./kickoffSteps";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useEventBus } from "../../hooks/useEventBus";
 import { Chip, HudButton, Panel } from "../componentWarehouse/HudKit";
@@ -38,10 +35,37 @@ function TodoList({ todo, active }: { todo: KickoffTodo; active: boolean }) {
   );
 }
 
-function finishButton(step: KickoffEventStepState) {
-  if (isOneSquareMoveEvent(step.event))
-    return { label: "Done", ready: step.movedPlayerIds.length > 0 };
-  return { label: step.event, ready: step.selectedPlayerIds.length > 0 };
+function stepCount(step: KickoffEventStepState): string {
+  return step.stage === "play"
+    ? `${String(playersLeft(step))} left`
+    : `${String(step.selectedPlayerIds.length)}/${String(step.selectionLimit)} chosen`;
+}
+
+function ChoosingButtons({
+  step,
+  onSkip,
+  onStart,
+}: {
+  step: KickoffEventStepState;
+  onSkip: () => void;
+  onStart: () => void;
+}) {
+  return (
+    <>
+      <HudButton variant="ghost" onClick={onSkip}>
+        Skip
+      </HudButton>
+      {step.event !== KickoffEvent.HIGH_KICK && (
+        <HudButton
+          variant="gold"
+          disabled={step.selectedPlayerIds.length === 0}
+          onClick={onStart}
+        >
+          Start {step.event}
+        </HudButton>
+      )}
+    </>
+  );
 }
 
 export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
@@ -61,6 +85,10 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
   useEventBus(eventBus, GameEventNames.PlayerPlaced, refresh);
   useEventBus(eventBus, GameEventNames.PlayerRemoved, refresh);
   useEventBus(eventBus, GameEventNames.PlayerSelected, refresh);
+  useEventBus(eventBus, GameEventNames.PlayerActivated, refresh);
+  useEventBus(eventBus, GameEventNames.TurnDataUpdated, refresh);
+  useEventBus(eventBus, GameEventNames.KickoffTurnStarted, refresh);
+  useEventBus(eventBus, GameEventNames.KickoffTurnEnded, refresh);
 
   if (!step || !ServiceContainer.isInitialized()) return null;
 
@@ -69,15 +97,10 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
   if (!team) return null;
   const match = getActiveOnlineMatch();
   const canAct = !match || (match.myTeamId === step.teamId && match.mayAct());
-  const awaiting = new Set(step.awaitingPlacement);
-  const oneSquare = isOneSquareMoveEvent(step.event);
-  const limit = step.selectionLimit;
-  const moved = step.movedPlayerIds.length;
-  const picked = step.selectedPlayerIds.length;
-  const count = oneSquare
-    ? `${String(moved)}/${String(limit)} moved`
-    : `${String(picked)}/${String(limit)}`;
-  const finish = finishButton(step);
+  const answer = (send: () => boolean) => () => {
+    send();
+    refresh();
+  };
 
   return (
     <Panel
@@ -90,7 +113,7 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
           {step.event}
         </h2>
         <Chip tone="gold" className="shrink-0 !text-hud-sm">
-          {count}
+          {stepCount(step)}
         </Chip>
       </div>
 
@@ -101,28 +124,20 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
         </p>
       )}
 
-      {canAct && (
+      {canAct && (step.stage === "choose" || step.canReselect) && (
         <div className="mt-3 flex justify-end gap-2">
-          <HudButton
-            variant="ghost"
-            disabled={awaiting.size > 0}
-            onClick={() => {
-              service.skipKickoffEventStep();
-              refresh();
-            }}
-          >
-            Skip
-          </HudButton>
-          {!step.charge && step.event !== KickoffEvent.HIGH_KICK && (
+          {step.stage === "choose" ? (
+            <ChoosingButtons
+              step={step}
+              onSkip={answer(() => service.skipKickoffEventStep())}
+              onStart={answer(() => service.confirmKickoffEventStep())}
+            />
+          ) : (
             <HudButton
-              variant="gold"
-              disabled={awaiting.size > 0 || !finish.ready}
-              onClick={() => {
-                service.confirmKickoffEventStep();
-                refresh();
-              }}
+              variant="ghost"
+              onClick={answer(() => service.reselectKickoffEventPlayers())}
             >
-              {finish.label}
+              Change picks
             </HudButton>
           )}
         </div>

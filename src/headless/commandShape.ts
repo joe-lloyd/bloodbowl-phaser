@@ -30,6 +30,7 @@ const COMMAND_SHAPES: Record<string, CommandShape> = {
   "kickoff-place-player": { playerId: "string", x: "integer", y: "integer" },
   "kickoff-confirm": {},
   "kickoff-skip": {},
+  "kickoff-reselect": {},
   "declare-action": {
     playerId: "string",
     action: "string",

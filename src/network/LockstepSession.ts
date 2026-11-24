@@ -59,6 +59,26 @@ export interface LockstepSessionOptions {
   onDesync?: (detail: string) => void;
 }
 
+export function restoreEngine(
+  game: HeadlessGame,
+  state: Omit<LockstepState, "applied" | "replay">
+): void {
+  const { team1, team2, gameService, rng, matchStats } = game.ctx;
+
+  restoreTeam(team1, state.teams[0]);
+  restoreTeam(team2, state.teams[1]);
+  applySnapshotToTeams(state.snapshot, [team1, team2]);
+  replaceFields(gameService.getState(), deserializeGameState(state.snapshot));
+  if (state.snapshot.turnManager) {
+    gameService.restoreTurnManagerState(state.snapshot.turnManager);
+  }
+
+  gameService.resyncSetupFromTeams();
+  rng.restoreState(state.rng);
+  matchStats.restoreState(state.matchStats);
+  game.adoptPending(state.pending);
+}
+
 export class LockstepSession {
   private readonly seq = new SequenceTracker();
   private readonly unsubscribe: () => void;
@@ -98,6 +118,11 @@ export class LockstepSession {
     return this.applied;
   }
 
+  replaySaved(saved: HeadlessCommand[]): Promise<void> {
+    if (saved.length === 0) return Promise.resolve();
+    return this.enqueue(() => this.runMissed(saved));
+  }
+
   run(command: HeadlessCommand): Promise<CommandResponse> {
     return this.enqueue(async () => {
       const { game, myTeamId, hostTeamId } = this.options;
@@ -125,7 +150,11 @@ export class LockstepSession {
     });
   }
 
-  async sendHello(): Promise<void> {
+  sendHello(): Promise<void> {
+    return this.enqueue(() => this.announce());
+  }
+
+  private async announce(): Promise<void> {
     this.awaitingCatchUp = true;
     await this.send({
       kind: "hello",
@@ -157,7 +186,7 @@ export class LockstepSession {
 
   captureState(): LockstepState {
     const { game } = this.options;
-    if (game.isSuspended() && this.atRest) {
+    if (!game.isAtRest() && this.atRest) {
       return {
         ...this.atRest,
         replay: this.log
@@ -413,20 +442,7 @@ export class LockstepSession {
       this.options.onResynced?.();
       return;
     }
-    const { team1, team2, gameService, rng, matchStats } = game.ctx;
-
-    restoreTeam(team1, state.teams[0]);
-    restoreTeam(team2, state.teams[1]);
-    applySnapshotToTeams(state.snapshot, [team1, team2]);
-    replaceFields(gameService.getState(), deserializeGameState(state.snapshot));
-    if (state.snapshot.turnManager) {
-      gameService.restoreTurnManagerState(state.snapshot.turnManager);
-    }
-
-    gameService.resyncSetupFromTeams();
-    rng.restoreState(state.rng);
-    matchStats.restoreState(state.matchStats);
-    game.adoptPending(state.pending);
+    restoreEngine(game, state);
     this.resetAppliedState(state.applied);
     await this.runMissed(state.replay, state.checksum);
   }
@@ -442,7 +458,7 @@ export class LockstepSession {
 
   private aboutToRun(): string {
     const { game } = this.options;
-    if (!game.isSuspended()) this.atRest = structuredClone(this.captureState());
+    if (game.isAtRest()) this.atRest = structuredClone(this.captureState());
     return stateChecksum(game);
   }
 

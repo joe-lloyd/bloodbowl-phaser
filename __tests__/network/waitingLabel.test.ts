@@ -1,3 +1,4 @@
+import { newKick } from "../../src/game/kickoff/kickRecord";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOnlineMatch } from "../../src/network/OnlineMatch";
 import { createInMemoryTransportPair } from "../../src/network/transport";
@@ -125,8 +126,8 @@ describe("online waiting label at the kick-off", () => {
     expect(match.mayAct()).toBe(false);
     expect(match.waitingLabel()).toBe("Waiting for Guest to kick off…");
 
-    ServiceContainer.getInstance().gameService.getState().kickoffKickResolved =
-      { isTeam1Kicking: false };
+    ServiceContainer.getInstance().gameService.getState().kick =
+      newKick("guest", "landing");
     expect(match.waitingLabel()).toBe("The kick-off is landing…");
     match.close();
   });

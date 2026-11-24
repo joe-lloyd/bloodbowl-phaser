@@ -35,6 +35,13 @@ function selectionReducer(state: Selection, change: Change): Selection {
   }
 }
 
+function useTurnChange(eventBus: EventBus, onChange: () => void): void {
+  useEventBus(eventBus, GameEventNames.TurnStarted, onChange);
+  useEventBus(eventBus, GameEventNames.KickoffTurnStarted, onChange);
+  useEventBus(eventBus, GameEventNames.KickoffTurnEnded, onChange);
+  useEventBus(eventBus, GameEventNames.Turnover, onChange);
+}
+
 export function useActionSelection(eventBus: EventBus, turnData: MenuTurnData) {
   const [state, dispatch] = useReducer(selectionReducer, {
     player: null,
@@ -84,8 +91,7 @@ export function useActionSelection(eventBus: EventBus, turnData: MenuTurnData) {
   const close = () => {
     dispatch({ type: "close" });
   };
-  useEventBus(eventBus, GameEventNames.TurnStarted, close);
-  useEventBus(eventBus, GameEventNames.Turnover, close);
+  useTurnChange(eventBus, close);
   return {
     selectedPlayer: state.player,
     actionSteps: state.steps,

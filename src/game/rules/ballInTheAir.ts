@@ -8,7 +8,7 @@ interface Square {
 export function ballInTheAir(state: GameState): boolean {
   return (
     state.phase === GamePhase.KICKOFF &&
-    !!state.kickoffKickResolved &&
+    !!state.kick &&
     !!state.ballPosition
   );
 }

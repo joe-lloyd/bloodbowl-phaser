@@ -37,6 +37,7 @@ export const INTERACTION_COMMANDS: HeadlessCommand["type"][] = [
   "kickoff-place-player",
   "kickoff-confirm",
   "kickoff-skip",
+  "kickoff-reselect",
   "declare-action",
   "cancel-action",
   "move",
@@ -88,7 +89,6 @@ export const DECISION_REPLY_COMMANDS: Record<
 > = {
   "kickoff-event": [
     "kickoff-select-player",
-    "kickoff-move-player",
     "kickoff-place-player",
     "kickoff-confirm",
     "kickoff-skip",

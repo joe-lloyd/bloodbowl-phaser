@@ -72,7 +72,6 @@ interface EngineView {
     selectedPlayerIds: string[];
     movedPlayerIds: string[];
     landingSquare?: { x: number; y: number };
-    charge?: { activePlayerId: string | null };
   } | null;
   teamNames: Record<string, string>;
 }
@@ -199,6 +198,9 @@ async function stepTwo(page: Page, app: GameApp, dx: number) {
   const movers = before.players
     .filter((p) => p.teamId === team && p.at)
     .slice(1, 1 + Math.min(2, fixtureValue(before.step).selectionLimit));
+  for (const mover of movers)
+    await app.pitch.clickSquare(fixtureValue(mover.at));
+  await page.getByRole("button", { name: /^Start / }).click();
   for (const mover of movers) {
     const view = await engine(page);
     const from = fixtureValue(fixtureValue(view.players.find((p) => p.id === mover.id)).at);
@@ -206,11 +208,10 @@ async function stepTwo(page: Page, app: GameApp, dx: number) {
     await page.waitForTimeout(700);
     await app.pitch.clickSquare(stepFrom(view, from, dx));
     await expect
-      .poll(async () => (await engine(page)).step?.movedPlayerIds ?? [])
-      .toContain(mover.id);
+      .poll(async () => fixtureValue((await engine(page)).players.find((p) => p.id === mover.id)).at)
+      .not.toEqual(from);
     await page.waitForTimeout(900);
   }
-  await page.getByRole("button", { name: "Done" }).click();
   const after = await engine(page);
   return movers.map((mover) => {
     const from = fixtureValue(mover.at);
@@ -281,14 +282,14 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
     const checked: string[] = [];
     switch (clip.event) {
       case KickoffEvent.ALERT_DEFENCE: {
-        await expect(page.getByRole("button", { name: "Done" })).toBeVisible({
+        await expect(page.getByRole("button", { name: /^Start / })).toBeVisible({
           timeout: 30_000,
         });
         checked.push(...(await stepTwo(page, app, 1)));
         break;
       }
       case KickoffEvent.QUICK_SNAP: {
-        await expect(page.getByRole("button", { name: "Done" })).toBeVisible({
+        await expect(page.getByRole("button", { name: /^Start / })).toBeVisible({
           timeout: 30_000,
         });
         checked.push(...(await stepTwo(page, app, 1)));
@@ -330,6 +331,7 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
         await app.pitch.clickSquare(fixtureValue(fixtureValue(charger).at));
         await page.waitForTimeout(800);
         await charge.click();
+        await app.pitch.clickSquare(fixtureValue(fixtureValue(charger).at));
         await expect(app.hud.actionMenu()).toBeVisible({ timeout: 10_000 });
         await app.hud.actionButton("move").click();
         const to = { x: fixtureValue(fixtureValue(charger).at).x + 1, y: fixtureValue(fixtureValue(charger).at).y };

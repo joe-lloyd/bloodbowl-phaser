@@ -3,6 +3,7 @@ import {
   readLobby,
   readLobbySeats,
 } from "../boundary/firebaseLobby";
+import type { HeadlessCommand } from "../headless/protocol";
 import { firebaseDocument, firebaseProfile } from "../boundary/firebaseJson";
 import {
   collection,
@@ -80,7 +81,6 @@ export interface LobbyDoc {
   hostUid: string;
   guestUid: string | null;
   status: LobbyStatus;
-
   seedCommits?: Record<string, string>;
 
   seedReveals?: Record<string, string>;
@@ -130,8 +130,8 @@ export interface MatchResume {
   teams?: [Team, Team];
   rng: RNGState;
   matchStats: MatchStatsSnapshot;
-
   applied: number;
+  replay?: HeadlessCommand[];
 }
 
 async function sha256Hex(text: string): Promise<string> {
@@ -669,7 +669,7 @@ export async function persistMatch(
   await runTransaction(getDb(), async (tx) => {
     const stored = await tx.get(ref);
     const applied = readAppliedCommandCount(stored.data());
-    if (applied !== undefined && resume.applied < applied) return;
+    if (applied !== undefined && resume.applied + (resume.replay?.length ?? 0) < applied) return;
     tx.update(ref, {
       snapshot: firebaseDocument(snapshot),
       resume: firebaseDocument(resume),

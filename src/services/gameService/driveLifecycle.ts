@@ -49,6 +49,7 @@ import { takeUnsatedBloodlust } from "./activation";
 
 export function startKickoff(parts: GameParts): void {
   const { state, eventBus } = parts;
+  parts.ballManager.forgetKick();
   state.phase = GamePhase.KICKOFF;
   state.subPhase = SubPhase.ROLL_KICKOFF;
   eventBus.emit(GameEventNames.KickoffStarted, undefined);
@@ -282,8 +283,7 @@ export function resetDriveState(parts: GameParts): void {
     state.driveEffects = emptyDriveEffects();
   }
 
-  delete state.kickoffResolution;
-  delete state.kickoffKickResolved;
+  parts.ballManager.forgetKick();
 
   resetTurnUsage(state);
 
@@ -400,7 +400,6 @@ function fanOutcome(lead: number): "win" | "loss" | "draw" {
 }
 
 export function resetActivationMarks(marks: GameParts["marks"]): void {
-  marks.blitzBlockUsed.clear();
   marks.ballAndChainSquare = null;
   marks.crowdRolledFor = null;
 }
@@ -408,6 +407,7 @@ export function resetActivationMarks(marks: GameParts["marks"]): void {
 function resetTurnUsage(state: GameParts["state"]): void {
   state.turn.activatedPlayerIds.clear();
   state.turn.movementUsed.clear();
+  delete state.turn.hasPunted;
   state.turn.hasBlitzed = false;
   state.turn.hasPassed = false;
   state.turn.hasHandedOff = false;
@@ -415,6 +415,5 @@ function resetTurnUsage(state: GameParts["state"]): void {
   state.turn.hasThrownTeamMate = false;
   state.turn.hasKickedTeamMate = false;
   state.turn.hasThrownBomb = false;
-  delete state.turn.hasPunted;
   delete state.turnUsage;
 }

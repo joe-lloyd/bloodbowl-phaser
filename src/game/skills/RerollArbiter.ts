@@ -1,3 +1,4 @@
+import { kickoffTurnOf } from "../kickoff/kickRecord";
 import { type GameState, type TurnUsage } from "../../types/GameState";
 import { type Team } from "../../types/Team";
 import { type Player } from "../../types/Player";
@@ -54,8 +55,7 @@ export class RerollArbiter {
     const t = this.state.turn;
     const period = t.extraTime ? "et" : t.isHalf2 ? "h2" : "h1";
     const key = `${t.teamId}:${String(t.turnNumber)}:${period}`;
-    const charge = this.state.chargeTeamId;
-    return charge ? `charge:${charge}:${key}` : key;
+    return kickoffTurnOf(this.state) ? `kickoff:${t.teamId}:${key}` : key;
   }
 
   private spent(): TurnUsage | undefined {
@@ -79,8 +79,7 @@ export class RerollArbiter {
   }
 
   public nextTeamReroll(teamId: string): TeamRerollKind | null {
-    const turnTeamId = this.state.chargeTeamId ?? this.state.turn.teamId;
-    if (turnTeamId !== teamId) return null;
+    if (this.state.turn.teamId !== teamId) return null;
     if (this.spent()?.teams.includes(teamId)) return null;
     if (freeRerollsFor(this.state, teamId) > 0) return "free";
     if (this.teamRerollsLeftFor(teamId) > 0) return "team";

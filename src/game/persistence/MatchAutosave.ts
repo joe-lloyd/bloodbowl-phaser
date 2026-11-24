@@ -84,12 +84,7 @@ export class MatchAutosave {
     await this.gameService.getFlowContext().flowManager.whenIdle();
     await whenEngineQuiet();
     if (this.disposed || revision !== this.revision) return false;
-    if (
-      this.gameService.getDecisionService().pending() ||
-      this.gameService.captureTurnManagerState().turnoverInProgress ||
-      this.gameService.isKickoffTableResolving() ||
-      this.options.choiceOpen?.()
-    ) {
+    if (this.midChoice()) {
       this.schedule();
       return false;
     }
@@ -100,6 +95,23 @@ export class MatchAutosave {
       writeMatchSave(save);
     }
     return true;
+  }
+
+  private kickBetweenTurns(): boolean {
+    return (
+      this.gameService.kickInTheAir() !== null &&
+      !this.gameService.getKickoffEventStep()
+    );
+  }
+
+  private midChoice(): boolean {
+    return (
+      this.gameService.getDecisionService().pending() !== null ||
+      this.gameService.captureTurnManagerState().turnoverInProgress ||
+      this.gameService.isKickoffTableResolving() ||
+      this.kickBetweenTurns() ||
+      this.options.choiceOpen?.() === true
+    );
   }
 
   dispose(): void {

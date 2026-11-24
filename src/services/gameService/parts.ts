@@ -44,10 +44,10 @@ import {
   handleTurnEnding,
   onPlayerDowned,
   sweepChomped,
+  endKickoffTurnOnFall,
 } from "./turnHooks";
 
 interface ActivationMarks {
-  blitzBlockUsed: Set<string>;
 
   ballAndChainSquare: BallAndChainSquare | null;
 
@@ -103,7 +103,7 @@ export function createGameParts(options: PartOptions): GameParts {
     () => kickoffManagers.kickoffEventManager
   );
   const kickoffManagers = makeKickoffManagers(core, options.delay, turnManager);
-  bindPartEvents(core, () => parts, kickoffManagers.kickoffEventManager);
+  bindPartEvents(core, () => parts);
   bindPotionHooks(core.eventBus, () => parts);
   const parts: GameParts = {
     ...core,
@@ -134,7 +134,6 @@ function createCore({
   }
 
   const marks: ActivationMarks = {
-    blitzBlockUsed: new Set<string>(),
     ballAndChainSquare: null,
     crowdRolledFor: null,
   };
@@ -226,6 +225,9 @@ function makeTurnManager(
       },
       betweenTurns: (endingTeamId) =>
         turnEndHazards(getParts(), endingTeamId),
+      onKickoffTurnEnded: (event, teamId) => {
+        getParts().kickoffEventManager.finishTurn(event, teamId);
+      },
     },
     delay
   );
@@ -267,12 +269,11 @@ function makeBallManager(
         eventBus.emit(GameEventNames.BallPlaced, { x, y });
       },
       getFlowManager: () => flowManager,
-      resolveKickoffEvent: (isTeam1Kicking) =>
-        getKickoff().rollAndResolve(isTeam1Kicking),
-      resolveHighKickStep: (isTeam1Kicking, landingSquare) =>
-        getKickoff().resolveHighKickStep(isTeam1Kicking, landingSquare),
-      consumeWeatherScatterPending: () =>
-        getKickoff().consumeWeatherScatterPending(),
+      rollEvent: (kick) => getKickoff().rollAndResolve(kick),
+      coachStep: (kick) => getKickoff().coachStep(kick),
+      abandonStep: () => {
+        getKickoff().abandonStep();
+      },
     },
     delay
   );
@@ -302,21 +303,24 @@ function makeKickoffManagers(
       moveTurnMarkers: (delta) => {
         turnManager.moveTurnMarkers(delta);
       },
+      startTurn: (start) => turnManager.startKickoffTurn(start),
+      closeTurn: () => {
+        turnManager.closeKickoffTurn();
+      },
+      finishActivation: (playerId) => {
+        turnManager.finishActivation(playerId);
+      },
     }, delay: delay });
 
   return { playerActionManager, kickoffEventManager };
 }
 
-function bindPartEvents(
-  core: Core,
-  getParts: () => GameParts,
-  kickoffEventManager: KickoffEventManager
-): void {
+function bindPartEvents(core: Core, getParts: () => GameParts): void {
   const { eventBus, state, team1, team2, marks } = core;
   eventBus.on(
     GameEventNames.PlayerKnockedDown,
     ({ playerId }: { playerId: string }) => {
-      kickoffEventManager.noteChargePlayerDown(playerId);
+      endKickoffTurnOnFall(getParts(), playerId);
       onPlayerDowned(getParts(), playerId);
     }
   );
@@ -341,9 +345,12 @@ function bindPartEvents(
     }
   });
 
-  eventBus.on(GameEventNames.TurnStarted, () => {
+  const clearMarks = () => {
     resetActivationMarks(marks);
-  });
+  };
+  eventBus.on(GameEventNames.TurnStarted, clearMarks);
+  eventBus.on(GameEventNames.KickoffTurnStarted, clearMarks);
+  eventBus.on(GameEventNames.KickoffTurnEnded, clearMarks);
 }
 
 function makeActionControllers(

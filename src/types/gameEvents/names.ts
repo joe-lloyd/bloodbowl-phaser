@@ -49,6 +49,8 @@ export const GameEventNames = {
   KickoffEventStepStarted: "kickoffEventStepStarted",
   KickoffEventStepResolved: "kickoffEventStepResolved",
   KickoffEventStepChanged: "kickoffEventStepChanged",
+  KickoffTurnStarted: "kickoffTurnStarted",
+  KickoffTurnEnded: "kickoffTurnEnded",
   DriveEffectGranted: "driveEffectGranted",
   DriveEffectExpired: "driveEffectExpired",
   KORecoveryRolled: "koRecoveryRolled",
