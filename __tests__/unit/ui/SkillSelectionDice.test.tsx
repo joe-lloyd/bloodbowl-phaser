@@ -155,4 +155,50 @@ describe("rolling a Skill Selection D3", () => {
       { progress: { named: NAMED } },
     ]);
   });
+
+  it("holds every other development control until the D3 is saved", async () => {
+    let library = [readyForD3()];
+    const journeyman = structuredClone(
+      fixtureValue(fixtureValue(library[0]).players[1])
+    );
+    journeyman.id = "journeyman";
+    journeyman.playerKind = "journeyman";
+    fixtureValue(library[0]).players.push(journeyman);
+    fixtureValue(library[0]).pendingDevelopment?.push({
+      id: "offer",
+      kind: "journeyman-offer",
+      playerId: journeyman.id,
+      matchId: "m",
+      createdAt: 1,
+    });
+    let accept: () => void = () => undefined;
+    setTeamRepository({
+      loadTeams: () => [...library],
+      saveTeams: (teams) => {
+        library = structuredClone(teams);
+        return new Promise<void>((resolve) => {
+          accept = resolve;
+        });
+      },
+      deleteTeam: () => undefined,
+    });
+    await rollD3(structuredClone(fixtureValue(library[0])));
+
+    await press("Let them go");
+    expect(playRoll).not.toHaveBeenCalled();
+    expect(fixtureValue(library[0]).pendingDevelopment).toMatchObject([
+      { id: "offer" },
+    ]);
+    expect(
+      fixtureValue(library[0]).players.map(({ id }) => id)
+    ).toContain("journeyman");
+
+    await act(async () => {
+      accept();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.querySelector('[data-testid="roll-tray"]')).not.toBeNull();
+    expect(container.querySelector("fieldset")?.disabled).toBe(false);
+  });
 });

@@ -133,22 +133,39 @@ export class CloudTeamRepository implements TeamRepository {
     this.cache = this.cache.filter((team) => team.id !== teamId);
   }
 
-  private async write(copy: Team, cached: Team | undefined): Promise<void> {
-    const written = await writeCloudTeam(this.uid, copy);
-    if (written !== copy)
-      this.cache = this.cache.map((team) => (team === cached ? written : team));
+  private replace(cached: Team | undefined, team: Team | undefined): void {
+    if (!team || team === cached) return;
+    this.cache = this.cache.map((entry) => (entry === cached ? team : entry));
+  }
+
+  private async write(
+    copy: Team,
+    cached: Team | undefined,
+    before: Team[]
+  ): Promise<void> {
+    try {
+      const written = await writeCloudTeam(this.uid, copy);
+      if (written !== copy) this.replace(cached, written);
+    } catch (cause) {
+      this.replace(
+        cached,
+        before.find(({ id }) => id === copy.id)
+      );
+      throw cause;
+    }
   }
 
   async saveTeams(teams: Team[]): Promise<void> {
     const previousIds = new Set(this.cache.map((t) => t.id));
     const nextIds = new Set(teams.map((t) => t.id));
+    const before = this.cache;
     this.cache = [...teams];
 
     const copies = structuredClone(teams);
     const removed = [...previousIds].filter((id) => !nextIds.has(id));
     const written = this.writing.then(() =>
       Promise.allSettled([
-        ...copies.map((team, index) => this.write(team, teams[index])),
+        ...copies.map((team, index) => this.write(team, teams[index], before)),
         ...removed.map((id) => deleteCloudTeam(this.uid, id)),
       ])
     );

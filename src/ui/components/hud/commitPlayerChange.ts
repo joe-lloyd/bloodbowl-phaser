@@ -2,6 +2,7 @@ import type { Player } from "../../../types/Player";
 import type { Team } from "../../../types/Team";
 import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
 import { dehydrateTeam } from "../../../data/persistence/teamPersistence";
+import { holdTeamSave, isTeamSaving } from "../../hooks/teamSaveLock";
 import { restoreTeam } from "../../../headless/serialization";
 
 const NOT_SAVED = "The team could not be saved, so nothing was changed.";
@@ -22,8 +23,9 @@ export async function commitPlayerChange(
 }
 
 export async function commitTeam(team: Team, changed: Team): Promise<void> {
+  if (isTeamSaving()) throw new Error("Wait for the last change to save.");
   try {
-    await saveTeam(changed);
+    await holdTeamSave(() => saveTeam(changed));
   } catch (cause) {
     const reason = cause instanceof Error ? cause.message : String(cause);
     throw new Error(`${NOT_SAVED} ${reason}`);

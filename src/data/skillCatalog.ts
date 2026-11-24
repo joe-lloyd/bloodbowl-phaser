@@ -48,7 +48,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "When an opponent falls leaving a square next to this player, add 1 to the armour or injury roll.",
+      "When an opponent fails a dodge away from this player, add 1 to the armour or injury roll.",
   },
   "Ball & Chain": {
     kind: "trait",
@@ -172,7 +172,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "An armour roll of 8 or more always breaks the armour of a player this one blocks.",
+      "A natural 8 or more on the armour dice breaks armour from this player's block or lash-out, unless the victim has Iron Hard Skin.",
   },
   "Cloud Burster": {
     kind: "skill",
@@ -190,7 +190,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Against a stronger opponent, roll a D6 and add Strength. Beating their Strength makes the block an even one.",
+      "Against a stronger opponent, roll a D6 and add Strength. Beating their Strength matches it, before assists and other modifiers.",
   },
   Decay: {
     kind: "trait",
@@ -234,7 +234,7 @@ export const SKILL_CATALOG = {
     compulsory: false,
     parameterForm: null,
     description:
-      "Can catch a ball landing in an adjacent square, and gets +1 when a pass is aimed at them.",
+      "Can catch a ball landing in an adjacent empty square, and gets +1 when a pass is aimed at them.",
   },
   "Diving Tackle": {
     kind: "skill",
@@ -294,7 +294,8 @@ export const SKILL_CATALOG = {
     usage: "active",
     compulsory: false,
     parameterForm: null,
-    description: "A blocker who pushes this player back cannot follow up.",
+    description:
+      "A blocker who pushes this player back cannot follow up, except with Juggernaut in a Blitz or Ball & Chain.",
   },
   "Foul Appearance": {
     kind: "skill",

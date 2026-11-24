@@ -24,6 +24,7 @@ import {
   Stat,
 } from "../componentWarehouse/HudKit";
 import { appearanceOf } from "../../../game/names/playerIdentity";
+import { TeamSaveFieldset } from "../shared/TeamSaveFieldset";
 import { PlayerLookControls, PlayerNameEditor } from "./PlayerIdentity";
 
 const STAT_LABELS: Record<keyof PlayerStats, string> = {
@@ -119,6 +120,7 @@ export function PlayerPage() {
         }
       />
 
+      <TeamSaveFieldset>
       <div className="mb-4 max-w-xl">
         <PlayerNameEditor player={player} team={team} onSaved={refresh} />
       </div>
@@ -246,6 +248,7 @@ export function PlayerPage() {
           />
         )}
       </Section>
+      </TeamSaveFieldset>
     </PageShell>
   );
 }

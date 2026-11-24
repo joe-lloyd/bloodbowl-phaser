@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
   calculateTeamValue,
@@ -49,8 +49,10 @@ import {
 } from "../shared/rollThrows";
 import { RollStage } from "../shared/RollTray";
 import { useRollTray } from "../shared/useRollTray";
+import { TeamSaveFieldset } from "../shared/TeamSaveFieldset";
 import { SkillGrid, SkillText } from "../shared/SkillOption";
 import { PlayerDevelopment } from "../hud/PlayerDevelopment";
+import { isTeamSaving } from "../../hooks/teamSaveLock";
 import { commitTeam } from "../hud/commitPlayerChange";
 import {
   HudButton,
@@ -96,6 +98,7 @@ export function PendingDevelopmentPanel({
         </Notice>
       )}
       <RollStage dice={dice} />
+      <TeamSaveFieldset>
       {pending.map((entry) => {
         switch (entry.kind) {
           case "raised-dead-recruit":
@@ -161,6 +164,7 @@ export function PendingDevelopmentPanel({
             );
         }
       })}
+      </TeamSaveFieldset>
     </Panel>
   );
 }
@@ -447,7 +451,6 @@ function SkillSelectionEntry({
   const [category, setCategory] = useState<SkillCategory | "">("");
   const [skill, setSkill] = useState<SkillType | "">("");
   const [error, setError] = useState("");
-  const saving = useRef(false);
   const rng = panelRng();
 
   const act = async (
@@ -456,8 +459,7 @@ function SkillSelectionEntry({
       draftEntry: SkillSelectionPending
     ) => (() => void) | undefined
   ) => {
-    if (saving.current) return;
-    saving.current = true;
+    if (isTeamSaving()) return;
     try {
       const draft = structuredClone(team);
       const saved = step(draft, selectionEntry(draft, entry.id));
@@ -469,8 +471,6 @@ function SkillSelectionEntry({
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      saving.current = false;
     }
   };
   const finish = (

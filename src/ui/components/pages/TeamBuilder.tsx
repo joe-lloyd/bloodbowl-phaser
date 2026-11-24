@@ -69,6 +69,7 @@ import {
 import { RNGService } from "../../../services/rng/RNGService";
 import { RosterPicker } from "../TeamBuilder/RosterPicker";
 import { PlayedGames } from "../TeamManagement/PlayedGames";
+import { useTeamSaving } from "../../hooks/teamSaveLock";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 
@@ -246,7 +247,9 @@ export function TeamBuilder() {
   const returnLabel = returnLabelFor(destination);
   const [completion, setCompletion] = useState("");
   const [saveError, setSaveError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [savingTeam, setSaving] = useState(false);
+  const developmentSaving = useTeamSaving();
+  const saving = savingTeam || developmentSaving;
   const saveInFlight = useRef(false);
 
   const savedSnapshot = useRef<string | null>(null);

@@ -8,6 +8,7 @@ import { lookOptions } from "../../../game/presentation/layered/layeredModels";
 import { modelFor } from "../../../game/presentation/playerArt";
 import { HudButton } from "../componentWarehouse/HudButton";
 import { Notice } from "../componentWarehouse/HudKit";
+import { isTeamSaving } from "../../hooks/teamSaveLock";
 import { commitPlayerChange } from "../hud/commitPlayerChange";
 
 const MAX_NAME = 40;
@@ -21,6 +22,7 @@ interface PlayerIdentityProps {
 function useSave({ player, team, onSaved }: PlayerIdentityProps) {
   const [error, setError] = useState("");
   const save = async (change: (target: Player) => void): Promise<boolean> => {
+    if (isTeamSaving()) return false;
     try {
       await commitPlayerChange(team, player.id, (_latestTeam, target) => {
         change(target);

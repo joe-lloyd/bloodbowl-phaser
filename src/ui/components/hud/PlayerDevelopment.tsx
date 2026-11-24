@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   type PendingAdvancementRoll,
   type Player,
@@ -21,6 +21,7 @@ import { AdvancementForm, type SkillAccess } from "../shared/AdvancementForm";
 import { advancementThrows, type RollThrow } from "../shared/rollThrows";
 import { RollStage } from "../shared/RollTray";
 import { useRollTray } from "../shared/useRollTray";
+import { isTeamSaving } from "../../hooks/teamSaveLock";
 import { restoreTeam } from "../../../headless/serialization";
 import { commitPlayerChange } from "./commitPlayerChange";
 
@@ -50,7 +51,6 @@ export function PlayerDevelopment({
   const [category, setCategory] = useState<SkillCategory | "">("");
   const [skill, setSkill] = useState<SkillType | "">("");
   const [error, setError] = useState("");
-  const saving = useRef(false);
   const dice = useRollTray(team);
   const [, setRevision] = useState(0);
 
@@ -72,15 +72,12 @@ export function PlayerDevelopment({
   const skills = activeCategory ? eligibleSkills(player, [activeCategory]) : [];
 
   const attempt = async (action: () => Promise<void>) => {
-    if (saving.current) return;
-    saving.current = true;
+    if (isTeamSaving()) return;
     try {
       await action();
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      saving.current = false;
     }
   };
 
