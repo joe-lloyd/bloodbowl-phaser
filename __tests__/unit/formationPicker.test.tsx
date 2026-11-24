@@ -25,11 +25,17 @@ describe("FormationPicker", () => {
         new KeyboardEvent("keydown", { key, bubbles: true })
       );
     }); };
-  const open = (isTeam1: boolean, kicking: boolean) => {
+  const open = (
+    isTeam1: boolean,
+    kicking: boolean,
+    without: readonly string[] = []
+  ) => {
     act(() => {
       root.render(
         <FormationPicker
-          formations={manager.listAllFormations("Human:left", isTeam1)}
+          formations={manager
+            .listAllFormations("Human:left", isTeam1)
+            .filter(({ name }) => !without.includes(name))}
           selected="Balanced"
           isTeam1={isTeam1}
           kicking={kicking}
@@ -96,6 +102,16 @@ describe("FormationPicker", () => {
     expect(dotXs("Bunker")).toEqual([
       13.5, 13.5, 13.5, 14.5, 14.5, 15.5, 17.5,
     ]);
+  });
+
+  it("moves straight down from a short row into the next group", () => {
+    open(true, true, ["Kick: Press", "Kick: Screen"]);
+    press("ArrowDown");
+    expect(document.activeElement?.textContent).toBe("Kick: Blitz line");
+    press("ArrowDown");
+    expect(document.activeElement?.textContent).toBe("Receive: Wedge");
+    press("ArrowUp");
+    expect(document.activeElement?.textContent).toBe("Kick: Blitz line");
   });
 
   it("moves with the arrow keys, closes on Escape and picks on a press", () => {

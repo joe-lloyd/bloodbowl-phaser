@@ -26,8 +26,6 @@ function besidePanel(panelLeft: number, screenWidth: number): CSSProperties {
 const KEY_STEP: Readonly<Record<string, number>> = {
   ArrowRight: 1,
   ArrowLeft: -1,
-  ArrowDown: COLUMNS,
-  ArrowUp: -COLUMNS,
   Home: -Infinity,
   End: Infinity,
 };
@@ -149,6 +147,38 @@ function FormationOption({
   );
 }
 
+const ROW_STEP: Readonly<Record<string, number>> = {
+  ArrowDown: 1,
+  ArrowUp: -1,
+};
+
+function rowsOf(all: readonly HTMLButtonElement[]): HTMLButtonElement[][] {
+  const rows: HTMLButtonElement[][] = [];
+  for (const option of all) {
+    const row = rows.at(-1);
+    const fits =
+      row &&
+      row.length < COLUMNS &&
+      row[0]?.parentElement === option.parentElement;
+    if (fits) row.push(option);
+    else rows.push([option]);
+  }
+  return rows;
+}
+
+function besideRow(
+  all: readonly HTMLButtonElement[],
+  at: number,
+  step: number
+): HTMLButtonElement | undefined {
+  const rows = rowsOf(all);
+  const current = all[at];
+  const index = rows.findIndex((row) => row.some((o) => o === current));
+  const column = rows[index]?.findIndex((o) => o === current) ?? 0;
+  const next = rows[index + step];
+  return next?.[Math.min(column, next.length - 1)];
+}
+
 function navigate(
   event: KeyboardEvent,
   all: readonly HTMLButtonElement[],
@@ -160,10 +190,16 @@ function navigate(
     onClose();
     return;
   }
+  const at = all.findIndex((option) => option === document.activeElement);
+  const rowStep = ROW_STEP[event.key];
+  if (rowStep !== undefined) {
+    event.preventDefault();
+    besideRow(all, at, rowStep)?.focus();
+    return;
+  }
   const step = KEY_STEP[event.key];
   if (step === undefined) return;
   event.preventDefault();
-  const at = all.findIndex((option) => option === document.activeElement);
   all[Math.min(all.length - 1, Math.max(0, at + step))]?.focus();
 }
 

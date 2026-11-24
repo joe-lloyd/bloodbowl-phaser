@@ -21,7 +21,7 @@ const column =
 const stack = "flex min-h-0 flex-col gap-3";
 const top = `${stack} overflow-y-auto hud-scroll`;
 const bottom = `${stack} mt-auto shrink-0`;
-const filling = `${stack} flex-1 justify-end`;
+const filling = `${stack} flex-1 [&>:first-child]:mt-auto`;
 const panels = { [HUD_PANELS_ATTRIBUTE]: "" };
 const phoneColumn =
   "absolute flex w-[min(300px,44vw)] flex-col gap-3 overflow-y-auto no-scrollbar";

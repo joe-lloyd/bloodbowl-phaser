@@ -42,13 +42,13 @@ export const click = (selector: string, text?: string) => {
 };
 
 
-function presets(): FormationEntry[] {
-  return new FormationManager().listAllFormations("gallery", true);
+function presets(isTeam1: boolean): FormationEntry[] {
+  return new FormationManager().listAllFormations("gallery", isTeam1);
 }
 
 function withSaved(): FormationEntry[] {
   return [
-    ...presets(),
+    ...presets(true),
     { name: "My cage", builtIn: false, use: "any", positions: new FormationManager().getDefaultFormation(true) },
   ];
 }
@@ -59,7 +59,7 @@ export function showSetup(
     subPhase,
     activeTeam,
     status,
-    formations = presets(),
+    formations = presets(activeTeam.id === fx.team1.id),
   }: {
     subPhase: SubPhase;
     activeTeam: { id: string; name: string };
@@ -81,7 +81,10 @@ export function showSetup(
       ...status,
     },
   });
-  fx.bus.emit(GameEventNames.UI_FormationsUpdated, { formations, isTeam1: true });
+  fx.bus.emit(GameEventNames.UI_FormationsUpdated, {
+    formations,
+    isTeam1: activeTeam.id === fx.team1.id,
+  });
 }
 
 export function showPlacing(fx: MatchFixture) {
