@@ -157,15 +157,8 @@ export const DEPLOYMENTS: readonly Deployment[] = [
   },
 ];
 
-export const FALLBACK_FORMATION = "Bunker";
-
 export function setupLabel(name: string): string {
   return `Set up in the ${name} formation`;
-}
-
-export function deploymentsFor(kicking: boolean): readonly Deployment[] {
-  const use: DeploymentUse = kicking ? "kick" : "receive";
-  return DEPLOYMENTS.filter((d) => d.use === "any" || d.use === use);
 }
 
 const squareKey = (x: number, y: number) => `${String(x)},${String(y)}`;

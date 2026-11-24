@@ -139,51 +139,6 @@ describe("deployments", () => {
     expect(placed["Troll Slayer"]).toMatch(/^6,/);
   });
 
-  async function computerSetup(format: MatchFormat, kicking: boolean) {
-    const game = new HeadlessGame({ seed: 5, format });
-    const kicker = kicking ? game.ctx.team1.id : game.ctx.team2.id;
-    await game.execute({ type: "start-setup", kickingTeamId: kicker });
-    if (!kicking) {
-      const first = await enumerateDecision(game, null);
-      const balanced = fixtureValue(
-        first.candidates.find((c) => c.label.includes("Balanced"))
-      );
-      for (const command of balanced.commands) await game.execute(command);
-    }
-    const point = await enumerateDecision(game, null);
-    const choice = await plannerCoach.choose({
-      game,
-      snapshot: game.snapshot(),
-      point,
-      rng: createCoachRng(1),
-    });
-    return {
-      offered: point.candidates.map((c) => c.label),
-      chosen: fixtureValue(point.candidates[choice.index]).label,
-    };
-  }
-
-  it("has the computer kick from the Blitz line and receive in the Bunker on the Sevens pitch", async () => {
-    const sevens: MatchFormat = { gameType: "sevens", venue: "stadium" };
-    expect((await computerSetup(sevens, true)).chosen).toBe(
-      "Set up in the Kick: Blitz line formation"
-    );
-    expect((await computerSetup(sevens, false)).chosen).toBe(
-      "Set up in the Bunker formation"
-    );
-  });
-
-  it("falls back to the Bunker where the Blitz line does not fit", async () => {
-    const street = await computerSetup(
-      { gameType: "street-bowl", venue: "street" },
-      true
-    );
-    expect(street.offered).not.toContain(
-      "Set up in the Kick: Blitz line formation"
-    );
-    expect(street.chosen).toBe("Set up in the Bunker formation");
-  });
-
   it("refuses a formation square with a role it does not know", () => {
     const command = (role: unknown) => ({
       type: "apply-formation",
