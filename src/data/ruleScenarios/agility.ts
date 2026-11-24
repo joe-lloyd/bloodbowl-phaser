@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { fixtureValue } from "../../testing/fixtureValue";
 import { SkillType } from "../../types/Skills";
+import { RosterName } from "../../types/Team";
 import {
   type RuleScenarioEntry,
   type RuleConfig,
@@ -122,6 +123,17 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "pogo-ignores-penalty",
         name: "Pogo ignores the Jump penalty",
         description: "A -2 marking penalty on a Jump is ignored (net 0)",
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.POGO,
+            roster: RosterName.NIGHT_GOBLIN,
+            positionName: "Squig Hopper",
+            source: "scenario-isolation",
+            reason:
+              "A lineman isolates the Jump modifier from the Hopper's Squig Rage roll.",
+          },
+        ],
         setup: playSetup({
           team1Placements: [
             { playerIndex: 0, x: 10, y: 5, skills: [SkillType.POGO] },

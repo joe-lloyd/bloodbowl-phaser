@@ -121,7 +121,7 @@ export function StatCells({ stats }: { stats: PlayerStats }) {
         stats.MA,
         stats.ST,
         `${String(stats.AG)}+`,
-        `${String(stats.PA)}+`,
+        stats.PA > 0 ? `${String(stats.PA)}+` : "-",
         `${String(stats.AV)}+`,
       ].map((value, index) => (
         <td

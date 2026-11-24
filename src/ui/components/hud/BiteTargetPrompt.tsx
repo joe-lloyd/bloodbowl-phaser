@@ -84,6 +84,7 @@ function BiteTargetPromptView({
   sent,
   biteNobody,
 }: BiteTargetPromptViewProps) {
+  const rage = request.skill === "Squig Rage";
   return (
     <DialogShell
       placement="dock"
@@ -94,7 +95,11 @@ function BiteTargetPromptView({
           playerId={request.playerId}
         />
       }
-      title="Bloodlust: choose who to bite"
+      title={
+        rage
+          ? "Squig Rage: choose a team-mate to knock down"
+          : "Bloodlust: choose who to bite"
+      }
       actions={
         <DialogActions>
           <HudButton
@@ -103,14 +108,15 @@ function BiteTargetPromptView({
             disabled={sent}
             onClick={biteNobody}
           >
-            Bite nobody
+            {rage ? "Become Distracted" : "Bite nobody"}
           </HudButton>
         </DialogActions>
       }
     >
       <p>
-        {biter ?? "This player"} can bite {request.targetIds.length} Thrall
-        Linemen. Click the one to bite on the pitch: they are marked in red.
+        {rage
+          ? "Click a marked team-mate to knock them down and continue the activation."
+          : `${biter ?? "This player"} can bite ${String(request.targetIds.length)} Thrall Linemen. Click the one to bite on the pitch: they are marked in red.`}
       </p>
     </DialogShell>
   );

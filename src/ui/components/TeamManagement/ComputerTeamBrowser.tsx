@@ -152,7 +152,7 @@ export function ComputerTeamBrowser() {
                 target="_blank"
                 rel="noreferrer"
               >
-                Bonehead Podcast guide ↗
+                Roster source ↗
               </a>
             </details>
             <div className="mt-auto flex flex-wrap gap-2">

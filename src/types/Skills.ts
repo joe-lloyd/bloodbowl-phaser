@@ -110,6 +110,8 @@ export const SkillType = {
   RIGHT_STUFF: "Right Stuff",
   SECRET_WEAPON: "Secret Weapon",
   STAB: "Stab",
+  SQUIG_RAGE: "Squig Rage",
+  SQUIG_RESTRAINT: "Squig Restraint",
   STUNTY: "Stunty",
   SWOOP: "Swoop",
   TAKE_ROOT: "Take Root",

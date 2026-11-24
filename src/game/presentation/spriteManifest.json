@@ -72133,6 +72133,14 @@
    "Gnome Lineman": "gnome_lineman",
    "Woodland Fox": "woodland_fox"
   },
+  "Night Goblin": {
+   "Night Goblin Lineman": "goblin_lineman",
+   "Squig Herder": "ooligan",
+   "Squig Hopper": "pogoer",
+   "Squig Wrangler": "fanatic",
+   "Cave Squig": "woodland_fox",
+   "Trained Troll": "troll"
+  },
   "Goblin": {
    "'Ooligan": "ooligan",
    "Bomma": "bomma",

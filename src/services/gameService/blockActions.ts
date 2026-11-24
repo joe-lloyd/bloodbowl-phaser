@@ -30,6 +30,26 @@ function isStandingOpponent(
   );
 }
 
+export async function forceBlock(
+  parts: GameParts,
+  attackerId: string,
+  defenderId: string
+): Promise<void> {
+  const { blockManager, game, movementManager, state } = parts;
+  const attacker = game.getPlayerById(attackerId);
+  if (!attacker || state.activePlayer?.id !== attackerId) return;
+
+  if (attacker.status === PlayerStatus.PRONE) {
+    state.activePlayer = { id: attackerId, action: "block", committed: true };
+    await movementManager.standUp(attackerId);
+    if (game.hasPlayerActed(attackerId)) return;
+  }
+
+  state.activePlayer = null;
+  blockManager.previewBlock(attackerId, defenderId);
+  await blockManager.startBlock(attackerId, defenderId);
+}
+
 export async function multipleBlock({
   parts,
   attackerId,

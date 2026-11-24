@@ -162,7 +162,7 @@ export interface RaceRates {
   blocks: number;
 }
 
-export const RACE_RATES: Record<RosterName, RaceRates> = {
+export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
 ${entries.join("\n")}
 };
 `);

@@ -61,6 +61,7 @@ export interface BiteTargetDecisionRequest {
   chooserTeamId: string;
 
   targetIds: string[];
+  skill?: "Squig Rage";
 }
 
 export interface BiteTargetDecisionAnswer {

@@ -1,6 +1,7 @@
 import {
   RaceKeyWord,
   PositionKeyWord,
+  type PlayerTemplate,
   TraitKeyWord,
 } from "../types/Player";
 import {
@@ -10,6 +11,28 @@ import {
   RosterName,
 } from "../types/Team";
 import { SkillCategory, SkillType, getSkill } from "../types/Skills";
+
+const TRAINED_TROLL: PlayerTemplate = {
+  positionName: "Trained Troll",
+  keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.TROLL],
+  cost: 115_000,
+  stats: { MA: 4, ST: 5, AG: 5, PA: 5, AV: 10 },
+  skills: [
+    getSkill(SkillType.ALWAYS_HUNGRY),
+    getSkill(SkillType.MIGHTY_BLOW),
+    getSkill(SkillType.PROJECTILE_VOMIT),
+    getSkill(SkillType.REALLY_STUPID),
+    getSkill(SkillType.REGENERATION),
+    getSkill(SkillType.THROW_TEAM_MATE),
+  ],
+  maxAllowed: 1,
+  primary: [SkillCategory.STRENGTH],
+  secondary: [
+    SkillCategory.AGILITY,
+    SkillCategory.GENERAL,
+    SkillCategory.PASSING,
+  ],
+};
 
 const AMAZON_ROSTER: TeamRoster = {
   rosterName: RosterName.AMAZON,
@@ -111,27 +134,7 @@ const BLACK_ORC_ROSTER: TeamRoster = {
       primary: [SkillCategory.GENERAL, SkillCategory.STRENGTH],
       secondary: [SkillCategory.AGILITY, SkillCategory.DEVIOUS],
     },
-    {
-      positionName: "Trained Troll",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.TROLL],
-      cost: 115_000,
-      stats: { MA: 4, ST: 5, AG: 5, PA: 5, AV: 10 },
-      skills: [
-        getSkill(SkillType.ALWAYS_HUNGRY),
-        getSkill(SkillType.MIGHTY_BLOW),
-        getSkill(SkillType.PROJECTILE_VOMIT),
-        getSkill(SkillType.REALLY_STUPID),
-        getSkill(SkillType.REGENERATION),
-        getSkill(SkillType.THROW_TEAM_MATE),
-      ],
-      maxAllowed: 1,
-      primary: [SkillCategory.STRENGTH],
-      secondary: [
-        SkillCategory.AGILITY,
-        SkillCategory.GENERAL,
-        SkillCategory.PASSING,
-      ],
-    },
+    TRAINED_TROLL,
   ],
 };
 
@@ -1125,29 +1128,118 @@ const GOBLIN_ROSTER: TeamRoster = {
         SkillCategory.STRENGTH,
       ],
     },
-    {
-      positionName: "Trained Troll",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.TROLL],
-      cost: 115_000,
-      stats: { MA: 4, ST: 5, AG: 5, PA: 5, AV: 10 },
-      skills: [
-        getSkill(SkillType.ALWAYS_HUNGRY),
-        getSkill(SkillType.MIGHTY_BLOW),
-        getSkill(SkillType.PROJECTILE_VOMIT),
-        getSkill(SkillType.REALLY_STUPID),
-        getSkill(SkillType.REGENERATION),
-        getSkill(SkillType.THROW_TEAM_MATE),
-      ],
-      maxAllowed: 2,
-      primary: [SkillCategory.STRENGTH],
-      secondary: [
-        SkillCategory.AGILITY,
-        SkillCategory.GENERAL,
-        SkillCategory.PASSING,
-      ],
-    },
+    { ...TRAINED_TROLL, maxAllowed: 2 },
   ],
 };
+const NIGHT_GOBLIN_ROSTER: TeamRoster = {
+  rosterName: RosterName.NIGHT_GOBLIN,
+  rerollCost: 70_000,
+  leagues: GOBLIN_ROSTER.leagues,
+  specialRules: [TeamSpecialRule.BRIBERY_AND_CORRUPTION],
+  tier: 4,
+  apothecary: true,
+  playerTemplates: [
+    {
+      positionName: "Night Goblin Lineman",
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.GOBLIN],
+      cost: 45_000,
+      stats: { MA: 6, ST: 2, AG: 3, PA: 4, AV: 8 },
+      skills: [
+        getSkill(SkillType.DODGE),
+        getSkill(SkillType.RIGHT_STUFF),
+        getSkill(SkillType.SHADOWING),
+        getSkill(SkillType.STUNTY),
+        getSkill(SkillType.TAUNT),
+      ],
+      maxAllowed: 16,
+      primary: [SkillCategory.AGILITY, SkillCategory.DEVIOUS],
+      secondary: [
+        SkillCategory.GENERAL,
+        SkillCategory.PASSING,
+        SkillCategory.STRENGTH,
+      ],
+    },
+    {
+      positionName: "Squig Herder",
+      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.GOBLIN],
+      cost: 55_000,
+      stats: { MA: 6, ST: 2, AG: 3, PA: 5, AV: 8 },
+      skills: [
+        getSkill(SkillType.DODGE),
+        getSkill(SkillType.DISTURBING_PRESENCE),
+        getSkill(SkillType.FEND),
+        getSkill(SkillType.SQUIG_RESTRAINT),
+        getSkill(SkillType.STUNTY),
+      ],
+      maxAllowed: 2,
+      primary: [SkillCategory.AGILITY, SkillCategory.DEVIOUS],
+      secondary: [
+        SkillCategory.GENERAL,
+        SkillCategory.PASSING,
+        SkillCategory.STRENGTH,
+      ],
+    },
+    {
+      positionName: "Squig Hopper",
+      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.GOBLIN, RaceKeyWord.SQUIG],
+      cost: 80_000,
+      stats: { MA: 7, ST: 3, AG: 3, PA: 4, AV: 8 },
+      skills: [
+        getSkill(SkillType.DODGE),
+        getSkill(SkillType.JUMP_UP),
+        getSkill(SkillType.MONSTROUS_MOUTH),
+        getSkill(SkillType.POGO),
+        getSkill(SkillType.SQUIG_RAGE),
+      ],
+      maxAllowed: 2,
+      primary: [SkillCategory.AGILITY, SkillCategory.DEVIOUS],
+      secondary: [
+        SkillCategory.GENERAL,
+        SkillCategory.PASSING,
+        SkillCategory.STRENGTH,
+      ],
+    },
+    {
+      positionName: "Squig Wrangler",
+      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.GOBLIN, RaceKeyWord.SQUIG],
+      cost: 70_000,
+      stats: { MA: 3, ST: 7, AG: 3, PA: 0, AV: 8 },
+      skills: [
+        getSkill(SkillType.BALL_AND_CHAIN),
+        getSkill(SkillType.NO_BALL),
+        getSkill(SkillType.SQUIG_RAGE),
+        getSkill(SkillType.STUNTY),
+      ],
+      maxAllowed: 2,
+      primary: [SkillCategory.DEVIOUS, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
+    },
+    {
+      positionName: "Cave Squig",
+      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.SQUIG],
+      cost: 85_000,
+      stats: { MA: 6, ST: 4, AG: 3, PA: 0, AV: 9 },
+      skills: [
+        getSkill(SkillType.FRENZY),
+        getSkill(SkillType.JUMP_UP),
+        getSkill(SkillType.MONSTROUS_MOUTH),
+        getSkill(SkillType.NO_BALL),
+        getSkill(SkillType.POGO),
+        getSkill(SkillType.SQUIG_RAGE),
+      ],
+      maxAllowed: 2,
+      primary: [],
+      secondary: [
+        SkillCategory.AGILITY,
+        SkillCategory.DEVIOUS,
+        SkillCategory.GENERAL,
+        SkillCategory.STRENGTH,
+      ],
+    },
+    TRAINED_TROLL,
+  ],
+};
+
 const HALFLING_ROSTER: TeamRoster = {
   rosterName: RosterName.HALFLING,
   rerollCost: 60_000,
@@ -2496,27 +2588,7 @@ const SNOTLING_ROSTER: TeamRoster = {
       primary: [SkillCategory.DEVIOUS, SkillCategory.STRENGTH],
       secondary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
     },
-    {
-      positionName: "Trained Troll",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.TROLL],
-      cost: 115_000,
-      stats: { MA: 4, ST: 5, AG: 5, PA: 5, AV: 10 },
-      skills: [
-        getSkill(SkillType.ALWAYS_HUNGRY),
-        getSkill(SkillType.MIGHTY_BLOW),
-        getSkill(SkillType.PROJECTILE_VOMIT),
-        getSkill(SkillType.REALLY_STUPID),
-        getSkill(SkillType.REGENERATION),
-        getSkill(SkillType.THROW_TEAM_MATE),
-      ],
-      maxAllowed: 2,
-      primary: [SkillCategory.STRENGTH],
-      secondary: [
-        SkillCategory.AGILITY,
-        SkillCategory.GENERAL,
-        SkillCategory.PASSING,
-      ],
-    },
+    { ...TRAINED_TROLL, maxAllowed: 2 },
   ],
 };
 const TOMB_KINGS_ROSTER: TeamRoster = {
@@ -3008,6 +3080,8 @@ export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
       return LIZARDMEN_ROSTER;
     case RosterName.NECROMANTIC_HORROR:
       return NECROMANTIC_HORROR_ROSTER;
+    case RosterName.NIGHT_GOBLIN:
+      return NIGHT_GOBLIN_ROSTER;
     case RosterName.NORSE:
       return NORSE_ROSTER;
     case RosterName.NURGLE:
@@ -3057,6 +3131,7 @@ export function getAvailableRosterNames(): RosterName[] {
     RosterName.KHORNE,
     RosterName.LIZARDMEN,
     RosterName.NECROMANTIC_HORROR,
+    RosterName.NIGHT_GOBLIN,
     RosterName.NORSE,
     RosterName.NURGLE,
     RosterName.OGRE,

@@ -38,6 +38,7 @@ export function requestedDecision(
         playerId: request.playerId,
         chooserTeamId: request.chooserTeamId,
         targetIds: [...request.targetIds],
+        ...(request.skill ? { skill: request.skill } : {}),
       };
     case "interception":
       return {

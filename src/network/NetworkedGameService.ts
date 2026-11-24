@@ -318,6 +318,10 @@ export class NetworkedGameService implements IGameService {
     this.inner.previewBlock(attackerId, defenderId);
   }
 
+  forceBlock(attackerId: string, defenderId: string): Promise<void> {
+    return this.inner.forceBlock(attackerId, defenderId);
+  }
+
   startSetup(startingTeamId?: string): void {
     if (startingTeamId) {
       this.send({ type: "start-setup", kickingTeamId: startingTeamId });

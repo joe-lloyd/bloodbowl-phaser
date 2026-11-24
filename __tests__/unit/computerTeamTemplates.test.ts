@@ -36,21 +36,21 @@ beforeEach(() => {
 describe("computer team templates", () => {
   it("is available without seeding or saving teams, with distinct identities", () => {
     const templates = getComputerTeamTemplates();
-    expect(templates).toHaveLength(82);
+    expect(templates).toHaveLength(83);
     expect(new Set(templates.map((template) => template.rosterName)).size).toBe(
-      30
+      31
     );
     expect(
       new Set(COMPUTER_TEAM_CATALOGUE.map((template) => template.id)).size
-    ).toBe(83);
+    ).toBe(84);
     expect(
       new Set(COMPUTER_TEAM_CATALOGUE.map((template) => template.name)).size
-    ).toBe(83);
+    ).toBe(84);
     expect(
       new Set(
         COMPUTER_TEAM_CATALOGUE.map((template) => template.colors.primary)
       ).size
-    ).toBe(83);
+    ).toBe(84);
     expect(loadTeams()).toEqual([]);
   });
 
@@ -93,7 +93,7 @@ describe("computer team templates", () => {
     ).toBe(false);
     expect(
       getComputerTeamTemplates({ ruleset: NAF_SEVENS_RULESET })
-    ).toHaveLength(83);
+    ).toHaveLength(84);
     expect(() => createComputerTeamFromTemplate(id)).toThrow(
       "Too many Insignificant"
     );

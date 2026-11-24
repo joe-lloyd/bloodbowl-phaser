@@ -43,6 +43,13 @@ const SEVENS_COMPOSITIONS: Partial<
     { position: "Fanatic", count: 1 },
   ],
 
+  [RosterName.NIGHT_GOBLIN]: [
+    { position: "Squig Hopper", count: 1 },
+    { position: "Squig Wrangler", count: 1 },
+    { position: "Squig Herder", count: 1 },
+    { position: "Night Goblin Lineman", count: 4 },
+  ],
+
   [RosterName.DARK_ELF]: [
     { position: "Assassin", count: 2 },
     { position: "Dark Elf Lineman", count: 5 },

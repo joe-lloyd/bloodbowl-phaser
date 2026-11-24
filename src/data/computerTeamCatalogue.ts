@@ -444,6 +444,21 @@ const definitions: readonly ComputerTeamTemplate[] = [
     rerolls: 1,
   },
   {
+    id: "night-goblin-squig-herd",
+    name: "Moonlit Menace",
+    rosterName: RosterName.NIGHT_GOBLIN,
+    colors: { primary: 0x2e2754, secondary: 0xf1c453 },
+    buildName: "Squig herd",
+    sourceUrl: "https://www.warhammer-community.com/en-gb/articles/cldbqvox/designers-notes-night-goblin-blood-bowl-team/",
+    players: [
+      ["Night Goblin Lineman", 4],
+      ["Squig Herder", 1],
+      ["Squig Hopper", 1],
+      ["Squig Wrangler", 1],
+    ],
+    rerolls: 2,
+  },
+  {
     id: "halfling-best-stuff-roster",
     name: "Second Breakfast Club",
     rosterName: RosterName.HALFLING,

@@ -2,6 +2,7 @@ import { GamePhase, SubPhase } from "../types/GameState";
 import { type ActionType } from "../types/events";
 import { type BlockResult } from "../services/BlockResolutionService";
 import type {
+  BiteTargetDecisionRequest,
   DopeStat,
   FoulAssistsDecisionRequest,
   InducementChoiceDecisionRequest,
@@ -232,12 +233,7 @@ export type PendingDecision =
       prompt: string;
       opponentId?: string;
     }
-  | {
-      type: "bite-target";
-      playerId: string;
-      chooserTeamId: string;
-      targetIds: string[];
-    }
+  | BiteTargetDecisionRequest
   | {
       type: "interception";
       chooserTeamId: string;

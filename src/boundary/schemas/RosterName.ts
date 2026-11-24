@@ -13,6 +13,7 @@ export const rosterNameSchema: z.ZodType<RosterName> = z.union([
   z.literal("Elven Union"),
   z.literal("Gnome"),
   z.literal("Goblin"),
+  z.literal("Night Goblin"),
   z.literal("Halfling"),
   z.literal("High Elf"),
   z.literal("Human"),
