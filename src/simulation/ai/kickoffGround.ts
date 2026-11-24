@@ -38,6 +38,7 @@ export interface KickoffGroundArgs {
   teamId: string;
   w: Weights;
   available?: ReadonlyMap<string, ReadonlySet<ActionType>>;
+  limit?: number;
 }
 
 function landingSquare(board: Board): Square | null {
@@ -51,6 +52,7 @@ export function kickoffGround({
   teamId,
   w,
   available = new Map(),
+  limit = available.size,
 }: KickoffGroundArgs): KickoffGround {
   const read = readBoard(game, teamId);
   const { kick } = read.gs.getState();
@@ -63,7 +65,13 @@ export function kickoffGround({
     ),
   };
   return {
-    c: { ...context({ board, w, available }), goal: "attack" },
+    c: {
+      ...context({ board, w, available }),
+      turnover:
+        w.turnoverBase +
+        w.turnoverPerPlayer * Math.max(0, Math.min(limit, available.size) - 1),
+      goal: "attack",
+    },
     kicking: kick?.kickingTeamId === teamId,
     landing: landingSquare(read),
   };

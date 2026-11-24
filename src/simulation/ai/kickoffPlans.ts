@@ -52,7 +52,8 @@ function pricedHit(ground: KickoffGround, plan: Activation): Activation {
 function rawPlans({ ground, player, actions, squares }: PlanArgs) {
   const { c, landing } = ground;
   const out: Activation[] = [];
-  if (landing && key(player.gridPosition) === key(landing)) return out;
+  const underTheBall = landing && key(player.gridPosition) === key(landing);
+  if (underTheBall && actions.has("move")) return out;
   if (actions.has("move"))
     out.push(
       ...repositionActivation(c, player, [

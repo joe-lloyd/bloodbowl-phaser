@@ -8,8 +8,9 @@ import { createSearchCoach } from "../../src/simulation/ai/search";
 import { randomCoach } from "../../src/simulation/coaches/random";
 import { createCoachRng } from "../../src/simulation/rng";
 import { fixtureValue } from "../../src/testing/fixtureValue";
+import { SkillType, getSkill } from "../../src/types/Skills";
 import { type Scenario } from "../../src/types/Scenario";
-import { rehearse } from "../headless/kickoffRehearsal";
+import { choose, rehearse } from "../headless/kickoffRehearsal";
 import { kickoffScenario } from "../headless/kickoffKicks";
 
 const LANDING = { x: 17, y: 5 };
@@ -165,6 +166,40 @@ describe("the computer coach plays its kick-off moves", () => {
     const { commands, notes } = await coachPlays(game);
     expect(commands).toContain("block");
     expect(notes.join()).toContain("Charge!: blitzes");
+  });
+
+  it("Charge!: a declared Blitz carries on past the landing square", async () => {
+    const { game, home, away } = await rehearse(KickoffEvent.CHARGE, {
+      players: 1,
+      scenario: lineUp([[12, 5]], [[19, 5]]),
+    });
+    home(0).stats.ST = 5;
+    away(0).stats.ST = 2;
+    const playerId = home(0).id;
+    await choose(game, [playerId]);
+    await game.execute({ type: "declare-action", playerId, action: "blitz" });
+    home(0).gridPosition = { ...LANDING };
+    expect((await coachPlays(game)).commands).toContain("block");
+  });
+
+  it("Quick Attack: team-mates who cannot act do not put it off a block", async () => {
+    const { game, home, away } = await rehearse(KickoffEvent.QUICK_ATTACK, {
+      scenario: lineUp(
+        [
+          [9, 5],
+          [2, 1],
+          [2, 3],
+          [2, 5],
+          [2, 7],
+          [2, 9],
+          [3, 8],
+        ],
+        [[10, 5]]
+      ),
+    });
+    home(0).skills = [...home(0).skills, getSkill(SkillType.BLOCK)];
+    away(0).skills = [];
+    expect((await coachPlays(game)).commands).toContain("block");
   });
 
   it("Alert Defence: steps towards the ball and stays out of contact", async () => {

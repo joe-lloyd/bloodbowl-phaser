@@ -99,7 +99,13 @@ function wantedPicks({ game, teamId, w, pending }: PickArgs): Pick[] {
     play?.kind === "actions" ? play.actions : []
   );
   const available: Available = new Map(able.map((p) => [p.id, actions]));
-  const ground = kickoffGround({ game, teamId, w, available });
+  const ground = kickoffGround({
+    game,
+    teamId,
+    w,
+    available,
+    limit: selectionLimit,
+  });
   if (!play) return highKickPick(ground, able);
   if (play.kind === "one-square")
     return bestSteps(ground, able, selectionLimit);
@@ -191,7 +197,7 @@ function actorPlan(ground: KickoffGround, args: TurnArgs): Activation | null {
 export function kickoffMove(args: TurnArgs): KickoffMove {
   const { game, turn } = args;
   if (turn.play.kind === "one-square") return nextStep(args);
-  const ground = kickoffGround(args);
+  const ground = kickoffGround({ ...args, limit: turn.selectionLimit });
   const plan = game.ctx.gameService.getState().activePlayer?.action
     ? actorPlan(ground, args)
     : teamPlans(ground, turn.selectionLimit)[0];
