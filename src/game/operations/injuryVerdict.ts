@@ -1,3 +1,4 @@
+import { earnsCasualtySpp } from "../rules/casualtyCredit";
 import { GameEventNames } from "../../types/events";
 import { InjuryType, type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
@@ -188,9 +189,12 @@ export function recordSeriousKnockout(
     ...(blame.causedById === undefined ? {} : { causerId: blame.causedById }),
     victimId: player.id,
     cause: blame.cause,
-    sppEligible:
-      blame.cause === "block" &&
-      !!blame.causedById &&
-      blame.causedById !== player.id,
+    sppEligible: earnsCasualtySpp(
+      blame.causedById === undefined
+        ? undefined
+        : context.gameService.getPlayerById(blame.causedById),
+      player,
+      blame.cause
+    ),
   });
 }

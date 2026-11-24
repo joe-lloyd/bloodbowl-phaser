@@ -8,6 +8,7 @@ import { addReserveLineman, raiseDead } from "./raiseDead";
 export type CasualtyCause =
   | "block"
   | "special"
+  | "foul"
   | "dodge"
   | "lethal-flight"
   | "lash-out";

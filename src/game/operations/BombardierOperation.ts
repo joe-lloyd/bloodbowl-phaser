@@ -153,11 +153,11 @@ export class BombardierOperation extends GameOperation {
         GameEventNames.UI_Notification,
         `${occupant.playerName} drops the bomb — it explodes!`
       );
-      explodeBomb(context, landing);
+      explodeBomb(context, landing, throwerId);
       return;
     }
 
-    explodeBomb(context, landing);
+    explodeBomb(context, landing, throwerId);
   }
 
   private async rethrow(
@@ -277,7 +277,8 @@ export class BombardierOperation extends GameOperation {
 
 function explodeBomb(
   context: FlowContext,
-  square: { x: number; y: number }
+  square: { x: number; y: number },
+  throwerId?: string
 ): void {
   const gameService = context.gameService;
   const eventBus = context.eventBus;
@@ -304,7 +305,7 @@ function explodeBomb(
     }
 
     context.flowManager.add(
-      new ArmourOperation(player.id, undefined, undefined, "special"),
+      new ArmourOperation(player.id, throwerId, undefined, "special"),
       true
     );
   }

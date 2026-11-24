@@ -37,6 +37,7 @@ export interface BlockGameEvents {
     cause:
       | "block"
       | "special"
+      | "foul"
       | "dodge"
       | "crowd"
       | "lethal-flight"
