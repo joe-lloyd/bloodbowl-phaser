@@ -20,7 +20,6 @@ export const teamPlayStatsSchema: z.ZodType<TeamPlayStats> = z.looseObject({
     punt: z.number().exactOptional(),
     handoff: z.number().exactOptional(),
     foul: z.number().exactOptional(),
-    standUp: z.number().exactOptional(),
     throwTeamMate: z.number().exactOptional(),
     secureBall: z.number().exactOptional(),
     special: z.number().exactOptional(),

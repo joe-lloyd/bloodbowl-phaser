@@ -92,7 +92,10 @@ function moveDeclarationValue(
   if (!board.carrier && board.ball) {
     return 80 - chebyshev(at, board.ball) * 5;
   }
-  return 20 - (board.ball ? chebyshev(at, board.ball) : 0);
+  const reposition = 20 - (board.ball ? chebyshev(at, board.ball) : 0);
+  return player.status === PlayerStatus.PRONE
+    ? Math.max(15, reposition)
+    : reposition;
 }
 
 function blitzDeclarationValue(
@@ -128,7 +131,6 @@ function declarationValue(
   const transfer = board.carrier?.id === player.id ? 30 : 0;
   const values: Partial<Record<CommandOf<"declare-action">["action"], number>> =
     {
-      standUp: 15,
       pass: transfer,
       handoff: transfer,
       foul: 8,

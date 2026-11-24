@@ -377,11 +377,11 @@ function chaseRoute(
 
 function standUpActivation(c: Context, player: Player): Activation[] {
   return player.status === PlayerStatus.PRONE &&
-    c.available.get(player.id)?.has("standUp")
+    c.available.get(player.id)?.has("move")
     ? [
         {
           player,
-          action: "standUp",
+          action: "move",
           intent: { kind: "stand-up" },
           tier: "support",
           value: c.w.standUp,

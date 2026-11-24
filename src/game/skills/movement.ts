@@ -1,6 +1,8 @@
 import { type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 
+export const STAND_UP_TARGET = 4;
+
 export function rushAllowance(player: Player): number {
   return hasSkill(player.skills ?? [], SkillType.SPRINT) ? 3 : 2;
 }

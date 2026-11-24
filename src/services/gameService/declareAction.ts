@@ -292,7 +292,7 @@ function replacementAllowed({
       hasReachableBlockReplacementTarget(
         activating,
         parts.game.getOpponents(activating.teamId),
-        parts.game.getAvailableMovements(activating.id),
+        parts.game.getAvailableMovements(activating.id, "jump"),
         chosen
       )
     );

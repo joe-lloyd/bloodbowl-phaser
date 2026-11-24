@@ -5,6 +5,7 @@ export const promptRollTypeSchema: z.ZodType<PromptRollType> = z.union([
   z.literal("pass"),
   z.literal("secureBall"),
   z.literal("dodge"),
+  z.literal("jump"),
   z.literal("rush"),
   z.literal("barricade"),
   z.literal("pickup"),

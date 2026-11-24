@@ -1,9 +1,9 @@
 import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
-import { actionHasMove } from "@/game/rules/actionAvailability";
+import { usesBaseMove } from "@/game/rules/actionAvailability";
 import { kickoffTurnAllows } from "@/game/kickoff/kickoffTurn";
 import type { Player } from "@/types/Player";
 import { adjacentSquare } from "./squares";
-import { GameEventNames } from "@/types/events";
+import { type ActionType, GameEventNames } from "@/types/events";
 import { SkillType, hasSkill } from "@/types/Skills";
 import type { GameParts } from "./parts";
 import { awaitingSecondAction, whenSettled } from "./activation";
@@ -14,17 +14,44 @@ interface Square {
   y: number;
 }
 
-function refuseOutsideKickoffTurn(parts: GameParts, playerId: string): void {
+function declaredAction(parts: GameParts, playerId: string): ActionType {
   const { activePlayer } = parts.state;
-  const action =
-    activePlayer?.id === playerId ? (activePlayer.action ?? "move") : "move";
+  return activePlayer?.id === playerId
+    ? (activePlayer.action ?? "move")
+    : "move";
+}
+
+function refuseOutsideKickoffTurn(
+  parts: GameParts,
+  playerId: string,
+  action: ActionType
+): void {
   if (!kickoffTurnOf(parts.state)) return;
   if (
     !parts.game.canActivate(playerId) ||
-    !kickoffTurnAllows(parts.state, action) ||
-    !actionHasMove(action)
+    !kickoffTurnAllows(parts.state, action)
   )
     throw new Error("player-not-in-kickoff-turn");
+}
+
+function mayStandToBlock(player: Player | undefined, action: ActionType) {
+  return action === "block" && !!player && hasSkill(player.skills, SkillType.JUMP_UP);
+}
+
+function mayUseBaseMove(
+  parts: GameParts,
+  playerId: string,
+  kind: "move" | "stand"
+): boolean {
+  if (awaitingSecondAction(parts, playerId)) return false;
+  const action = declaredAction(parts, playerId);
+  refuseOutsideKickoffTurn(parts, playerId, action);
+  const standsToBlock =
+    kind === "stand" &&
+    mayStandToBlock(parts.game.getPlayerById(playerId), action);
+  if (!usesBaseMove(action) && !standsToBlock)
+    throw new Error(`A player may not move during a ${action} action`);
+  return true;
 }
 
 export async function movePlayer(
@@ -32,13 +59,8 @@ export async function movePlayer(
   playerId: string,
   path: MoveStep[]
 ): Promise<void> {
-  if (awaitingSecondAction(parts, playerId)) return;
-  refuseOutsideKickoffTurn(parts, playerId);
+  if (!mayUseBaseMove(parts, playerId, "move")) return;
 
-  const declared = parts.state.activePlayer;
-  if (declared?.id === playerId && declared.action === "throwBomb") {
-    throw new Error("A bomber may not move before throwing the bomb");
-  }
   const context = parts.game.getFlowContext();
   await parts.movementManager.movePlayer(playerId, path, context);
 
@@ -73,8 +95,7 @@ export async function standUp(
   parts: GameParts,
   playerId: string
 ): Promise<void> {
-  if (awaitingSecondAction(parts, playerId)) return;
-  refuseOutsideKickoffTurn(parts, playerId);
+  if (!mayUseBaseMove(parts, playerId, "stand")) return;
 
   if (parts.state.activePlayer?.id !== playerId) {
     if (!parts.game.declareAction({ playerId, action: "move" })) {
@@ -98,8 +119,7 @@ export async function jumpPlayer(
   playerId: string,
   target: Square
 ): Promise<void> {
-  if (awaitingSecondAction(parts, playerId)) return;
-  refuseOutsideKickoffTurn(parts, playerId);
+  if (!mayUseBaseMove(parts, playerId, "move")) return;
   const context = parts.game.getFlowContext();
   await parts.movementManager.jumpPlayer(playerId, target, context);
   parts.playerActionManager.commitAction(playerId);

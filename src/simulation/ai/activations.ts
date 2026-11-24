@@ -145,7 +145,7 @@ function fieldOptions(
   out.push(...skillOptions(c, player, actions));
   if (actions.has("blitz")) out.push(...blitzActivations(c, player));
   if (actions.has("foul")) out.push(...foulActivations(c, player));
-  if (actions.has("move") || actions.has("standUp"))
+  if (actions.has("move"))
     out.push(...repositionActivation(c, player, roleSquares(c)));
   return out;
 }
@@ -366,7 +366,6 @@ const CONTINUATIONS: Partial<
   Record<ActionType, (c: Context, player: Player) => Activation[]>
 > = {
   move: movementContinuation,
-  standUp: movementContinuation,
   block: blockActivations,
   handoff: (c, player) => transferContinuation(c, player, "handoff"),
   pass: (c, player) => transferContinuation(c, player, "pass"),

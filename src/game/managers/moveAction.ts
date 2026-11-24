@@ -17,7 +17,7 @@ import {
   type DodgeDeclaredContext,
   type DodgeResolvedContext,
 } from "../skills";
-import { moveAllowance, standUpCost } from "../skills/movement";
+import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import {
   bananaSkinTeam,
@@ -41,7 +41,7 @@ import {
   isBallAt,
   movementUsed,
   rollRush,
-  rollToStand,
+  standToMove,
   teamsOf,
 } from "./movementShared";
 
@@ -70,7 +70,6 @@ type PreparedMove =
       maView: Player;
 
       opponents: Player[];
-      preUsed: number;
     }
   | { ok: false; reason: string };
 
@@ -102,21 +101,16 @@ export async function movePlayer(
 ): Promise<void> {
   const prepared = prepareMove(deps, playerId, path);
   if (!prepared.ok) return Promise.reject(prepared.reason);
-  const { player, maView, preUsed } = prepared;
+  const { player, maView } = prepared;
   const { eventBus, diceController } = deps;
 
-  let standingCost = 0;
-  if (player.status === PlayerStatus.PRONE) {
-    standingCost = standUpCost(maView);
-    if (!(await rollToStand(deps, maView))) {
-      deps.state.turn.movementUsed.set(playerId, preUsed + standingCost);
-      deps.callbacks.onActivationFinished(playerId);
-      return;
-    }
-    standUpToMove(deps, player, standingCost);
-  }
+  if (
+    player.status === PlayerStatus.PRONE &&
+    !(await standToMove(deps, player, maView))
+  )
+    return;
 
-  const run = beginRoute(deps, prepared, context, standingCost);
+  const run = beginRoute(deps, prepared, context);
   const { gameService } = run;
   let end: MoveEnd = "walked";
   for (const move of path) {
@@ -295,24 +289,13 @@ function prepareMove(
     player,
     maView,
     opponents,
-    preUsed: movementUsed(state, playerId),
   };
-}
-
-function standUpToMove(deps: MovementDeps, player: Player, cost: number): void {
-  player.status = PlayerStatus.ACTIVE;
-  deps.eventBus.emit(GameEventNames.PlayerStoodUp, {
-    playerId: player.id,
-    cost,
-  });
-  deps.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 }
 
 function beginRoute(
   deps: MovementDeps,
   prepared: Extract<PreparedMove, { ok: true }>,
-  context: FlowContext | undefined,
-  standingCost: number
+  context: FlowContext | undefined
 ): MoveRun {
   const { player } = prepared;
   const currentPos = player.gridPosition!;
@@ -324,8 +307,8 @@ function beginRoute(
     context,
     gameService: context?.gameService,
     opponents: prepared.opponents,
-    preUsed: prepared.preUsed,
-    stepsTaken: standingCost,
+    preUsed: movementUsed(deps.state, player.id),
+    stepsTaken: 0,
     currentPos,
     completedPath: [],
     holdingBall,

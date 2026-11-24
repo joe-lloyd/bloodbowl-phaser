@@ -24,6 +24,7 @@ const LEGACY_DEFAULTS = new Map([
 const LENIENT_ARRAYS = new Set(["Player.keywords"]);
 const RENAMED_VALUES = new Map([
   ["KickoffEvent", { "Solid Defence": "Alert Defence" }],
+  ["ActionType", { standUp: "move" }],
 ]);
 
 function exportedName(type) {

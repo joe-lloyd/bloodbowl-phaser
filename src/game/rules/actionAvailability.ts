@@ -7,7 +7,7 @@ import {
 } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "./throwTeammate";
-import { jumpTargets } from "./jump";
+import { legalJumpTargets } from "./jump";
 import { canSecureBall } from "./secureBall";
 import {
   type BlockReplacement,
@@ -19,7 +19,6 @@ import {
 } from "./blockReplacements";
 import { type ActionType } from "../../types/events";
 import { chebyshev } from "./chebyshev";
-import { isStandableSquare } from "./pitchSquares";
 
 const ACTIONS_WITH_A_MOVE: ReadonlySet<ActionType> = new Set<ActionType>([
   "move",
@@ -34,8 +33,12 @@ const ACTIONS_WITH_A_MOVE: ReadonlySet<ActionType> = new Set<ActionType>([
   "ballAndChain",
 ]);
 
-export function actionHasMove(action: ActionType): boolean {
+function actionHasMove(action: ActionType): boolean {
   return ACTIONS_WITH_A_MOVE.has(action);
+}
+
+export function usesBaseMove(action: ActionType): boolean {
+  return actionHasMove(action) && action !== "ballAndChain";
 }
 
 export function razzleDazzleAllows(
@@ -311,21 +314,11 @@ function standingStillActions(board: ActingBoard) {
     hasSkill(player.skills, SkillType.MULTIPLE_BLOCK) &&
     adjacentEnemies.length >= 2;
 
-  const canJumpAnything =
-    hasSkill(player.skills, SkillType.LEAP) ||
-    hasSkill(player.skills, SkillType.POGO);
   const jump =
     isStanding(player) &&
-    jumpTargets(
-      here,
-      [...opponents, ...teammates].filter(onPitch),
-      canJumpAnything,
-      inBounds
-    ).length > 0;
+    legalJumpTargets(player, here, [...opponents, ...teammates]).length > 0;
   return { block, multipleBlock, jump };
 }
-
-const inBounds = (x: number, y: number) => isStandableSquare({ x, y });
 
 function blockReplacementActions(board: ActingBoard) {
   const { player, opponents, reachable, turn } = board.input;

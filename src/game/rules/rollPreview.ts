@@ -56,6 +56,34 @@ export function dodgeTarget(
   return requiredRoll(player.stats.AG, modifier);
 }
 
+interface PlannedJump {
+  player: Player;
+  from: Square;
+  to: Square;
+  opponents: Player[];
+}
+
+function jumpPenalty({ player, from, to, opponents }: PlannedJump): number {
+  if (has(player, SkillType.POGO)) return 0;
+  const leaving = markingPlayers(from, opponents);
+  const marking = Math.max(
+    leaving.length,
+    markingPlayers(to, opponents).length
+  );
+  const tail = leaving.some((p) => has(p, SkillType.PREHENSILE_TAIL));
+  const penalty = marking + (tail ? 1 : 0);
+  return has(player, SkillType.LEAP) && penalty > 1 ? penalty - 1 : penalty;
+}
+
+export function jumpTarget(jump: PlannedJump): number {
+  const { player } = jump;
+  const legs = has(player, SkillType.VERY_LONG_LEGS) ? 1 : 0;
+  return requiredRoll(
+    player.stats.AG,
+    legs - jumpPenalty(jump)
+  );
+}
+
 const disturbing = (player: Player, opponents: Player[]) =>
   opponents.filter(
     (p) =>
@@ -228,12 +256,13 @@ export function blockPreviewLines(
 }
 
 export interface RouteRoll {
-  type: "dodge" | "rush" | "barricade" | "pickup" | "secureBall";
+  type: "dodge" | "jump" | "rush" | "barricade" | "pickup" | "secureBall";
   target: number;
   square: Square;
 }
 export const ROUTE_ROLL_NAMES: Record<RouteRoll["type"], string> = {
   dodge: "Dodge",
+  jump: "Jump",
   rush: "Rush",
   barricade: "Reckless crossing",
   pickup: "Pick up",

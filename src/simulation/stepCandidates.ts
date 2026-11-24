@@ -14,6 +14,7 @@ import { legalHandoffTargets } from "../game/rules/handoff";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 import { GameConfig } from "../config/GameConfig";
 import { jumpTargets } from "../game/rules/jump";
+import { usesBaseMove } from "../game/rules/actionAvailability";
 import { moveAllowance } from "../game/skills/movement";
 import { withDriveModifiers } from "../game/kickoff/driveEffects";
 import { hasSkill, SkillType } from "../types/Skills";
@@ -82,7 +83,7 @@ function ballAndChainSteps({ player, at, action, step }: StepContext): void {
 }
 
 const STANDS_TO_ACT = new Set<StepContext["action"]>([
-  "standUp",
+  "move",
   "blitz",
   "gaze",
 ]);
@@ -100,7 +101,6 @@ function moveSteps({ gs, player, at, action, step }: StepContext): void {
   if (
     action === "block" ||
     action === "multipleBlock" ||
-    (action === "standUp" && player.status === PlayerStatus.PRONE) ||
     action === "ballAndChain" ||
     isDirectReplacement(action)
   )
@@ -121,14 +121,9 @@ function moveSteps({ gs, player, at, action, step }: StepContext): void {
 }
 
 function canJump({ gs, state, player, action }: StepContext): boolean {
-  const movesWithJumps =
-    action === "move" ||
-    action === "blitz" ||
-    action === "pass" ||
-    action === "handoff" ||
-    action === "foul";
   return (
-    movesWithJumps &&
+    action !== null &&
+    usesBaseMove(action) &&
     player.status === PlayerStatus.ACTIVE &&
     !hasCondition(player, PlayerCondition.ROOTED) &&
     !hasCondition(player, PlayerCondition.CHOMPED) &&

@@ -95,7 +95,7 @@ describe("a knockout tie", () => {
       rerollsCarried: 0,
     };
 
-    for (const seed of [...Array.from({ length: 16 }, (_, i) => i + 1), 34]) {
+    for (const seed of [...Array.from({ length: 16 }, (_, i) => i + 1), 26]) {
       const game = await play(seed, true);
       const { state, home, away } = game;
       expect(game.recording.findings, `seed ${String(seed)}`).toEqual([]);

@@ -13,7 +13,7 @@ import {
   type JumpDeclaredContext,
   type JumpResolvedContext,
 } from "../skills/SkillRule";
-import { legalJumpTargets } from "../rules/jump";
+import { JUMP_COST, jumpRushes, legalJumpTargets } from "../rules/jump";
 import { trapdoorOpens } from "../inducements/matchInducements";
 import { isSecuringBall } from "../rules/secureBall";
 import {
@@ -29,8 +29,6 @@ import {
   rollRush,
   teamsOf,
 } from "./movementShared";
-
-const JUMP_COST = 2;
 
 interface JumpRun {
   deps: MovementDeps;
@@ -61,10 +59,7 @@ export async function jumpPlayer(
   const { player, gameService } = jump;
   const { eventBus, diceController } = deps;
 
-  const rushesNeeded = Math.max(
-    0,
-    jump.preUsed + JUMP_COST - jump.maView.stats.MA
-  );
+  const rushesNeeded = jumpRushes(jump.preUsed, jump.maView.stats.MA);
   for (let i = 0; i < rushesNeeded; i++) {
     const check = await rollRush(deps, player, gameService);
     if (

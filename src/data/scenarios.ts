@@ -352,6 +352,28 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "base-move",
+    name: "Base Move in every action",
+    description:
+      "Jump is the second half of Move in every action that moves. Blitz with the carrier at (8,5): press Jump, land past the Prone defender, then pick the defender at (12,5). Or declare Pass, Jump, and throw to (12,8). The Prone team-mate at (4,8) has Stand Up as the second half of Move.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, hasBall: true, stats: { AG: 2, PA: 2 } },
+        { playerIndex: 1, x: 4, y: 8, status: PlayerStatus.PRONE },
+        { playerIndex: 2, x: 12, y: 8, stats: { AG: 2 } },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 5, status: PlayerStatus.PRONE },
+        { playerIndex: 1, x: 12, y: 5 },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
     id: "jump-over-prone",
     name: "Jump Over a Prone Player",
     description:

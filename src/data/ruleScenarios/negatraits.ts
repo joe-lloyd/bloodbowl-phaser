@@ -293,7 +293,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           ballPosition: { x: 1, y: 1 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "standUp" },
+          { type: "declare-action", playerId: "team1:0", action: "move" },
           { type: "stand-up", playerId: "team1:0" },
         ],
         outcomes: [

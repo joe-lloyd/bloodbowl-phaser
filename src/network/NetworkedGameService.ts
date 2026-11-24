@@ -1,3 +1,4 @@
+import type { MoveReach } from "../game/validators/jumpReach";
 import { type IGameService } from "../services/interfaces/IGameService";
 import { GameService } from "../services/GameService";
 import {
@@ -312,8 +313,8 @@ export class NetworkedGameService implements IGameService {
   getMovementUsed(playerId: string): number {
     return this.inner.getMovementUsed(playerId);
   }
-  getAvailableMovements(playerId: string) {
-    return this.inner.getAvailableMovements(playerId);
+  getAvailableMovements(playerId: string, reach?: MoveReach) {
+    return this.inner.getAvailableMovements(playerId, reach);
   }
 
   previewBlock(attackerId: string, defenderId: string): void {

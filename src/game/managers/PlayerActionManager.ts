@@ -231,8 +231,6 @@ export class PlayerActionManager {
         return "Move and Foul downed enemy (1/Turn).";
       case "secureBall":
         return "Move onto the loose ball, then pick it up on a 2+. Ends the activation.";
-      case "standUp":
-        return "Stand up (Costs 3 MA).";
       case "throwTeamMate":
         return "Throw adjacent Right Stuff teammate.";
       case "forgoe":

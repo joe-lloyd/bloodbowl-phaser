@@ -30,7 +30,7 @@ describe("standing up, then declaring a Block", () => {
       fixtureValue(game.snapshot().teams[0]).players[0]
     ).id;
 
-    await game.execute({ type: "declare-action", playerId, action: "standUp" });
+    await game.execute({ type: "declare-action", playerId, action: "move" });
     await game.execute({ type: "stand-up", playerId });
     expect(
       fixtureValue(fixtureValue(game.snapshot().teams[0]).players[0]).status
@@ -44,7 +44,7 @@ describe("standing up, then declaring a Block", () => {
     expect(block.ok).toBe(false);
     expect(game.snapshot().activePlayer).toMatchObject({
       id: playerId,
-      action: "standUp",
+      action: "move",
     });
 
     const moved = await game.execute({

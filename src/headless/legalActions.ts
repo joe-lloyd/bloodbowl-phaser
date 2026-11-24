@@ -105,7 +105,7 @@ function playerActions({
       playersAdjacent(player, o) &&
       (o.status === PlayerStatus.PRONE || o.status === PlayerStatus.STUNNED)
   );
-  const reachable = gs.getAvailableMovements(player.id);
+  const reachable = gs.getAvailableMovements(player.id, "jump");
   const availability = computeActionAvailability({
     player,
     ballPosition: state.ballPosition,
@@ -178,8 +178,7 @@ function declarableActions({
   if (availability.ballAndChain) return ["ballAndChain"];
   if (player.status === PlayerStatus.PRONE) {
     return allowed([
-      ["standUp", true],
-      ["move", availability.move],
+      ["move", availability.move || availability.standUp],
       ["blitz", !hasBlitzed],
       ["foul", canFoul],
 
