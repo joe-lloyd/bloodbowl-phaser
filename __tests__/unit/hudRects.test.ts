@@ -39,7 +39,7 @@ describe("measureHudRects", () => {
       100
     );
 
-    expect(measureHudRects(canvas, 1280, 1080)).toEqual([
+    expect(measureHudRects(canvas, { width: 1280, height: 1080 })).toEqual([
       { left: 20, top: 180, right: 220, bottom: 420 },
       { left: 0, top: 0, right: 1280, bottom: 150 },
       { left: 0, top: 750, right: 1280, bottom: 1080 },
@@ -47,7 +47,7 @@ describe("measureHudRects", () => {
     fixtureValue(document
       .querySelector('[data-hud-frame="bottom"]'))
       .setAttribute("aria-hidden", "true");
-    expect(measureHudRects(canvas, 1280, 1080)).toEqual([
+    expect(measureHudRects(canvas, { width: 1280, height: 1080 })).toEqual([
       { left: 20, top: 180, right: 220, bottom: 420 },
       { left: 0, top: 0, right: 1280, bottom: 150 },
     ]);
@@ -62,7 +62,7 @@ describe("measureHudRects", () => {
     box(tray, 430, 486, 420, 218);
     const measured: ReturnType<typeof measureHudRects>[] = [];
     const watcher = watchHudPanels(() =>
-      measured.push(measureHudRects(canvas, 1280, 720))
+      measured.push(measureHudRects(canvas, { width: 1280, height: 720 }))
     );
     watcher.watch();
     tray.setAttribute("aria-hidden", "true");

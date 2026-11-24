@@ -1,25 +1,30 @@
 import type { ScreenRect } from "../controllers/CameraController";
 
 export const HUD_PANELS_ATTRIBUTE = "data-hud-panels";
+export const HUD_RESERVED = "reserved";
 
 const HUD_FRAME_ATTRIBUTE = "data-hud-frame";
 
 export function measureHudRects(
   canvas: HTMLCanvasElement | undefined,
-  gameWidth: number,
-  gameHeight: number
+  gameSize: { width: number; height: number },
+  reserve = false
 ): ScreenRect[] | undefined {
   if (!canvas || typeof document === "undefined") return undefined;
   const board = canvas.getBoundingClientRect();
   if (board.width === 0 || board.height === 0) return undefined;
-  const scaleX = gameWidth / board.width;
-  const scaleY = gameHeight / board.height;
+  const scaleX = gameSize.width / board.width;
+  const scaleY = gameSize.height / board.height;
   const stacks = document.querySelectorAll(`[${HUD_PANELS_ATTRIBUTE}]`);
   const edges = document.querySelectorAll(`[${HUD_FRAME_ATTRIBUTE}]`);
   if (stacks.length === 0 && edges.length === 0) return undefined;
   const rects: ScreenRect[] = [];
   stacks.forEach((stack) => {
-    for (const panel of Array.from(stack.children)) {
+    const panels =
+      reserve && stack.getAttribute(HUD_PANELS_ATTRIBUTE) === HUD_RESERVED
+        ? [stack]
+        : Array.from(stack.children);
+    for (const panel of panels) {
       const box = panel.getBoundingClientRect();
       if (box.width === 0 || box.height === 0) continue;
       rects.push({
@@ -39,8 +44,8 @@ export function measureHudRects(
     rects.push({
       left: 0,
       top: top ? 0 : (box.top - board.top) * scaleY,
-      right: gameWidth,
-      bottom: top ? (box.bottom - board.top) * scaleY : gameHeight,
+      right: gameSize.width,
+      bottom: top ? (box.bottom - board.top) * scaleY : gameSize.height,
     });
   });
   return rects;

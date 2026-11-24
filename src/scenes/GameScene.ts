@@ -256,8 +256,8 @@ export class GameScene extends Phaser.Scene {
           panels.watch();
           return measureHudRects(
             this.game.canvas,
-            this.scale.width,
-            this.scale.height
+            { width: this.scale.width, height: this.scale.height },
+            this.gameService.getKickoffEventStep() !== null
           );
         }
       }    );

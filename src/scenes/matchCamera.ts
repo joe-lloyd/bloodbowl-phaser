@@ -74,11 +74,20 @@ export function followMatchWithCamera(scene: GameScene): void {
     camera().release();
 
     if (gameService().getPhase() === GamePhase.KICKOFF) {
-      camera().overview();
+      if (!gameService().getKickoffEventStep()) camera().overview();
       return;
     }
     frameReach(scene, player.id, player.gridPosition);
   });
+  subscribe(
+    GameEventNames.KickoffEventStepStarted,
+    ({ teamId, landingSquare }) => {
+      const squares = teamSquares(scene, teamId);
+      if (landingSquare) squares.push(landingSquare);
+      camera().release();
+      camera().fitSquares(squares, 420);
+    }
+  );
   subscribe(GameEventNames.PlayerMoved, ({ playerId, to }) => {
     if (scene.isSetupActive || choosingInterceptor) return;
     frameReach(scene, playerId, to, 900);
