@@ -112,8 +112,13 @@ function RollTableStrip(props: RollTablePanelProps) {
   );
 }
 
+function rowText(row: RollTableRow): string {
+  return `${row.label} ${row.name}. ${row.detail}`;
+}
+
 function StripCells({ kind, columns, rows, result }: RollTablePanelProps) {
   const [peek, setPeek] = useState<RollTableRow | null>(null);
+  const hint = peek ? rowText(peek) : "Point at a result to read what it does.";
   const clear = () => {
     setPeek(null);
   };
@@ -136,15 +141,24 @@ function StripCells({ kind, columns, rows, result }: RollTablePanelProps) {
           />
         ))}
       </ul>
-      <p
-        className="mt-2 min-h-[18px] font-hud-body text-hud-sm text-hud-dim"
-        aria-live="polite"
-        data-testid={`${kind}-table-detail`}
-      >
-        {peek
-          ? `${peek.label} ${peek.name}. ${peek.detail}`
-          : "Point at a result to read what it does."}
-      </p>
+      <div className="mt-2 grid font-hud-body text-hud-sm text-hud-dim">
+        {rows.map((row) => (
+          <span
+            key={row.label}
+            aria-hidden
+            className="invisible [grid-area:1/1]"
+          >
+            {rowText(row)}
+          </span>
+        ))}
+        <p
+          className="[grid-area:1/1]"
+          aria-live="polite"
+          data-testid={`${kind}-table-detail`}
+        >
+          {hint}
+        </p>
+      </div>
     </>
   );
 }

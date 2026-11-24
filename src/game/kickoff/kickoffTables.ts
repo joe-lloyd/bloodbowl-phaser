@@ -83,6 +83,8 @@ const TABLE_MEANINGS: Partial<
   },
   "beach-bowl": {
     [KickoffEvent.HIGH_KICK]: HIGH_KICK_ANYWHERE,
+    [KickoffEvent.BRILLIANT_COACHING]:
+      "D6 + Assistant Coaches per coach; the higher total gains a free team re-roll for this drive. A tie gives nothing.",
     [KickoffEvent.CHANGING_WEATHER]:
       "Roll new Beach Bowl weather; on Perfect Conditions the ball scatters one extra square.",
     [KickoffEvent.CHARGE]:

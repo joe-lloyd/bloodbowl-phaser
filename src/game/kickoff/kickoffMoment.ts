@@ -100,8 +100,9 @@ export function kickoffOutcomeLine(
   if (outcome.event === KickoffEvent.CHANGING_WEATHER) {
     return outcome.perTeam[kicking.id]?.[0] ?? null;
   }
-  return lines.length > 0
-    ? lines.join(" · ")
+  if (lines.length > 0) return lines.join(" · ");
+  return outcome.event === KickoffEvent.BRILLIANT_COACHING
+    ? "A tie: nobody gains a re-roll."
     : "Nobody on the pitch to take it.";
 }
 

@@ -93,10 +93,10 @@ describe("kick-off text on each game type's table", () => {
     );
   });
 
-  it("keeps the shared rule where the Beach table does not change it", () => {
+  it("says what the Beach table changes about Brilliant Coaching and Charge", () => {
     activateMatchFormat({ gameType: "beach-bowl", venue: "beach" });
-    expect(kickoffEventSummary(KickoffEvent.BRILLIANT_COACHING)).toBe(
-      "The winners gain a free team re-roll for this drive."
+    expect(kickoffEventSummary(KickoffEvent.BRILLIANT_COACHING)).toContain(
+      "A tie gives nothing."
     );
     expect(kickoffEventSummary(KickoffEvent.CHARGE)).toContain(
       "one may Throw Team-mate"
