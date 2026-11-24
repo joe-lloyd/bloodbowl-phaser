@@ -220,9 +220,9 @@ export class MatchStats {
           stats.awardedTouchdownSpp = (stats.awardedTouchdownSpp ?? 0) + 1;
       }
     );
-    this.eventBus.on(GameEventNames.BlockDiceRolled, ({ attackerId }) => {
+    this.eventBus.on(GameEventNames.BlockDiceRolled, ({ attackerId, shownAgain }) => {
       const stats = this.get(attackerId);
-      if (stats) stats.blocks++;
+      if (stats && !shownAgain) stats.blocks++;
     });
     this.eventBus.on(
       GameEventNames.PlayerMoved,

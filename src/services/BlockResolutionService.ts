@@ -16,6 +16,7 @@ export interface BlockResult {
 }
 
 export interface BlockRollData {
+  shownAgain?: true;
   attackerId: string;
   defenderId: string;
   numDice: number;

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOnlineMatch } from "../../src/network/OnlineMatch";
 import { createInMemoryTransportPair } from "../../src/network/transport";
 import { GameEventNames } from "../../src/types/events";
+import { reopenBlockChoice } from "../../src/network/reopenBlockChoice";
 import { matchResumeSchema } from "../../src/boundary/schemas/MatchResume";
 import type { GameSnapshot } from "../../src/headless/serialization";
 import { EventBus } from "../../src/services/EventBus";
@@ -328,6 +329,9 @@ describe("online host resume", () => {
     match.saveState();
     expect(saves.spentBlocks).toEqual([undefined]);
     const before = structuredClone(match.pendingDecision());
+    const countedOnce = structuredClone(
+      ServiceContainer.getInstance().matchStats.captureState()
+    );
     match.close();
     ServiceContainer.reset();
 
@@ -342,7 +346,7 @@ describe("online host resume", () => {
       },
       eventBus: resumedBus,
     });
-    const { gameService: engine } = ServiceContainer.getInstance();
+    const { matchStats, gameService: engine } = ServiceContainer.getInstance();
     await settled();
     expect(before?.type).toBe("block-dice");
     expect(resumed.pendingDecision()).toEqual(before);
@@ -352,6 +356,21 @@ describe("online host resume", () => {
     });
     resumedBus.emit(GameEventNames.GameStateRestored, engine.getState());
     expect(shown).toEqual([attackerId]);
+    expect(matchStats.captureState()).toEqual(countedOnce);
+
+    const push = {
+      type: "push-direction" as const,
+      attackerId,
+      defenderId: "team2-player-1",
+      resultType: "push",
+      options: [{ x: 12, y: 5 }],
+    };
+    const offered: unknown[] = [];
+    resumedBus.on(GameEventNames.UI_SelectPushDirection, (offer) => {
+      offered.push(offer.validDirections);
+    });
+    reopenBlockChoice(push, engine, resumedBus);
+    expect(offered).toEqual([push.options]);
     resumed.close();
   });
 });

@@ -1,4 +1,5 @@
 import { kickoffTurnOf } from "../game/kickoff/kickRecord";
+import { reopenBlockChoice } from "./reopenBlockChoice";
 import { assertPregameSaveable } from "../game/inducements/pregame";
 import { type IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
@@ -354,7 +355,7 @@ class OnlineSession {
     this.session = this.createSession(resume.commands.applied);
     void this.session.replaySaved(resume.commands.replay);
     void this.session.sendHello();
-    this.eventBus.on(GameEventNames.GameStateRestored, this.showBlockDice);
+    this.eventBus.on(GameEventNames.GameStateRestored, this.showOpenChoice);
     this.subscriptions = [
       subscribeSelectionForwarding(this.eventBus, this.sides.myTeamId, (playerId) => void this.session.sendSelection(playerId)),
       subscribePromptForwarding(this.eventBus, this.sides.myTeamId, (prompt) => void this.session.sendPrompt(prompt)),
@@ -461,33 +462,15 @@ class OnlineSession {
     const subPhase = this.engine.getSubPhase();
     this.eventBus.emit(GameEventNames.PhaseChanged, { phase: this.engine.getPhase(), ...(subPhase === undefined ? {} : { subPhase }) });
     this.eventBus.emit(GameEventNames.GameStateRestored, this.engine.getState());
-    if (!this.pendingBlockDice()) this.eventBus.emit(GameEventNames.UI_BlockRollCancelled, undefined);
+    if (this.game.pendingDecision()?.type !== "block-dice") this.eventBus.emit(GameEventNames.UI_BlockRollCancelled, undefined);
     this.eventBus.emit(GameEventNames.UI_SyncBoard, { positions: true });
   }
 
-  private readonly showBlockDice = (): void => {
-    const pending = this.pendingBlockDice();
-    if (pending) this.restoreBlockDice(pending);
+  private readonly showOpenChoice = (): void => {
+    const request = this.engine.getDecisionService().pending();
+    if (request) this.eventBus.emit(GameEventNames.DecisionRequested, request);
+    else reopenBlockChoice(this.game.pendingDecision(), this.engine, this.eventBus);
   };
-
-  private pendingBlockDice() {
-    const pending = this.game.pendingDecision();
-    return pending?.type === "block-dice" ? pending : null;
-  }
-
-  private restoreBlockDice(pending: Extract<PendingDecision, { type: "block-dice" }>): void {
-    const attacker = this.engine.getPlayerById(pending.attackerId);
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, {
-      attackerId: pending.attackerId, defenderId: pending.defenderId,
-      numDice: pending.options.length, isAttackerChoice: pending.chooserTeamId === attacker?.teamId,
-      results: pending.options,
-      ...(pending.choiceStage === undefined ? {} : { choiceStage: pending.choiceStage }),
-      ...(pending.teamRerollAvailable === undefined ? {} : { teamRerollAvailable: pending.teamRerollAvailable }),
-      ...(pending.proAvailable === undefined ? {} : { proAvailable: pending.proAvailable }),
-      ...(pending.brawlerAvailable === undefined ? {} : { brawlerAvailable: pending.brawlerAvailable }),
-      ...(pending.veteranRerollAvailable === undefined ? {} : { veteranRerollAvailable: pending.veteranRerollAvailable }),
-    });
-  }
 
   private startComputer(resuming: boolean): void {
     if (!this.options.computer) return;
