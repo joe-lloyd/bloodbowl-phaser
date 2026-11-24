@@ -398,3 +398,17 @@ describe("a Ball & Chain player", () => {
     expect(picked.ok).toBe(false);
   });
 });
+
+describe("a turnover during a Charge", () => {
+  it("is not at rest until the turn has been handed over", async () => {
+    const { game, gs, home } = await rehearse(KickoffEvent.CHARGE, {
+      players: 1,
+    });
+    await choose(game, [home(1).id]);
+    expect(game.isAtRest()).toBe(true);
+    gs.triggerTurnover("Knocked down");
+    expect(game.isAtRest()).toBe(false);
+    await settle();
+    expect(game.isAtRest()).toBe(true);
+  });
+});

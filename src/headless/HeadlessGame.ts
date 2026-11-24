@@ -194,6 +194,7 @@ export class HeadlessGame {
     const { gameService } = this.ctx;
     return (
       this.inFlight === null &&
+      !gameService.captureTurnManagerState().turnoverInProgress &&
       (this.pending === null || RESTORABLE_PENDING.has(this.pending.type)) &&
       gameService.getDecisionService().pending() === null &&
       (gameService.kickInTheAir() === null ||
