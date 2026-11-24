@@ -1,6 +1,9 @@
 import { kickoffTurnOf } from "../../game/kickoff/kickRecord";
 import { type FieldPlayer as Player } from "./board";
-import { type HeadlessCommand } from "../../headless/protocol";
+import {
+  type HeadlessCommand,
+  type PendingDecision,
+} from "../../headless/protocol";
 import { GamePhase } from "../../types/GameState";
 import { PlayerStatus } from "../../types/Player";
 import { type ActionType } from "../../types/events";
@@ -26,6 +29,8 @@ import {
   readBoard,
 } from "./board";
 import { decide } from "./decisions";
+import { kickoffMove, kickoffPick } from "./kickoffChoices";
+import type { KickoffTurn } from "../../game/kickoff/kickoffTurn";
 import {
   DEFAULT_WEIGHTS,
   GAME_TYPE_WEIGHTS,
@@ -48,6 +53,8 @@ import {
   choosePlan,
 } from "./gamePlans";
 import type { CoachRng } from "../rng";
+
+const END_ACTIVATION = "end-activation";
 
 const THROW_TEAMMATE = "throw-teammate";
 
@@ -335,7 +342,7 @@ function retainedStep({
     });
   }
   if (key(actor.gridPosition) === key(intent.route.to)) {
-    const end = candidates.findIndex((c) => c.kind === "end-activation");
+    const end = candidates.findIndex((c) => c.kind === END_ACTIVATION);
     return end < 0 ? null : { index: end, note: noteFor(plan) };
   }
   const c = activationContext({
@@ -477,18 +484,17 @@ function planChoice({
   const candidates = point.candidates;
   const board = readBoard(game, point.teamId);
 
-  if (point.pending) {
-    const index = decide({
-      board: board,
+  if (point.pending)
+    return pendingChoice({
+      context,
+      w,
+      skillPlans,
+      board,
       pending: point.pending,
-      candidates: candidates,
-      skillPlans: skillPlans,
     });
-    return index === null ? null : { index };
-  }
   if (point.phase === GamePhase.SETUP) return setupChoice(context);
   if (point.phase === GamePhase.KICKOFF)
-    return kickChoice(board, candidates, w);
+    return kickoffChoice(context, w, board);
   if (point.phase !== GamePhase.PLAY) return null;
 
   const state = board.gs.getState();
@@ -518,6 +524,65 @@ function planChoice({
     },
     choosing: choosing(context),
   });
+}
+
+interface PendingChoiceArgs {
+  context: CoachContext;
+  w: Weights;
+  skillPlans: boolean;
+  board: Board;
+  pending: PendingDecision;
+}
+
+function pendingChoice({
+  context: { game, point },
+  w,
+  skillPlans,
+  board,
+  pending,
+}: PendingChoiceArgs): CoachChoice | null {
+  const { candidates, teamId } = point;
+  if (pending.type === "kickoff-event")
+    return kickoffPick({ game, teamId, w, pending }, candidates);
+  const index = decide({ board, pending, candidates, skillPlans });
+  return index === null ? null : { index };
+}
+
+function kickoffChoice(
+  context: CoachContext,
+  w: Weights,
+  board: Board
+): CoachChoice | null {
+  const turn = kickoffTurnOf(board.gs.getState());
+  return turn
+    ? kickoffTurnChoice(context, w, turn)
+    : kickChoice(board, context.point.candidates, w);
+}
+
+function kickoffTurnChoice(
+  { game, point: { candidates, teamId } }: CoachContext,
+  w: Weights,
+  turn: KickoffTurn
+): CoachChoice | null {
+  const move = kickoffMove({
+    game,
+    teamId,
+    w,
+    turn,
+    candidates,
+    available: availableActions(candidates),
+  });
+  if (move.kind === "choice") return move.choice;
+  const acting = candidates.some((c) => c.kind === END_ACTIVATION);
+  if (move.kind === "plan") {
+    const index = acting
+      ? nextStep(move.plan, candidates)
+      : declarationIndex(candidates, move.plan);
+    if (index >= 0) return { index, note: move.note };
+  }
+  const done = acting ? END_ACTIVATION : "end-turn";
+  const index = candidates.findIndex((c) => c.kind === done);
+  return index < 0 ? null : { index };
 }
 
 interface ContinueChoiceArgs {
@@ -558,7 +623,7 @@ function continueChoice({
   });
   const index = plan ? nextStep(plan, candidates) : -1;
   if (plan && index >= 0) return { index, note: noteFor(plan) };
-  const end = candidates.findIndex((c) => c.kind === "end-activation");
+  const end = candidates.findIndex((c) => c.kind === END_ACTIVATION);
   return end >= 0 ? { index: end } : null;
 }
 
