@@ -78,9 +78,6 @@ export const DEFAULT_WEIGHTS = {
 
   standUp: 4,
 
-  setupKick: 3,
-  setupReceive: 2,
-
   kickDepth: 6,
 
   kickWide: 0,
@@ -142,8 +139,6 @@ export function weightBounds(name: keyof Weights): [number, number] {
     safeMove: [0.2, 0.99],
     sureBlock: [0.2, 0.99],
     pickupMin: [0.2, 0.99],
-    setupKick: [0, 5],
-    setupReceive: [0, 5],
     kickDepth: [2, 6],
     kickWide: [0, 1],
     touchdown: [value, value],

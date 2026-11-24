@@ -26,6 +26,7 @@
         "scripts/coach/policy-lab/nailbiters.ts",
         "scripts/coach/policy-lab/narrate.ts",
         "scripts/coach/policy-study/run.ts",
+        "scripts/coach/trait-weights/collect.ts",
         "e2e/fullgame/brain.ts",
         "scripts/discover-block-seeds.ts",
         "scripts/page-shots/page-shots.e2e.ts",
