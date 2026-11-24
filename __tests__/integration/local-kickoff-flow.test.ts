@@ -1,5 +1,5 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameService } from "../../src/services/GameService.js";
 import { EventBus } from "../../src/services/EventBus.js";
 import { SceneOrchestrator } from "../../src/game/controllers/SceneOrchestrator.js";
@@ -25,6 +25,8 @@ function makeMockScene(team1: any, team2: any) {
       clearHighlights: () => {},
       clearHover: () => {},
       clearPath: () => {},
+      clearKickTarget: vi.fn(),
+      markKickTarget: vi.fn(),
     },
     time: {
       delayedCall: (_ms: number, cb: () => void) => {

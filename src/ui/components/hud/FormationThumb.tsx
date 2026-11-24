@@ -24,13 +24,13 @@ function HalfPitch({ half }: { half: ReturnType<typeof setupHalf> }) {
   const { top, bottom } = layout.wideZoneRows;
   return (
     <>
-      <rect x={minX} y={0} width={cols} height={rows} fill="#24452a" />
+      <rect x={minX} y={0} width={cols} height={rows} className="fill-hud-good/35" />
       <path
         d={[
           `M${String(minX)} ${String(top.max + 1)}H${String(maxX + 1)}`,
           `M${String(minX)} ${String(bottom.min)}H${String(maxX + 1)}`,
         ].join("")}
-        stroke="#f1ebdd"
+        className="fill-none stroke-hud-bone"
         strokeOpacity={0.35}
         strokeWidth={0.1}
         strokeDasharray="0.4 0.3"
@@ -42,12 +42,12 @@ function HalfPitch({ half }: { half: ReturnType<typeof setupHalf> }) {
           y={y}
           width={1}
           height={1}
-          fill="#0c0d10"
+          className="fill-hud-ink"
         />
       ))}
       <path
         d={`M${String(lineX)} 0V${String(rows)}`}
-        stroke="#e3b448"
+        className="stroke-hud-gold"
         strokeWidth={0.45}
       />
     </>
@@ -82,8 +82,7 @@ export function FormationThumb({
           cx={x + 0.5}
           cy={y + 0.5}
           r={0.44}
-          fill="#f1ebdd"
-          stroke="#0c0d10"
+          className="fill-hud-bone stroke-hud-ink"
           strokeWidth={0.12}
         />
       ))}

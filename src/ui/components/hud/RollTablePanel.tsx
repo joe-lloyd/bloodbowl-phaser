@@ -10,7 +10,7 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { DialogShell, Panel, PanelHeader } from "../componentWarehouse/HudKit";
 import type { WeatherStep } from "./weatherThrow";
 
-export interface RollTableRow {
+interface RollTableRow {
   label: string;
   name: string;
   detail: string;

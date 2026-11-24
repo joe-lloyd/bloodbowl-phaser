@@ -137,6 +137,24 @@ function FormationOption({
   );
 }
 
+function navigate(
+  event: KeyboardEvent,
+  all: readonly HTMLButtonElement[],
+  onClose: () => void
+) {
+  event.stopPropagation();
+  if (event.key === "Escape" || event.key === "Tab") {
+    event.preventDefault();
+    onClose();
+    return;
+  }
+  const step = KEY_STEP[event.key];
+  if (step === undefined) return;
+  event.preventDefault();
+  const at = all.findIndex((option) => option === document.activeElement);
+  all[Math.min(all.length - 1, Math.max(0, at + step))]?.focus();
+}
+
 function FormationGrid({
   formations,
   selected,
@@ -164,21 +182,6 @@ function FormationGrid({
 
   useOutsidePress([grid, trigger], onClose);
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    event.stopPropagation();
-    if (event.key === "Escape" || event.key === "Tab") {
-      event.preventDefault();
-      onClose();
-      return;
-    }
-    const step = KEY_STEP[event.key];
-    if (step === undefined) return;
-    event.preventDefault();
-    const all = options();
-    const at = all.findIndex((option) => option === document.activeElement);
-    all[Math.min(all.length - 1, Math.max(0, at + step))]?.focus();
-  };
-
   return (
     <div
       ref={grid}
@@ -186,7 +189,7 @@ function FormationGrid({
       aria-label="Setups"
       data-testid="formation-grid"
       data-hotkey-scope=""
-      onKeyDown={onKeyDown}
+      onKeyDown={(event) => { navigate(event, options(), onClose); }}
       style={anchor}
       className="hud-slab hud-scroll pointer-events-auto fixed bottom-4 z-[130] max-h-[calc(100dvh-2rem)] w-[456px] space-y-3 overflow-y-auto border-t-[3px] border-t-hud-gold p-3 text-hud-bone animate-hud-in"
     >

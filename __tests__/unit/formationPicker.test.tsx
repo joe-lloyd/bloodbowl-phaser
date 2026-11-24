@@ -20,14 +20,13 @@ describe("FormationPicker", () => {
         '[data-testid="formation-menu"]'
       )
     );
-  const press = (key: string) =>
-    act(async () => {
+  const press = (key: string) => { act(() => {
       document.activeElement?.dispatchEvent(
         new KeyboardEvent("keydown", { key, bubbles: true })
       );
-    });
-  const open = async (isTeam1: boolean, kicking: boolean) => {
-    await act(async () => {
+    }); };
+  const open = (isTeam1: boolean, kicking: boolean) => {
+    act(() => {
       root.render(
         <FormationPicker
           formations={manager.listAllFormations("Human:left", isTeam1)}
@@ -39,7 +38,7 @@ describe("FormationPicker", () => {
         />
       );
     });
-    await act(async () => {
+    act(() => {
       trigger().click();
     });
   };
@@ -58,20 +57,20 @@ describe("FormationPicker", () => {
     root = createRoot(container);
   });
 
-  afterEach(async () => {
-    await act(async () => {
+  afterEach(() => {
+    act(() => {
       root.unmount();
     });
     container.remove();
   });
 
-  it("lists this role's setups first and the saved ones last", async () => {
+  it("lists this role's setups first and the saved ones last", () => {
     manager.saveFormation(
       "Human:left",
       [{ playerId: "0", x: 6, y: 5 }],
       "My Wall"
     );
-    await open(true, false);
+    open(true, false);
     expect(options().map((option) => option.textContent)).toEqual([
       "Balanced",
       "Spread",
@@ -87,32 +86,32 @@ describe("FormationPicker", () => {
     expect(dotXs("My Wall")).toEqual([6.5]);
   });
 
-  it("draws every player on the side that team sets up on", async () => {
-    await open(true, true);
+  it("draws every player on the side that team sets up on", () => {
+    open(true, true);
     expect(dotXs("Bunker")).toEqual([6.5, 6.5, 6.5, 5.5, 5.5, 4.5, 2.5]);
-    await act(async () => {
+    act(() => {
       trigger().click();
     });
-    await open(false, true);
+    open(false, true);
     expect(dotXs("Bunker")).toEqual([
       13.5, 13.5, 13.5, 14.5, 14.5, 15.5, 17.5,
     ]);
   });
 
-  it("moves with the arrow keys, closes on Escape and picks on a press", async () => {
-    await open(true, true);
+  it("moves with the arrow keys, closes on Escape and picks on a press", () => {
+    open(true, true);
     expect(document.activeElement?.textContent).toBe("Balanced");
-    await press("ArrowRight");
-    await press("ArrowDown");
+    press("ArrowRight");
+    press("ArrowDown");
     expect(document.activeElement?.textContent).toBe("Kick: Press");
-    await press("Escape");
+    press("Escape");
     expect(options()).toHaveLength(0);
     expect(document.activeElement).toBe(trigger());
 
-    await act(async () => {
+    act(() => {
       trigger().click();
     });
-    await act(async () => {
+    act(() => {
       fixtureValue(
         options().find((option) => option.textContent === "Spread")
       ).click();

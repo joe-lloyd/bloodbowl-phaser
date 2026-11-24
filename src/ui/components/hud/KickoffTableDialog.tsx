@@ -86,6 +86,13 @@ function tableResolving(): boolean {
   );
 }
 
+function useBallClearOfStrip(eventBus: IEventBus) {
+  useEffect(() => {
+    if (matchesMedia(PHONE_QUERY)) return;
+    eventBus.emit(GameEventNames.Camera_TrackBall, { animationDuration: 600 });
+  }, [eventBus]);
+}
+
 function TableDialog({
   eventBus,
   opened,
@@ -120,10 +127,7 @@ function TableDialog({
     });
   };
 
-  useEffect(() => {
-    if (matchesMedia(PHONE_QUERY)) return;
-    eventBus.emit(GameEventNames.Camera_TrackBall, { animationDuration: 600 });
-  }, [eventBus]);
+  useBallClearOfStrip(eventBus);
 
   useEffect(() => {
     if (online) roll();
