@@ -343,10 +343,15 @@ describe("online host resume", () => {
       eventBus: resumedBus,
     });
     const { gameService: engine } = ServiceContainer.getInstance();
-    resumedBus.emit(GameEventNames.GameStateRestored, engine.getState());
     await settled();
     expect(before?.type).toBe("block-dice");
     expect(resumed.pendingDecision()).toEqual(before);
+    const shown: string[] = [];
+    resumedBus.on(GameEventNames.BlockDiceRolled, (roll) => {
+      shown.push(roll.attackerId);
+    });
+    resumedBus.emit(GameEventNames.GameStateRestored, engine.getState());
+    expect(shown).toEqual([attackerId]);
     resumed.close();
   });
 });

@@ -352,10 +352,9 @@ class OnlineSession {
       kickingTeamId: resume.kickingTeamId,
     });
     this.session = this.createSession(resume.commands.applied);
-    this.eventBus.once(GameEventNames.GameStateRestored, () => {
-      void this.session.replaySaved(resume.commands);
-    });
+    void this.session.replaySaved(resume.commands.replay);
     void this.session.sendHello();
+    this.eventBus.on(GameEventNames.GameStateRestored, this.showBlockDice);
     this.subscriptions = [
       subscribeSelectionForwarding(this.eventBus, this.sides.myTeamId, (playerId) => void this.session.sendSelection(playerId)),
       subscribePromptForwarding(this.eventBus, this.sides.myTeamId, (prompt) => void this.session.sendPrompt(prompt)),
@@ -462,10 +461,18 @@ class OnlineSession {
     const subPhase = this.engine.getSubPhase();
     this.eventBus.emit(GameEventNames.PhaseChanged, { phase: this.engine.getPhase(), ...(subPhase === undefined ? {} : { subPhase }) });
     this.eventBus.emit(GameEventNames.GameStateRestored, this.engine.getState());
-    const pending = this.game.pendingDecision();
-    if (pending?.type === "block-dice") this.restoreBlockDice(pending);
-    else this.eventBus.emit(GameEventNames.UI_BlockRollCancelled, undefined);
+    if (!this.pendingBlockDice()) this.eventBus.emit(GameEventNames.UI_BlockRollCancelled, undefined);
     this.eventBus.emit(GameEventNames.UI_SyncBoard, { positions: true });
+  }
+
+  private readonly showBlockDice = (): void => {
+    const pending = this.pendingBlockDice();
+    if (pending) this.restoreBlockDice(pending);
+  };
+
+  private pendingBlockDice() {
+    const pending = this.game.pendingDecision();
+    return pending?.type === "block-dice" ? pending : null;
   }
 
   private restoreBlockDice(pending: Extract<PendingDecision, { type: "block-dice" }>): void {

@@ -669,7 +669,7 @@ export async function persistMatch(
   await runTransaction(getDb(), async (tx) => {
     const stored = await tx.get(ref);
     const applied = readAppliedCommandCount(stored.data());
-    if (applied !== undefined && resume.applied < applied) return;
+    if (applied !== undefined && resume.applied + (resume.replay?.length ?? 0) < applied) return;
     tx.update(ref, {
       snapshot: firebaseDocument(snapshot),
       resume: firebaseDocument(resume),

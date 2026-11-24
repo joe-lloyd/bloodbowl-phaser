@@ -118,14 +118,9 @@ export class LockstepSession {
     return this.applied;
   }
 
-  replaySaved(saved: {
-    applied: number;
-    replay: HeadlessCommand[];
-  }): Promise<void> {
-    return this.enqueue(async () => {
-      if (saved.replay.length === 0 || this.applied !== saved.applied) return;
-      await this.runMissed(saved.replay);
-    });
+  replaySaved(saved: HeadlessCommand[]): Promise<void> {
+    if (saved.length === 0) return Promise.resolve();
+    return this.enqueue(() => this.runMissed(saved));
   }
 
   run(command: HeadlessCommand): Promise<CommandResponse> {
@@ -155,7 +150,11 @@ export class LockstepSession {
     });
   }
 
-  async sendHello(): Promise<void> {
+  sendHello(): Promise<void> {
+    return this.enqueue(() => this.announce());
+  }
+
+  private async announce(): Promise<void> {
     this.awaitingCatchUp = true;
     await this.send({
       kind: "hello",
