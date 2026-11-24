@@ -1,5 +1,6 @@
 import { type Team } from "../../types/Team";
 import {
+  KICKOFF_EVENT_MEANING,
   INTERACTIVE_KICKOFF_EVENTS,
   KickoffEvent,
   type KickoffEventOutcome,
@@ -63,15 +64,19 @@ const SEVENS_ROLLS_FOR_RESULT = new Set<KickoffEvent>([
 const isSevensEvent = (event: KickoffEvent): event is SevensKickoffEvent =>
   event in summary;
 
+const playsTheSevensRule = (event: KickoffEvent): event is SevensKickoffEvent =>
+  isSevensEvent(event) &&
+  kickoffEventMeaning(event) === KICKOFF_EVENT_MEANING[event];
+
 const rollsForItsResult = (event: KickoffEvent): boolean =>
   SEVENS_ROLLS_FOR_RESULT.has(event) ||
   (!isSevensEvent(event) && !INTERACTIVE_KICKOFF_EVENTS.has(event));
 
 const revealOf = (event: KickoffEvent): string =>
-  isSevensEvent(event) ? reveal[event] : kickoffEventMeaning(event);
+  playsTheSevensRule(event) ? reveal[event] : kickoffEventMeaning(event);
 
 const summaryOf = (event: KickoffEvent): string =>
-  isSevensEvent(event) ? summary[event] : kickoffEventMeaning(event);
+  playsTheSevensRule(event) ? summary[event] : kickoffEventMeaning(event);
 
 export function kickoffRevealLine(
   event: KickoffEvent,
