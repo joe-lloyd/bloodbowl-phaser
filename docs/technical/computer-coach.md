@@ -39,6 +39,7 @@ offers and never builds a command itself. Its code is in
 | `feeding.ts`, `feedingSupport.ts` | Vampire endpoints and native Thrall support preparation             |
 | `latePlans.ts`                    | Sevens scoring horizon, opponent replies and persistent player loss |
 | `decisions.ts`                    | Block dice, re-rolls, push squares, follow-ups and other decisions  |
+| `setupChoice.ts`                  | Which setup to use when kicking and receiving                       |
 | `weights.ts`                      | Every number its judgement rests on, as one plain object            |
 | `planner.ts`                      | The `Coach`: maps the best activation onto a candidate              |
 | `evaluate.ts`                     | The trained score of an end position, for the lookahead             |
@@ -135,6 +136,18 @@ characteristics that set the odds of each roll:
   Regeneration, on the Sevens injury table.
 - A Brawlin' Brutes team earns 3 SPP for a Casualty and 2 for a Touchdown,
   so it values a casualty 2.25 times as much as other teams do.
+
+### Setups
+
+`setupChoice.ts` holds the touchdowns a drive each setup was worth over or
+under the average, measured by the
+[trait study](../../scripts/coach/trait-weights/README.md). The coach picks at
+random and favours the better ones, so it usually kicks from the Blitz line or
+the Press and receives in the Full line, and shows every setup over a few
+matches. Over 5,248 mirrored games on fresh seeds it took 50.2% of the points
+against the coach that always used one kicking and one receiving setup, with a
+95% interval of 49.2 to 51.2. The same study found no weight that should
+change with the team.
 
 ### Game plans and variety
 
