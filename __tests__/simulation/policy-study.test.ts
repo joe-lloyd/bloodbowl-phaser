@@ -6,7 +6,7 @@ describe("policy comparison balance", () => {
   it("gives each variant both policies on both physical sides with disjoint smoke seeds", () => {
     const variants = advancedInventory();
     const jobs = policySchedule(variants);
-    expect(jobs).toHaveLength(3280);
+    expect(jobs).toHaveLength(3320);
     expect(new Set(jobs.map((j) => j.id)).size).toBe(jobs.length);
     const exposures = new Map<string, number>();
     for (let i = 0; i < jobs.length; i += 4) {

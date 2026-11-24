@@ -9,6 +9,7 @@ import { GamePhase, type GameState, SubPhase } from "../types/GameState";
 import { type Player } from "../types/Player";
 import { type Team } from "../types/Team";
 import { type BlockResult } from "../services/BlockResolutionService";
+import { canChooseBiteTarget } from "../types/decisions";
 import { GameEventNames } from "../types/events";
 import { type BlockReplacement } from "../types/BlockReplacement";
 import { type IEventBus } from "../services/EventBus";
@@ -150,8 +151,7 @@ export class NetworkedGameService implements IGameService {
   answerBiteTarget(targetId?: string): boolean {
     const pending = this.pendingDecision();
     if (pending?.type !== "bite-target") return false;
-    if (targetId !== undefined && !pending.targetIds.includes(targetId))
-      return false;
+    if (!canChooseBiteTarget(pending, targetId)) return false;
     this.send({ type: "choose-bite-target", ...(targetId === undefined ? {} : { playerId: targetId }) });
     return true;
   }

@@ -81,6 +81,7 @@ function stillPlanned(c: GameplayInteractionController, playerId: string, planne
   return (
     active?.id === playerId &&
     active.action === planned.action &&
+    !active.forcedBlock &&
     !c.gameService.hasPlayerActed(playerId)
   );
 }

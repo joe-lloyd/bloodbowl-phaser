@@ -80,6 +80,17 @@ function interceptionAnswer(
   };
 }
 
+function biteTargetAnswer(
+  pending: Decision<"bite-target">,
+  accept: boolean | undefined
+): HeadlessCommand {
+  const [first] = pending.targetIds;
+  const target = accept === false && pending.purpose !== "squig-block" ? undefined : first;
+  return target
+    ? { type: "choose-bite-target", playerId: target }
+    : { type: "choose-bite-target" };
+}
+
 function consentAnswer(
   pending: Decision<"follow-up" | "reaction" | "bite-target" | "apothecary">,
   policy: DecisionPolicy
@@ -90,12 +101,7 @@ function consentAnswer(
     case "reaction":
       return { type: "use-reaction", accept: policy.acceptReactions ?? true };
     case "bite-target":
-      return policy.acceptReactions === false
-        ? { type: "choose-bite-target" }
-        : {
-            type: "choose-bite-target",
-            ...(pending.targetIds[0] ? { playerId: pending.targetIds[0] } : {}),
-          };
+      return biteTargetAnswer(pending, policy.acceptReactions);
     case "apothecary":
       return { type: "use-apothecary", accept: policy.useApothecary ?? false };
   }

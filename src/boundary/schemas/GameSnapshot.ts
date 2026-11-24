@@ -48,6 +48,7 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
         .union([z.literal(false), z.literal(true)])
         .exactOptional(),
       committed: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+      forcedBlock: z.literal(true).exactOptional(),
       bloodlustUnsated: z
         .union([z.literal(false), z.literal(true)])
         .exactOptional(),

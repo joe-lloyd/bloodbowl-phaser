@@ -6,6 +6,8 @@ import { PlayerStatus } from "../../src/types/Player";
 import { RosterName } from "../../src/types/Team";
 import type { Scenario } from "../../src/types/Scenario";
 import { GameEventNames } from "../../src/types/events";
+import { SkillType, getSkill } from "../../src/types/Skills";
+import { defaultAnswer } from "../../src/network/decisionTimeouts";
 
 type Placements = NonNullable<Scenario["setup"]["team1Placements"]>;
 
@@ -83,6 +85,55 @@ describe("Squig Rage", () => {
     expect(game.ctx.gameService.hasPlayerActed(wrangler.id)).toBe(true);
   });
 
+  it("requires the coach to choose an opponent when more than one can be Blocked", async () => {
+    const { game, wrangler, declare } = match(
+      [],
+      [
+        { ...OPPONENT, x: 9 },
+        { playerIndex: 1, x: 11, y: 5 },
+      ]
+    );
+    const [left, right] = game.ctx.team2.players.map((player) => player.id);
+    const response = await declare();
+    const pending = fixtureValue(response.pendingDecision);
+    expect(pending).toMatchObject({
+      type: "bite-target",
+      purpose: "squig-block",
+      targetIds: [left, right],
+    });
+    expect(defaultAnswer(pending)).toEqual({
+      type: "choose-bite-target",
+      playerId: left,
+    });
+    expect((await game.execute({ type: "choose-bite-target" })).ok).toBe(false);
+    const roll = await game.execute({
+      type: "choose-bite-target",
+      playerId: fixtureValue(right),
+    });
+    expect(roll.pendingDecision).toMatchObject({
+      type: "block-dice",
+      attackerId: wrangler.id,
+      defenderId: right,
+    });
+  });
+
+  it.each([
+    [SkillType.PRO, "proAvailable"],
+    [SkillType.BRAWLER, "brawlerAvailable"],
+  ] as const)("offers %s on a forced Block", async (skill, available) => {
+    const { game, wrangler, declare } = match([], [OPPONENT], 8);
+    wrangler.skills.push(getSkill(skill));
+    const rage = await declare();
+    const block =
+      rage.pendingDecision?.type === "reroll"
+        ? await game.execute({ type: "use-reroll", accept: false })
+        : rage;
+    expect(block.pendingDecision).toMatchObject({
+      type: "block-dice",
+      [available]: true,
+    });
+  });
+
   it("knocks down a chosen team-mate, rolls Armour and continues the activation", async () => {
     const { game, wrangler, rolls, declare } = match(
       [{ playerIndex: 4, x: 10, y: 4 }],
@@ -92,7 +143,7 @@ describe("Squig Rage", () => {
     const failed = await declare();
     expect(failed.pendingDecision).toMatchObject({
       type: "bite-target",
-      skill: "Squig Rage",
+      purpose: "squig-knock-down",
       targetIds: [target.id],
     });
     expect(

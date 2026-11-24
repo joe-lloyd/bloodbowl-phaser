@@ -12,7 +12,10 @@ import {
 import { activationGates, playersWithin, withRerollOffer } from "../skills";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type ActivationGate } from "../skills/SkillRule";
-import { type ReactionDecisionAnswer } from "../../types/decisions";
+import {
+  type BiteTargetDecisionRequest,
+  type ReactionDecisionAnswer,
+} from "../../types/decisions";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
 
@@ -156,11 +159,14 @@ export class ActivationGateOperation extends GameOperation {
   ): Promise<void> {
     const { gameService, eventBus } = context;
     const skill = SkillType.SQUIG_RAGE;
-    const [opponent] = adjacentStandingPlayers(
+    const opponents = adjacentStandingPlayers(
       player,
       gameService.getOpponents(player.teamId)
     );
-    if (opponent && canRageBlock(player)) {
+    const opponent = canRageBlock(player)
+      ? await chooseRageOpponent(gameService, player, opponents)
+      : undefined;
+    if (opponent) {
       eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: player.id,
         skill,
@@ -174,7 +180,11 @@ export class ActivationGateOperation extends GameOperation {
       player,
       gameService.getTeammates(player.id)
     );
-    const victim = await chooseRageVictim(gameService, { player, targets });
+    const victim = await chooseRageTarget(gameService, {
+      player,
+      targets,
+      purpose: "squig-knock-down",
+    });
     if (victim) {
       gameService.commitAction(player.id);
       this.lashOut(context, { player, victim, skill });
@@ -256,9 +266,30 @@ function canRageBlock(player: Player): boolean {
   );
 }
 
-async function chooseRageVictim(
+async function chooseRageOpponent(
   gameService: IGameService,
-  { player, targets }: { player: Player; targets: Player[] }
+  player: Player,
+  opponents: Player[]
+): Promise<Player | undefined> {
+  if (opponents.length < 2) return opponents[0];
+  return chooseRageTarget(gameService, {
+    player,
+    targets: opponents,
+    purpose: "squig-block",
+  });
+}
+
+async function chooseRageTarget(
+  gameService: IGameService,
+  {
+    player,
+    targets,
+    purpose,
+  }: {
+    player: Player;
+    targets: Player[];
+    purpose: NonNullable<BiteTargetDecisionRequest["purpose"]>;
+  }
 ): Promise<Player | undefined> {
   if (targets.length === 0) return;
   const answer = await gameService.getDecisionService().request({
@@ -266,7 +297,7 @@ async function chooseRageVictim(
     playerId: player.id,
     chooserTeamId: player.teamId,
     targetIds: targets.map((target) => target.id),
-    skill: SkillType.SQUIG_RAGE,
+    purpose,
   });
   if ("targetId" in answer)
     return targets.find((target) => target.id === answer.targetId);

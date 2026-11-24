@@ -2,6 +2,7 @@ import { DecisionService } from "@/game/skills";
 import {
   type InducementChoiceDecisionAnswer,
   type RerollSource,
+  canChooseBiteTarget,
 } from "@/types/decisions";
 import { validChoiceAnswer } from "@/game/inducements/matchInducements";
 
@@ -30,8 +31,7 @@ export function answerBiteTarget(
 ): boolean {
   const pending = decisions.pending();
   if (pending?.type !== "bite-target") return false;
-  if (targetId !== undefined && !pending.targetIds.includes(targetId))
-    return false;
+  if (!canChooseBiteTarget(pending, targetId)) return false;
   return decisions.answer(targetId === undefined ? {} : { targetId });
 }
 

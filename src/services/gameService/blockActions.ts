@@ -39,13 +39,17 @@ export async function forceBlock(
   const attacker = game.getPlayerById(attackerId);
   if (!attacker || state.activePlayer?.id !== attackerId) return;
 
+  state.activePlayer = {
+    id: attackerId,
+    action: "block",
+    committed: true,
+    forcedBlock: true,
+  };
   if (attacker.status === PlayerStatus.PRONE) {
-    state.activePlayer = { id: attackerId, action: "block", committed: true };
     await movementManager.standUp(attackerId);
     if (game.hasPlayerActed(attackerId)) return;
   }
 
-  state.activePlayer = null;
   blockManager.previewBlock(attackerId, defenderId);
   await blockManager.startBlock(attackerId, defenderId);
 }
@@ -235,6 +239,7 @@ function blockDeclarationRefuses(
     awaitingSecondAction(parts, attackerId) ||
     (declaration.action !== "block" && declaration.action !== "blitz") ||
     declaration.blockReplacement !== undefined ||
+    declaration.forcedBlock === true ||
     parts.game.hasUsedBlitzBlock(attackerId)
   );
 }

@@ -125,12 +125,14 @@ for (const row of records(path.join(folder, "df_mbt.csv"))) {
 }
 
 const round = (x: number) => Math.round(x * 1000) / 1000;
-const entries = (Object.entries(RosterName)).map(
+const entries = Object.entries(RosterName).flatMap(
   ([key, roster]) => {
     const name = FUMBBL_NAMES[roster] ?? roster;
     const bucket = totals.get(name);
-    if (!bucket || bucket.games < MIN_GAMES)
+    if (!bucket || bucket.games < MIN_GAMES) {
+      if (roster === RosterName.NIGHT_GOBLIN) return [];
       throw new Error(`no FUMBBL rates for ${roster} (looked for "${name}")`);
+    }
     const per = (rate: Rate) => round(bucket[rate] / bucket.games);
     return (
       `  [RosterName.${key}]: { games: ${String(bucket.games)}, wins: ${String(per("wins"))}, ` +
