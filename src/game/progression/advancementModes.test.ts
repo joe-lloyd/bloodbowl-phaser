@@ -401,7 +401,8 @@ describe("Sevens Skill Selection, a saved choice that is now illegal", () => {
     };
     expect(skillSelectionDecision(team, entry)).toMatchObject({
       type: "name-primary-skill",
-      named: [SkillType.BLOCK, SkillType.TACKLE],
+      chooser: "opponent",
+      named: [SkillType.BLOCK],
     });
   });
 

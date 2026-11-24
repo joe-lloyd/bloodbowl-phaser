@@ -299,7 +299,7 @@ export function skillSelectionDecision(
     throw new Error(`${progress.playerId} is no longer on the team.`);
   switch (progress.route) {
     case "primary": {
-      const named = progress.named.filter((s) => isSkillLegal(player, s));
+      const named = standingNames(player, progress.named);
       const chooser = NOMINATION_ORDER[named.length];
       if (!chooser) {
         return {
@@ -330,6 +330,14 @@ export function skillSelectionDecision(
             categories: categoriesFor(player, "secondary"),
           };
   }
+}
+
+function standingNames(
+  player: Player,
+  named: readonly SkillType[]
+): SkillType[] {
+  const illegal = named.findIndex((skill) => !isSkillLegal(player, skill));
+  return illegal < 0 ? [...named] : named.slice(0, illegal);
 }
 
 function rollStands(
