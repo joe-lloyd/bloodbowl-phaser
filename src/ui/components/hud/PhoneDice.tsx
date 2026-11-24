@@ -73,28 +73,37 @@ export function PhoneDice({
   const overlay = useRef<HTMLDivElement>(null);
   const spot = useClearSpot(overlay, current);
   return (
-    <div
-      ref={overlay}
-      data-testid="dice-tray"
-      aria-hidden={!current}
-      data-dice={diceTrayStage(current)}
-      className={`pointer-events-none absolute z-[110] flex w-[220px] flex-col items-center transition-opacity duration-200 [&_*]:!pointer-events-none ${
-        current ? "opacity-100" : "opacity-0"
-      }`}
-      style={spot ?? { left: EDGE_PX, top: EDGE_PX }}
-    >
-      <div className="relative h-[92px] w-full">
-        <div ref={host} data-testid="dice-tray-dice" className="h-full w-full" />
-        {current?.settled && current.failed !== undefined && (
-          <p className="absolute inset-0 flex items-center justify-center gap-2 font-hud-display text-hud-2xl text-hud-bone [text-shadow:0_2px_4px_theme(colors.hud.ink)]">
-            {(current.labels ?? current.roll.values).join(" · ")}
-          </p>
-        )}
+    <>
+      <p aria-live="polite" data-testid="dice-announcement" className="sr-only">
+        {current && rollLine(current)}
+      </p>
+      <div
+        ref={overlay}
+        data-testid="dice-tray"
+        aria-hidden={!current}
+        data-dice={diceTrayStage(current)}
+        className={`pointer-events-none absolute z-[110] flex w-[220px] flex-col items-center transition-opacity duration-200 [&_*]:!pointer-events-none ${
+          current ? "opacity-100" : "opacity-0"
+        }`}
+        style={spot ?? { left: EDGE_PX, top: EDGE_PX }}
+      >
+        <div className="relative h-[92px] w-full">
+          <div ref={host} data-testid="dice-tray-dice" className="h-full w-full" />
+          {current?.settled && current.failed !== undefined && (
+            <p className="absolute inset-0 flex items-center justify-center gap-2 font-hud-display text-hud-2xl text-hud-bone [text-shadow:0_2px_4px_theme(colors.hud.ink)]">
+              {(current.labels ?? current.roll.values).join(" · ")}
+            </p>
+          )}
+        </div>
+        <PhoneCaption current={current} color={color} />
+        <RollBanner eventBus={eventBus} phone />
       </div>
-      <PhoneCaption current={current} color={color} />
-      <RollBanner eventBus={eventBus} phone />
-    </div>
+    </>
   );
+}
+
+function rollLine(roll: Queued): string {
+  return roll.settled ? roll.result : roll.title;
 }
 
 function PhoneCaption({
@@ -116,7 +125,7 @@ function PhoneCaption({
         {current.teamName}
       </span>
       <span className="line-clamp-3 text-center">
-        {current.settled ? current.result : current.title}
+        {rollLine(current)}
       </span>
     </p>
   );

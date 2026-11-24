@@ -37,6 +37,16 @@ function readStrip() {
   };
 }
 
+export function WeatherNote() {
+  const weather = readStrip()?.weather;
+  if (!weather) return null;
+  return (
+    <p data-testid="weather-note" className="font-hud-body text-hud-sm text-hud-bone">
+      {weather.title}
+    </p>
+  );
+}
+
 const FLAP = "flex min-w-0 -skew-x-12 items-center gap-2 px-3 py-1 phone:px-1.5";
 
 export function MatchStrip({

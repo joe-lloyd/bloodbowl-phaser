@@ -361,7 +361,7 @@ function PhonePlayerPanels({ subjects, renderPanel }: PhonePlayerPanelsProps) {
             setHoveredPlayer(null);
             setHoveredCrew(null);
           }}
-          className="phone-card hud-scroll fixed z-[60] max-h-[calc(100dvh-80px)] w-[min(300px,80vw)] landscape:w-[min(300px,60vw)] overflow-y-auto pointer-events-auto"
+          className="phone-card hud-scroll fixed z-[60] w-[min(300px,80vw)] landscape:w-[min(300px,60vw)] overflow-y-auto pointer-events-auto"
         >
           {cardPlayer
             ? renderPanel(cardPlayer, false)

@@ -207,12 +207,14 @@ function RollTableDialog(props: RollTablePanelProps) {
       {props.header}
       <div className="space-y-3 [@media(max-height:600px)]:space-y-1">
         {step === "waiting" && <p className="text-hud-dim">{intro}</p>}
-        <Stage
-          stage={stage}
-          step={step}
-          className="mx-auto h-[min(150px,22dvh)] w-full"
-        />
-        <ResultLine kind={kind} result={result} total={total} />
+        <div className="landscape:flex landscape:items-center landscape:justify-center landscape:gap-4">
+          <Stage
+            stage={stage}
+            step={step}
+            className="mx-auto h-[min(150px,22dvh)] w-full landscape:mx-0 landscape:w-[200px]"
+          />
+          <ResultLine kind={kind} result={result} total={total} />
+        </div>
         <DialogRows {...props} />
         {props.action}
       </div>

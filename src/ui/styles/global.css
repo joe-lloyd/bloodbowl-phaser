@@ -246,7 +246,6 @@
   --edge-left: calc(env(safe-area-inset-left) + 8px);
   --column: min(300px, 44vw);
 }
-.phone-hud:has([data-testid="action-plan"]) .phone-notice-bar,
 .phone-hud:has([data-testid="kickoff-table-dialog"]) .phone-bottom-bar,
 .phone-hud:has([data-decision-dialog]) .phone-bottom-bar,
 .phone-hud:has([data-decision-dialog]) [data-testid="player-chip"] {
@@ -271,13 +270,19 @@
 .phone-notice-bar {
   bottom: calc(var(--edge-bottom) + 64px);
 }
+.phone-hud:has([data-testid="action-plan"]) .phone-notice-bar {
+  bottom: auto;
+  top: calc(var(--edge-top) + 84px);
+}
 .phone-hud:has([data-decision-dialog]) .phone-notice-bar {
   left: calc((100vw - var(--column)) / 2);
   max-width: calc(100vw - var(--column) - 24px);
 }
 .phone-card {
+  --card-top: calc(var(--edge-top) + 52px);
   left: var(--edge-left);
-  top: calc(var(--edge-top) + 52px);
+  top: var(--card-top);
+  max-height: calc(100dvh - var(--card-top) - var(--edge-bottom));
 }
 .phone-column {
   width: var(--column);
@@ -309,7 +314,7 @@
     max-width: none;
   }
   .phone-card {
-    top: calc(var(--edge-top) + 136px);
+    --card-top: calc(var(--edge-top) + 136px);
   }
   .phone-column,
   .phone-column-right {
@@ -321,6 +326,7 @@
     bottom: var(--edge-bottom);
   }
   .phone-notice-bar,
+  .phone-hud:has([data-testid="action-plan"]) .phone-notice-bar,
   .phone-hud:has([data-decision-dialog]) .phone-notice-bar {
     bottom: auto;
     top: calc(var(--edge-top) + 140px);

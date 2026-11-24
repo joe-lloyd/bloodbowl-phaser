@@ -7,7 +7,7 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { TurnCatchUpCard } from "./TurnCatchUpCard";
 import { HalfTimeCard } from "./HalfTimeCard";
 import { TurnIndicator } from "./TurnIndicator";
-import { MatchStrip } from "./MatchStrip";
+import { MatchStrip, WeatherNote } from "./MatchStrip";
 import { ScoreBoard } from "./ScoreBoard";
 import { EndTurnButton } from "./EndTurnButton";
 import { KeyList } from "./KeyList";
@@ -246,7 +246,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     ...computeMatchOptionsMenu(menuContext),
     { type: "panel", id: "sound-settings", render: () => <SoundToggle /> },
     ...(phone
-      ? []
+      ? [
+          {
+            type: "panel" as const,
+            id: "weather",
+            render: () => <WeatherNote />,
+          },
+        ]
       : [{ type: "panel" as const, id: "keys", render: () => <KeyList /> }]),
   ];
 
