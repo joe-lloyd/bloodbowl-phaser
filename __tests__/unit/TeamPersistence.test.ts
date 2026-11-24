@@ -22,6 +22,7 @@ vi.mock("firebase/firestore", () => ({
         get: (ref: {
           path: string;
         }) => Promise<{ exists: () => boolean; data: () => unknown }>;
+        set: (ref: { path: string }, data: unknown) => void;
         delete: (ref: { path: string }) => void;
       }) => Promise<void>
     ) =>
@@ -30,6 +31,9 @@ vi.mock("firebase/firestore", () => ({
           exists: () => cloudDocuments.has(ref.path),
           data: () => cloudDocuments.get(ref.path),
         }),
+        set: (ref, data) => {
+          cloudDocuments.set(ref.path, data);
+        },
         delete: (ref) => {
           cloudDocuments.delete(ref.path);
         },
@@ -146,15 +150,13 @@ describe("signed-in cloud repository", () => {
 
     expect(loadTeams().map((t) => t.id)).toEqual(["cloud1"]);
 
-    saveTeams([makeTeam("cloud1"), makeTeam("cloud2")]);
+    const changed = { ...makeTeam("cloud1"), treasury: 1 };
+    saveTeams([changed, makeTeam("cloud2")]);
     await flush();
 
     expect(loadTeams().map((t) => t.id)).toEqual(["cloud1", "cloud2"]);
 
-    const paths = setDocMock.mock.calls.map(
-      (call) => (call[0] as unknown as { path: string }).path
-    );
-    expect(paths).toEqual([
+    expect([...cloudDocuments.keys()]).toEqual([
       "users/user-a/teams/cloud1",
       "users/user-a/teams/cloud2",
     ]);
@@ -167,13 +169,49 @@ describe("signed-in cloud repository", () => {
       new CloudTeamRepository("user-a", [makeTeam("keep"), makeTeam("drop")])
     );
 
-    saveTeams([makeTeam("keep"), makeTeam("drop")]);
+    const drop = { ...makeTeam("drop"), treasury: 1 };
+    saveTeams([{ ...makeTeam("keep"), treasury: 1 }, drop]);
     await flush();
 
-    saveTeams([makeTeam("keep")]);
+    saveTeams([{ ...makeTeam("keep"), treasury: 1 }]);
     await flush();
 
     expect([...cloudDocuments.keys()]).toEqual(["users/user-a/teams/keep"]);
+  });
+});
+
+describe("a stale draft in the cloud library", () => {
+  async function startedElsewhere() {
+    const draft = makeTeam("club");
+    const stale = new CloudTeamRepository("user-a", [structuredClone(draft)]);
+    const other = new CloudTeamRepository("user-a", [structuredClone(draft)]);
+    await other.saveTeams([
+      { ...structuredClone(draft), firstMatchPlayedAt: 1, wins: 1 },
+    ]);
+    return { draft, stale };
+  }
+  const stored = () => cloudDocuments.get("users/user-a/teams/club");
+
+  it("cannot replace a team that played its first match on another device", async () => {
+    const { draft, stale } = await startedElsewhere();
+    setTeamRepository(stale);
+
+    await expect(
+      saveTeams([{ ...structuredClone(draft), name: "Renamed" }])
+    ).rejects.toThrow("has played its first match");
+
+    expect(stored()).toMatchObject({ firstMatchPlayedAt: 1, wins: 1 });
+    expect(loadTeams().map((team) => team.name)).toEqual(["club"]);
+  });
+
+  it("does not stop the coach saving another team", async () => {
+    const { draft, stale } = await startedElsewhere();
+    setTeamRepository(stale);
+
+    await saveTeams([structuredClone(draft), makeTeam("second")]);
+
+    expect(stored()).toMatchObject({ firstMatchPlayedAt: 1, wins: 1 });
+    expect(cloudDocuments.has("users/user-a/teams/second")).toBe(true);
   });
 });
 
@@ -191,14 +229,14 @@ describe("local→cloud migration", () => {
     );
 
     expect(uploaded.map((t) => t.id)).toEqual(["local1"]);
-    expect(setDocMock).toHaveBeenCalledTimes(1);
-    expect(
-      (fixtureValue(setDocMock.mock.calls[0])[0] as unknown as { path: string }).path
-    ).toBe("users/user-a/teams/local1");
+    expect([...cloudDocuments.keys()]).toEqual([
+      "users/user-a/teams/local1",
+    ]);
 
+    cloudDocuments.clear();
     const again = await migrateLocalTeams("user-a", [], () => true);
     expect(again).toEqual([]);
-    expect(setDocMock).toHaveBeenCalledTimes(1);
+    expect(cloudDocuments.size).toBe(0);
   });
 
   it("declining uploads nothing and leaves local teams intact", async () => {

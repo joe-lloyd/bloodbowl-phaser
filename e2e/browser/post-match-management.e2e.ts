@@ -68,12 +68,13 @@ for (const viewport of [
     await expect(
       page.getByText("Winnings: +60,000 gp added to the Treasury.")
     ).toBeVisible();
-    await expect(
-      page
-        .getByText("Re-Rolls", { exact: true })
-        .locator("..")
-        .getByRole("button")
-    ).toHaveCount(0);
+    for (const locked of ["Re-Rolls", "Dedicated Fans"])
+      await expect(
+        page
+          .getByText(locked, { exact: true })
+          .locator("..")
+          .getByRole("button")
+      ).toHaveCount(0);
     for (let coach = 0; coach < 3; coach++) {
       await page
         .getByText(/^Asst. Coaches/)

@@ -14,6 +14,10 @@ import { getDb } from "./config";
 import { isAuthResolved, subscribeToAuth } from "./auth";
 import { type Team } from "../types/Team";
 import {
+  assertKeepsStartedTeam,
+  isActiveTeam,
+} from "../game/rules/teamLifecycle";
+import {
   dehydrateTeam,
   readStoredTeam,
 } from "../data/persistence/teamPersistence";
@@ -32,7 +36,9 @@ function teamsCollection(uid: string) {
   return collection(getDb(), "users", uid, "teams");
 }
 
-function toPlainDoc(team: Team): Record<string, unknown> {
+type StoredDocument = ReturnType<typeof firebaseDocument>;
+
+function toPlainDoc(team: Team): StoredDocument {
   return firebaseDocument(dehydrateTeam(team));
 }
 
@@ -71,8 +77,22 @@ export async function fetchCoachTeam({
   return snapshot.exists() ? readCloudTeam(snapshot.data()).team : null;
 }
 
-async function writeCloudTeam(uid: string, team: Team): Promise<void> {
-  await setDoc(doc(teamsCollection(uid), team.id), toPlainDoc(team));
+async function writeCloudTeam(
+  uid: string,
+  team: Team,
+  plain = toPlainDoc(team)
+): Promise<void> {
+  const reference = doc(teamsCollection(uid), team.id);
+  if (isActiveTeam(team)) {
+    await setDoc(reference, plain);
+    return;
+  }
+  await runTransaction(getDb(), async (transaction) => {
+    const snapshot = await transaction.get(reference);
+    if (snapshot.exists())
+      assertKeepsStartedTeam(team, readCloudTeam(snapshot.data()).team);
+    transaction.set(reference, plain);
+  });
 }
 
 async function deleteCloudTeam(uid: string, teamId: string): Promise<void> {
@@ -92,11 +112,43 @@ async function deleteCloudTeam(uid: string, teamId: string): Promise<void> {
 
 export class CloudTeamRepository implements TeamRepository {
   private cache: Team[];
+  private readonly acknowledged = new Map<string, StoredDocument>();
+  private readonly submitted = new Map<string, string>();
 
   private readonly uid: string;
   constructor(uid: string, initialTeams: Team[]) {
     this.uid = uid;
     this.cache = [...initialTeams];
+    for (const team of initialTeams) this.accept(team.id, toPlainDoc(team));
+  }
+
+  private accept(teamId: string, plain: StoredDocument): void {
+    this.acknowledged.set(teamId, plain);
+    this.submitted.set(teamId, JSON.stringify(plain));
+  }
+
+  private async write(team: Team): Promise<void> {
+    const plain = toPlainDoc(team);
+    const text = JSON.stringify(plain);
+    if (this.submitted.get(team.id) === text) return;
+    this.submitted.set(team.id, text);
+    try {
+      await writeCloudTeam(this.uid, team, plain);
+      this.acknowledged.set(team.id, plain);
+    } catch (cause) {
+      if (this.submitted.get(team.id) === text) this.restore(team.id);
+      throw cause;
+    }
+  }
+
+  private restore(teamId: string): void {
+    const kept = this.acknowledged.get(teamId);
+    this.submitted.delete(teamId);
+    if (kept) this.accept(teamId, kept);
+    this.cache = this.cache.flatMap((team) => {
+      if (team.id !== teamId) return [team];
+      return kept ? [readCloudTeam(kept).team] : [];
+    });
   }
 
   loadTeams(): Team[] {
@@ -105,6 +157,8 @@ export class CloudTeamRepository implements TeamRepository {
 
   async deleteTeam(teamId: string): Promise<void> {
     await deleteCloudTeam(this.uid, teamId);
+    this.submitted.delete(teamId);
+    this.acknowledged.delete(teamId);
     this.cache = this.cache.filter((team) => team.id !== teamId);
   }
 
@@ -113,9 +167,11 @@ export class CloudTeamRepository implements TeamRepository {
     const nextIds = new Set(teams.map((t) => t.id));
     this.cache = [...teams];
 
-    const writes = teams.map((team) => writeCloudTeam(this.uid, team));
+    const writes = teams.map((team) => this.write(team));
     for (const id of previousIds) {
       if (!nextIds.has(id)) {
+        this.submitted.delete(id);
+        this.acknowledged.delete(id);
         writes.push(deleteCloudTeam(this.uid, id));
       }
     }

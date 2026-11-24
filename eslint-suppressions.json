@@ -419,9 +419,6 @@
     }
   },
   "__tests__/unit/TeamPersistence.test.ts": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 4
-    },
     "@typescript-eslint/no-floating-promises": {
       "count": 7
     },

@@ -112,22 +112,43 @@ describe("graphical match pregame through the protocol", () => {
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
   });
 
-  it("passes a broke coach when an older save left them at the purchases", async () => {
+  it("lets the coaches answer a vacant captaincy in an older save nobody can buy in", async () => {
     const original = pregameGame();
+    original.ctx.team2.rerolls = original.ctx.team1.rerolls;
     await ready(original);
     const snapshot = original.snapshot();
-    fixtureValue(snapshot.pregameInducements?.offer).confirmed["team2"] = false;
+    const pregame = fixtureValue(snapshot.pregameInducements);
+    pregame.complete = false;
+    fixtureValue(pregame.offer).confirmed = { team1: false, team2: false };
+    delete snapshot.inducements;
+    const [team1, team2] = [original.ctx.team1, original.ctx.team2].map(
+      (team) => {
+        const stored = structuredClone(team);
+        stored.firstMatchPlayedAt = 1;
+        stored.players.forEach((player) => {
+          delete player.teamCaptain;
+        });
+        return stored;
+      }
+    );
     const game = new HeadlessGame({
-      team1: structuredClone(original.ctx.team1),
-      team2: structuredClone(original.ctx.team2),
-      initialState: deserializeGameState(snapshot),
+      team1: fixtureValue(team1),
+      team2: fixtureValue(team2),
+      initialState: { ...deserializeGameState(snapshot), paysWinnings: true },
       seed: 23,
     });
-    expect(game.snapshot().pregameInducements?.offer?.confirmed).toEqual({
-      team1: false,
-      team2: true,
-    });
-    expect((await game.execute(buyTraining)).ok).toBe(true);
+    for (const teamId of fixtureValue(pregame.buyOrder))
+      expect(
+        (await game.execute({ type: "confirm-inducements", teamId })).ok
+      ).toBe(true);
+    for (let asked = 0; asked < 2; asked++) {
+      expect(game.pendingDecision()).toMatchObject({ kind: "team-captain" });
+      expect((await game.execute({ type: "choose-inducement" })).ok).toBe(true);
+    }
+    expect(game.snapshot().pregameInducements?.resolving).toBe(false);
+    expect(
+      (await game.execute({ type: "start-setup", kickingTeamId: "team1" })).ok
+    ).toBe(true);
   });
 
   it.each(["sevens", "street-bowl", "beach-bowl", "gutter-bowl"] as const)(

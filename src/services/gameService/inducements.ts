@@ -258,7 +258,6 @@ export function skipUnaffordableInducements(parts: GameParts): void {
 }
 
 export function restoreMatchInducements(parts: GameParts): void {
-  skipUnaffordableInducements(parts);
   const draftList = draftListInventory(parts);
   if (
     !parts.state.pregameInducements &&

@@ -14,14 +14,15 @@ export function isActiveTeam(team: Team): boolean {
   return getTeamMode(team) === "active";
 }
 
-export function buysAfterStart(team: Team, stored: Team | undefined): boolean {
-  return (
-    stored !== undefined &&
-    isDraftTeam(team) &&
-    isActiveTeam(stored) &&
-    (team.rerolls > stored.rerolls ||
-      team.dedicatedFans > stored.dedicatedFans)
-  );
+export function assertKeepsStartedTeam(
+  team: Team,
+  stored: Team | undefined
+): void {
+  if (!stored || team.seedMetadata || isActiveTeam(team)) return;
+  if (isActiveTeam(stored))
+    throw new Error(
+      `${team.name} has played its first match since this copy was opened. Reload the team before you edit it.`
+    );
 }
 
 export function stampFirstCompletedMatch(
