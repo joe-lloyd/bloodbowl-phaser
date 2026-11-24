@@ -85,6 +85,17 @@ describe("Squig Rage", () => {
     expect(game.ctx.gameService.hasPlayerActed(wrangler.id)).toBe(true);
   });
 
+  it("checks Foul Appearance before a Wrangler can make a forced Block", async () => {
+    const { game, wrangler, rolls, declare } = match([], [
+      { ...OPPONENT, skills: [SkillType.FOUL_APPEARANCE] },
+    ]);
+    const response = await declare();
+    expect(rolls).toContain(`Foul Appearance (${wrangler.playerName})`);
+    expect(rolls).not.toContain("Block Roll");
+    expect(response.pendingDecision).toBeNull();
+    expect(game.ctx.gameService.hasPlayerActed(wrangler.id)).toBe(true);
+  });
+
   it("requires the coach to choose an opponent when more than one can be Blocked", async () => {
     const { game, wrangler, declare } = match(
       [],
@@ -105,6 +116,7 @@ describe("Squig Rage", () => {
       type: "choose-bite-target",
       playerId: left,
     });
+    expect(game.ctx.gameService.cancelAction(wrangler.id)).toBe(false);
     expect((await game.execute({ type: "choose-bite-target" })).ok).toBe(false);
     const roll = await game.execute({
       type: "choose-bite-target",

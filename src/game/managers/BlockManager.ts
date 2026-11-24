@@ -208,7 +208,6 @@ export class BlockManager extends BlockPushChain {
     dice: { numDice: number; isAttackerChoice: boolean },
     analysis: BlockAnalysis
   ): BlockDeclaredContext {
-    const active = this.state.activePlayer;
     return {
       attacker,
       defender,
@@ -216,7 +215,8 @@ export class BlockManager extends BlockPushChain {
       isAttackerChoice: dice.isAttackerChoice,
       attackerStrength: analysis.attackerST,
       defenderStrength: analysis.defenderST,
-      isBlitz: active?.action === "blitz" && active?.id === attacker.id,
+      isBlitz: this.isBlitzBlock(attacker),
+      isBallAndChain: this.isBallAndChain(attacker),
       cancelled: false,
       allPlayers: this.allPlayers(),
       ...this.triggerServices(),

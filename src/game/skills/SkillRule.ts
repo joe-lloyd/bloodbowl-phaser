@@ -79,6 +79,7 @@ export interface BlockDeclaredContext extends TriggerContextBase {
   defenderStrength: number;
 
   isBlitz: boolean;
+  isBallAndChain: boolean;
 
   cancelled: boolean;
 

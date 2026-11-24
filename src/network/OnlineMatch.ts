@@ -176,9 +176,17 @@ const DECISION_ACTIVITIES: Record<Exclude<PendingDecision["type"], "block-dice" 
   touchback: "choosing who takes the ball", "kickoff-event": "resolving the kick-off",
 };
 
+const SQUIG_DECISION_ACTIVITIES = {
+  "squig-block": "choosing an opponent to Block",
+  "squig-knock-down": "choosing a team-mate to knock down",
+};
+
 function decisionActivity(pending: PendingDecision): string {
   if (pending.type === "block-dice") return pending.choiceStage === "attacker-reroll" ? "choosing a block re-roll" : "picking a block die";
   if (pending.type === "reaction") return `deciding whether to use ${pending.skill}`;
+  if (pending.type === "bite-target" && pending.purpose) {
+    return SQUIG_DECISION_ACTIVITIES[pending.purpose];
+  }
   return DECISION_ACTIVITIES[pending.type];
 }
 

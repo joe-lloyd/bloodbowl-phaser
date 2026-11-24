@@ -3720,7 +3720,7 @@
       "count": 2
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 5
+      "count": 4
     },
     "complexity": {
       "count": 5
@@ -3848,7 +3848,7 @@
       "count": 1
     },
     "@typescript-eslint/prefer-optional-chain": {
-      "count": 4
+      "count": 3
     },
     "@typescript-eslint/switch-exhaustiveness-check": {
       "count": 3

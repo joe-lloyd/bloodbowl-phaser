@@ -42,8 +42,12 @@ export class ActivationGateOperation extends GameOperation {
       gameService.getTeammates(this.playerId)
     );
     for (const gate of gates) {
-      if (gate.onFail.kind !== "squigRage")
+      if (gate.onFail.kind === "squigRage") {
+        const activation = gameService.getState().activePlayer;
+        if (activation?.id === player.id) activation.activationRollStarted = true;
+      } else {
         gameService.commitAction(this.playerId);
+      }
       const dice = gameService.getDiceController();
       const doRoll = () => {
         const r = dice.rollSkillCheck({
