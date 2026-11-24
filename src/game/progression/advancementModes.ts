@@ -299,12 +299,13 @@ export function skillSelectionDecision(
     throw new Error(`${progress.playerId} is no longer on the team.`);
   switch (progress.route) {
     case "primary": {
-      const chooser = NOMINATION_ORDER[progress.named.length];
+      const named = progress.named.filter((s) => isSkillLegal(player, s));
+      const chooser = NOMINATION_ORDER[named.length];
       if (!chooser) {
         return {
           type: "roll-primary-d3",
           playerId: player.id,
-          named: [...progress.named],
+          named,
         };
       }
       return {
@@ -312,8 +313,8 @@ export function skillSelectionDecision(
         chooser,
         playerId: player.id,
         category: progress.category,
-        named: [...progress.named],
-        options: nameableSkills(player, progress.category, progress.named),
+        named,
+        options: nameableSkills(player, progress.category, named),
       };
     }
     case "secondary":
@@ -380,7 +381,7 @@ export function nominatePrimarySkill(
       `${skill} cannot be named for ${String(player?.playerName)}.`
     );
   }
-  entry.progress.named.push(skill);
+  entry.progress.named = [...decision.named, skill];
 }
 
 export interface SkillSelectionResult {

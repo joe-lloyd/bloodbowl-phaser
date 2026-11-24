@@ -388,6 +388,44 @@ describe("Sevens Skill Selection, Primary route (A2, A4, A5)", () => {
   });
 });
 
+describe("Sevens Skill Selection, a saved choice that is now illegal", () => {
+  it("asks for a new name in place of an illegal Primary nomination", () => {
+    const team = teamOf([player("p1")], 500_000);
+    createPendingSkillSelection(team, "match-1", ["p1"]);
+    const entry = onlySelection(team);
+    entry.progress = {
+      route: "primary",
+      playerId: "p1",
+      category: SkillCategory.GENERAL,
+      named: [SkillType.BLOCK, SkillType.VIOLENT_INNOVATOR, SkillType.TACKLE],
+    };
+    expect(skillSelectionDecision(team, entry)).toMatchObject({
+      type: "name-primary-skill",
+      named: [SkillType.BLOCK, SkillType.TACKLE],
+    });
+  });
+
+  it("asks for the Secondary category again", () => {
+    const team = teamOf([player("p1")], 500_000);
+    createPendingSkillSelection(team, "match-1", ["p1"]);
+    const entry = onlySelection(team);
+    entry.progress = {
+      route: "secondary",
+      playerId: "p1",
+      rolled: {
+        category: SkillCategory.DEVIOUS,
+        candidates: [
+          { skill: SkillType.VIOLENT_INNOVATOR, firstD6: 6, secondD6: 6 },
+          { skill: SkillType.EYE_GOUGE, firstD6: 1, secondD6: 2 },
+        ],
+      },
+    };
+    expect(skillSelectionDecision(team, entry).type).toBe(
+      "choose-secondary-category"
+    );
+  });
+});
+
 describe("Sevens Skill Selection, Secondary route (A3, A4, A5)", () => {
   it("picks a random player, then rolls two skills in a category the coach picks", () => {
     const p1 = player("p1");
