@@ -97,17 +97,24 @@ describe("post-match team management", () => {
     const staff = fixtureValue([...container.querySelectorAll("section")].find((s) =>
       s.textContent?.includes("Sideline staff")
     ));
-    const rerolls = fixtureValue([...staff.querySelectorAll("div")].find(
-      (d) => d.textContent?.includes("Re-Rolls") && d.querySelector("button")
-    ));
-    await act(async () => {
-      fixtureValue(rerolls.querySelector("button")).click();
-    });
+    const counter = (label: string) =>
+      fixtureValue(
+        [...staff.querySelectorAll("div.flex-col")].find((d) =>
+          d.textContent?.includes(label)
+        )
+      );
+    expect(counter("Re-Rolls").querySelector("button")).toBeNull();
+    expect(counter("Dedicated Fans").querySelector("button")).toBeNull();
+    for (let coach = 0; coach < 3; coach++) {
+      await act(async () => {
+        fixtureValue(counter("Asst. Coaches").querySelector("button")).click();
+      });
+    }
     await click(/Finish post-match/);
     expect(container.textContent).toBe("The league page");
     expect(getTeamById(team.id)).toMatchObject({
-      treasury: 50_000,
-      rerolls: team.rerolls + 1,
+      treasury: 90_000,
+      coaches: 3,
       pendingDevelopment: [],
     });
   });

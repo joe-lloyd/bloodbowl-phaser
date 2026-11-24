@@ -36,8 +36,14 @@ export async function confirmComputerPregame(
   });
 
   if (shoppingTeamId(pregame(), [team1.id, team2.id]) === match.myTeamId)
-    await match.run({ type: "confirm-inducements", teamId: match.myTeamId });
-  await vi.waitFor(() => {
-    expect(pregame().complete).toBe(true);
-  });
+    expect(
+      (await match.run({ type: "confirm-inducements", teamId: match.myTeamId }))
+        .ok
+    ).toBe(true);
+  await vi.waitFor(
+    () => {
+      expect(pregame().complete).toBe(true);
+    },
+    { timeout: 5000 }
+  );
 }

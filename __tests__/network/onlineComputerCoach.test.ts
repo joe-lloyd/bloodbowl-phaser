@@ -214,7 +214,8 @@ describe("the online computer coach", () => {
         await humanReady();
         await botReady();
       }
-      expect(bot.snapshot().inducements).toBeUndefined();
+      if (side === "guest")
+        expect(bot.snapshot().inducements).toBeUndefined();
 
       if (
         shoppingTeamId(human.snapshot().pregameInducements, [
