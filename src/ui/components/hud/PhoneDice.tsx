@@ -87,7 +87,7 @@ export function PhoneDice({
         }`}
         style={spot ?? { left: EDGE_PX, top: EDGE_PX }}
       >
-        <div className="relative h-[92px] w-full">
+        <div className="relative h-[100px] w-full">
           <div ref={host} data-testid="dice-tray-dice" className="h-full w-full" />
           {current?.settled && current.failed !== undefined && (
             <p className="absolute inset-0 flex items-center justify-center gap-2 font-hud-display text-hud-2xl text-hud-bone [text-shadow:0_2px_4px_theme(colors.hud.ink)]">

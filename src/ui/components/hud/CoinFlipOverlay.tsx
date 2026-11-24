@@ -1,16 +1,17 @@
 import { usePregameInducements } from "./pregameInducementHooks";
 import { PregameInducements } from "./PregameInducements";
 import React, { useState, useEffect, useRef } from "react";
-import type { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { GameEventNames } from "../../../types/events";
 import { type Team } from "../../../types/Team";
-import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
+import { HudButton } from "../componentWarehouse/HudKit";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { soundSettings } from "../../sound/settings";
 import type { DiceThrow } from "../../dice/diceScene";
+import { CoinTossPanel, KickOrReceive, TossWinner } from "./CoinTossPanel";
 import { teamLook } from "./diceTrayData";
+import type { EventBus } from "../../../services/EventBus";
 
 export const RESULT_BEAT_MS = 700;
 
@@ -132,92 +133,87 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
   if (pregame.pending) return <PregameInducements eventBus={eventBus} />;
 
   return (
-    <DialogShell
-      zClass="z-50"
-      placement="center"
-      backdrop="heavy"
-      titleAs="h1"
-      title="COIN TOSS"
-      width="w-[480px]"
-      className="text-center"
+    <CoinTossPanel
+      stage={coinHost}
+      thrown={step !== "START"}
+      action={
+        <TossAction
+          step={step}
+          computerWon={computerWon}
+          onFlip={() => void handleFlip()}
+          onChoose={handleChoice}
+        />
+      }
     >
-      {step === "START" && (
-        <div className="space-y-5 [@media(max-height:500px)]:space-y-3">
-          <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-gold">
-            Who will kick off?
-          </p>
-          <div className="flex items-start justify-center gap-6">
-            {[teams.team1, teams.team2].map((team, i) => (
-              <div
-                key={team.id}
-                className="flex w-40 flex-col items-center gap-2"
-                data-testid={`coin-side-${i === 0 ? "heads" : "tails"}`}
-              >
-                {faceImages && (
-                  <img
-                    {...(faceImages[i] === undefined
-                      ? {}
-                      : { src: faceImages[i] })}
-                    alt=""
-                    className="h-20 w-20 rounded-full border-4 border-hud-gold shadow-[0_8px_20px_rgba(0,0,0,0.6)]"
-                  />
-                )}
-                <span className="hud-label">{i === 0 ? "Heads" : "Tails"}</span>
-                <span className="min-w-0 truncate font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] text-hud-bone">
-                  {team.name}
-                </span>
-              </div>
-            ))}
-          </div>
-          <HudButton variant="primary" size="lg" block onClick={handleFlip}>
-            FLIP COIN
-          </HudButton>
-        </div>
-      )}
-
-      <div
-        ref={coinHost}
-        data-testid="coin-stage"
-        className={
-          step === "START" ? "hidden" : "mx-auto h-[min(220px,34dvh)] w-full"
-        }
-      />
-
+      {step === "START" && <CoinSides teams={teams} images={faceImages} />}
+      {step === "FLIPPING" && <p className="hud-label">Flipping…</p>}
       {step === "RESULT" && winner && (
-        <div className="space-y-5 animate-hud-in [@media(max-height:500px)]:space-y-3">
-          <div className="font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-gold">
-            {winner.name} Wins!
-          </div>
-          {computerWon ? (
-            <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
-              {computer.opponentName} chooses to receive
-            </p>
-          ) : (
-            <p className="text-hud-dim">Choose to Kick or Receive</p>
-          )}
-
-          <div className={computerWon ? "hidden" : "grid grid-cols-2 gap-3"}>
-            <HudButton
-              variant="gold"
-              size="lg"
-              onClick={() => {
-                handleChoice("kick");
-              }}
-            >
-              KICK
-            </HudButton>
-            <HudButton
-              variant="primary"
-              size="lg"
-              onClick={() => {
-                handleChoice("receive");
-              }}
-            >
-              RECEIVE
-            </HudButton>
-          </div>
-        </div>
+        <TossWinner
+          name={winner.name}
+          note={
+            computerWon
+              ? `${computer.opponentName} chooses to receive`
+              : "Choose to kick or receive"
+          }
+        />
       )}
-    </DialogShell>
+    </CoinTossPanel>
   );
 };
+
+function TossAction({
+  step,
+  computerWon,
+  onFlip,
+  onChoose,
+}: {
+  step: "START" | "FLIPPING" | "RESULT";
+  computerWon: boolean;
+  onFlip: () => void;
+  onChoose: (choice: "kick" | "receive") => void;
+}) {
+  if (step === "START")
+    return (
+      <HudButton variant="primary" size="lg" block onClick={onFlip}>
+        FLIP COIN
+      </HudButton>
+    );
+  return step === "RESULT" && !computerWon ? (
+    <KickOrReceive onChoose={onChoose} />
+  ) : null;
+}
+
+function CoinSides({
+  teams,
+  images,
+}: {
+  teams: { team1: Team; team2: Team };
+  images: [string, string] | null;
+}) {
+  return (
+    <>
+      <p className="mb-2 text-hud-bone">Who will kick off?</p>
+      <div className="flex items-start justify-center gap-6">
+        {[teams.team1, teams.team2].map((team, i) => (
+          <div
+            key={team.id}
+            className="flex w-40 flex-col items-center gap-2"
+            data-testid={`coin-side-${i === 0 ? "heads" : "tails"}`}
+          >
+            {images && (
+              <img
+                src={images[i === 0 ? 0 : 1]}
+                alt=""
+                className="h-20 w-20 rounded-full border-4 border-hud-gold shadow-[0_8px_20px_rgba(0,0,0,0.6)]"
+              />
+            )}
+            <span className="hud-label">{i === 0 ? "Heads" : "Tails"}</span>
+            <span className="max-w-full truncate font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] text-hud-bone">
+              {team.name}
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}

@@ -14,22 +14,19 @@ export function drawKickTarget(
 ): Phaser.GameObjects.Container {
   const centre = gridToPixel(square.x, square.y);
   const casing = scene.add
-    .ellipse(0, 0, WIDTH, HEIGHT, color, 0.22)
-    .setStrokeStyle(11, 0x08090b, 0.85);
+    .ellipse(0, 0, WIDTH, HEIGHT, color, 0.08)
+    .setStrokeStyle(5, 0x08090b, 0.45);
   const ring = scene.add
     .ellipse(0, 0, WIDTH, HEIGHT)
-    .setStrokeStyle(6, color, 1);
-  const bullseye = scene.add
-    .ellipse(0, 0, WIDTH * 0.3, HEIGHT * 0.3, color, 0.9)
-    .setStrokeStyle(2, 0xffffff, 0.9);
+    .setStrokeStyle(2.5, color, 0.8);
   const target = scene.add
-    .container(centre.x, centre.y, [casing, ring, bullseye])
+    .container(centre.x, centre.y, [casing, ring])
     .setName(KICK_TARGET_LAYER);
   if (!prefersReducedMotion())
     scene.tweens.add({
       targets: target,
-      scale: { from: 1.15, to: 0.95 },
-      duration: 650,
+      alpha: { from: 1, to: 0.65 },
+      duration: 1100,
       yoyo: true,
       repeat: -1,
       ease: "Sine.easeInOut",

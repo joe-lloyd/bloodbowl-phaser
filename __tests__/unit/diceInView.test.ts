@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const worst = vi.hoisted(() => ({
   edge: 0,
-  size: 0,
+  share: 0,
   aspect: 0,
   canvas: [0, 0],
 }));
@@ -24,10 +24,13 @@ vi.mock("three", async (importOriginal) => {
       scene.updateMatrixWorld();
       camera.updateMatrixWorld();
       worst.aspect = camera.aspect;
-      worst.size = 1 / Math.tan((camera.fov * Math.PI) / 360);
       scene.traverse((object) => {
         if (!("labels" in object.userData)) return;
         const at = object.position.clone().project(camera);
+        worst.share =
+          0.5 /
+          (object.position.distanceTo(camera.position) *
+            Math.tan((camera.fov * Math.PI) / 360));
         worst.edge = Math.max(worst.edge, Math.abs(at.x), Math.abs(at.y));
       });
     }
@@ -53,7 +56,7 @@ const team = {
 
 async function rollOn(
   size: { width: number; height: number },
-  options: { close?: boolean }
+  values: number[] = [3, 4]
 ) {
   const { playRoll } = await import("../../src/ui/dice/diceScene");
   const host = document.createElement("div");
@@ -64,10 +67,11 @@ async function rollOn(
   worst.edge = 0;
   const thrown = playRoll(
     host,
-    { kind: "d6", values: [3, 4], team },
-    { sound: false, ...options }
+    { kind: "d6", values, team },
+    { sound: false }
   );
   await thrown.landed;
+  await new Promise((resolve) => setTimeout(resolve, 600));
   thrown.stop();
   return { ...worst };
 }
@@ -93,20 +97,20 @@ it("a landed roll follows its stage when the phone turns", async () => {
   thrown.stop();
 }, 40_000);
 
-describe("two dice stay in the picture", () => {
-  it("all the way through the desktop weather and kick-off strip", async () => {
+describe.each([
+  ["desktop weather and kick-off strip", { width: 240, height: 176 }],
+  ["desktop tray", { width: 420, height: 220 }],
+  ["phone overlay", { width: 220, height: 100 }],
+])("dice on the %s", (_name, size) => {
+  it("stay in the picture all the way through a 2D6", async () => {
     let edge = 0;
-    for (let roll = 0; roll < 4; roll++)
-      edge = Math.max(edge, (await rollOn({ width: 160, height: 112 }, {})).edge);
+    for (let roll = 0; roll < 3; roll++)
+      edge = Math.max(edge, (await rollOn(size)).edge);
     expect(edge).toBeLessThanOrEqual(1.05);
   }, 40_000);
 
-  it("and the phone overlay is the only closer view", async () => {
-    const strip = await rollOn({ width: 160, height: 112 }, {});
-    const tray = await rollOn({ width: 420, height: 180 }, {});
-    const phone = await rollOn({ width: 220, height: 92 }, { close: true });
-    expect(strip.size).toBeCloseTo(tray.size);
-    expect(phone.size).toBeGreaterThan(tray.size * 1.2);
-    expect(phone.edge).toBeLessThanOrEqual(1.05);
+  it("land large enough to read", async () => {
+    expect((await rollOn(size, [5])).share).toBeGreaterThan(0.55);
+    expect((await rollOn(size)).share).toBeGreaterThan(0.45);
   }, 40_000);
 });

@@ -5,7 +5,13 @@ import { bipyramid, bipyramidGeometry, bipyramidLabelling } from "./bipyramid";
 import { faceMaterial } from "./diceFaces";
 import { labelling, simulate, upFace } from "./dicePhysics";
 import { clack, loadClacks } from "./diceSound";
-import { createStage, drawStage, faceForward, liftEase } from "./diceStage";
+import {
+  createStage,
+  drawStage,
+  faceForward,
+  liftEase,
+  resultSpot,
+} from "./diceStage";
 import { indexed } from "./diceValues";
 import type { Stage } from "./diceStage";
 
@@ -19,6 +25,8 @@ function snapshot(mesh: THREE.Mesh): Pose {
     quaternion: mesh.quaternion.clone(),
   };
 }
+
+const SPREAD = 1.35;
 
 function createDice(input: {
   roll: DiceRoll;
@@ -40,11 +48,7 @@ function createDice(input: {
     mesh.castShadow = true;
     mesh.userData["labels"] = labels;
     stage.scene.add(mesh);
-    const spread = (i - (roll.values.length - 1) / 2) * 1.35;
-    const position = stage.camera.position
-      .clone()
-      .lerp(stage.lookAt, 0.63)
-      .add(new THREE.Vector3(spread, 0, 0));
+    const position = new THREE.Vector3();
     return {
       mesh,
       labels,
@@ -58,8 +62,6 @@ function scaleTarget(marked: number | null, index: number): number {
   if (marked === null) return 1;
   return marked === index ? 1.2 : 0.75;
 }
-
-const CLOSE_DICE = 2;
 
 class DiceAnimation implements Control {
   private readonly input;
@@ -80,17 +82,13 @@ class DiceAnimation implements Control {
     host: HTMLElement;
     roll: DiceRoll;
     sound: boolean;
-    close: boolean;
     pick: (index: number) => void;
     resolve: (values: number[]) => void;
   }) {
     this.input = input;
     this.sim = simulate(input.roll.values.length, input.roll.kind);
     if (input.sound) void loadClacks();
-    this.stage = createStage(
-      input.host,
-      input.close && input.roll.values.length <= CLOSE_DICE
-    );
+    this.stage = createStage(input.host);
     const solid = bipyramid(input.roll.kind);
     this.geometry = solid
       ? bipyramidGeometry(solid)
@@ -132,7 +130,18 @@ class DiceAnimation implements Control {
     });
   }
 
+  private placeResults(): void {
+    const count = this.dice.length;
+    const spot = resultSpot(this.stage, { width: count * SPREAD, height: 1 });
+    this.dice.forEach(({ lifted }, index) => {
+      lifted.position
+        .copy(spot)
+        .add(new THREE.Vector3((index - (count - 1) / 2) * SPREAD, 0, 0));
+    });
+  }
+
   private showResult(): void {
+    this.placeResults();
     this.applyFrame(indexed(this.sim.frames, this.sim.frames.length - 1));
     this.dice.forEach((die) => {
       die.mesh.quaternion.copy(this.forward(die));
@@ -203,6 +212,7 @@ class DiceAnimation implements Control {
   }
 
   private settle(): void {
+    this.placeResults();
     this.dice.forEach((die) => {
       die.settled = snapshot(die.mesh);
       die.lifted.quaternion = this.forward(die);
@@ -226,6 +236,7 @@ class DiceAnimation implements Control {
   }
 
   private lift(liftedAt: number): void {
+    this.placeResults();
     const ease = liftEase(performance.now() - liftedAt);
     this.dice.forEach(({ mesh, settled, lifted }, index) => {
       mesh.position.lerpVectors(settled.position, lifted.position, ease);
@@ -260,7 +271,6 @@ export function throwDice(input: {
   host: HTMLElement;
   roll: DiceRoll;
   sound: boolean;
-  close: boolean;
   pick: (index: number) => void;
   ready: (control: Control) => void;
 }): Promise<number[]> {

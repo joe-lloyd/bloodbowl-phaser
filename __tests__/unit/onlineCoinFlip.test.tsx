@@ -229,7 +229,7 @@ describe("online weather", () => {
     await act(async () => {
       fixtureValue(dialog.button("ON TO THE COIN TOSS")).click();
     });
-    expect(dialog.text()).toContain("COIN TOSS");
+    expect(dialog.text()).toContain("Coin toss");
     await dialog.unmount();
   });
 
@@ -257,7 +257,7 @@ describe("online weather", () => {
         b.textContent?.includes(name)
       );
     expect(text()).toContain("WEATHER");
-    expect(text()).not.toContain("COIN TOSS");
+    expect(text()).not.toContain("Coin toss");
 
     await act(async () => {
       fixtureValue(button("READY — ROLL WEATHER")).click();
@@ -295,7 +295,7 @@ describe("online weather", () => {
     await act(async () => {
       fixtureValue(button("ON TO THE COIN TOSS")).click();
     });
-    expect(text()).toContain("COIN TOSS");
+    expect(text()).toContain("Coin toss");
     expect(button("READY — FLIP COIN")).toBeDefined();
     await act(async () => {
       root.unmount();

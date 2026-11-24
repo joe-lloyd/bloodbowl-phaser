@@ -4,7 +4,7 @@ import { throwDice } from "./diceAnimation";
 export type DiceKind = "d6" | "d8" | "d16" | "block";
 
 export { BLOCK_FACES, coinFaceImage } from "./diceFaces";
-export { labelling,  } from "./dicePhysics";
+export { labelling } from "./dicePhysics";
 
 export interface DiceTeam {
   key: string;
@@ -52,7 +52,7 @@ type Control = Pick<DiceThrow, "mark" | "stop" | "hurry"> & {
 export function playRoll(
   host: HTMLElement,
   roll: DiceRoll | CoinToss,
-  opts: { sound: boolean; close?: boolean }
+  opts: { sound: boolean }
 ): DiceThrow {
   const pickers: ((index: number) => void)[] = [];
   let marked: number | null = null;
@@ -81,7 +81,6 @@ export function playRoll(
           host,
           roll,
           sound: opts.sound,
-          close: opts.close ?? false,
           ...hooks,
         });
   });

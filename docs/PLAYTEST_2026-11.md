@@ -47,3 +47,11 @@ only when its change has merged and was checked in the running game.
 - [ ] G2. The camera stays hands-off on mobile: it refocuses on the action, never zooms out wildly, and ignores the dice box.
 - [ ] G3. The game installs as a progressive web app: full screen without Chrome's message, landscape rotation working.
 - [ ] G4. Action menus and panels use the height available, so nothing is stubby or scrolls without need.
+
+## H. Second playtest
+
+- [ ] H1. Dice are large enough to read in the weather, kick-off and dice trays.
+- [ ] H2. The coin toss uses the same panel as the weather and kick-off rolls, offline and online.
+- [ ] H3. One page shows every UI component and state in one place, so drift is visible.
+- [ ] H4. The computer picks who takes a touchback without a long wait.
+- [ ] H5. The ring on the ball's landing square is quieter.

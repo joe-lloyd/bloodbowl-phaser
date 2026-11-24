@@ -257,7 +257,7 @@ async function startSetup(
   const flip = page.getByRole("button", { name: "FLIP COIN" });
   await expect(flip).toBeVisible({ timeout: 15_000 });
   await flip.click();
-  await expect(page.getByText(/Wins!$/)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/wins the toss!$/)).toBeVisible({ timeout: 10_000 });
   const toss = (await app.bridge.events()).find(
     (e) =>
       e.name === GameEventNames.DiceRoll &&

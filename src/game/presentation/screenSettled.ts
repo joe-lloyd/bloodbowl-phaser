@@ -1,7 +1,7 @@
 import { type IEventBus } from "../../services/EventBus";
 import { rootEventBus } from "../../services/scopedEventBus";
 import { DiceWatch } from "./diceWatch";
-import { hasPendingMoments, whenMomentsComplete } from "./momentQueue";
+import { hasMomentsToShow, whenMomentsShown } from "./momentQueue";
 
 const boards = new WeakMap<IEventBus, () => Promise<unknown>>();
 
@@ -30,11 +30,11 @@ export async function whenScreenSettled(eventBus: IEventBus): Promise<void> {
       board.then(() => true),
       macrotask().then(() => false),
     ]);
-    if (drawn && !hasPendingMoments(root) && !dice.inAir()) return;
+    if (drawn && !hasMomentsToShow(root) && !dice.inAir()) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     await Promise.race([
       (async () => {
-        await whenMomentsComplete(root);
+        await whenMomentsShown(root);
         await dice.landed();
         await board;
       })(),

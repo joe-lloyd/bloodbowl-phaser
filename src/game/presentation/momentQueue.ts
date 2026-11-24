@@ -14,10 +14,21 @@ const TURNOVER_BEAT_MS = 300;
 
 const KICKOFF_QUIET_MS = 500;
 
+const HELD_POLL_MS = 100;
+
 const queues = new WeakMap<IEventBus, MomentQueue>();
 
 export function hasPendingMoments(eventBus: IEventBus): boolean {
   return queues.get(rootEventBus(eventBus))?.isBusy() ?? false;
+}
+
+export function hasMomentsToShow(eventBus: IEventBus): boolean {
+  return queues.get(rootEventBus(eventBus))?.hasMomentsToShow() ?? false;
+}
+
+export async function whenMomentsShown(eventBus: IEventBus): Promise<void> {
+  while (hasMomentsToShow(eventBus))
+    await new Promise((resolve) => setTimeout(resolve, HELD_POLL_MS));
 }
 
 export function whenMomentsComplete(eventBus: IEventBus): Promise<void> {
@@ -56,6 +67,8 @@ export class MomentQueue {
   private pending: { moment: MatchMoment; ready: Promise<void> }[] = [];
   private idleWaiters: (() => void)[] = [];
   private running = false;
+  private waitsForKickoff = false;
+  private showing = false;
   private disposed = false;
   private finishBeat: (() => void) | undefined;
 
@@ -112,6 +125,14 @@ export class MomentQueue {
     return this.running || this.pending.length > 0;
   }
 
+  hasMomentsToShow(): boolean {
+    const held =
+      this.waitsForKickoff &&
+      !this.showing &&
+      (this.decisionOpen || this.touchbackOpen);
+    return this.isBusy() && !held;
+  }
+
   whenIdle(): Promise<void> {
     if (!this.isBusy()) return Promise.resolve();
     return new Promise((resolve) => this.idleWaiters.push(resolve));
@@ -144,6 +165,7 @@ export class MomentQueue {
   }
 
   private async kickoffSettled(): Promise<void> {
+    this.waitsForKickoff = true;
     let quietSince = Date.now();
     while (!this.disposed && Date.now() - quietSince < KICKOFF_QUIET_MS) {
       await new Promise((r) => setTimeout(r, 100));
@@ -152,6 +174,7 @@ export class MomentQueue {
         quietSince = Date.now();
       }
     }
+    this.waitsForKickoff = false;
   }
 
   private async play(): Promise<void> {
@@ -160,6 +183,7 @@ export class MomentQueue {
     for (let next = this.pending.shift(); next; next = this.pending.shift()) {
       await next.ready;
       if (this.disposed) break;
+      this.showing = true;
       this.eventBus.emit(GameEventNames.UI_PresentMoment, next.moment);
       const duration = momentDuration(next.moment);
       await new Promise<void>((resolve) => {
@@ -170,6 +194,7 @@ export class MomentQueue {
         };
       });
       this.finishBeat = undefined;
+      this.showing = false;
       if (this.disposed) break;
       this.eventBus.emit(GameEventNames.UI_PresentMoment, null);
     }

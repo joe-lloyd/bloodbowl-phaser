@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { EventBus } from "../../../src/services/EventBus";
 import { GameEventNames } from "../../../src/types/events";
 import { MomentQueue } from "../../../src/game/presentation/momentQueue";
+import { whenScreenSettled } from "../../../src/game/presentation/screenSettled";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -91,5 +92,34 @@ it("plays a later turn banner straight away", async () => {
   });
   await vi.advanceTimersByTimeAsync(0);
   expect(shown).toEqual(["turn-started"]);
+  queue.dispose();
+});
+
+it("lets the coach choose a touchback while the first turn banner waits for it", async () => {
+  vi.useFakeTimers();
+  const bus = new EventBus();
+  const queue = new MomentQueue(bus);
+  bus.emit(GameEventNames.KickoffSequenceCompleted, { isTouchback: true });
+  bus.emit(GameEventNames.UI_Announce, {
+    kind: "turn-started",
+    headline: "Reikland Reavers' Turn",
+  });
+  let settled = false;
+  void whenScreenSettled(bus).then(() => {
+    settled = true;
+  });
+  bus.emit(GameEventNames.TouchbackAwarded, { teamId: "t1" });
+  await vi.advanceTimersByTimeAsync(500);
+  expect(settled).toBe(true);
+
+  bus.emit(GameEventNames.BallPlaced, { x: 4, y: 5 });
+  let ready = false;
+  void whenScreenSettled(bus).then(() => {
+    ready = true;
+  });
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(ready).toBe(false);
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(ready).toBe(true);
   queue.dispose();
 });
