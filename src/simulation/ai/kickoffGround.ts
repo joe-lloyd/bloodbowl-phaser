@@ -75,7 +75,7 @@ export function catchChance({ c }: KickoffGround, player: Player, at: Square) {
   const target = catchTarget(
     catcher,
     c.board.theirs,
-    c.board.weather,
+    c.board.gs.getState(),
     "handoff"
   );
   return hasSkill(player.skills, SkillType.CATCH)

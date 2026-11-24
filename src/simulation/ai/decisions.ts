@@ -13,8 +13,6 @@ import {
 } from "./board";
 import { hasBiteSupport, isThrall } from "./feeding";
 import { inducementChoice } from "./inducementChoices";
-import { catchTarget } from "../../game/rules/rollPreview";
-import { d6 } from "./chance";
 import { type PushLanding, pushLandingAt } from "../../game/rules/pitchSquares";
 import { blockFaces, defenderWrestles, takesWrestle } from "./wrestle";
 
