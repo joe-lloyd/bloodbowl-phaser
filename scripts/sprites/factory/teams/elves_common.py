@@ -20,27 +20,24 @@ def limb_k(L):
     return L.get("limb", 1.0) * core.LIMB
 
 # ----------------------------------------------------------------------------- limbs
-def _leg_r(seg, t):
-    if seg == "thigh":
-        return lerp(0.135, 0.14, t / 0.45) if t < 0.45 else lerp(0.14, 0.105, (t - 0.45) / 0.55)
-    return lerp(0.105, 0.112, t / 0.3) if t < 0.3 else lerp(0.112, 0.082, (t - 0.3) / 0.7)
-
 def leg_band(J, L, tag, side, t0, t1, mat, seg="thigh", grow=1.09, name="lb"):
     """A band around the thigh or shin between fractions t0..t1 (socks, garters, wraps, warpaint)."""
     k = limb_k(L)
     hip, knee, ankle = J["legs"][side][:3]
     a, b = (hip, knee) if seg == "thigh" else (knee, ankle)
     ts = [lerp(t0, t1, i / 3.0) for i in range(4)]
-    tube(tag + name + side + seg, [lerp(a, b, t) for t in ts], [_leg_r(seg, t) * k * grow for t in ts], mat, n=10)
+    push = J["hF"] if seg == "thigh" else -J["hF"]
+    outline = (core.THIGH if seg == "thigh" else core.SHIN)[core.build_of(L)]
+    tube(tag + name + side + seg, [lerp(a, b, t) + push * (0.01 * k) for t in ts], [core.limb_r(outline, t) * k * grow for t in ts], mat, n=10)
 
 def arm_band(J, L, tag, side, t0, t1, mat, seg="upper", grow=1.1, name="ab"):
     """A band around the upper arm or forearm between fractions t0..t1 (sleeves, tattoos, wristbands)."""
     ak = limb_k(L) * L.get("arm", 1.0)
     sh, el, wr = J["arms"][side][:3]
     a, b = (sh, el) if seg == "upper" else (el, wr)
-    r = (lambda t: lerp(0.1, 0.086, t)) if seg == "upper" else (lambda t: lerp(0.09, 0.07, t))
+    outline = (core.UARM if seg == "upper" else core.FARM)[core.build_of(L)]
     ts = [lerp(t0, t1, i / 2.0) for i in range(3)]
-    tube(tag + name + side + seg, [lerp(a, b, t) for t in ts], [r(t) * ak * grow for t in ts], mat, ref=J["F"], n=10)
+    tube(tag + name + side + seg, [lerp(a, b, t) for t in ts], [core.limb_r(outline, t) * ak * grow for t in ts], mat, ref=J["F"], n=10)
 
 def shorts(J, L, tag, mat, hem=None, length=0.36):
     k = limb_k(L)

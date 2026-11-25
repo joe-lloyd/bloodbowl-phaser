@@ -218,6 +218,16 @@ HUMAN = dict(hip_w=0.15, thigh=0.41, shin=0.38, foot=0.3, ankle=0.11, sh_h=0.5, 
              torso=[(-0.07, .25, .18, 0), (0.1, .225, .165, 0), (0.3, .305, .195, 0), (0.44, .355, .195, .005),
                     (0.53, .24, .15, .01), (0.6, .12, .105, .01)])
 HUMAN_SCALE, VARG_SCALE, LIMB = 0.97, 1.0, 1.2   # overall size and limb thickness (semi-chunky)
+HAND = 0.68                                      # hands in proportion to the limbs they hang from
+# limb outlines: (fraction along the segment, radius, how far the muscle pushes out of line)
+THIGH = {"m": ((0, .14, 0), (.32, .152, .03), (.68, .112, .026), (.92, .076, .006), (1, .074, 0)),
+         "f": ((0, .158, 0), (.22, .155, .016), (.65, .104, .016), (.92, .068, .004), (1, .066, 0))}
+SHIN = {"m": ((.08, .08, .004), (.3, .122, .046), (.6, .078, .02), (.85, .054, .002), (1, .052, 0)),
+        "f": ((.08, .07, .004), (.3, .104, .04), (.6, .066, .014), (.85, .046, 0), (1, .045, 0))}
+UARM = {"m": ((0, .096, 0), (.48, .114, .022), (.82, .076, 0), (1, .07, 0)),
+        "f": ((0, .086, 0), (.45, .084, .008), (.85, .062, 0), (1, .06, 0))}
+FARM = {"m": ((.08, .078, 0), (.28, .094, .006), (.7, .07, 0), (1, .054, 0)),
+        "f": ((.08, .072, 0), (.28, .082, .004), (.7, .062, 0), (1, .05, 0))}
 VARG = dict(hip_w=0.22, thigh=0.5, shin=0.46, meta=0.48, foot=0.3, ankle=0.07, digi=True, sh_h=0.8, sh_w=0.5,
             uarm=0.6, farm=0.58, hand=0.2, neck_h=0.86, head_h=1.1, head_fwd=0.2, hunch=20,
             head_r=(0.2, 0.23, 0.19),
@@ -286,6 +296,20 @@ def tband(name, J, P, hs, mat, k=1.06, add=0.0, arc=None, solid=0.025, subsurf=1
     return loft(name, [tring(J, P, h, k, add) for h in hs], mat, n=n, arc=arc, caps=False, subsurf=subsurf,
                 solidify=solid, jag=jag)
 
+def limb(a, b, outline, k, push):
+    """Points and radii of a limb segment from a to b; its muscle bulges towards push."""
+    return [lerp(a, b, t) + push * (o * k) for t, _, o in outline], [r * k for _, r, _ in outline]
+
+def limb_r(outline, t):
+    """The radius of an outline at fraction t, for cloth and bands that follow the limb."""
+    for (t0, r0, o0), (t1, r1, o1) in zip(outline, outline[1:]):
+        if t <= t1:
+            return lerp(r0 + o0 * 0.5, r1 + o1 * 0.5, max(0.0, t - t0) / (t1 - t0))
+    return outline[-1][1]
+
+def build_of(L):
+    return "f" if L.get("sex") == "f" else "m"
+
 # ------------------------------------------------------------- body parts
 def hand(J, P, L, tag, side, s, mode):
     """Palm, four three-jointed fingers and a thumb; modes: relaxed, fist, open."""
@@ -300,7 +324,7 @@ def hand(J, P, L, tag, side, s, mode):
     if mode == "open" and not P.get("digi"):
         n = (J["F"] - d * J["F"].dot(d)).normalized() if abs(J["F"].dot(d)) < 0.8 else n
     t = n.cross(d) * s
-    hs = P["hand"] / 0.1 * L.get("hand_scale", 1.0)
+    hs = P["hand"] / 0.1 * L.get("hand_scale", HAND)
     gaunt = L.get("gauntlets")
     mat = "metal" if gaunt else L.get("gloves", L["skin"])
     claws = L.get("claws")
@@ -340,9 +364,9 @@ def hand(J, P, L, tag, side, s, mode):
 def boot(J, P, L, tag, side, k):
     knee, ankle, toe = J["legs"][side][-3:]
     mat = "metal" if L.get("greaves") else L.get("boots", "boot")
-    top = lerp(knee, ankle, 0.42)
+    top = lerp(knee, ankle, 0.42) - J["hF"] * 0.02 * k
     tube(tag + "boot" + side, [top, lerp(top, ankle, 0.6), ankle + Vector((0, 0, -0.02))],
-         [0.108 * k, 0.098 * k, 0.09 * k], mat, n=10)
+         [0.108 * k, 0.078 * k, 0.068 * k], mat, n=10)
     cuff = L.get("cuff", "leather")
     if cuff and not L.get("greaves"):
         d = (knee - ankle).normalized()
@@ -355,8 +379,8 @@ def boot(J, P, L, tag, side, k):
     for dd, w, hh, drop in ((-0.3, .075, .07, .035), (0.1, .1, .075, .04), (0.6, .11, .062, .05),
                             (0.95, .1, .05, .06), (1.12, .06, .035, .07)):
         c = ankle + fd * (dd * Ln) - up * drop
-        rings.append((c, sx, up, w * k, hh * k))
-        sole.append((c - up * (hh * k - 0.004), sx, up, w * k * 1.1, 0.022))
+        rings.append((c, sx, up, w * k * 0.8, hh * k * 0.92))
+        sole.append((c - up * (hh * k - 0.004), sx, up, w * k * 0.88, 0.022))
     loft(tag + "foot" + side, rings, mat, n=10, subsurf=1)
     loft(tag + "sole" + side, sole, "sole", n=10, subsurf=1)
     if L.get("greaves"):
@@ -375,6 +399,10 @@ def body(J, P, L, tag, pose):
     k = L.get("limb", 1.0) * LIMB
     u, X = J["u"], J["X"]
     loft(tag + "torso", [tring(J, P, r[0]) for r in P["torso"]], L["torso"])
+    if build_of(L) == "m" and L["torso"] == L["skin"] and L.get("head", "human") == "human":
+        for sd in (-1, 1):           # a bare chest shows its muscle
+            at = surf(J, P, P["sh_h"] * 0.84, 30 * sd, -0.07)
+            ellipsoid(tag + "pec%d" % sd, at, (P["sh_w"] * 0.5, 0.085, 0.075), L["skin"], basis(X, J["F"], u))
     nk = L.get("neck", 1.0)
     tube(tag + "neck", [J["neck"] - u * 0.06, J["head"] - u * 0.04], [0.09 * nk, 0.085 * nk], L["skin"])
     hr, hs = P["head_r"], L.get("head_scale", 1.0)
@@ -387,16 +415,16 @@ def body(J, P, L, tag, pose):
         leg(J, P, L, tag, side, sd, k)
         sh, el, wr, tip = J["arms"][side]
         ak = k * L.get("arm", 1.0)
-        ball_at(tag + "shoulder" + side, sh, 0.108 * ak, L["arms"])
-        tube(tag + "uarm" + side, [sh, lerp(sh, el, .5), el], [0.1 * ak, 0.098 * ak, 0.086 * ak], L["arms"],
-             ref=J["F"], n=10)
+        sex = build_of(L)
+        ball_at(tag + "shoulder" + side, sh, (0.116 if sex == "m" else 0.098) * ak, L["arms"])
+        tube(tag + "uarm" + side, *limb(sh, el, UARM[sex], ak, J["F"]), L["arms"], ref=J["F"], n=10)
         if not L.get("gauntlets"):
             for i, tt in enumerate((0.78, 0.92)):
                 tube(tag + "fold%s%d" % (side, i), [lerp(sh, el, tt - 0.04), lerp(sh, el, tt + 0.04)],
-                     [0.093 * ak, 0.091 * ak], L["arms"], ref=J["F"], n=10)
+                     [0.084 * ak, 0.078 * ak], L["arms"], ref=J["F"], n=10)
         fmat = "metal" if L.get("gauntlets") else L.get("forearms", L["arms"])
-        tube(tag + "farm" + side, [el, lerp(el, wr, .3), wr], [0.086 * ak, 0.09 * ak, 0.07 * ak], fmat,
-             ref=J["F"], n=10)
+        farm, radii = limb(el, wr, FARM[sex], ak, X * sd)
+        tube(tag + "farm" + side, [el] + farm, [UARM[sex][-1][1] * ak] + radii, fmat, ref=J["F"], n=10)
         fd = (wr - el).normalized()
         if L.get("gauntlets"):
             tube(tag + "gcuff" + side, [lerp(el, wr, .25), lerp(el, wr, .7)], [0.118 * ak, 0.09 * ak], "metal",
@@ -1125,8 +1153,10 @@ def leg(J, P, L, tag, side, sd, k):
     if P.get("digi"):
         return digi_leg(J, P, L, tag, side, sd, k)
     hip, knee, ankle = J["legs"][side][:3]
-    tube(tag + "leg" + side, [hip, lerp(hip, knee, .45), knee, lerp(knee, ankle, .3), ankle],
-         [0.135 * k, 0.14 * k, 0.105 * k, 0.112 * k, 0.082 * k], L["legs"], n=12, subsurf=2)
+    sex = build_of(L)
+    thigh, upper = limb(hip, knee, THIGH[sex], k, J["hF"])
+    shin, lower = limb(knee, ankle, SHIN[sex], k, -J["hF"])
+    tube(tag + "leg" + side, thigh + shin, upper + lower, L["legs"], n=12, subsurf=2)
     if L.get("pant_stripe"):
         o = J["X0"] * sd * 0.118 * k
         tube(tag + "stripe" + side, [lerp(hip, knee, .12) + o, lerp(hip, knee, .9) + o * 0.8], [0.035, 0.03],
