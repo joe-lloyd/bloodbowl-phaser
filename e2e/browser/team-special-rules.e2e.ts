@@ -16,7 +16,7 @@ async function diceLogText(page: Page): Promise<string> {
 async function logEntry(page: Page, rollType: string): Promise<void> {
   await page
     .getByTestId("dice-log")
-    .getByText(rollType, { exact: true })
+    .getByText(rollType)
     .first()
     .scrollIntoViewIfNeeded();
 }
