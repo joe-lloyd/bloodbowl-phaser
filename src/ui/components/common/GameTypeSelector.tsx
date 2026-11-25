@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import {
   DEFAULT_GAME_TYPE,
   GAME_TYPES,
@@ -87,9 +88,9 @@ function GameTypeCard({
         venues={gameTypeRules(gameType).venues}
         selected={selected}
       />
-      <span className="block px-3 pt-2.5 font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
+      <Title level="row" as="span" className="block px-3 pt-2.5">
         {GAME_TYPE_LABELS[gameType]}
-      </span>
+      </Title>
       <span className="block px-3 pb-3 text-hud-sm text-hud-dim">
         {pitchLine(gameType)}
       </span>

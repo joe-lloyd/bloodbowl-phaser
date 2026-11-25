@@ -558,7 +558,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                   e.stopPropagation();
                 }}
                 placeholder="Message…"
-                className="hud-field flex-1 !min-h-[32px]"
+                className="hud-field hud-field-sm flex-1"
               />
               <HudButton size="sm" variant="secondary" onClick={sendDraft}>
                 SEND

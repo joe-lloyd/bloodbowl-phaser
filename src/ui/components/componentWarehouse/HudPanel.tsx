@@ -1,4 +1,5 @@
 import React, { forwardRef } from "react";
+import { Title } from "./HudTitle";
 import { cx, toneText, type HudTone } from "./hudTone";
 
 type DivProps = React.HTMLAttributes<HTMLDivElement> & {
@@ -52,7 +53,7 @@ export function PanelHeader({
   title,
   aside,
   controls,
-  as: Title = "span",
+  as = "span",
   className,
 }: {
   title: React.ReactNode;
@@ -71,7 +72,7 @@ export function PanelHeader({
         className
       )}
     >
-      <Title className="min-w-0 truncate font-hud-display text-hud-lg uppercase tracking-[0.04em] text-hud-bone">
+      <Title level="section" as={as} className="min-w-0 truncate">
         {title}
       </Title>
       {(aside !== undefined || controls !== undefined) && (

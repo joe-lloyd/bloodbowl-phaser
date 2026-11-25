@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { Title } from "../componentWarehouse/HudTitle";
 import { type CompetitionDoc } from "../../../competition/types";
 import { getTeamById } from "../../../game/managers/TeamManager";
 import { canAdvance, mustAdvance } from "../../../game/progression/progression";
@@ -116,9 +117,9 @@ export function LeagueTeamProgress({
             >
               <TeamCrest name={team.name} colors={team.colors} size="lg" />
               <div className="min-w-0 flex-1">
-                <h3 className="break-words font-hud-display text-hud-xl uppercase tracking-[0.02em] text-hud-bone">
+                <Title level="card" as="h3">
                   {team.name}
-                </h3>
+                </Title>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <Chip tone={copy.tone}>{copy.chip}</Chip>
                   <span className="text-hud-sm text-hud-dim">

@@ -48,8 +48,8 @@ export default {
         "hud-body": ["Barlow", "system-ui", "sans-serif"],
       },
       fontSize: {
-        "hud-2xs": ["10px", { lineHeight: "12px", letterSpacing: "0.12em" }],
-        "hud-xs": ["11px", { lineHeight: "14px", letterSpacing: "0.12em" }],
+        "hud-2xs": ["10px", { lineHeight: "12px" }],
+        "hud-xs": ["11px", { lineHeight: "14px" }],
         "hud-sm": ["13px", { lineHeight: "18px" }],
         "hud-base": ["15px", { lineHeight: "22px" }],
         "hud-lg": ["18px", { lineHeight: "22px" }],

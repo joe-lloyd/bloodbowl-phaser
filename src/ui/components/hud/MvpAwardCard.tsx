@@ -1,4 +1,5 @@
 import { type Team } from "../../../types/Team";
+import { Title } from "../componentWarehouse/HudTitle";
 import { sppValuesFor } from "../../../game/progression/MatchStats";
 import { cx, hudButtonClass, hudChoiceClass } from "../componentWarehouse/HudKit";
 
@@ -28,9 +29,9 @@ export function MvpAwardCard({
 }: Props) {
   return (
     <section className="rounded-hud border border-white/10 bg-black/30 p-4">
-      <h2 className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-gold">
+      <Title level="section" as="h2">
         {team.name} MVP
-      </h2>
+      </Title>
       <p className="mb-3 text-hud-sm text-hud-dim">
         Nominate six players who took part. Their displayed order is slots 1–6.
       </p>

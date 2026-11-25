@@ -76,6 +76,19 @@ Use `StepRow` from
 steps and checklists, and `stepRowClass` with `StepMark` when a step is a
 button. Gold is the current step and a green tick is a finished one.
 
+### Titles, text and fields
+
+- [`Title`](../../src/ui/components/componentWarehouse/HudTitle.tsx) has five
+  levels: hero, page, section, card and row. A heading never has its own classes.
+- Text uses the `text-hud-*` sizes and the palette. `bone` is text, `dim` is
+  secondary text, `gold` is a result or a selection.
+- A field is as tall as the medium button beside it. Next to a small button,
+  such as in chat or a tool panel, use `hud-field-sm`.
+
+`hudDesignDrift.test.ts` fails the build when a screen breaks these rules or
+makes its own panel, title, field height or button fill. Its list of exceptions
+is for match chrome. Do not add a screen to it.
+
 ### Small text
 
 Before adding a label, caption or hint in small capitals, remove it and see
@@ -86,7 +99,7 @@ whether the panel still makes sense.
 - A panel has one title, one message and its buttons.
 
 [`hudDesignDrift.test.ts`](../../__tests__/unit/hudDesignDrift.test.ts) checks
-these conventions. `scripts/hud-shots/check-header-fit.mjs` checks gallery
+these conventions on every screen. `scripts/hud-shots/check-header-fit.mjs` checks gallery
 header fit. Inspect actual game screens as well as gallery captures.
 
 ## Canvas & UI Overlay

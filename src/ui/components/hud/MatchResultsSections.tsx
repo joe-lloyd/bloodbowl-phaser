@@ -1,4 +1,5 @@
 import { type Team } from "../../../types/Team";
+import { Title } from "../componentWarehouse/HudTitle";
 import { type GameState, type MatchResult } from "../../../types/GameState";
 import { type MatchStatsSummary } from "../../../game/progression/MatchStats";
 import { earnsWinnings } from "../../../game/rules/winnings";
@@ -56,9 +57,9 @@ export function ResultHeader({
 }) {
   return (
     <>
-      <h1 className="font-hud-display text-hud-4xl uppercase tracking-[0.03em] text-hud-bone">
+      <Title level="hero" as="h1">
         Full Time
-      </h1>
+      </Title>
       <ResultScoreline teams={teams} score={score} />
       <p className="mt-3 font-hud-label text-hud-xl font-bold uppercase tracking-[0.06em] text-hud-gold">
         {outcomeLabel(teams, score, result)}
@@ -89,9 +90,9 @@ function WinningsPanel({
       data-testid="match-winnings"
       className="mt-4 rounded-hud border border-hud-gold/30 bg-black/30 p-4"
     >
-      <h2 className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-gold">
+      <Title level="section" as="h2">
         Winnings
-      </h2>
+      </Title>
       <p className="mt-1 text-hud-sm text-hud-dim">
         Fan Attendance {attendance} (
         {teams
@@ -141,9 +142,9 @@ export function StatsTables({
     <div className="mt-6 grid gap-5 xl:grid-cols-2">
       {teams.map((team) => (
         <section key={team.id} className="overflow-auto">
-          <h2 className="mb-2 font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-bone">
+          <Title level="section" as="h2" className="mb-2">
             {team.name}
-          </h2>
+          </Title>
           <table className="w-full text-hud-sm tabular-nums">
             <thead>
               <tr className="hud-label border-b border-hud-gold/30 text-left [&>th]:py-1.5 [&>th]:font-bold">
@@ -189,9 +190,9 @@ export function StatsTables({
             data-testid={`match-injuries-${team.id}`}
             className="mt-4 rounded-hud border border-hud-edge bg-black/20 p-3"
           >
-            <h3 className="font-hud-display text-hud-lg text-hud-gold">
+            <Title level="row" as="h3">
               Injuries
-            </h3>
+            </Title>
             {team.players.some((player) => injuryLabel(player)) ? (
               <ul className="mt-1 space-y-1 text-hud-sm text-hud-bone">
                 {team.players.map((player) => {

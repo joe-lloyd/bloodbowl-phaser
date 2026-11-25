@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { type LobbyDoc, subscribeOpenLobbies } from "../../../firebase/lobby";
 import {
   OPEN_GAME_HEARTBEAT_MS,
@@ -24,7 +25,7 @@ export function OpenGames({
 
   return (
     <section className="w-full text-left" aria-label="Open games">
-      <h2 className="hud-label mb-2 text-hud-gold">Open games</h2>
+      <Title level="section" as="h2" className="mb-2">Open games</Title>
       {games.length === 0 ? (
         <p className="font-hud-body text-hud-sm text-hud-dim">
           Nobody is waiting in an open game right now. Host one and tick Open
@@ -40,9 +41,9 @@ export function OpenGames({
               className="flex flex-wrap items-center justify-between gap-3 rounded-hud border border-white/15 bg-black/30 px-3 py-2"
             >
               <span className="min-w-0">
-                <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.03em] text-hud-bone">
+                <Title level="row" as="span" className="block">
                   {game.hostName}
-                </span>
+                </Title>
                 <span className="block text-hud-sm text-hud-dim">
                   {game.teamName
                     ? `${game.teamName} (${String(game.rosterName)})`

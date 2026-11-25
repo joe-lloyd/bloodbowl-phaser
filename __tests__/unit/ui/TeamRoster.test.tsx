@@ -57,7 +57,7 @@ describe("TeamRoster readability", () => {
       `button[title="View player development page"]`
     );
     expect(firstPlayerName).toBeTruthy();
-    expect(firstPlayerName?.closest("td")?.className).toContain("text-base");
+    expect(firstPlayerName?.closest("td")?.className).toContain("text-hud-base");
   });
 
   it("shows a retained player wearing a number above 11", async () => {

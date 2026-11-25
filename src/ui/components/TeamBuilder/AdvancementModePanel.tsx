@@ -242,7 +242,6 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
           </select>
           <HudButton
             variant="primary"
-            size="sm"
             disabled={!skill}
             onClick={allocate}
           >

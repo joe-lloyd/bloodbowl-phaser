@@ -27,7 +27,7 @@ export function Chip({
     <span
       title={title}
       className={cx(
-        "inline-flex items-center gap-1 rounded-hud border bg-black/30 px-1.5 py-0.5 font-hud-label text-hud-xs font-bold uppercase leading-none",
+        "inline-flex items-center gap-1 rounded-hud border bg-black/30 px-1.5 py-0.5 font-hud-label text-hud-xs font-bold uppercase leading-none tracking-[0.12em]",
         TONE_CHIP[tone],
         className
       )}

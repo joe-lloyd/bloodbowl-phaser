@@ -1,4 +1,5 @@
 import { getRosterByRosterName } from "../../../data/RosterTemplates";
+import { Title } from "../componentWarehouse/HudTitle";
 import { type RosterName, TeamSpecialRule } from "../../../types/Team";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
 import "./rosterPicker.css";
@@ -28,9 +29,9 @@ export function RosterCard({
       )}
     >
       <span className="flex w-full items-baseline justify-between gap-2">
-        <span className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] text-hud-bone">
+        <Title level="row" as="span">
           {name}
-        </span>
+        </Title>
         <span className="hud-label shrink-0">Tier {roster.tier}</span>
       </span>
       <span aria-hidden="true" className="roster-picker-lineup">

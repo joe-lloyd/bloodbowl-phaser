@@ -278,7 +278,7 @@ export function TournamentBracket({
                 return (
                   <div key={fixture.id} className="flex flex-col gap-2">
                     <div className="text-center">
-                      <div className="text-4xl leading-none" aria-hidden="true">
+                      <div className="text-hud-3xl leading-none" aria-hidden="true">
                         🏆
                       </div>
                       <div className="mt-1 font-hud-display text-hud-lg uppercase leading-tight tracking-[0.04em] text-hud-gold">

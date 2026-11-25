@@ -1,4 +1,5 @@
 import { DIFFICULTIES, type Difficulty } from "../../../simulation/ai/difficulty";
+import { ChoiceText } from "../componentWarehouse/HudTitle";
 import { choiceKeys } from "../componentWarehouse/choiceKeys";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
 
@@ -30,10 +31,7 @@ export function DifficultyPicker({
               onChange(id);
             }}
           >
-            <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
-              {label}
-            </span>
-            <span className="block text-hud-sm text-hud-dim">{detail}</span>
+            <ChoiceText title={label} detail={detail} />
           </button>
         ))}
       </div>

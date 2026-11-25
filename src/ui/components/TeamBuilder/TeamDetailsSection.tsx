@@ -48,7 +48,7 @@ export function TeamDetailsSection({
         <Field label="Team Name">
           <input
             type="text"
-            className="hud-field font-hud-label text-base font-bold uppercase tracking-[0.03em]"
+            className="hud-field font-hud-label text-hud-base font-bold uppercase tracking-[0.03em]"
             value={team.name}
             onChange={(e) => {
               onChange({ ...team, name: e.target.value });

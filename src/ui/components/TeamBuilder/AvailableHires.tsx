@@ -53,7 +53,7 @@ export function AvailableHires({
         return (
           <tr key={`hire-${template.positionName}`}>
             <td>
-              <span className="flex items-center gap-3 font-hud-label text-base font-bold uppercase tracking-[0.03em]">
+              <span className="flex items-center gap-3 font-hud-label text-hud-base font-bold uppercase tracking-[0.03em]">
                 <PlayerPortrait
                   rosterName={roster.rosterName}
                   positionName={template.positionName}
@@ -75,7 +75,7 @@ export function AvailableHires({
                 }
               }
             />
-            <td className="num font-hud-label text-base font-bold text-hud-gold">
+            <td className="num font-hud-label text-hud-base font-bold text-hud-gold">
               {formatGold(template.cost)}
             </td>
             <td className="text-right">
@@ -103,7 +103,7 @@ function AllowedCell({ allowance }: { allowance: PositionAllowance }) {
   const full = allowance.hired >= allowance.max;
   return (
     <td
-      className={`num font-hud-label text-base font-bold tabular-nums ${
+      className={`num font-hud-label text-hud-base font-bold tabular-nums ${
         full ? "text-hud-mute" : "text-hud-bone"
       }`}
       data-testid="hire-allowance"

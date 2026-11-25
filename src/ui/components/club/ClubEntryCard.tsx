@@ -1,4 +1,5 @@
 import type { Player } from "../../../types/Player";
+import { Title } from "../componentWarehouse/HudTitle";
 import type { Team } from "../../../types/Team";
 import { GAME_TYPE_LABELS } from "../../../game/variants/gameTypes";
 import type { ClubEntry } from "../../../game/rules/clubEntries";
@@ -52,9 +53,9 @@ export function ClubEntryCard({
   return (
     <Panel as="section" className="flex flex-col gap-3 p-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-hud-display text-hud-lg uppercase tracking-[0.04em] text-hud-bone">
+        <Title level="card" as="h3">
           {GAME_TYPE_LABELS[entry.gameType]}
-        </h3>
+        </Title>
         <Chip tone={ready ? "good" : "warn"}>
           {ready ? "Ready" : "Not yet"}
         </Chip>

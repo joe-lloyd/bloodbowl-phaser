@@ -20,8 +20,8 @@ interface ScenarioCasePanelProps {
   eventBus: EventBus;
 }
 
-const selectClass = "hud-field cursor-pointer";
-const inputClass = "hud-field font-mono";
+const selectClass = "hud-field hud-field-sm cursor-pointer";
+const inputClass = "hud-field hud-field-sm font-mono";
 const boxClass =
   "rounded-hud border border-white/10 bg-black/30 px-2.5 py-1.5 text-hud-sm text-hud-bone/85";
 

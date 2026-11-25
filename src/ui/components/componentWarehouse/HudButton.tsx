@@ -13,7 +13,7 @@ export type HudButtonSize = "xs" | "sm" | "md" | "lg";
 const VARIANT: Record<HudButtonVariant, string> = {
   primary:
     "bg-hud-blood text-white border-hud-blood-edge/70 shadow-hud-press-blood hover:bg-hud-blood-hot",
-  selected: "bg-hud-gold text-hud-ink border-hud-gold-hi shadow-hud-press-gold hover:bg-[#f0c45a]",
+  selected: "bg-hud-gold text-hud-ink border-hud-gold-hi shadow-hud-press-gold hover:bg-hud-gold-hi",
   secondary:
     "bg-hud-raise text-hud-bone border-white/15 shadow-hud-press-dark hover:border-hud-gold/60 hover:bg-hud-edge",
   ghost:
@@ -25,8 +25,8 @@ const VARIANT: Record<HudButtonVariant, string> = {
 const SIZE: Record<HudButtonSize, string> = {
   xs: "min-h-[24px] min-w-[24px] px-1.5 text-hud-sm",
   sm: "min-h-[32px] px-3 text-hud-sm",
-  md: "min-h-[44px] px-5 text-[16px]",
-  lg: "min-h-[52px] px-7 text-[20px]",
+  md: "min-h-[44px] px-5 text-hud-base",
+  lg: "min-h-[52px] px-7 text-hud-lg",
 };
 
 export const hudButtonClass = (

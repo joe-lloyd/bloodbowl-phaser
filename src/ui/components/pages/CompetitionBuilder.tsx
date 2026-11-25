@@ -312,7 +312,7 @@ function LocalCompetitionBuilder({
                   {committed ? " (already entered elsewhere)" : ""}
                 </span>
                 {!compatibility.compatible && (
-                  <span className="mt-1 text-[13px] leading-snug text-hud-bad">
+                  <span className="mt-1 text-hud-sm leading-snug text-hud-bad">
                     {compatibility.reasons.join(" ")}
                   </span>
                 )}

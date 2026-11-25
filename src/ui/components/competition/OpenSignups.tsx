@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { useNavigate } from "react-router-dom";
 import { listOpenCompetitions } from "../../../competition/repository";
 import {
@@ -22,9 +23,9 @@ function OpenCompetitionCard({
       onClick={onOpen}
       className={cx(hudChoiceClass(false), "flex flex-col gap-2 p-4")}
     >
-      <span className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] text-hud-bone">
+      <Title level="row" as="span">
         {competition.name}
-      </span>
+      </Title>
       <span className="flex flex-wrap gap-2">
         <Chip tone="gold">
           {competition.entrants.length} of {competition.online?.places} places
