@@ -1,10 +1,12 @@
 """Witch Elf team (witch_novice, witch_priestess); its Witch Elves are the Dark Elf team's witch_elf.
 Rank reads from the head down: novices go bare with tied hair, Witch Elves wear a wild
 white mane, the priestess a horn crown and a cape."""
-from lib import Biped, register, core, looks
+from lib import Biped, register, core, looks, palette
 from lib.core import ball_at, cone, flat_cone, tband, tube
 from teams import elves_common as ec
 from teams.elves_dark import DE, WitchElf
+
+palette.ramp("witch_face", "#a898ba", "#d4c8e0", "#f8f4fc")      # a shade over "skin", so the chin shows on a bare chest
 
 
 @register
@@ -15,11 +17,12 @@ class Novice(looks.Fine, Biped):
     race = "elf"
     sex = "f"
     knobs = dict(legs=1.14, limb=0.8, shoulders=0.88, torso=0.9)
-    layout = dict(DE, hair="long", hair_mat="hair", brow="hair", lip="lip_f", torso="skin", arms="skin", legs="skin",
+    layout = dict(DE, skin="witch_face", hair="long", hair_mat="hair", brow="hair", lip="lip_f", torso="skin", arms="skin", legs="skin",
                   boots="skin", cuff=None, belt=None, witch_top="bandeau", witch_bottom="briefs", witch_marks=None)
     stance = dict(lean=10, nod=-8, twist=8, legs={"l": (22, 16, 30), "r": (-16, 16, 24)}, feet={"r": 22},
                   arms={"l": (34, 40, 50, 6), "r": (-22, 44, 40, 0)}, hands="relaxed")
     stride, arm_swing, run_lean, jump = 50, 42, 24, 0.42
+    lineless = ("chin", "neck", "head")      # skin on skin: a line here reads as a beard
     target_px = 92
 
     def idle(self, ph, p, w):       # bouncing on her toes, weight swapping side to side, arms out like a tumbler

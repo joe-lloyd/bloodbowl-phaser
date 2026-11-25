@@ -115,9 +115,11 @@ class Stage:
             if ob.type in ("MESH", "EMPTY") and not ob.name.startswith("cell_"):
                 self.fig.objects.link(ob)
                 scene.objects.unlink(ob)
+        lineless = {"%s_%s" % (model.key, part) for part in model.lineless}
         for ob in self.fig.objects:
             if ob.type == "MESH":
-                ob["code"] = object_code(ob.name) if max(ob.dimensions) > 0.16 else 0
+                lined = max(ob.dimensions) > 0.16 and ob.name not in lineless
+                ob["code"] = object_code(ob.name) if lined else 0
         pitch, roll = math.radians(pose.get("pitch", 0)), math.radians(pose.get("roll", 0))
         down = max(abs(math.sin(pitch)), abs(math.sin(roll)))
         t = self.tilt
