@@ -1212,13 +1212,13 @@ const definitions: readonly ComputerTeamTemplate[] = [
     rosterName: RosterName.WITCH_ELF,
     colors: { primary: 0x8a1a3a, secondary: 0xc8a04a },
     buildName: "Full coven",
-    sourceUrl: "https://github.com/joe-lloyd/bloodbowl-phaser",
+    sourceUrl: "https://fumbbl.com/help:WitchelfT2025",
     players: [
-      ["Witch Elf Novice", 5],
+      ["Priestess", 4],
       ["Witch Elf", 1],
-      ["Witch Elf Priestess", 1],
+      ["Death Hag", 2],
     ],
-    rerolls: 0,
+    rerolls: 1,
   },
   {
     id: "wood-elf-wardance-party",
