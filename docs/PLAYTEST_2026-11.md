@@ -52,6 +52,6 @@ only when its change has merged and was checked in the running game.
 
 - [x] H1. Dice are large enough to read in the weather, kick-off and dice trays.
 - [x] H2. The coin toss uses the same panel as the weather and kick-off rolls, offline and online.
-- [ ] H3. One page shows every UI component and state in one place, so drift is visible.
+- [x] H3. One page shows every UI component and state in one place, so drift is visible.
 - [x] H4. The computer picks who takes a touchback without a long wait.
 - [x] H5. The ring on the ball's landing square is quieter.
