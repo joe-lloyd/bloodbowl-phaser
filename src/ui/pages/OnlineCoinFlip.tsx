@@ -20,6 +20,7 @@ import {
   KickOrReceive,
   TossWinner,
 } from "../components/hud/CoinTossPanel";
+import { RollBusy, RollWait } from "../components/hud/RollShell";
 import { teamLook } from "../components/hud/diceTrayData";
 import { RESULT_BEAT_MS } from "../components/hud/CoinFlipOverlay";
 import { DIE_LANDING_TIMEOUT_MS } from "../../game/presentation/diceWatch";
@@ -141,9 +142,7 @@ function OnlineWeather({
       onDone={onRead}
       waiting={
         iAmReady ? (
-          <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
-            Waiting for {match.opponentName} to ready up…
-          </p>
+          <RollWait name={match.opponentName} />
         ) : (
           <HudButton variant="primary" size="lg" block onClick={readyUp}>
             READY — ROLL WEATHER
@@ -306,7 +305,7 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
           <TeamChip name={team2.name} me={myTeamId === team2.id} />
         </div>
       }
-      waiting={!winner && <HudCoin spin={spin} />}
+      idle={!winner && <HudCoin spin={spin} />}
       action={
         <>
           {!bothReady && !iAmReady && !winner && (
@@ -314,14 +313,16 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
               READY — FLIP COIN
             </HudButton>
           )}
+          {!bothReady && iAmReady && !winner && (
+            <RollWait name={match.opponentName} />
+          )}
+          {(winner ? !landed : bothReady) && <RollBusy>Flipping…</RollBusy>}
           {winner && landed && iWon && <KickOrReceive onChoose={choose} />}
         </>
       }
     >
-      {!winner && (
-        <p className="hud-label">
-          {tossPrompt({ bothReady, iAmReady, opponent: match.opponentName })}
-        </p>
+      {!winner && !bothReady && (
+        <p className="text-hud-bone">Who will kick off?</p>
       )}
       {winner && landed && (
         <TossWinner
@@ -335,21 +336,6 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
       )}
     </CoinTossPanel>
   );
-}
-
-function tossPrompt({
-  bothReady,
-  iAmReady,
-  opponent,
-}: {
-  bothReady: boolean;
-  iAmReady: boolean;
-  opponent: string;
-}): string {
-  if (bothReady) return "Flipping…";
-  return iAmReady
-    ? `Waiting for ${opponent} to ready up…`
-    : "Ready up to flip the coin.";
 }
 
 function TeamChip({ name, me }: { name: string; me: boolean }) {

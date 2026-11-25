@@ -6,6 +6,7 @@ import {
   weatherTableRows,
 } from "../../../game/rules/weather";
 import { HudButton } from "../componentWarehouse/HudKit";
+import { RollBusy } from "./RollShell";
 import { RollTablePanel } from "./RollTablePanel";
 
 export function WeatherPanel({
@@ -40,21 +41,21 @@ export function WeatherPanel({
       kind="weather"
       title="Weather"
       intro="Roll for the weather. It lasts the whole match."
-      columns="grid-cols-5"
       rows={rows}
       result={
         step === "shown"
           ? (rows.find((row) => row.name === weather) ?? null)
           : null
       }
-      total={total}
       step={step}
+      thrown={step === "rolling" || total !== null}
       stage={stage}
       header={header}
       zClass={zClass}
       action={
         <>
           {step === "waiting" && waiting}
+          {step === "rolling" && <RollBusy>Rolling…</RollBusy>}
           {step === "shown" && (
             <HudButton variant="primary" size="lg" block onClick={onDone}>
               ON TO THE COIN TOSS

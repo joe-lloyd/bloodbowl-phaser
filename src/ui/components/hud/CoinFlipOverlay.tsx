@@ -10,6 +10,7 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { soundSettings } from "../../sound/settings";
 import type { DiceThrow } from "../../dice/diceScene";
 import { CoinTossPanel, KickOrReceive, TossWinner } from "./CoinTossPanel";
+import { RollBusy } from "./RollShell";
 import { teamLook } from "./diceTrayData";
 import type { EventBus } from "../../../services/EventBus";
 
@@ -136,6 +137,7 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
     <CoinTossPanel
       stage={coinHost}
       thrown={step !== "START"}
+      idle={<CoinSides teams={teams} images={faceImages} />}
       action={
         <TossAction
           step={step}
@@ -145,8 +147,7 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
         />
       }
     >
-      {step === "START" && <CoinSides teams={teams} images={faceImages} />}
-      {step === "FLIPPING" && <p className="hud-label">Flipping…</p>}
+      {step === "START" && <p className="text-hud-bone">Who will kick off?</p>}
       {step === "RESULT" && winner && (
         <TossWinner
           name={winner.name}
@@ -178,7 +179,8 @@ function TossAction({
         FLIP COIN
       </HudButton>
     );
-  return step === "RESULT" && !computerWon ? (
+  if (step === "FLIPPING") return <RollBusy>Flipping…</RollBusy>;
+  return !computerWon ? (
     <KickOrReceive onChoose={onChoose} />
   ) : null;
 }
@@ -191,13 +193,11 @@ function CoinSides({
   images: [string, string] | null;
 }) {
   return (
-    <>
-      <p className="mb-2 text-hud-bone">Who will kick off?</p>
-      <div className="flex items-start justify-center gap-6">
+    <div className="flex items-start justify-center gap-4">
         {[teams.team1, teams.team2].map((team, i) => (
           <div
             key={team.id}
-            className="flex w-40 flex-col items-center gap-2"
+            className="flex w-28 flex-col items-center gap-2"
             data-testid={`coin-side-${i === 0 ? "heads" : "tails"}`}
           >
             {images && (
@@ -207,13 +207,11 @@ function CoinSides({
                 className="h-20 w-20 rounded-full border-4 border-hud-gold shadow-[0_8px_20px_rgba(0,0,0,0.6)]"
               />
             )}
-            <span className="hud-label">{i === 0 ? "Heads" : "Tails"}</span>
-            <span className="max-w-full truncate font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] text-hud-bone">
+            <span className="line-clamp-2 max-w-full text-center font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] text-hud-bone">
               {team.name}
             </span>
           </div>
         ))}
       </div>
-    </>
   );
 }

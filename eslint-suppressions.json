@@ -2250,7 +2250,7 @@
   },
   "e2e/browser/opening.e2e.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 9
+      "count": 7
     },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1

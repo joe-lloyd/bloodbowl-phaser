@@ -17,6 +17,7 @@ import { kickoffEventSummary } from "../../../game/kickoff/kickoffMoment";
 import { HudButton } from "../componentWarehouse/HudKit";
 import { DiceWatch } from "../../../game/presentation/diceWatch";
 import { PHONE_QUERY, matchesMedia } from "../../../game/presentation/phoneLayout";
+import { RollBusy } from "./RollShell";
 import { RollTablePanel } from "./RollTablePanel";
 import { useWeatherThrow } from "./weatherThrow";
 
@@ -102,7 +103,7 @@ function TableDialog({
   opened: Opened;
   onDone: () => void;
 }) {
-  const { stage, step, total } = useWeatherThrow({
+  const { stage, step } = useWeatherThrow({
     eventBus: eventBus,
     teamId: opened.kickingTeamId,
     rolled: () => false,
@@ -154,7 +155,6 @@ function TableDialog({
       kicking={kicking}
       stage={stage}
       result={result}
-      total={total}
       online={online}
       roll={roll}
     />
@@ -172,7 +172,6 @@ interface TableDialogViewProps {
   kicking: Team | undefined;
   stage: RefObject<HTMLDivElement | null>;
   result: KickoffEvent | null;
-  total: number | null;
   online: boolean;
   roll: () => void;
 }
@@ -181,7 +180,6 @@ function TableDialogView({
   kicking,
   stage,
   result,
-  total,
   online,
   roll,
 }: TableDialogViewProps) {
@@ -193,22 +191,20 @@ function TableDialogView({
       kind="kickoff"
       title="Kick-off table"
       intro={`${kicking?.name ?? "The kicking team"} rolls for what happens before the ball lands.`}
-      columns="grid-cols-6"
       rows={rows}
       result={result && (rows.find((row) => row.name === result) ?? null)}
-      total={total}
       step={step}
+      thrown={step !== "waiting"}
       stage={stage}
       zClass="z-[120]"
       action={
-        step === "waiting" &&
-        (online ? (
-          <p className="hud-label">Rolling…</p>
-        ) : (
+        step === "waiting" && !online ? (
           <HudButton variant="primary" size="lg" block onClick={roll}>
             ROLL KICK-OFF
           </HudButton>
-        ))
+        ) : (
+          step !== "shown" && <RollBusy>Rolling…</RollBusy>
+        )
       }
     />
   );

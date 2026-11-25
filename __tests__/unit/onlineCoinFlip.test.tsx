@@ -281,13 +281,14 @@ describe("online weather", () => {
     });
     await tick(20);
     expect(coins.length).toBe(1);
-    expect(text()).not.toContain("Rolled 11");
+    expect(container.querySelector('[data-testid="weather-result"]')).toBeNull();
     await act(async () => {
       fixtureValue(coins[0]).land();
     });
     await tick(800);
-    expect(text()).toContain("Pouring Rain");
-    expect(text()).toContain("Rolled 11");
+    expect(
+      container.querySelector('[data-testid="weather-result"]')?.textContent
+    ).toContain("Pouring Rain");
     expect(container.querySelector("[data-current]")?.textContent).toContain(
       "Pouring Rain"
     );

@@ -17,6 +17,29 @@ phone size, with a Drift section that measures where they disagree.
 - Keep panels clear of pitch targets, including at narrow landscape sizes.
 - Add gallery states for new decisions, including online waiting states.
 
+### Roll panels
+
+Weather, the coin toss and the kick-off table use
+[`RollShell`](../../src/ui/components/hud/RollShell.tsx). Copy it for any roll a
+coach starts and waits for.
+
+- Dice on the left, words top right, one main button bottom right, results
+  along the bottom. Every part keeps its place for the whole roll.
+- Reserve the space before the roll. The words take the height of the longest
+  result, and the button's place stays when there is no button.
+- While dice roll, the button stays and is disabled. The next step replaces it.
+- Red is the main button. Gold is the result.
+- Opening a result's details replaces the words. It adds no line of its own.
+
+### Small text
+
+Before adding a label, caption or hint in small capitals, remove it and see
+whether the panel still makes sense.
+
+- No label that repeats the title, the picture or the button.
+- No instructions for pointing, tapping or scrolling.
+- A panel has one title, one message and its buttons.
+
 [`hudDesignDrift.test.ts`](../../__tests__/unit/hudDesignDrift.test.ts) checks
 these conventions. `scripts/hud-shots/check-header-fit.mjs` checks gallery
 header fit. Inspect actual game screens as well as gallery captures.
