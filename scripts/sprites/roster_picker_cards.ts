@@ -18,6 +18,8 @@ import {
 } from "../../src/game/presentation/layered/finish";
 import { resolveLook } from "../../src/game/presentation/layered/looks";
 import { colourTable } from "../../src/game/presentation/layered/paint";
+import secretLeagueModels from "../../src/data/community/secretLeagueModels.json";
+import secretLeagueRosters from "../../src/data/community/secretLeague2025.json";
 import manifest from "../../src/game/presentation/spriteManifest.json";
 import { PositionKeyWord, type PlayerTemplate } from "../../src/types/Player";
 import type { RosterName, TeamColors } from "../../src/types/Team";
@@ -123,17 +125,10 @@ function representatives(players: readonly PlayerTemplate[]): PlayerTemplate[] {
   ];
 }
 
-function rosterLineup(name: RosterName): Character[] {
-  const roster = getRosterByRosterName(name);
-  const examples = representatives(roster.playerTemplates);
-  const colors = COMPUTER_TEAM_CATALOGUE.find(
-    (entry) => entry.rosterName === name
-  )?.colors ?? { primary: 0x8e1b1b, secondary: 0xffffff };
+function lineupOf(models: readonly string[], colors: TeamColors): Character[] {
   const cache = new Map<string, Character>();
-  return examples
-    .map(({ positionName }) => {
-      const model = rosterModels[name]?.[positionName];
-      if (!model) throw new Error(`Missing model for ${name} ${positionName}`);
+  return models
+    .map((model) => {
       const cached = cache.get(model);
       if (cached) return cached;
       const figure = character(model, colors);
@@ -141,6 +136,46 @@ function rosterLineup(name: RosterName): Character[] {
       return figure;
     })
     .sort((a, b) => b.height - a.height);
+}
+
+const SECRET_COLORS: TeamColors = { primary: 0x5a2a7a, secondary: 0xc8a04a };
+const secretModels: Record<string, Record<string, string>> = secretLeagueModels;
+
+function secretLineup(
+  roster: (typeof secretLeagueRosters)[number]
+): Character[] {
+  const models = secretModels[roster.name];
+  if (!models) throw new Error(`No models listed for ${roster.name}`);
+  const modelOf = (position: string) => {
+    const model = models[position];
+    if (!model) throw new Error(`No model for ${roster.name} ${position}`);
+    return model;
+  };
+  const [first, ...rest] = roster.positions;
+  if (!first) throw new Error(`Cannot illustrate an empty roster`);
+  const dearest = [...rest].sort((a, b) => b.cost - a.cost);
+  const picks = [first, ...dearest].slice(0, 7).map((p) => modelOf(p.name));
+  const filler = modelOf(first.name);
+  return lineupOf(
+    [...picks, ...Array.from({ length: 7 - picks.length }, () => filler)],
+    SECRET_COLORS
+  );
+}
+
+function rosterLineup(name: RosterName): Character[] {
+  const roster = getRosterByRosterName(name);
+  const examples = representatives(roster.playerTemplates);
+  const colors = COMPUTER_TEAM_CATALOGUE.find(
+    (entry) => entry.rosterName === name
+  )?.colors ?? { primary: 0x8e1b1b, secondary: 0xffffff };
+  return lineupOf(
+    examples.map(({ positionName }) => {
+      const model = rosterModels[name]?.[positionName];
+      if (!model) throw new Error(`Missing model for ${name} ${positionName}`);
+      return model;
+    }),
+    colors
+  );
 }
 
 function copyPixel(
@@ -240,5 +275,13 @@ mkdirSync(OUTPUT, { recursive: true });
 for (const name of getAvailableRosterNames()) {
   const lineup = rosterLineup(name);
   writeFileSync(`${OUTPUT}/${name}.png`, makeStrip(lineup));
+  rawLayers.clear();
+}
+mkdirSync(`${OUTPUT}/secret`, { recursive: true });
+for (const roster of secretLeagueRosters) {
+  writeFileSync(
+    `${OUTPUT}/secret/${roster.name}.png`,
+    makeStrip(secretLineup(roster))
+  );
   rawLayers.clear();
 }

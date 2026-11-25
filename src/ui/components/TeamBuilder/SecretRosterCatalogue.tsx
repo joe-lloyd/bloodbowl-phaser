@@ -61,7 +61,11 @@ export default function SecretRosterCatalogue({
       )}
       <div className="grid items-start gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((roster) => (
-          <RosterCatalogueCard key={roster.name} roster={roster} />
+          <RosterCatalogueCard
+            key={roster.name}
+            roster={roster}
+            lineup={`/assets/roster-picker/secret/${encodeURIComponent(roster.name)}.png`}
+          />
         ))}
       </div>
     </div>
