@@ -288,7 +288,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       </div>
 
       <BlockMath
-        analysis={analysis}
+        analysis={{ ...analysis, diceCount, isUphill }}
         attacker={attacker}
         defender={defender}
       />
