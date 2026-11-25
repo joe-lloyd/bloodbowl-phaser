@@ -163,14 +163,27 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
     ]);
   }
 
-  return { picks, ...trimToBudget(picks, roster.apothecary, fixtureKey) };
+  return { picks, ...trimToBudget(picks, roster, fixtureKey) };
+}
+
+function swapDearestFor(
+  lineman: PlayerTemplate | undefined,
+  picks: PlayerTemplate[]
+): boolean {
+  const dearest = [...picks].sort((a, b) => b.cost - a.cost)[0];
+  if (!lineman || !dearest || dearest.cost <= lineman.cost) return false;
+  picks.splice(picks.indexOf(dearest), 1, lineman);
+  return true;
 }
 
 function trimToBudget(
   picks: PlayerTemplate[],
-  hasApothecary: boolean,
+  { apothecary: hasApothecary, playerTemplates }: TeamRoster,
   fixtureKey: string
 ): Pick<SquadPlan, "rerolls" | "apothecary"> {
+  const lineman = playerTemplates.find(
+    (t) => isLinemanPosition(t.keywords) && !isInsignificantTemplate(t)
+  );
   let rerolls = DESIRED_REROLLS;
   let apothecary = hasApothecary;
   const totalCost = () =>
@@ -199,7 +212,7 @@ function trimToBudget(
       rerolls--;
     } else if (apothecary) {
       apothecary = false;
-    } else {
+    } else if (!swapDearestFor(lineman, picks)) {
       throw new SeedFixtureError(fixtureKey, [
         {
           rule: "budget",
