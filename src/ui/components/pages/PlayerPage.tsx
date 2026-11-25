@@ -276,7 +276,7 @@ function PlayerSprite({ player, team, onSaved }: { player: Player; team: Team; o
             wholePixels
           />
         </div>
-        <figcaption className="hud-label text-center text-hud-2xs">
+        <figcaption className="sr-only">
           {player.positionName} · {team.rosterName}
         </figcaption>
         <PlayerLookControls player={player} team={team} onSaved={onSaved} />

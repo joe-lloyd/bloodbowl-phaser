@@ -32,7 +32,6 @@ interface SetupControlsProps {
 const SetupActionButton = ({
   action,
   label,
-  sub,
   disabled = false,
   color = "blue",
   onClick,
@@ -40,7 +39,6 @@ const SetupActionButton = ({
 }: {
   action: string;
   label: string;
-  sub?: string;
   disabled?: boolean;
   color?: string;
   onClick?: () => void;
@@ -60,12 +58,7 @@ const SetupActionButton = ({
       disabled={disabled}
       className="!justify-between"
     >
-      <span>{label}</span>
-      {sub && (
-        <span className="rounded-hud bg-black/30 px-1.5 py-0.5 font-hud-body text-hud-xs font-semibold normal-case tracking-normal opacity-90">
-          {sub}
-        </span>
-      )}
+      {label}
     </HudButton>
   );
 };
@@ -187,7 +180,6 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
           onAction={handleAction}
           action="confirm"
           label={confirmLabel(status, isComplete)}
-          {...(compact ? {} : { sub: confirmSub(status, isComplete) })}
           disabled={!isComplete}
           color={isComplete ? "green" : "gray"}
         />
@@ -206,13 +198,6 @@ function setupTitle(status: SetupTeamStatus | null, subPhase: SubPhase) {
 function confirmLabel(status: SetupTeamStatus | null, isComplete: boolean) {
   if (status?.swarming) return "FINISH SWARMING";
   return isComplete ? "CONFIRM SETUP" : "SETUP INCOMPLETE";
-}
-
-function confirmSub(status: SetupTeamStatus | null, isComplete: boolean) {
-  if (isComplete) return "Ready!";
-  return status
-    ? `Placed ${String(status.placedPlayerCount)} of ${String(status.requiredPlayerCount)} available`
-    : "Place Players";
 }
 
 type SetupAction = (action: string, name?: string) => void;
@@ -407,7 +392,6 @@ function FormationTools({
             onAction={onAction}
             action="clear"
             label="CLEAR PITCH"
-            sub="Reset"
             color="red"
             disabled={concessionPending}
           />

@@ -168,9 +168,7 @@ export function ScoreBoard({
           </span>
           {row.coach && (
             <span className="block truncate font-hud-body text-hud-xs tracking-normal text-hud-gold/90">
-              <span className="hud-label text-hud-2xs text-hud-gold/70">
-                Coach{" "}
-              </span>
+              <span className="sr-only">Coach </span>
               {row.coach}
               {row.isMe && <span className="text-hud-dim"> (you)</span>}
             </span>

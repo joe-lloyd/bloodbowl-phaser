@@ -84,7 +84,6 @@ function FriendsBody({ uid }: { uid: string }) {
     <PageShell width="medium">
       <PageHeader
         back={{ label: "Back to Menu", to: "/" }}
-        eyebrow="Online"
         title="Friends"
         subtitle="Add coaches you play often. Invite a friend and they join your lobby with one click, no code to type."
       />

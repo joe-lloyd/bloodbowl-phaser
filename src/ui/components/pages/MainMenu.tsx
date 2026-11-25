@@ -6,7 +6,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import {
   cx,
-  Eyebrow,
   HudButton,
   hudButtonClass,
   Notice,
@@ -145,7 +144,6 @@ export function MainMenu() {
   return (
     <PageShell width="wide" className="flex flex-col justify-center">
       <div className="mx-auto flex w-full max-w-5xl flex-col items-center py-6 text-center phone:py-0">
-        <Eyebrow tone="gold">Fantasy football mayhem</Eyebrow>
         <h1 className="mt-2 font-hud-display text-[56px] uppercase leading-none tracking-[0.02em] text-hud-bone lg:text-[76px] phone:mt-0 phone:text-[40px]">
           BLOOD BOWL
         </h1>
@@ -224,7 +222,7 @@ export function MainMenu() {
           </MenuSection>
 
           {isAdminUser(user) && (
-            <MenuSection title="Extras" note="Admin">
+            <MenuSection title="Extras">
               <HudButton
                 variant="ghost"
                 block
@@ -250,7 +248,7 @@ export function MainMenu() {
           )}
 
           {isAdminUser(user) && (
-            <MenuSection title="Club" note="Admin">
+            <MenuSection title="Club">
               <HudButton block onClick={() => void navigate("/clubs")}>
                 My Clubs
               </HudButton>
@@ -310,8 +308,6 @@ export function MainMenu() {
         </div>
 
         <InstallGame />
-
-        <div className="hud-label mt-10 phone:mt-4 text-hud-mute">v0.1.0</div>
       </div>
       {signingIn && (
         <SignInDialog

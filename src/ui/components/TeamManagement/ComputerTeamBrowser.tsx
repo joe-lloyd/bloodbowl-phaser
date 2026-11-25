@@ -12,7 +12,6 @@ import {
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 import {
-  Chip,
   EmptyState,
   Field,
   HudButton,
@@ -98,7 +97,6 @@ export function ComputerTeamBrowser() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="hud-label">{template.rosterName}</span>
-                <Chip>Starting roster</Chip>
               </div>
               <h3 className="mt-2 break-words font-hud-display text-hud-2xl uppercase text-hud-bone">
                 {template.name}

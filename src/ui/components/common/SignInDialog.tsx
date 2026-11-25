@@ -71,7 +71,6 @@ export function SignInDialog({
       testId="sign-in-dialog"
       placement="center"
       backdrop="heavy"
-      eyebrow="Online"
       title={mode === "create" ? "Create account" : "Sign in"}
       width="w-[420px]"
     >
@@ -84,7 +83,6 @@ export function SignInDialog({
         >
           Sign in with Google
         </HudButton>
-        <p className="hud-label text-center">or with email</p>
         <form
           className="flex flex-col gap-3"
           onSubmit={(event) => {

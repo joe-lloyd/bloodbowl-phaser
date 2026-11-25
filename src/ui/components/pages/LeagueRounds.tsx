@@ -217,7 +217,6 @@ function FixtureScore({ fixture }: { fixture: CompetitionFixture }) {
           ? "—"
           : `${String(result?.homeScore ?? "—")}–${String(result?.awayScore ?? "—")}`}
       </strong>
-      <span className="hud-label block text-hud-2xs text-hud-mute">Result</span>
     </div>
   );
 }
@@ -327,7 +326,6 @@ function CompletedRound({
         >
           <span>Round {round}</span>
           <span aria-hidden className="flex items-center gap-2 text-hud-dim">
-            {open ? "Hide results" : "Show results"}
             <svg
               viewBox="0 0 12 12"
               className={cx(

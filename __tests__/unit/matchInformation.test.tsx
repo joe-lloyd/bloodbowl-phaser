@@ -182,7 +182,7 @@ describe("match information", () => {
     await act(async () => {
       fx.bus.emit(GameEventNames.PlayerSelected, { player });
     });
-    expect(container.textContent).toContain("MA 6, 3 left, 2 rush");
+    expect(container.textContent).toContain("3 left, 2 rush");
     expect(container.textContent).toContain("Holding ball");
     expect(container.textContent).toContain("AG3+");
     expect(container.textContent).toContain("PA3+");
@@ -194,7 +194,7 @@ describe("match information", () => {
         to: { x: 6, y: 5 },
       });
     });
-    expect(container.textContent).toContain("MA 6, 0 left, 1 rush");
+    expect(container.textContent).toContain("0 left, 1 rush");
   });
 
   it("clears comparing on hover end during setup and uses a neutral reserve chip", async () => {
@@ -208,7 +208,7 @@ describe("match information", () => {
       fx.bus.emit(GameEventNames.UI_ShowPlayerInfo, player);
     });
     expect(container.textContent).toContain(player.playerName);
-    expect(container.textContent).not.toContain("COMPARING");
+    expect(container.textContent).not.toContain("Comparing");
     const chip = [...container.querySelectorAll("span")].find(
       (span) => span.textContent === "Reserve"
     );
@@ -227,6 +227,6 @@ describe("match information", () => {
       fx.bus.emit(GameEventNames.PlayerSelected, { player: fx.player(1, 0) });
       fx.bus.emit(GameEventNames.UI_ShowPlayerInfo, fx.player(2, 0));
     });
-    expect(container.textContent).toContain("COMPARING");
+    expect(container.textContent).toContain("Comparing");
   });
 });

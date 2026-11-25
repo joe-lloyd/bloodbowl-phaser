@@ -82,7 +82,7 @@ export function TeamRoster({
   return (
     <BloodBowlTable
       title={team.name.toUpperCase()}
-      aside={`${String(team.players.length)} / 11 players · click a player to open · drag ≡ to reorder`}
+      aside={`${String(team.players.length)} / 11 players`}
       accent={{ color: numToHex(team.colors.primary) }}
       headers={[
         { label: "#", width: "40px", className: "num" },

@@ -25,7 +25,6 @@ import {
   cx,
   hudChoiceClass,
   EmptyState,
-  Eyebrow,
   HudButton,
   PageHeader,
   PageShell,
@@ -280,9 +279,6 @@ export function TeamManagement() {
                   </div>
 
                   <div className="rounded-hud border border-white/10 bg-black/40 p-3">
-                    <Eyebrow className="mb-2 text-center">
-                      Starting Lineup
-                    </Eyebrow>
                     <div className="grid grid-cols-7 gap-1">
                       {team.players.slice(0, 7).map((player) => (
                         <div
@@ -308,8 +304,8 @@ export function TeamManagement() {
                               {player.number}
                             </span>
                           </div>
-                          <span className="mt-1 w-full truncate text-center font-hud-label text-hud-2xs font-bold uppercase text-hud-mute">
-                            {player.positionName.split(" ")[0]}
+                          <span className="sr-only">
+                            {player.positionName}
                           </span>
                         </div>
                       ))}

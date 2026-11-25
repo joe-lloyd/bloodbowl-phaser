@@ -356,9 +356,6 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       >
         A-
       </HudButton>
-      <span className="w-9 text-center font-hud-label text-hud-sm font-bold tabular-nums text-hud-dim">
-        {Math.round(fontScale * 100)}%
-      </span>
       <HudButton
         size="xs"
         variant="ghost"
@@ -457,15 +454,11 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                     >
                       <div className="flex items-center gap-2 py-1.5 pl-2.5 pr-1.5">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate font-hud-label text-[0.75em] font-bold uppercase tracking-[0.08em] text-hud-dim">
+                          {!log.description.startsWith(log.rollType) && (
+                            <span className="block truncate font-hud-label text-[0.75em] font-bold uppercase tracking-[0.08em] text-hud-dim">
                               {log.rollType}
                             </span>
-                            <span className="shrink-0 font-hud-label text-[0.6875em] font-bold text-hud-mute">
-                              {log.diceType}
-                            </span>
-                          </div>
-
+                          )}
                           <span className="block font-hud-body text-[0.8125em] font-medium leading-snug text-hud-bone">
                             {log.description}
                           </span>
@@ -545,8 +538,8 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                   }`}
                 >
                   {!message.fromSelf && (
-                    <span className="hud-label block text-hud-2xs text-hud-gold">
-                      {message.senderName}
+                    <span className="sr-only">
+                      {message.senderName}:
                     </span>
                   )}
                   {message.text}

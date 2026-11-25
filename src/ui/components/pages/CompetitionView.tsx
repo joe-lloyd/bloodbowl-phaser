@@ -152,7 +152,7 @@ function CompetitionPage(props: CompetitionProps & { error: string | null }) {
         eyebrow={
           competition.type === "tournament"
             ? competition.format.replace("-", " ")
-            : "round-robin season"
+            : undefined
         }
         title={competition.name}
         actions={<Chip>{STATUS_LABEL[competition.status]}</Chip>}

@@ -41,12 +41,6 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
           : "flex min-w-[220px] flex-col p-2"
       }
     >
-      {!compact && (
-        <div className="hud-label mb-2 px-1">
-          {singleMove ? "Action" : "Action Sequence"}
-        </div>
-      )}
-
       <ActionSteps
         steps={steps}
         currentStepId={currentStepId}

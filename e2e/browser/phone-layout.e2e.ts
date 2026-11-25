@@ -162,7 +162,7 @@ test("press and hold shows the player card, a tap puts it away", async ({
   const finger = await touches(page);
   await finger.hold(await app.pitch.viewportPoint(square), 700);
   await expect(page.getByTestId("player-card")).toBeVisible();
-  await expect(page.getByTestId("player-card")).toContainText("Skills");
+  await expect(page.getByTestId("player-card")).toContainText("No skills");
 
   await expect(page.getByTestId("player-chip")).toBeHidden();
   await page.touchscreen.tap(420, 380);

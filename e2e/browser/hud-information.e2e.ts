@@ -42,7 +42,7 @@ test("the player card counts movement and rushes left after a partial move", asy
     )
     .toEqual({ x: 2, y: 3 });
   await expect(page.getByTestId("movement-left")).toHaveText(
-    `MA ${String(ma)}, ${String(ma - 2)} left, 2 rush`
+    `${String(ma - 2)} left, 2 rush`
   );
 });
 

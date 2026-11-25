@@ -138,7 +138,6 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
   return (
     <Section
       title={`Skill Points: ${String(status.remaining)} of ${String(status.points)} left`}
-      aside="Matched Play"
       accent="skill"
     >
       <p className="mb-3 text-hud-sm text-hud-dim">

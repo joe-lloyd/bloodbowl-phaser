@@ -599,7 +599,6 @@ export function TeamBuilder() {
         }
       >
         <PageHeader
-          eyebrow="New team"
           title="CHOOSE YOUR TEAM"
           subtitle="Pick the game type and the roster first. The game type sets the budget and the staff you may hire; the roster's players and special rules shape everything else on the team sheet."
         />

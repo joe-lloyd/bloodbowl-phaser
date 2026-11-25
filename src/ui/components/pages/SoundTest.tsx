@@ -55,7 +55,6 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
   return (
     <PageShell width="medium">
       <PageHeader
-        eyebrow="Admin"
         title="Audio Debug Dashboard"
         back={{ label: "← Back to Main Menu", onClick: handleBack }}
       />

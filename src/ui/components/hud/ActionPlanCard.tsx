@@ -49,14 +49,9 @@ function StageRow({ stage, number }: { stage: PlanStage; number: number }) {
   const rolls = rollText(stage);
   return (
     <StepRow state="todo" number={number}>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="font-hud-label text-hud-sm font-bold uppercase tracking-[0.05em] text-hud-bone">
-          {stage.label}
-        </span>
-        {rolls.length === 0 && stage.notes.length === 0 && (
-          <span className="text-hud-xs text-hud-dim">no roll</span>
-        )}
-      </div>
+      <span className="block font-hud-label text-hud-sm font-bold uppercase tracking-[0.05em] text-hud-bone">
+        {stage.label}
+      </span>
       {rolls.length > 0 && (
         <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 font-hud-label text-hud-sm font-bold text-hud-gold">
           {rolls.map((roll, i) => (
@@ -104,7 +99,7 @@ export function ActionPlanCard({ eventBus }: { eventBus: IEventBus }) {
       accent="gold"
       className="pointer-events-auto w-full font-hud-body text-hud-bone animate-hud-in"
     >
-      <PanelHeader title={`Plan · ${plan.title}`} />
+      <PanelHeader title={plan.title} />
       <div className="flex flex-col gap-2 p-3">
         <PlanDetails plan={plan} />
         <div className="flex items-center gap-2">
@@ -139,7 +134,7 @@ export function PhonePlanBar({ eventBus, plan }: { eventBus: IEventBus; plan: Ac
           className="min-w-0 max-w-[44vw] text-left"
         >
           <span className="hud-label block text-hud-2xs text-hud-gold">
-            {plan.title} {open ? "▾" : "▴ details"}
+            {plan.title} {open ? "▾" : "▴"}
           </span>
           <span className="block truncate font-hud-label text-hud-sm font-bold leading-tight text-hud-bone">
             {plan.blocked ?? planRollList(plan)}
