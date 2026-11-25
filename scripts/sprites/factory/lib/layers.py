@@ -303,6 +303,11 @@ def finish_model(key, a, rendered, helpers):
         print("WARN %s %s removes base objects %s" % (key, lname, gone), flush=True)
     boxes = [(c[0], c[1], c[0] + c[2].shape[1], c[1] + c[2].shape[0])
              for store in stores.values() for frames in store.values() for c in frames.values() if c is not None]
+    for body, _, _, parts in bodies:
+        for lname, _, _ in parts:
+            drawn = [c for suffix in ("", SHADE) for c in stores.get(body, {}).get(lname + suffix, {}).values()]
+            if drawn and all(c is None for c in drawn):
+                print("WARN %s %s draws nothing on body %s" % (key, lname, body), flush=True)
     frame, anchor, (ox, oy), clipped = atlas.choose_frame(boxes, stage.anchor, frame, pad)
     out = os.path.join(a["out"], "layered", key)
     sizes = {}

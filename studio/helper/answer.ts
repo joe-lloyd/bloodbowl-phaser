@@ -1,35 +1,29 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import type { Plugin } from "vite";
-import { CHARACTER_KEY, parseCharacter, parsePreview, type Character, type StudioJob, type StudioState } from "../../src/boundary/characterStudio";
+import { CHARACTER_KEY, parseCharacter, parsePreview, type Character, type StudioJob, type StudioState } from "../boundary/studio";
 import { createRenderer, previewArgs } from "./blender";
-import {
-  checkCharacter,
-  installedModels,
-  prepareReference,
-  readCatalog,
-  readCharacters,
-  rosterPositions,
-  writeCharacter,
-  writeDraft,
-} from "./characterFiles";
+import { checkCharacter, installedModels, prepareReference, readCatalog, readCharacters, rosterPositions, writeCharacter, writeDraft } from "./characterFiles";
 import { JobQueue } from "./jobs";
-import { DRAFTS, FACTORY, REPO, WORK } from "./paths";
+import { DRAFTS, FACTORY, MANIFEST, SPRITES, WORK } from "./paths";
+import { publish, refreshTree } from "./publish";
 import { run, type OnLine } from "./run";
 
-const ART = ["public/sprites", "src/game/presentation", "__tests__/fixtures/layered", "scripts/sprites/factory/characters"];
 const MAX_BODY = 200_000;
+const TYPES: Readonly<Record<string, string>> = { ".json": "application/json", ".png": "image/png", ".bin": "application/octet-stream" };
 const renderer = createRenderer();
 const queue = new JobQueue();
 
 async function readBody(request: IncomingMessage): Promise<string> {
-  let text = "";
-  for await (const chunk of request) {
-    text += String(chunk);
-    if (text.length > MAX_BODY) throw new Error("The request is too large");
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request.setEncoding("utf8")) {
+    const bytes = Buffer.from(String(chunk));
+    size += bytes.length;
+    if (size > MAX_BODY) throw new Error("The request is too large");
+    chunks.push(bytes);
   }
-  return text;
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 async function state(): Promise<StudioState> {
@@ -45,6 +39,7 @@ async function state(): Promise<StudioState> {
 
 async function exportCharacter(character: Character, onLine: OnLine): Promise<void> {
   const { key } = character;
+  await refreshTree();
   await prepareReference();
   writeDraft(character);
   onLine(`Rendering ${key} on ${renderer.name}`);
@@ -54,11 +49,10 @@ async function exportCharacter(character: Character, onLine: OnLine): Promise<vo
     if (line.startsWith(`WARN ${key} `)) warnings.push(line);
   });
   if (character.looks.kind === "own" && warnings.length > 0) {
-    throw new Error("Not installed. A look choice hides parts of the base figure. Set those parts as a choice in the same option.");
+    throw new Error("Not installed. A look choice draws nothing of its own or hides part of the base figure. Put the parts it depends on in the same option.");
   }
   await run({ program: "python3", args: ["install_layered.py", path.join(WORK, "layered"), "--characters", DRAFTS, key], cwd: FACTORY, onLine });
-  onLine("Installed. Changed files:");
-  await run({ program: "git", args: ["status", "--short", "--", ...ART], cwd: REPO, onLine });
+  await publish(character, onLine);
 }
 
 async function startExport(key: string): Promise<StudioJob> {
@@ -78,7 +72,7 @@ async function startPreview(request: IncomingMessage): Promise<StudioJob> {
   });
 }
 
-async function save(request: IncomingMessage): Promise<unknown> {
+async function save(request: IncomingMessage): Promise<Character> {
   const character = parseCharacter(await readBody(request));
   checkCharacter(character, await readCatalog());
   writeCharacter(character);
@@ -108,43 +102,38 @@ function route(request: IncomingMessage, action: string, id: string): unknown {
   }
 }
 
-function sendPreview(response: ServerResponse, name: string): void {
-  const file = path.join(WORK, "preview", `${name}.png`);
-  if (!CHARACTER_KEY.test(name) || !existsSync(file)) {
+function sendFile(response: ServerResponse, file: string): void {
+  if (!existsSync(file) || !statSync(file).isFile()) {
     response.writeHead(404).end();
     return;
   }
-  response.writeHead(200, { "content-type": "image/png", "cache-control": "no-store" }).end(readFileSync(file));
+  const type = TYPES[path.extname(file)] ?? "application/octet-stream";
+  response.writeHead(200, { "content-type": type, "cache-control": "no-store" }).end(readFileSync(file));
 }
 
-function fromThisPage(request: IncomingMessage): boolean {
-  if (request.method === "GET") return true;
-  return URL.parse(request.headers.origin ?? "")?.host === request.headers.host;
+export function answerSprite(request: IncomingMessage, response: ServerResponse): void {
+  const file = path.join(SPRITES, decodeURIComponent((request.url ?? "/").split("?")[0] ?? "/"));
+  sendFile(response, file.startsWith(SPRITES + path.sep) ? file : "");
 }
 
-async function answer(request: IncomingMessage, response: ServerResponse): Promise<void> {
-  const [action = "", id = ""] = (request.url ?? "/").slice(1).split("?")[0]?.split("/") ?? [];
+function actionOf(request: IncomingMessage): string[] {
+  return (request.url ?? "/").slice(1).split("?")[0]?.split("/") ?? [];
+}
+
+export async function answerApi(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  const [action = "", id = ""] = actionOf(request);
+  if (action === "manifest") {
+    sendFile(response, MANIFEST);
+    return;
+  }
   if (action === "image") {
-    sendPreview(response, id);
+    sendFile(response, CHARACTER_KEY.test(id) ? path.join(WORK, "preview", `${id}.png`) : "");
     return;
   }
   try {
-    if (!fromThisPage(request)) throw new Error("The studio only takes changes from its own page");
     const result = JSON.stringify(await route(request, action, id));
     response.writeHead(200, { "content-type": "application/json" }).end(result);
   } catch (error) {
     response.writeHead(400, { "content-type": "text/plain" }).end(error instanceof Error ? error.message : String(error));
   }
-}
-
-export function studioPlugin(): Plugin {
-  return {
-    name: "character-studio",
-    apply: "serve",
-    configureServer(server) {
-      server.middlewares.use("/studio-api", (request, response) => {
-        void answer(request, response);
-      });
-    },
-  };
 }

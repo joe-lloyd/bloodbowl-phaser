@@ -1,7 +1,7 @@
 import { useId } from "react";
-import type { Catalog, CatalogField, LayoutValue, LayoutValues } from "../boundary/characterStudio";
-import { Input, Select } from "../ui/components/common/NativeControls";
-import { HudButton } from "../ui/components/componentWarehouse/HudButton";
+import type { Catalog, CatalogField, LayoutValue, LayoutValues } from "../boundary/studio";
+import { Input, Select } from "../../src/ui/components/common/NativeControls";
+import { HudButton } from "../../src/ui/components/componentWarehouse/HudButton";
 import { firstValue, withoutKey, words } from "./character";
 
 const NONE = "";

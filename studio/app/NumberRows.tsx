@@ -1,5 +1,5 @@
-import { Input } from "../ui/components/common/NativeControls";
-import { HudButton } from "../ui/components/componentWarehouse/HudButton";
+import { Input } from "../../src/ui/components/common/NativeControls";
+import { HudButton } from "../../src/ui/components/componentWarehouse/HudButton";
 import { words } from "./character";
 
 interface NumberRowProps {

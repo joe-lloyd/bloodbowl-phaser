@@ -1,4 +1,4 @@
-import type { BaseModel, Catalog, CatalogField, Character, LayoutValue, LayoutValues } from "../boundary/characterStudio";
+import type { BaseModel, Catalog, CatalogField, Character, LayoutValue, LayoutValues } from "../boundary/studio";
 
 export type Change = (patch: Partial<Character>) => void;
 

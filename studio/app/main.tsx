@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import "../ui/styles/global.css";
+import "../../src/ui/styles/global.css";
 import { StudioApp } from "./StudioApp";
 
 document.documentElement.style.colorScheme = "dark";

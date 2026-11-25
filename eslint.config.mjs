@@ -97,7 +97,7 @@ const config = defineConfig(
       "no-restricted-syntax": ["error", ...BOUNDARY_ONLY, ...UI_ONLY],
     },
   },
-  { files: ["src/boundary/**"], rules: { "no-restricted-syntax": ["error", ...UI_ONLY] } },
+  { files: ["src/boundary/**", "studio/boundary/**"], rules: { "no-restricted-syntax": ["error", ...UI_ONLY] } },
   { files: ["src/ui/**"], rules: { "no-restricted-syntax": ["error", ...BOUNDARY_ONLY] } },
 );
 

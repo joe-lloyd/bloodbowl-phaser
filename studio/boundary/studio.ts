@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { parseJson } from "./json";
+import { parseJson } from "../../src/boundary/json";
 
 export const CHARACTER_KEY = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
 const key = z.string().max(40).regex(CHARACTER_KEY, "Use lower-case letters, digits and single underscores, starting with a letter");
@@ -119,7 +119,7 @@ export type StudioState = z.infer<typeof studioStateSchema>;
 
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
 const previewRequest = z.object({ character: characterSchema, primary: hex, secondary: hex });
-const environment = z.object({ STUDIO_BLENDER_HOST: z.string().default("jellybingus"), BLENDER: z.string().optional() });
+const environment = z.object({ STUDIO_BLENDER_HOST: z.string().default("jellybingus"), BLENDER: z.string().optional(), STUDIO_HOME: z.string().optional() });
 const manifestSchema = z.object({
   models: z.record(z.string(), z.unknown()),
   positions: z.record(z.string(), z.record(z.string(), z.string())),

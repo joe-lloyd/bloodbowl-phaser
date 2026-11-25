@@ -1,4 +1,4 @@
-import type { StudioJob } from "../../src/boundary/characterStudio";
+import type { StudioJob } from "../boundary/studio";
 import type { OnLine } from "./run";
 
 type Work = (onLine: OnLine) => Promise<void>;

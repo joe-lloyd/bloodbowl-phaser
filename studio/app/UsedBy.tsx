@@ -1,7 +1,7 @@
-import type { Character, StudioState } from "../boundary/characterStudio";
-import { Select } from "../ui/components/common/NativeControls";
-import { HudButton } from "../ui/components/componentWarehouse/HudButton";
-import { Section } from "../ui/components/componentWarehouse/HudKit";
+import type { Character, StudioState } from "../boundary/studio";
+import { Select } from "../../src/ui/components/common/NativeControls";
+import { HudButton } from "../../src/ui/components/componentWarehouse/HudButton";
+import { Section } from "../../src/ui/components/componentWarehouse/HudKit";
 import { removeAt, type Change } from "./character";
 
 interface UsedByProps {

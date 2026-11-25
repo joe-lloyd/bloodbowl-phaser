@@ -1,12 +1,12 @@
 import { useState } from "react";
-import type { Character, StudioJob, StudioState } from "../boundary/characterStudio";
-import { lookOptions } from "../game/presentation/layered/layeredModels";
-import type { PlayerAppearance } from "../types/Player";
-import { LayeredPortrait } from "../ui/components/common/LayeredPortrait";
-import { Input } from "../ui/components/common/NativeControls";
-import { OptionCycler } from "../ui/components/common/OptionCycler";
-import { HudButton } from "../ui/components/componentWarehouse/HudButton";
-import { Notice, Section } from "../ui/components/componentWarehouse/HudKit";
+import type { Character, StudioJob, StudioState } from "../boundary/studio";
+import { layeredArt, lookOptions } from "../../src/game/presentation/layered/layeredModels";
+import type { PlayerAppearance } from "../../src/types/Player";
+import { LayeredPortrait } from "../../src/ui/components/common/LayeredPortrait";
+import { Input, Link } from "../../src/ui/components/common/NativeControls";
+import { OptionCycler } from "../../src/ui/components/common/OptionCycler";
+import { HudButton } from "../../src/ui/components/componentWarehouse/HudButton";
+import { Notice, Section } from "../../src/ui/components/componentWarehouse/HudKit";
 
 export interface Kit {
   readonly primary: string;
@@ -27,10 +27,14 @@ interface RenderPaneProps {
 
 const STATUS = { queued: "Waiting", running: "Rendering", done: "Done", failed: "Failed" } as const;
 
+const PULL_REQUEST = "Pull request: ";
+
 function JobLog({ job }: { readonly job: StudioJob }) {
+  const pullRequest = job.log.find((line) => line.startsWith(PULL_REQUEST))?.slice(PULL_REQUEST.length);
   return (
     <Notice tone={job.status === "failed" ? "bad" : "neutral"} title={`${STATUS[job.status]}: ${job.kind} ${job.key}`} role="status">
       <pre className="hud-scroll max-h-48 overflow-auto whitespace-pre-wrap break-words text-hud-2xs">{job.log.join("\n")}</pre>
+      {pullRequest && <Link href={pullRequest} target="_blank" rel="noreferrer" className="text-hud-gold underline">Open the pull request</Link>}
     </Notice>
   );
 }
@@ -102,8 +106,11 @@ export function RenderPane(props: RenderPaneProps) {
         </div>
         <PreviewImage character={character} job={job} />
         {job && <div className="mt-3"><JobLog job={job} /></div>}
+        {job?.kind === "export" && job.status === "done" && (
+          <HudButton size="sm" className="mt-3" disabled={dirty} onClick={() => { window.location.reload(); }}>Show the new art</HudButton>
+        )}
       </Section>
-      {state.models.includes(character.key) && <InGame character={character} kit={kit} />}
+      {layeredArt(character.key) && <InGame character={character} kit={kit} />}
     </>
   );
 }

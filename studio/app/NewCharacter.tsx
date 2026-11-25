@@ -1,8 +1,8 @@
 import { useState } from "react";
-import type { Catalog, Character } from "../boundary/characterStudio";
-import { Input, Select } from "../ui/components/common/NativeControls";
-import { HudButton } from "../ui/components/componentWarehouse/HudButton";
-import { Field, Section } from "../ui/components/componentWarehouse/HudKit";
+import type { Catalog, Character } from "../boundary/studio";
+import { Input, Select } from "../../src/ui/components/common/NativeControls";
+import { HudButton } from "../../src/ui/components/componentWarehouse/HudButton";
+import { Field, Section } from "../../src/ui/components/componentWarehouse/HudKit";
 import { slug, startFrom, words } from "./character";
 
 interface NewCharacterProps {

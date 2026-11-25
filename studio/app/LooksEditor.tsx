@@ -1,7 +1,7 @@
-import type { Catalog, Character, OwnOption } from "../boundary/characterStudio";
-import { Input, Select } from "../ui/components/common/NativeControls";
-import { HudButton } from "../ui/components/componentWarehouse/HudButton";
-import { Field, Section } from "../ui/components/componentWarehouse/HudKit";
+import type { Catalog, Character, OwnOption } from "../boundary/studio";
+import { Input, Select } from "../../src/ui/components/common/NativeControls";
+import { HudButton } from "../../src/ui/components/componentWarehouse/HudButton";
+import { Field, Section } from "../../src/ui/components/componentWarehouse/HudKit";
 import { findBase, removeAt, replaceAt, slug, usableFields, type Change } from "./character";
 import { FieldRows } from "./FieldRows";
 

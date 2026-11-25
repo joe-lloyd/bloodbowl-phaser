@@ -73,18 +73,20 @@ machine with `lib/` and `teams/`.
 
 ## Characters from the studio
 
-    pnpm studio             # http://localhost:3200, add --host to open it from another machine
+    https://sprites.home.arpa        # on the house network
+    pnpm studio                      # the same page on this checkout, http://localhost:3200
 
-The character studio makes a new model from an existing biped, without Python. It saves
-`characters/<key>.json`, which every render loads after the team files (`lib/characters.py`). Commit that
-file with the art it produced.
+The character studio (`studio/`, see its README) makes a new model from an existing biped, without Python. It saves
+`characters/<key>.json`, which every render loads after the team files (`lib/characters.py`).
 
 - **Preview** renders eight poses of the unsaved character in both kits.
 - **Export to the game** renders the saved character layered on Jellybingus, runs `install_layered.py`
-  and points the positions under "Plays as" at it. Commit the changed files and open a pull request.
+  and points the positions under "Plays as" at it. On sprites.home.arpa it then pushes the art to the
+  `studio/art` branch and opens its pull request. With `pnpm studio` you commit the changed files.
 - "Keep the base model's options" locks the parts those options control. "Set my own" unlocks them.
 - A look option adds parts to a base figure. It cannot change the body, such as the head or hunch. An
-  export stops before installing when a choice hides a base part. Hair under a helmet is the usual case:
+  export stops before installing when a choice hides a base part or draws nothing, such as a hair colour
+  in another option than its hair. Hair under a helmet is the usual case:
   make the hair a choice in the same option.
 - "Parts made for this base" are the parts its Python class draws itself, such as a goblin's nose.
 - Previews and exports run one at a time, over SSH in `bloodbowl-studio` in the home folder of the

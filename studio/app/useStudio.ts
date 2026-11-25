@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchJob, fetchStudio, type StudioJob, type StudioState } from "../boundary/characterStudio";
-import { errorText } from "../ui/errorText";
+import { fetchJob, fetchStudio, type StudioJob, type StudioState } from "../boundary/studio";
+import { errorText } from "../../src/ui/errorText";
 
 const POLL_MS = 1000;
 

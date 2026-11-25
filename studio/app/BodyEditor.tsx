@@ -1,6 +1,6 @@
-import type { Catalog, Character } from "../boundary/characterStudio";
-import { Input, Select } from "../ui/components/common/NativeControls";
-import { Field, Section } from "../ui/components/componentWarehouse/HudKit";
+import type { Catalog, Character } from "../boundary/studio";
+import { Input, Select } from "../../src/ui/components/common/NativeControls";
+import { Field, Section } from "../../src/ui/components/componentWarehouse/HudKit";
 import { buildIsChosenByLooks, findBase, inheritedKnob, withoutKey, words, type Change } from "./character";
 import { NumberRow } from "./NumberRows";
 

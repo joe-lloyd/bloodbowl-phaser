@@ -96,12 +96,13 @@ def fields(models, looks, races, materials, generic):
     for key in generic:
         seen.setdefault(key, [])
     from lib.characters import can_be_off
+    worn = {key for model in models.values() for key, value in model.layout.items() if value is None}
     out = []
     for key, values in sorted(seen.items()):
         field = field_kind([v for v in values if v is not None], materials)
         if field:
             part = can_be_off(key) and key not in BODY_SWITCHES
-            out.append(dict(key=key, generic=key in generic, optional=can_be_off(key) or None in values,
+            out.append(dict(key=key, generic=key in generic, optional=can_be_off(key) or key in worn,
                             layered=part or field["kind"] == "material", **field))
     return out
 

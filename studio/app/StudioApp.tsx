@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { characterProblem, saveCharacter, startExport, startPreview, type Character, type StudioState } from "../boundary/characterStudio";
-import { HudButton } from "../ui/components/componentWarehouse/HudButton";
-import { Notice, Section } from "../ui/components/componentWarehouse/HudKit";
+import { characterProblem, saveCharacter, startExport, startPreview, type Character, type StudioState } from "../boundary/studio";
+import { HudButton } from "../../src/ui/components/componentWarehouse/HudButton";
+import { Notice, Section } from "../../src/ui/components/componentWarehouse/HudKit";
 import { BasicsEditor, BuildEditor, MotionEditor } from "./BodyEditor";
 import { controlledKeys, inheritedLayout, usableFields, type Change } from "./character";
 import { FieldRows } from "./FieldRows";

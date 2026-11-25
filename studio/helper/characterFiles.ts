@@ -1,14 +1,19 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { parseCatalog, parseCharacter, parseSpriteManifest, type Catalog, type Character } from "../../src/boundary/characterStudio";
-import { CHARACTERS, DRAFTS, FACTORY, MANIFEST } from "./paths";
+import { parseCatalog, parseCharacter, parseSpriteManifest, type Catalog, type Character } from "../boundary/studio";
+import { CHARACTERS, DRAFTS, FACTORY, MANIFEST, TREE_CHARACTERS } from "./paths";
 import { run } from "./run";
 
 const manifest = () => parseSpriteManifest(readFileSync(MANIFEST, "utf8"));
 
+function readFolder(folder: string): Character[] {
+  const files = existsSync(folder) ? readdirSync(folder).filter((name) => name.endsWith(".json")) : [];
+  return files.sort().map((name) => parseCharacter(readFileSync(path.join(folder, name), "utf8")));
+}
+
 export function readCharacters(): Character[] {
-  const files = existsSync(CHARACTERS) ? readdirSync(CHARACTERS).filter((name) => name.endsWith(".json")) : [];
-  return files.sort().map((name) => parseCharacter(readFileSync(path.join(CHARACTERS, name), "utf8")));
+  const saved = [TREE_CHARACTERS, CHARACTERS].flatMap(readFolder);
+  return [...new Map(saved.map((character) => [character.key, character])).values()];
 }
 
 export function installedModels(): string[] {
@@ -20,7 +25,7 @@ export function rosterPositions(): Record<string, string[]> {
 }
 
 export async function readCatalog(): Promise<Catalog> {
-  return parseCatalog(await run({ program: "python3", args: ["catalog.py"], cwd: FACTORY }));
+  return parseCatalog(await run({ program: "python3", args: ["catalog.py", "--characters", CHARACTERS], cwd: FACTORY }));
 }
 
 export async function prepareReference(): Promise<void> {

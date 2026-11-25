@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
-import { studioEnvironment } from "../../src/boundary/characterStudio";
+import { studioEnvironment } from "../boundary/studio";
 import { DRAFTS, FACTORY, WORK } from "./paths";
 import { run, type OnLine } from "./run";
 

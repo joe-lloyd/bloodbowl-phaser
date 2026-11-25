@@ -3,8 +3,8 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkCharacter } from "../../scripts/studio/characterFiles";
-import { characterProblem, parseCatalog, type Character } from "../../src/boundary/characterStudio";
+import { checkCharacter } from "../../studio/helper/characterFiles";
+import { characterProblem, parseCatalog, type Character } from "../../studio/boundary/studio";
 
 const RAIDER: Character = {
   key: "bog_raider",
@@ -67,6 +67,9 @@ describe("character studio catalogue", () => {
     expect(offered("skin")).toEqual([false, true]);
     expect(offered("helm")).toEqual([true, true]);
     expect(offered("pothelm")).toEqual([true, true]);
+    expect(offered("pad_mat")[0]).toBe(false);
+    expect(offered("helm_mat")[0]).toBe(false);
+    expect(offered("cuff")[0]).toBe(true);
     expect(offered("head")).toEqual([false, false]);
     expect(offered("hunch")).toEqual([false, false]);
     expect(offered("no_arms")[1]).toBe(false);

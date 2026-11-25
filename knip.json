@@ -6,7 +6,8 @@
     ".": {
       "project": [
         "**/*.{ts,tsx}",
-        "!functions/**"
+        "!functions/**",
+        "!studio/**"
       ],
       "entry": [
         "scripts/coach/catalogue-study.ts",
@@ -37,6 +38,16 @@
       "project": [
         "src/**/*.ts"
       ]
+    },
+    "studio": {
+      "entry": [
+        "helper/main.ts",
+        "worker/index.ts",
+        "worker/pack.mjs"
+      ],
+      "project": [
+        "**/*.{ts,tsx}"
+      ]
     }
   },
   "ignoreIssues": {
@@ -44,6 +55,9 @@
       "exports"
     ],
     "scripts/page-shots/playwright.config.ts": [
+      "exports"
+    ],
+    "studio/worker/index.ts": [
       "exports"
     ]
   }

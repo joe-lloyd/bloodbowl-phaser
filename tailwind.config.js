@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./gallery/index.html", "./studio/index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  content: ["./index.html", "./gallery/index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       // Same query as PHONE_QUERY in src/game/presentation/phoneLayout.ts.
