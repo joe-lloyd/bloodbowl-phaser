@@ -71,6 +71,9 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   await expect(flip).toHaveCount(0);
   await expect(page.getByTestId("weather-table").locator("li")).toHaveCount(5);
   const panel = weather.locator("section");
+  await panel.evaluate((el) =>
+    Promise.all(el.getAnimations().map((slide) => slide.finished))
+  );
   const before = await panel.boundingBox();
   await shot("weather-ready");
   await page.getByRole("button", { name: "ROLL WEATHER" }).click();
