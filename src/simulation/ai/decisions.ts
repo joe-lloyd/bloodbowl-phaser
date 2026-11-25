@@ -13,8 +13,6 @@ import {
 } from "./board";
 import { hasBiteSupport, isThrall } from "./feeding";
 import { inducementChoice } from "./inducementChoices";
-import { catchTarget } from "../../game/rules/rollPreview";
-import { d6 } from "./chance";
 import { type PushLanding, pushLandingAt } from "../../game/rules/pitchSquares";
 import { blockFaces, defenderWrestles, takesWrestle } from "./wrestle";
 
@@ -130,28 +128,6 @@ function pushChoice(
     const wide = Math.abs(square.y - middleRow()) * 2;
     return pushingThem ? wide : -wide - board.marks.getUint8(key(square));
   });
-}
-
-function highKickCatcher(
-  board: Board,
-  pending: PendingOf<"kickoff-event">,
-  candidates: readonly Candidate[]
-): number | null {
-  const landing = pending.landingSquare;
-  if (!landing) return null;
-  const state = board.gs.getState();
-  const odds = (candidate: Candidate) => {
-    const [select] = candidate.commands;
-    if (select.type !== "kickoff-select-player") return undefined;
-    const player = board.gs.getPlayerById(select.playerId);
-    if (!player || hasSkill(player.skills, SkillType.NO_BALL)) return undefined;
-    const under = { ...player, gridPosition: { ...landing } };
-    const once = d6(catchTarget(under, board.theirs, state, "handoff"));
-    return hasSkill(player.skills, SkillType.CATCH)
-      ? 1 - (1 - once) ** 2
-      : once;
-  };
-  return best(candidates, odds);
 }
 
 function keepsFood(board: Board, attacker: FieldPlayer | undefined): boolean {
@@ -373,7 +349,6 @@ function otherDecision(
     case "inducement-choice":
       return inducementChoice(board, pending, candidates);
     case "kickoff-event":
-      return highKickCatcher(board, pending, candidates);
     case "foul-assists":
       return null;
   }

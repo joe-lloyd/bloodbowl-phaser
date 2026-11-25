@@ -135,7 +135,7 @@ export function grantEffect(
   (outcome.perTeam[teamId] ??= []).push(effect);
 }
 
-export function isOpenKickoffPlayer(player: Player, opponents: Player[]): boolean {
+function isOpenKickoffPlayer(player: Player, opponents: Player[]): boolean {
   const position = player.gridPosition;
   if (!position || player.status !== PlayerStatus.ACTIVE) return false;
   return !opponents.some((opponent) => opponent.status === PlayerStatus.ACTIVE && opponent.gridPosition

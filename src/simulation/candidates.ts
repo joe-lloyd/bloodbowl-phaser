@@ -14,15 +14,14 @@ import { FormationManager } from "../game/managers/FormationManager";
 import { assignPlayers, setupLabel } from "../game/setup/deployment";
 import { GameConfig, getSevensSetupZone } from "../config/GameConfig";
 import { SetupValidator } from "../game/validators/SetupValidator";
-import type { KickoffTurn } from "../game/kickoff/kickoffTurn";
 import { isConfinedToReserves } from "../game/kickoff/driveEffects";
 import { decisionOwner } from "../network/OwnershipGate";
+import {
+  kickoffChoiceCandidates,
+  kickoffTurnCandidates,
+} from "./kickoffCandidates";
 import { describePlayer, square, stepCandidates } from "./stepCandidates";
 import { isStandableSquare } from "../game/rules/pitchSquares";
-import {
-  KickoffEvent,
-  isOpenKickoffPlayer,
-} from "../game/kickoff/kickoffEvents";
 
 type CandidateKind =
   | "decision"
@@ -116,7 +115,7 @@ export async function enumerateDecision(
     }
     case GamePhase.KICKOFF: {
       const kicker = kickoffActor(state, kickingTeamId);
-      return at(kicker, kickoffPhaseCandidates(game, kicker));
+      return at(kicker, await kickoffPhaseCandidates(game, kicker));
     }
     case GamePhase.PLAY:
       return at(activeTeamId, await playCandidates(game));
@@ -131,21 +130,11 @@ function kickoffActor(state: GameState, kickingTeamId: string | null): string {
   );
 }
 
-function kickoffPhaseCandidates(game: HeadlessGame, teamId: string) {
+async function kickoffPhaseCandidates(game: HeadlessGame, teamId: string) {
   const kickoff = kickoffTurnOf(game.ctx.gameService.getState());
   return kickoff
-    ? kickoffTurnCandidates(kickoff)
+    ? kickoffTurnCandidates(game, kickoff, await playCandidates(game))
     : kickoffCandidates(game, game.snapshot(), teamId);
-}
-
-function kickoffTurnCandidates(turn: KickoffTurn): Candidate[] {
-  return [
-    {
-      kind: "end-turn",
-      commands: [{ type: "end-turn" }],
-      label: `End ${turn.event}`,
-    },
-  ];
 }
 
 type PendingOf<T extends PendingDecision["type"]> = Extract<
@@ -313,34 +302,8 @@ function decisionCandidates(
         );
       });
     case "kickoff-event":
-      return [
-        ...highKickCandidates(game, pending, name),
-        one({ type: "kickoff-skip" }, `Skip the ${pending.event} step`),
-        one({ type: "kickoff-confirm" }, `Confirm the ${pending.event} step`),
-      ];
+      return kickoffChoiceCandidates(game, pending);
   }
-}
-
-function highKickCandidates(
-  game: HeadlessGame,
-  pending: PendingOf<"kickoff-event">,
-  name: (id: string) => string
-): Candidate[] {
-  const landing = pending.landingSquare;
-  if (pending.event !== KickoffEvent.HIGH_KICK || !landing) return [];
-  const { team1, team2 } = game.ctx;
-  const [team, opponents] =
-    pending.chooserTeamId === team1.id ? [team1, team2] : [team2, team1];
-  return team.players
-    .filter((player) => isOpenKickoffPlayer(player, opponents.players))
-    .map((player) => ({
-      kind: "decision",
-      commands: [
-        { type: "kickoff-select-player", playerId: player.id },
-        { type: "kickoff-place-player", playerId: player.id, ...landing },
-      ],
-      label: `High Kick: ${name(player.id)} stands under the ball`,
-    }));
 }
 
 function inducementCandidates(

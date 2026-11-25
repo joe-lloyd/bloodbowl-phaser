@@ -326,12 +326,14 @@ describe("Charge! as a miniature turn", () => {
     }
   });
 
-  it("gives the computer one way on, and keeps the other coach's hands off", async () => {
+  it("offers the computer the picked player and the end of the event, and keeps the other coach's hands off", async () => {
     const { game, home } = await rehearse(KickoffEvent.CHARGE, { players: 1 });
     await choose(game, [home(1).id]);
     const point = await enumerateDecision(game, "team1");
     expect(point.teamId).toBe("team1");
     expect(point.candidates.map(({ commands }) => commands)).toEqual([
+      [{ type: "declare-action", playerId: home(1).id, action: "move" }],
+      [{ type: "declare-action", playerId: home(1).id, action: "blitz" }],
       [{ type: "end-turn" }],
     ]);
     expect(computerOwnsDecision(game, "team1", "team1")).toBe(true);
