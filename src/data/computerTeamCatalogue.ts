@@ -1214,11 +1214,11 @@ const definitions: readonly ComputerTeamTemplate[] = [
     buildName: "Full coven",
     sourceUrl: "https://fumbbl.com/help:WitchelfT2025",
     players: [
-      ["Priestess", 4],
-      ["Witch Elf", 1],
+      ["Priestess", 3],
+      ["Witch Elf", 2],
       ["Death Hag", 2],
     ],
-    rerolls: 1,
+    rerolls: 0,
   },
   {
     id: "wood-elf-wardance-party",

@@ -52,8 +52,8 @@ const SEVENS_COMPOSITIONS: Partial<
 
   [RosterName.WITCH_ELF]: [
     { position: "Death Hag", count: 2 },
-    { position: "Witch Elf", count: 1 },
-    { position: "Priestess", count: 4 },
+    { position: "Witch Elf", count: 2 },
+    { position: "Priestess", count: 3 },
   ],
 
   [RosterName.DARK_ELF]: [
