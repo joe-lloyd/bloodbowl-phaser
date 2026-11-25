@@ -124,6 +124,11 @@ describe("character files", () => {
     expect(problem).toContain("Two look options both set helm");
   });
 
+  it("rejects a motion that is not a motion setting", () => {
+    expect(characterProblem({ ...RAIDER, motion: { pose: 1 } })).toContain("Motion only has stride");
+    expect(catalogWith({ ...RAIDER, motion: { pose: 1 } }).errors["0.json"]).toContain("unknown motion pose");
+  });
+
   it("accepts a complete character", () => {
     expect(characterProblem(RAIDER)).toBeNull();
   });

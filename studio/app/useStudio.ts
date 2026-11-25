@@ -35,13 +35,20 @@ export function useStudio() {
 
   useEffect(() => {
     if (!active || jobId === undefined) return;
+    let ended = false;
+    const show = (next: StudioJob) => {
+      if (!ended) setJob(next);
+    };
+    const lose = (cause: unknown) => {
+      if (ended) return;
+      setJob(null);
+      fail(cause);
+    };
     const timer = setInterval(() => {
-      fetchJob(jobId).then(setJob).catch((cause: unknown) => {
-        setJob(null);
-        fail(cause);
-      });
+      fetchJob(jobId).then(show).catch(lose);
     }, POLL_MS);
     return () => {
+      ended = true;
       clearInterval(timer);
     };
   }, [active, jobId, fail]);

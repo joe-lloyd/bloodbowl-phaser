@@ -79,7 +79,7 @@ function PreviewImage({ character, job }: { readonly character: Character; reado
   const source = `/studio-api/image/${character.key}?${finished}`;
   if (missing === source) return <p className="text-hud-sm text-hud-mute">No preview yet. Press Preview to render one in Blender.</p>;
   return (
-    <img src={source} alt={`Eight poses of ${character.label} in both kits`} className="w-full" style={{ imageRendering: "pixelated" }} onError={() => { setMissing(source); }} />
+    <img src={source} alt={`Eight poses of ${character.label} in both kits`} className="w-full" style={{ imageRendering: "pixelated" }} onLoad={() => { setMissing(""); }} onError={() => { setMissing(source); }} />
   );
 }
 

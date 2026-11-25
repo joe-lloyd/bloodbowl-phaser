@@ -112,7 +112,7 @@ function sendFile(response: ServerResponse, file: string): void {
 }
 
 export function answerSprite(request: IncomingMessage, response: ServerResponse): void {
-  const file = path.join(SPRITES, decodeURIComponent((request.url ?? "/").split("?")[0] ?? "/"));
+  const file = path.join(SPRITES, (request.url ?? "/").split("?")[0] ?? "/");
   sendFile(response, file.startsWith(SPRITES + path.sep) ? file : "");
 }
 

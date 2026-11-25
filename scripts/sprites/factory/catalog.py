@@ -19,7 +19,6 @@ from unittest.mock import MagicMock
 FACTORY = os.path.dirname(os.path.abspath(__file__))
 KNOBS = ("legs", "arms", "limb", "arm", "shoulders", "torso", "belly", "torso_len", "head", "hands", "feet", "hips",
          "neck", "hunch", "head_fwd", "digi")
-MOTION = ("stride", "arm_swing", "run_lean", "jump")
 STANCE = ("lean", "twist", "nod", "hands")
 # Values the library draws that no model may use yet; the rest come from the models themselves.
 DRAWN = {"helm": ("open", "kettle", "skull", "winged", "gridiron", "hood"), "fins": ("bat", "swept", "crest"),
@@ -64,7 +63,7 @@ def scalars(layout):
 
 def model_entry(key, model, spec, generic, is_character):
     cls = type(model)
-    from lib.characters import drawn_keys
+    from lib.characters import MOTION, drawn_keys
     reads = drawn_keys(own_source(cls))
     used = set(model.layout) | set(slot_keys(spec))
     return dict(key=key, character=is_character, doc=(cls.__doc__ or "").strip().split("\n")[0], race=model.race,

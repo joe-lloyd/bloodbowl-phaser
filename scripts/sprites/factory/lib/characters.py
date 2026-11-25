@@ -4,7 +4,7 @@ A character starts from a Python model (its base) and changes what it names: rac
 layout, stance and motion. The base's pose hooks and, unless parts is "drop", its own part code stay. It is sized
 against its base's reference sprite, times height. looks is {"kind": "base"} to keep the base's look options, or
 {"kind": "own", "bodies": [...], "options": [...]}. The schema the studio checks these files with is
-src/boundary/characterStudio.ts.
+studio/boundary/studio.ts.
 """
 import glob
 import inspect
@@ -15,6 +15,7 @@ import re
 from . import core, looks, parts, plans, registry
 from .plans import Biped
 
+MOTION = ("stride", "arm_swing", "run_lean", "jump")
 STAND_INS = {"m": "Male", "f": "Female", "x": "Own build"}
 
 
@@ -69,6 +70,9 @@ def own_looks(cls, spec, body):
 
 
 def character_class(spec):
+    unknown = set(spec["motion"]) - set(MOTION)
+    if unknown:
+        raise ValueError("%s: unknown motion %s" % (spec["key"], ", ".join(sorted(unknown))))
     source = registry.get(spec["base"])
     base = type(source)
     if not isinstance(source, Biped):

@@ -9,7 +9,8 @@ const layout = z.record(z.string(), scalar);
 const knobValue = z.union([z.number(), z.boolean()]);
 const body = z.enum(["m", "f", "x"]);
 const stance = z.record(z.string(), z.union([z.number(), z.string()]));
-const motion = z.record(z.string(), z.number());
+const MOTION: readonly string[] = ["stride", "arm_swing", "run_lean", "jump"];
+const motion = z.record(z.string(), z.number()).refine((record) => Object.keys(record).every((name) => MOTION.includes(name)), `Motion only has ${MOTION.join(", ")}`);
 
 const optionValue = z.object({ value: key, label, layout: layout.nullable() });
 const ownOption = z.object({

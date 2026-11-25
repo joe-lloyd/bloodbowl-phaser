@@ -54,6 +54,20 @@ function CharacterList({ state, selected, onSelect }: { readonly state: StudioSt
   );
 }
 
+function useSave(studio: WorkbenchProps["studio"], onSaved: (edited: Character) => void) {
+  const [saving, setSaving] = useState(false);
+  const save = async (edited: Character) => {
+    setSaving(true);
+    await studio.attempt(async () => {
+      await saveCharacter(edited);
+      await studio.reload();
+      onSaved(edited);
+    });
+    setSaving(false);
+  };
+  return { saving, save };
+}
+
 function Workbench({ studio, state }: WorkbenchProps) {
   const [selected, setSelected] = useState(initialKey);
   const [draft, setDraft] = useState<Character | null>(null);
@@ -68,6 +82,9 @@ function Workbench({ studio, state }: WorkbenchProps) {
     setSelected(key);
     setDraft(next);
   };
+  const { saving, save } = useSave(studio, (edited) => {
+    setDraft((current) => (current === edited ? null : current));
+  });
   const taken = [...state.models, ...state.catalog.models.map((model) => model.key)];
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -94,12 +111,8 @@ function Workbench({ studio, state }: WorkbenchProps) {
             <div className="sticky top-0 z-10 mb-3 flex items-center gap-3 bg-hud-ink py-2">
               <HudButton
                 variant="success"
-                disabled={!dirty || problem !== null}
-                onClick={() => void studio.attempt(async () => {
-                  await saveCharacter(character);
-                  await studio.reload();
-                  setDraft(null);
-                })}
+                disabled={saving || !dirty || problem !== null}
+                onClick={() => void save(character)}
               >
                 Save
               </HudButton>
