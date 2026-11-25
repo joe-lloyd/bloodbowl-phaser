@@ -49,7 +49,7 @@ async function exportCharacter(character: Character, onLine: OnLine): Promise<vo
     if (line.startsWith(`WARN ${key} `)) warnings.push(line);
   });
   if (character.looks.kind === "own" && warnings.length > 0) {
-    throw new Error("Not installed. A look choice draws nothing of its own, hides part of the base figure, or changes a part another option also changes. Put the parts that depend on each other in the same option.");
+    throw new Error("Not installed. A look choice draws nothing of its own, hides part of the base figure, or depends on a choice of another option. Put the parts that depend on each other in the same option.");
   }
   await run({ program: "python3", args: ["install_layered.py", path.join(WORK, "layered"), "--characters", DRAFTS, key], cwd: FACTORY, onLine });
   await publish(character, onLine);

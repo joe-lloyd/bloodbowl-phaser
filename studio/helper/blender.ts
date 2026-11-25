@@ -40,6 +40,7 @@ function localRenderer(blender: string): Renderer {
     },
     layers: async (key, onLine) => {
       const args = ["--layers", "--models", key, ...STYLE, "--frames", "run=12", "--verify", "2", CHARACTER_FLAG, DRAFTS];
+      rmSync(path.join(WORK, "layered", key), { recursive: true, force: true });
       expectLine(await render(args, onLine), `DONE ${key} `);
     },
   };
