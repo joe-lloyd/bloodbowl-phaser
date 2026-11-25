@@ -8,13 +8,13 @@ Every change reaches `main` through a pull request. Open it ready for review, no
 
 CodeRabbit's plan is rate limited on most pushes. Waiting for it costs 20 to 40 minutes and usually ends in a refusal. In this repository, these rules replace the reviewer order in `~/.agents/AGENTS.md` and the CodeRabbit waits in `babysit-pr`:
 
-- Spawn the Joe Codex reviewer with the reviewer brief from `full-send` as soon as the PR is open. Spawn a new one whenever the head changes, whether from a review fix, a CI fix or a rebase. If you declined every finding without pushing, spawn a new one with the review and your reply. Give each reviewer the head SHA it reviews, and have it post against that commit instead of with the helper's `review`: end the review file with `<!-- babysit-pr-fallback-review -->`, then run `gh api repos/joe-lloyd/bloodbowl-phaser/pulls/<n>/reviews -f commit_id=<sha> -f event=COMMENT -F body=@<file>`. Do not push while a reviewer is running. If a push cannot wait, cancel that reviewer with `task_cancel` and spawn a new one on the new head. Do not wait for CodeRabbit first.
+- Spawn the Joe Codex reviewer with the reviewer brief from `full-send` as soon as the PR is open, and give it the head SHA. Have it post against that commit instead of with the helper's `review`: end the review file with `<!-- babysit-pr-fallback-review -->`, then run `gh api repos/joe-lloyd/bloodbowl-phaser/pulls/<n>/reviews -f commit_id=<sha> -f event=COMMENT -F body=@<file>`. Do not wait for CodeRabbit first.
+- One Codex review per PR. Judge its findings with the bar in `babysit-pr`: fix what an ordinary player hits in normal play and is really harmed by, and decline the rest in one line. Fixes, declines, CI fixes and rebases do not need another review. Get a second review only when a fix redesigns the change, and never a third.
+- A weaker choice by the computer coach, a rare mix of traits, and a state no coach can reach from the screen never hold up a merge. A match that gets stuck, online games that disagree, a broken save, or a rule that is wrong in an ordinary turn does.
 - Never post `@coderabbitai review`. When the helper reports `coderabbit-stalled` or `coderabbit-refused`, run `wait` again and keep waiting for the Codex review and CI.
 - CodeRabbit still runs on its own. Read `openThreads` in every digest, not only on a findings event. Fix or decline each open thread like any other review. When you fixed a thread and CodeRabbit cannot review the new head, reply on the thread with the commit that fixed it, then resolve it. An open CodeRabbit thread blocks the merge.
-- Merge only when a Codex review on the current head says `Verdict: approve`, CI is green, and no CodeRabbit thread is open. A `ready` event without that Codex approval is not enough. Keep waiting.
-- Merge with `gh pr merge <n> --merge --delete-branch --match-head-commit <sha>`, where `<sha>` is the head the Codex reviewer was briefed on. A head that changed after the approval then fails the merge. Do not use the helper's `merge` here: it reads the head again and accepts a CodeRabbit pass in place of Codex.
-- If three Codex rounds in a row end in `Verdict: changes`, stop. Do not merge. Ask the owner.
-- On `round-limit`, stop. Do not merge. Ask the owner.
+- Merge when the Codex review is handled, CI is green on the current head, and no CodeRabbit thread is open. Do not ask the owner first. On `round-limit`, decline what is left and merge.
+- Merge with `gh pr merge <n> --merge --delete-branch --match-head-commit <sha>`, where `<sha>` is the head whose CI you checked.
 
 ## Review scope
 
