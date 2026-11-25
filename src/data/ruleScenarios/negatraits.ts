@@ -897,8 +897,9 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "At the end of the opponent's turn, a 5+ stands a Prone team-mate within 3 squares of a Standing holder",
         setup: playSetup({
+          team1Roster: RosterName.WITCH_ELF,
           team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.PICK_ME_UP] },
+            { playerIndex: 0, x: 10, y: 5 },
             { playerIndex: 1, x: 11, y: 5, status: "Prone" },
           ],
           team2Placements: [{ playerIndex: 0, x: 2, y: 2 }],
