@@ -6,6 +6,7 @@ import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../src/types/events";
+import type { Player } from "../../src/types/Player";
 import { getSkill, SkillType } from "../../src/types/Skills";
 import {
   type OnlineMatch,
@@ -36,13 +37,16 @@ afterEach(async () => {
   ServiceContainer.reset();
 });
 
-async function showUphillBlock(myTeamId: string) {
+async function showBlock(
+  myTeamId: string,
+  defender: Player | undefined,
+  isUphill: boolean
+) {
   setActiveOnlineMatch({
     myTeamId,
     mayAct: () => true,
   } as unknown as OnlineMatch);
   const attacker = game.ctx.team1.players[0];
-  const defender = game.ctx.team2.players[0];
   fixtureValue(defender).skills = [getSkill(SkillType.BLOCK)];
   await act(async () => {
     root.render(<BlockDiceDialog eventBus={bus} />);
@@ -53,7 +57,7 @@ async function showUphillBlock(myTeamId: string) {
       defenderId: fixtureValue(defender).id,
       analysis: {
         diceCount: 2,
-        isUphill: true,
+        isUphill,
         attackerST: 3,
         defenderST: 4,
         barricadeCover: false,
@@ -69,11 +73,23 @@ async function showUphillBlock(myTeamId: string) {
   ].map((line) => line.textContent);
 }
 
+const showUphillBlock = (myTeamId: string) =>
+  showBlock(myTeamId, game.ctx.team2.players[0], true);
+
+it("tells a coach whose Fanatic hits their own teammate that they pick", async () => {
+  const lines = await showBlock(
+    game.ctx.team1.id,
+    game.ctx.team1.players[1],
+    false
+  );
+  expect(lines[0]).toBe("2 dice, you pick");
+});
+
 it("speaks to the defending coach as the one who picks", async () => {
   const defenderNumber = fixtureValue(game.ctx.team2.players[1]).number;
   expect(await showUphillBlock(game.ctx.team2.id)).toEqual([
     "2 dice, you pick",
-    "ST 4 (3 +1) vs 3",
+    "ST 3 vs 4 (3 +1)",
     `Our assists: #${String(defenderNumber)}`,
     "Our Block: safe on Both Down",
   ]);

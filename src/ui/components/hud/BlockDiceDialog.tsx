@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import type { EventBus } from "../../../services/EventBus";
 import {
   blockPreview,
-  type BlockSide,
 } from "../../../game/rules/rollPreview";
 import { type BlockAnalysis } from "../../../types/Actions";
 import type { Player } from "../../../types/Player";
@@ -407,16 +406,11 @@ function BlockMath({
   defender: Player | undefined;
 }) {
   if (!attacker || !defender) return null;
-  const viewer: BlockSide =
-    getActiveOnlineMatch()?.myTeamId === defender.teamId
-      ? "defender"
-      : "attacker";
-  const viewerPicks = analysis.isUphill === (viewer === "defender");
-  const { dice, strength, notes } = blockPreview(
+  const { viewerPicks, dice, strength, notes } = blockPreview(
     analysis,
     attacker,
     defender,
-    viewer
+    getActiveOnlineMatch()?.myTeamId ?? attacker.teamId
   );
   const lines = strength.includes("+") ? [strength, ...notes] : notes;
   return (

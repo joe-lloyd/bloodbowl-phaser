@@ -285,7 +285,7 @@ describe("roll preview analysis", () => {
       activeTeamId: "ours",
     });
     expect(analysis.attackerAssists.map((p) => p.number)).toEqual([8]);
-    expect(blockPreviewLines(analysis, player, defender, "attacker")).toEqual(
+    expect(blockPreviewLines(analysis, player, defender, "ours")).toEqual(
       expect.arrayContaining([
         "2 dice, you pick",
         "ST 4 (3 +1) vs 3",
@@ -294,6 +294,25 @@ describe("roll preview analysis", () => {
       ])
     );
   });
+  it("says a coach picks when their Fanatic hits their own teammate", () => {
+    const teammate = { ...enemy, teamId: "ours" };
+    const strong = { ...teammate, stats: { ...enemy.stats, ST: 5 } };
+    const dice = (target: typeof teammate, viewer: string) =>
+      blockPreviewLines(
+        new BlockValidator().analyzeBlock({
+          attacker: player,
+          defender: target,
+          allPlayers: [player, target],
+          activeTeamId: "ours",
+        }),
+        player,
+        target,
+        viewer
+      )[0];
+    expect(dice(teammate, "ours")).toBe("1 die, you pick");
+    expect(dice(strong, "ours")).toBe("2 dice, you pick");
+    expect(dice(teammate, "theirs")).toBe("1 die, they pick");
+  });
   it("counts one die as a die", () => {
     const analysis = new BlockValidator().analyzeBlock({
       attacker: player,
@@ -301,7 +320,7 @@ describe("roll preview analysis", () => {
       allPlayers: [player, enemy],
       activeTeamId: "ours",
     });
-    expect(blockPreviewLines(analysis, player, enemy, "attacker")).toEqual([
+    expect(blockPreviewLines(analysis, player, enemy, "ours")).toEqual([
       "1 die, you pick",
       "ST 3 vs 3",
     ]);
@@ -315,7 +334,7 @@ describe("roll preview analysis", () => {
       activeTeamId: "ours",
     });
     expect(
-      blockPreviewLines(analysis, player, strong, "attacker")
+      blockPreviewLines(analysis, player, strong, "ours")
     ).toEqual([
       "2 dice, they pick",
       "ST 3 vs 4",

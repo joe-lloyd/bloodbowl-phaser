@@ -202,8 +202,6 @@ const assistLines = (ours: Player[], theirs: Player[]): string[] =>
         `${side} assists: ${players.map((p) => `#${String(p.number)}`).join(", ")}`
     );
 
-export type BlockSide = "attacker" | "defender";
-
 function strengthPart(base: number, total: number): string {
   const help = total - base;
   return help === 0
@@ -213,18 +211,15 @@ function strengthPart(base: number, total: number): string {
 
 function strengthLine(
   analysis: BlockAnalysis,
-  sides: { attacker: Player; defender: Player },
-  viewer: BlockSide
+  { attacker, defender }: { attacker: Player; defender: Player }
 ): string {
-  const { attacker, defender } = sides;
   const attacking = strengthPart(attacker.stats.ST, analysis.attackerST);
   const defending = strengthPart(defender.stats.ST, analysis.defenderST);
-  const [ours, theirs] =
-    viewer === "attacker" ? [attacking, defending] : [defending, attacking];
-  return `ST ${ours} vs ${theirs}`;
+  return `ST ${attacking} vs ${defending}`;
 }
 
 interface BlockPreview {
+  viewerPicks: boolean;
   dice: string;
   strength: string;
   notes: string[];
@@ -234,19 +229,21 @@ export function blockPreview(
   analysis: BlockAnalysis,
   attacker: Player,
   defender: Player,
-  viewer: BlockSide
+  viewerTeamId: string
 ): BlockPreview {
-  const viewerPicks = analysis.isUphill === (viewer === "defender");
+  const chooser = analysis.isUphill ? defender : attacker;
+  const viewerPicks = chooser.teamId === viewerTeamId;
   const [ours, theirs] =
-    viewer === "attacker"
+    attacker.teamId === viewerTeamId
       ? [analysis.attackerAssists, analysis.defenderAssists]
       : [analysis.defenderAssists, analysis.attackerAssists];
   return {
+    viewerPicks,
     dice: `${String(analysis.diceCount)} ${analysis.diceCount === 1 ? "die" : "dice"}, ${viewerPicks ? "you" : "they"} pick`,
-    strength: strengthLine(analysis, { attacker, defender }, viewer),
+    strength: strengthLine(analysis, { attacker, defender }),
     notes: [
       ...assistLines(ours, theirs),
-      ...blockNotes(analysis, { attacker, defender }, viewer),
+      ...blockNotes(analysis, { attacker, defender }, viewerTeamId),
     ],
   };
 }
@@ -254,10 +251,12 @@ export function blockPreview(
 function blockNotes(
   analysis: BlockAnalysis,
   { attacker, defender }: { attacker: Player; defender: Player },
-  viewer: BlockSide
+  viewerTeamId: string
 ): string[] {
-  const [attacking, defending] =
-    viewer === "attacker" ? ["Our", "Their"] : ["Their", "Our"];
+  const whose = (player: Player) =>
+    player.teamId === viewerTeamId ? "Our" : "Their";
+  const attacking = whose(attacker);
+  const defending = whose(defender);
   const notes: string[] = [];
   if (analysis.barricadeCover) notes.push(`${defending} Barricade: +1 ST`);
   if (has(defender, SkillType.DODGE))
