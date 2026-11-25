@@ -3,6 +3,7 @@ import { GameEventNames } from "@/types/events";
 import { PlayerStatus } from "@/types/Player";
 import { type GameState } from "@/types/GameState";
 import { isTurnRunning } from "../../kickoff/kickoffTurn";
+import { rageLeavesOpen } from "@/game/rules/awaitingDeclaration";
 import {
   type BlockReplacement,
   blockReplacementForDirectAction,
@@ -389,11 +390,19 @@ export function askGates(
   );
 }
 
+function releaseActive(
+  c: GameplayInteractionController,
+  active: NonNullable<GameState["activePlayer"]>
+): void {
+  if (active.committed || rageLeavesOpen(active))
+    c.gameService.finishActivation(active.id);
+  else c.gameService.cancelAction(active.id);
+}
+
 function releasePreviousPlayer(
 { c,playerId,active,ownTeamsTurn }: { c: GameplayInteractionController; playerId: string; active: GameState["activePlayer"]; ownTeamsTurn: boolean; }): void {
   if (active && active.id !== playerId && ownTeamsTurn) {
-    if (active.committed) c.gameService.finishActivation(active.id);
-    else c.gameService.cancelAction(active.id);
+    releaseActive(c, active);
   } else if (!active && c.selectedPlayerId && c.selectedPlayerId !== playerId) {
     const prevId = c.selectedPlayerId;
     if (

@@ -1,4 +1,5 @@
 import { souvenirModifier } from "../inducements/souvenirModifiers";
+import { mustRedeclare } from "../rules/awaitingDeclaration";
 import { GameOperation } from "../core/GameOperation";
 import { GameConfig } from "../../config/GameConfig";
 import type { FlowContext } from "../core/GameFlowManager";
@@ -301,6 +302,7 @@ export class PassOperation extends GameOperation {
 
     const passer = gameService.getPlayerById(this.passerId);
     if (!passer?.gridPosition) return;
+    if (mustRedeclare(gameService.getState(), passer.id)) return;
 
     gameService.commitAction(this.passerId);
 

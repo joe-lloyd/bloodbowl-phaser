@@ -1,3 +1,4 @@
+import { awaitingDeclaration } from "@/game/rules/awaitingDeclaration";
 import { isOwnActor } from "./players";
 import { adjacentTo, withinOneSquare } from "./squares";
 import { GameEventNames } from "@/types/events";
@@ -123,7 +124,7 @@ function declarationOf(
   playerId: string
 ): { action?: string | null; replacement?: BlockReplacement } {
   const active = state.activePlayer;
-  if (active?.id !== playerId || active.razzleDazzle?.awaitingSecond) {
+  if (active?.id !== playerId || awaitingDeclaration(state, playerId)) {
     return {};
   }
   const replacement = active.blockReplacementUsed ? undefined : active.blockReplacement;

@@ -7,6 +7,7 @@ import { type ActionType, GameEventNames } from "@/types/events";
 import { SkillType, hasSkill } from "@/types/Skills";
 import type { GameParts } from "./parts";
 import { awaitingSecondAction, whenSettled } from "./activation";
+import { mustRedeclare } from "@/game/rules/awaitingDeclaration";
 import type { MoveStep } from "../../headless/protocol";
 
 interface Square {
@@ -91,25 +92,37 @@ export function dropBallWithFumblerooski(
   return true;
 }
 
+function declareMove(parts: GameParts, playerId: string): void {
+  if (!parts.game.declareAction({ playerId, action: "move" })) {
+    throw new Error("This player cannot be activated");
+  }
+}
+
+function declareMoveToStand(parts: GameParts, playerId: string): boolean {
+  if (mustRedeclare(parts.state, playerId)) declareMove(parts, playerId);
+  if (!mayUseBaseMove(parts, playerId, "stand")) return false;
+  if (parts.state.activePlayer?.id !== playerId) declareMove(parts, playerId);
+  return true;
+}
+
+function mayStand(parts: GameParts, playerId: string): boolean {
+  const active = parts.state.activePlayer;
+  return (
+    active?.id === playerId &&
+    !active.forcedBlock &&
+    !mustRedeclare(parts.state, playerId) &&
+    !parts.turnManager.isTurnoverInProgress()
+  );
+}
+
 export async function standUp(
   parts: GameParts,
   playerId: string
 ): Promise<void> {
-  if (!mayUseBaseMove(parts, playerId, "stand")) return;
-
-  if (parts.state.activePlayer?.id !== playerId) {
-    if (!parts.game.declareAction({ playerId, action: "move" })) {
-      throw new Error("This player cannot be activated");
-    }
-  }
+  if (!declareMoveToStand(parts, playerId)) return;
   if (!(await whenSettled(parts))) return;
 
-  if (
-    parts.state.activePlayer?.id !== playerId ||
-    parts.state.activePlayer.forcedBlock ||
-    parts.turnManager.isTurnoverInProgress()
-  )
-    return;
+  if (!mayStand(parts, playerId)) return;
   await parts.movementManager.standUp(playerId);
 
   parts.playerActionManager.commitAction(playerId);

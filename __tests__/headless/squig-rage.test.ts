@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { fixtureValue } from "../../src/testing/fixtureValue";
+import { enumerateDecision } from "../../src/simulation/candidates";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { RosterName } from "../../src/types/Team";
@@ -166,7 +167,109 @@ describe("Squig Rage", () => {
     expect(rolls.some((type) => type.includes("Armour"))).toBe(true);
     expect(game.ctx.gameService.getState().activePlayer).toMatchObject({
       id: wrangler.id,
-      action: "ballAndChain",
+      action: null,
+    });
+    const rolled = rolls.length;
+    expect((await declare()).ok).toBe(true);
+    expect(rolls).toHaveLength(rolled);
+    expect(game.ctx.gameService.getState().activePlayer?.action).toBe(
+      "ballAndChain"
+    );
+  });
+
+  describe("after a Hopper's Handoff knocks down its only receiver", () => {
+    async function ragedHopper() {
+      const { game, rolls } = match(
+        [
+          { playerIndex: 0, x: 14, y: 8 },
+          { playerIndex: 5, x: 14, y: 9 },
+        ],
+        [{ ...OPPONENT, x: 24 }]
+      );
+      const hopper = fixtureValue(game.ctx.team1.players[0]);
+      const receiver = fixtureValue(game.ctx.team1.players[5]);
+      game.ctx.team1.rerolls = 0;
+      const gs = game.ctx.gameService;
+      gs.getState().ballPosition = { ...fixtureValue(hopper.gridPosition) };
+      let response = await game.execute({
+        type: "declare-action",
+        playerId: hopper.id,
+        action: "handoff",
+      });
+      if (response.pendingDecision?.type === "bite-target") {
+        response = await game.execute({
+          type: "choose-bite-target",
+          playerId: receiver.id,
+        });
+      }
+      expect(response.ok).toBe(true);
+      expect(receiver.status).not.toBe(PlayerStatus.ACTIVE);
+      const declare = (
+        action: "move" | "handoff",
+        playerId = hopper.id
+      ) => game.execute({ type: "declare-action", playerId, action });
+      return { game, gs, hopper, rolls, declare };
+    }
+
+    it("leaves the Handoff unspent and lets the Hopper Move without a second roll", async () => {
+      const { gs, rolls, declare } = await ragedHopper();
+      const rolled = rolls.length;
+      expect(gs.getState().turn.hasHandedOff).toBe(false);
+      expect((await declare("move")).ok).toBe(true);
+      expect(gs.getState().activePlayer?.action).toBe("move");
+      expect(gs.getState().turn.hasHandedOff).toBe(false);
+      expect(rolls).toHaveLength(rolled);
+    });
+
+    it("lets a fresh declaration be cancelled without reopening the roll", async () => {
+      const { game, gs, hopper, rolls, declare } = await ragedHopper();
+      const rolled = rolls.length;
+      await declare("handoff");
+      const cancelled = await game.execute({
+        type: "cancel-action",
+        playerId: hopper.id,
+      });
+      expect(cancelled.ok).toBe(true);
+      expect(gs.getState().activePlayer).toMatchObject({
+        id: hopper.id,
+        action: null,
+      });
+      expect((await declare("move")).ok).toBe(true);
+      expect(rolls).toHaveLength(rolled);
+      expect(gs.getState().turn.hasHandedOff).toBe(false);
+    });
+
+    it("ends the Hopper's activation when another player is declared", async () => {
+      const { game, gs, hopper, declare } = await ragedHopper();
+      const other = fixtureValue(game.ctx.team1.players[3]);
+      expect((await declare("move", other.id)).ok).toBe(true);
+      expect(gs.hasPlayerActed(hopper.id)).toBe(true);
+      expect(gs.getState().turn.hasHandedOff).toBe(false);
+    });
+
+    it("refuses to move before the coach declares again", async () => {
+      const { game, hopper } = await ragedHopper();
+      const start = { ...fixtureValue(hopper.gridPosition) };
+      await game.execute({
+        type: "move",
+        playerId: hopper.id,
+        path: [{ x: start.x + 1, y: start.y }],
+      });
+      expect(hopper.gridPosition).toEqual(start);
+    });
+
+    it("offers the computer only the Hopper's actions and an early end", async () => {
+      const { game, hopper } = await ragedHopper();
+      const { candidates } = fixtureValue(await enumerateDecision(game, null));
+      expect(candidates.at(-1)?.kind).toBe("end-activation");
+      expect(
+        candidates.every((c) =>
+          c.commands.every(
+            (command) =>
+              "playerId" in command && command.playerId === hopper.id
+          )
+        )
+      ).toBe(true);
     });
   });
 

@@ -5,6 +5,7 @@ import { type BlockReplacement } from "@/types/BlockReplacement";
 import { type Player } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { foulSpent, spendMeasure } from "../inducements/matchInducements";
+import { mustRedeclare } from "../rules/awaitingDeclaration";
 import { DesperateMeasure } from "../inducements/desperateMeasures";
 
 export type CommitReason =
@@ -16,6 +17,17 @@ export type CommitReason =
 export type CommitStatus =
   | { committed: false }
   | { committed: true; reason: CommitReason };
+
+export function openActivation(
+  active: NonNullable<GameState["activePlayer"]>
+): NonNullable<GameState["activePlayer"]> {
+  return {
+    id: active.id,
+    action: null,
+    squigRageSettled: true,
+    ...(active.stalling === undefined ? {} : { stalling: active.stalling }),
+  };
+}
 
 export class PlayerActionManager {
   private eventBus: IEventBus;
@@ -113,7 +125,12 @@ export class PlayerActionManager {
     const active = this.state.activePlayer;
     if (!active || active.id !== playerId) return false;
     if (active.razzleDazzle?.awaitingSecond) return false;
+    if (mustRedeclare(this.state, playerId)) return false;
     if (this.isActionCommitted(playerId).committed) return false;
+    if (active.squigRageSettled) {
+      this.state.activePlayer = openActivation(active);
+      return true;
+    }
 
     const razzle = active.razzleDazzle;
     const firstAction = razzle?.actions[0];

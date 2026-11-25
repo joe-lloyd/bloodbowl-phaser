@@ -658,7 +658,9 @@ function declareChoice({
     if (!choosing) break;
   }
   if (options.length === 0) {
-    const end = candidates.findIndex((c) => c.kind === "end-turn");
+    const end = candidates.findIndex(
+      (c) => c.kind === "end-turn" || c.kind === END_ACTIVATION
+    );
     return end >= 0 ? { index: end } : null;
   }
   const pick = choosing

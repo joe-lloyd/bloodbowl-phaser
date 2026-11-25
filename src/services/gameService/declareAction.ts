@@ -20,6 +20,7 @@ import {
 } from "@/game/skills";
 import { holdsMeasure } from "@/game/inducements/matchInducements";
 import { kickoffTurnAllows } from "@/game/kickoff/kickoffTurn";
+import { mustRedeclare, rageLeavesOpen } from "@/game/rules/awaitingDeclaration";
 import { razzleDazzleAllows } from "@/game/rules/actionAvailability";
 import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
 import {
@@ -151,12 +152,16 @@ function declareForPlayer({
   });
 }
 
+function endsOnSwitch(held: Declaration): boolean {
+  return rageLeavesOpen(held) || held.razzleDazzle?.awaitingSecond === true;
+}
+
 function secondActionAfter(
   parts: GameParts,
   held: Declaration | null,
   playerId: string
 ): ActionType | undefined {
-  if (held?.razzleDazzle?.awaitingSecond && held.id !== playerId) {
+  if (held && held.id !== playerId && endsOnSwitch(held)) {
     parts.game.finishActivation(held.id);
   }
   return held?.id === playerId && held.razzleDazzle?.awaitingSecond
@@ -223,7 +228,7 @@ function mayRedeclare({
   }
 
   const live = parts.state.activePlayer;
-  if (!live) return true;
+  if (!live || mustRedeclare(parts.state, activating.id)) return true;
   if (live.blockReplacement || blockReplacement) return false;
   return releaseLiveDeclaration({
     parts,
@@ -489,6 +494,10 @@ function finishDeclaration(
   }
   if (declaring.razzleDazzle) declared.razzleDazzle = { actions: [action] };
 
+  if (held?.id === playerId && held.squigRageSettled) {
+    declared.squigRageSettled = true;
+    return true;
+  }
   if (
     player.skills.some(
       (s) => SkillRegistry.get(s.type)?.onActivationDeclared !== undefined

@@ -8,6 +8,42 @@ import { forceDice } from "../utils/test-helpers";
 import { board } from "../utils/interaction-board";
 
 describe("action plan review fixes", () => {
+  it("reopens the action menu after Squig Rage knocks down a team-mate and rolls only once", async () => {
+    const { game, controller, seen, act } = board(
+      [
+        { playerIndex: 0, x: 10, y: 5, skills: [SkillType.SQUIG_RAGE] },
+        { playerIndex: 1, x: 10, y: 4 },
+      ],
+      [{ playerIndex: 0, x: 20, y: 9 }]
+    );
+    const gs = game.ctx.gameService;
+    const mate = fixtureValue(game.ctx.team1.players[1]);
+    game.ctx.team1.rerolls = 0;
+    forceDice(game.ctx.rng, [1, 1, 1, 1, 1]);
+    const squig = act(0, "move");
+    const pressed: Promise<void>[] = [];
+    pressed.push(controller.onSquareClicked(13, 5));
+    game.ctx.eventBus.emit(GameEventNames.UI_GoMovePlan, undefined);
+    await vi.waitFor(() => {
+      expect(game.pendingDecision()?.type).toBe("bite-target");
+    });
+    await game.execute({ type: "choose-bite-target", playerId: mate.id });
+    await Promise.all(pressed);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(mate.status).not.toBe(PlayerStatus.ACTIVE);
+    expect(squig.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(controller.selectedPlayerId).toBe(squig.id);
+    expect(controller.currentActionMode).toBeNull();
+
+    game.ctx.eventBus.emit(GameEventNames.UI_ActionSelected, {
+      playerId: squig.id,
+      action: "move",
+    });
+    expect(controller.currentActionMode).toBe("move");
+    expect(gs.getState().activePlayer?.action).toBe("move");
+    expect(seen.dice.filter((d) => d.includes(SkillType.SQUIG_RAGE))).toHaveLength(1);
+  });
+
   it("settles a deferred Bone Head roll before a Jump", async () => {
     const { game, controller, seen, act } = board(
       [{ playerIndex: 0, x: 10, y: 5, stats: { AG: 4 }, skills: [SkillType.BONE_HEAD] }],

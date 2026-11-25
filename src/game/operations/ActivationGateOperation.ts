@@ -9,6 +9,7 @@ import {
   PlayerCondition,
   addCondition,
 } from "../../types/Player";
+import { openActivation } from "../managers/PlayerActionManager";
 import { activationGates, playersWithin, withRerollOffer } from "../skills";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type ActivationGate } from "../skills/SkillRule";
@@ -190,11 +191,21 @@ export class ActivationGateOperation extends GameOperation {
       purpose: "squig-knock-down",
     });
     if (victim) {
-      gameService.commitAction(player.id);
       this.lashOut(context, { player, victim, skill });
+      this.reopenActivation(context);
     } else {
       this.distract(context, player, skill);
     }
+  }
+
+  private reopenActivation({ gameService, eventBus }: FlowContext): void {
+    const state = gameService.getState();
+    if (gameService.isTurnoverInProgress()) return;
+    if (state.activePlayer?.id !== this.playerId) return;
+    state.activePlayer = openActivation(state.activePlayer);
+    eventBus.emit(GameEventNames.ActionMustBeRedeclared, {
+      playerId: this.playerId,
+    });
   }
 
   private distract(context: FlowContext, player: Player, skill: string): void {

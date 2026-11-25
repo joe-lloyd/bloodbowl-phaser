@@ -1,4 +1,5 @@
 import { kickoffTurnOf } from "../game/kickoff/kickRecord";
+import { mustRedeclare } from "../game/rules/awaitingDeclaration";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import { type GameSnapshot } from "../headless/serialization";
 import {
@@ -575,7 +576,8 @@ async function playCandidates(game: HeadlessGame): Promise<Candidate[]> {
   const active = state.activePlayer;
   const activeTeamId = state.activeTeamId;
   const actor = active ? gs.getPlayerById(active.id) : undefined;
-  if (active && actor && actor.teamId === activeTeamId) {
+  const redeclaring = active && mustRedeclare(state, active.id);
+  if (active && actor && actor.teamId === activeTeamId && !redeclaring) {
     return stepCandidates(game, actor, active);
   }
 
@@ -583,9 +585,16 @@ async function playCandidates(game: HeadlessGame): Promise<Candidate[]> {
   const out: Candidate[] = [];
   for (const entry of legal?.players ?? []) {
     const player = gs.getPlayerById(entry.playerId);
+    if (redeclaring && player?.id !== active.id) continue;
     if (player) out.push(...declareCandidates(player, entry));
   }
-  if (legal?.canEndTurn) {
+  if (redeclaring) {
+    out.push({
+      kind: "end-activation",
+      commands: [{ type: "end-activation", playerId: active.id }],
+      label: "End the activation",
+    });
+  } else if (legal?.canEndTurn) {
     out.push({
       kind: "end-turn",
       commands: [{ type: "end-turn" }],
