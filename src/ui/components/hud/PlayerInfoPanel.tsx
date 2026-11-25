@@ -139,7 +139,7 @@ function PlayerCard({
         >
           {activating && (
             <span data-testid="movement-left">
-              MA {ma}, {Math.max(0, ma - used)} left,{" "}
+              {Math.max(0, ma - used)} left,{" "}
               {Math.max(0, rushAllowance(player) - Math.max(0, used - ma))} rush
             </span>
           )}
@@ -150,8 +150,7 @@ function PlayerCard({
       {driveModifier && <DodgySnack modifier={driveModifier} />}
 
       <div className="mt-2.5">
-        <span className="hud-label mb-1 block text-hud-2xs">Skills</span>
-        <div className="text-hud-sm leading-snug text-hud-bone">
+        <div aria-label="Skills" role="group" className="text-hud-sm leading-snug text-hud-bone">
           {player.skills.length > 0
             ? player.skills.map((s) => s.type).join(", ")
             : "No skills"}
@@ -191,8 +190,8 @@ function CardHeader({
       </span>
       <div className="min-w-0 flex-1">
         {isComparison && (
-          <span className="hud-label block text-hud-2xs text-hud-info">
-            COMPARING
+          <span className="sr-only">
+            Comparing
           </span>
         )}
         <div className="truncate font-hud-label text-hud-lg font-bold uppercase leading-tight tracking-[0.03em] text-hud-bone">

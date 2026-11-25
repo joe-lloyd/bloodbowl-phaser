@@ -80,7 +80,7 @@ function ClubBody({ team }: { team: Team }) {
     <PageShell width="wide">
       <PageHeader
         back={{ label: "Back to Clubs", onClick: () => void navigate("/clubs") }}
-        eyebrow={`Club · ${team.rosterName}`}
+        eyebrow={team.rosterName}
         title={team.name}
         actions={
           <HudButton

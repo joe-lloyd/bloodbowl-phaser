@@ -252,7 +252,6 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
       }
     >
       <PageHeader
-        eyebrow="Online"
         title="Match Lobby"
         subtitle={
           lobby.competitionContext
@@ -400,7 +399,6 @@ function JoinByCode({
         className="flex flex-col items-center gap-5 px-6 py-8 text-center"
       >
         <div>
-          <Eyebrow tone="gold">Online</Eyebrow>
           <h1 className="mt-1 font-hud-display text-hud-3xl uppercase tracking-[0.02em] text-hud-bone">
             Join Game
           </h1>

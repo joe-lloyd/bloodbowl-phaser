@@ -127,15 +127,15 @@ function HalfTimeDetails({
       ) : (
         <p>{ready ? "Nobody was knocked out." : "Rolling for recovery."}</p>
       )}
-      <h3 className="hud-label mt-2">Out for the match</h3>
-      {summary.out.length ? (
-        <ul data-testid="half-time-out">
-          {summary.out.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-      ) : (
-        <p>Nobody</p>
+      {summary.out.length > 0 && (
+        <>
+          <h3 className="hud-label mt-2">Out for the match</h3>
+          <ul data-testid="half-time-out">
+            {summary.out.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </>
       )}
     </>
   );

@@ -9,7 +9,7 @@ import { type InviteRow, useInvites } from "../../hooks/useSocial";
 import { cx, HudButton, Notice, Panel } from "../componentWarehouse/HudKit";
 
 interface InviteText {
-  label: string;
+  label?: string;
   line: string;
   accept: string;
 }
@@ -18,7 +18,6 @@ function inviteText({ invite, fromName }: InviteRow): InviteText {
   switch (invite.kind) {
     case "match":
       return {
-        label: "Game invite",
         line: `${fromName} invited you to a match`,
         accept: "Join",
       };
@@ -30,7 +29,6 @@ function inviteText({ invite, fromName }: InviteRow): InviteText {
       };
     case "competition":
       return {
-        label: "Competition invite",
         line: `${fromName} invited you to ${invite.competitionName}`,
         accept: "View",
       };
@@ -138,7 +136,9 @@ function InviteCard({
       data-testid={`${kind}-invite`}
     >
       <span className="min-w-0">
-        <span className="hud-label block text-hud-gold">{text.label}</span>
+        {text.label && (
+          <span className="hud-label block text-hud-gold">{text.label}</span>
+        )}
         <span className="block font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] text-hud-bone">
           {text.line}
         </span>

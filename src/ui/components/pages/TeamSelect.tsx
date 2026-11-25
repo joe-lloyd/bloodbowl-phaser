@@ -211,7 +211,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         title={
           player === 2 && vsComputer ? "Computer" : `Player ${String(player)}`
         }
-        aside={`${String(columnTeams.length)} teams`}
         className="px-4"
       />
       <div className="p-3">
@@ -304,7 +303,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
       }
     >
       <PageHeader
-        eyebrow={`Friendly ${GAME_TYPE_LABELS[gameType]} Match`}
         title="TEAM SELECTION"
       />
 

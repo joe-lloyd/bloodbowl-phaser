@@ -65,7 +65,6 @@ const BLOCK_ACTIONS: MenuAction[] = [
     when: "multipleBlock",
     action: "multipleBlock",
     label: "MULTIPLE BLOCK",
-    sub: "2 Targets",
     color: "red",
   },
 
@@ -116,7 +115,6 @@ const OTHER_ACTIONS: MenuAction[] = [
     action: "stab",
     blockReplacement: "stab",
     label: "STAB",
-    sub: "Special",
     color: "orange",
   },
   {
@@ -124,7 +122,6 @@ const OTHER_ACTIONS: MenuAction[] = [
     action: "breatheFire",
     blockReplacement: "breatheFire",
     label: "BREATHE FIRE",
-    sub: "Special",
     color: "orange",
   },
   {
@@ -132,14 +129,12 @@ const OTHER_ACTIONS: MenuAction[] = [
     action: "vomit",
     blockReplacement: "vomit",
     label: "PROJECTILE VOMIT",
-    sub: "Special",
     color: "green",
   },
   {
     when: "gaze",
     action: "gaze",
     label: "HYPNOTIC GAZE",
-    sub: "Special",
     color: "purple",
   },
   {
@@ -147,7 +142,6 @@ const OTHER_ACTIONS: MenuAction[] = [
     action: "chomp",
     blockReplacement: "chomp",
     label: "CHOMP",
-    sub: "Special",
     color: "orange",
   },
   {
@@ -155,54 +149,33 @@ const OTHER_ACTIONS: MenuAction[] = [
     action: "chainsaw",
     blockReplacement: "chainsaw",
     label: "CHAINSAW",
-    sub: "Special",
     color: "orange",
   },
   {
     when: "throwBomb",
     action: "throwBomb",
     label: "THROW BOMB",
-    sub: "Special",
     color: "orange",
   },
   {
     when: "ballAndChain",
     action: "ballAndChain",
     label: "BALL & CHAIN",
-    sub: "Special",
     color: "orange",
   },
   {
     when: "throwTeammate",
     action: "throwTeamMate",
     label: "THROW TEAM-MATE",
-    sub: "Special",
     color: "green",
   },
   {
     when: "kickTeammate",
     action: "throwTeamMate",
     label: "KICK TEAM-MATE",
-    sub: "Special",
     color: "green",
   },
 ];
-
-function menuNote(
-  a: ActionAvailability,
-  secondActionAfter: ActionType | undefined
-): string | null {
-  if (secondActionAfter)
-    return "Pick the second Action, or end the activation.";
-
-  const contextual =
-    a.standUp ||
-    a.secureBall ||
-    [...BLOCK_ACTIONS, ...OTHER_ACTIONS].some(({ when }) => a[when]);
-  return contextual
-    ? null
-    : "No special actions available — click a square to move.";
-}
 
 export function MenuHeader({
   player,
@@ -214,7 +187,7 @@ export function MenuHeader({
   return (
     <PanelHeader
       title={player.playerName || "Unknown"}
-      aside={secondAction ? "Razzle-Dazzle: 2nd Action" : player.positionName}
+      aside={secondAction ? "Razzle-Dazzle: 2nd Action" : undefined}
     />
   );
 }
@@ -238,7 +211,6 @@ export function ActionList(props: ActionListProps) {
     onAction,
   } = props;
   const offers = actionOffers(props);
-  const note = compact ? null : menuNote(a, secondActionAfter);
   return (
     <div
       className={`hud-scroll flex min-h-0 flex-1 flex-col overflow-y-auto ${compact ? "" : "p-2"}`}
@@ -259,16 +231,15 @@ export function ActionList(props: ActionListProps) {
             onAction={onAction}
           />
         ))}
-        {note && (
+        {secondActionAfter && !compact && (
           <div className="px-1 py-1 text-center text-hud-sm italic text-hud-dim">
-            {note}
+            Pick the second Action, or end the activation.
           </div>
         )}
         <ActionButton
           action="forgoe"
           label="END ACTIVATION"
           hotkey="e"
-          sub="Skip"
           disabled={hasActed}
           color="gray"
           compact={compact}
@@ -313,7 +284,6 @@ function actionOffers(props: ActionListProps): MenuButton[] {
       id: "secureBall",
       action: "secureBall",
       label: "SECURE BALL",
-      sub: "Pick Up",
       color: "blue",
     });
   return buttons;
