@@ -1,6 +1,6 @@
 """Look options of the Dwarf positions, listed with their labels in greenskins_dwarfs_dwarf_looks.json. See
-lib/looks.py for how options, empty states and bodies work. Dwarf women wear two side braids, and their
-beards, when they have one, are shorter. The deathroller is a machine and has no options."""
+lib/looks.py for how options, empty states and bodies work. Dwarf women wear two side braids and no beard,
+whatever the beard option says. The deathroller is a machine and has no options."""
 import os
 
 from lib import looks
@@ -22,12 +22,12 @@ def bare(hair_mat):
     return lambda sex: dict(hair="bun" if sex == "f" else "short", hair_mat=hair_mat, tie="kit2")
 
 
-BEARD = (dict(gd_beard=None), {"spade": dict(gd_beard="spade"), "fork": dict(gd_beard="fork"),
-                               "long": dict(gd_beard="long"), "bush": dict(gd_beard="bush"), "none": EMPTY})
+def beard(kind):
+    return lambda sex: EMPTY if sex == "f" else dict(gd_beard=kind)
 
 
-def beards(*values):
-    return (BEARD[0], {v: BEARD[1][v] for v in values})
+def beards(*kinds):
+    return (dict(gd_beard=None), {kind: EMPTY if kind == "none" else beard(kind) for kind in kinds})
 
 
 BODY = {
