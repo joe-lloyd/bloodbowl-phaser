@@ -1,0 +1,21 @@
+{
+  "key": "studio_test",
+  "label": "Studio Test",
+  "base": "goblin_lineman",
+  "race": "goblin",
+  "sex": "m",
+  "height": 1,
+  "parts": "keep",
+  "knobs": {
+    "belly": 1.4
+  },
+  "layout": {
+    "topknot": null
+  },
+  "stance": {},
+  "motion": {},
+  "looks": {
+    "kind": "base"
+  },
+  "usedBy": []
+}
