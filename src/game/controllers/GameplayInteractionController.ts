@@ -380,7 +380,7 @@ export class GameplayInteractionController {
     return { valid: false, gridX: -1, gridY: -1 };
   }
 
-  private rollingActivation(): boolean {
+  public rollingActivation(): boolean {
     return !!this.gameService.getState().activePlayer?.activationRollStarted;
   }
 

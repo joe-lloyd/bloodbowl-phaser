@@ -1,10 +1,10 @@
+import { settleActivationRoll } from "./activationRoll";
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "@/network/OnlineMatch";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import {
   type FinishKind,
   type PlanFinish,
-  type PlannedDeclaration,
   currentFinish,
   finishKey,
   needsContact,
@@ -71,16 +71,6 @@ function stopPlan(c: GameplayInteractionController, playerId: string, why: strin
   publishPlan(c);
 }
 
-function stillPlanned(c: GameplayInteractionController, playerId: string, planned: PlannedDeclaration): boolean {
-  const active = c.gameService.getState().activePlayer;
-  return (
-    active?.id === playerId &&
-    active.action === planned.action &&
-    !active.forcedBlock &&
-    !c.gameService.hasPlayerActed(playerId)
-  );
-}
-
 async function declarePlanned(c: GameplayInteractionController, playerId: string): Promise<boolean> {
   const planned = c.undeclared;
   c.undeclared = null;
@@ -95,14 +85,7 @@ async function declarePlanned(c: GameplayInteractionController, playerId: string
     stopPlan(c, playerId, `Cannot declare ${planned.action} now.`);
     return false;
   }
-  c.isBusy = true;
-  try {
-    await c.gameService.getFlowContext().flowManager.whenIdle();
-    await c.dice.landed();
-  } finally {
-    c.isBusy = false;
-  }
-  if (stillPlanned(c, playerId, planned)) {
+  if (await settleActivationRoll(c, playerId, planned.action)) {
     publishPlan(c);
     return true;
   }

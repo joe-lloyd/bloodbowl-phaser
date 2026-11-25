@@ -42,12 +42,15 @@ export class ActivationGateOperation extends GameOperation {
       this.action,
       gameService.getTeammates(this.playerId)
     );
-    const state = gameService.getState();
-    if (state.activePlayer?.id === player.id)
-      state.activePlayer.activationRollStarted = true;
-    await this.rollGates(context, player, gates);
-    if (state.activePlayer?.id === player.id)
-      delete state.activePlayer.activationRollStarted;
+    if (gates.length === 0) return;
+    const { activePlayer } = gameService.getState();
+    const rolling = activePlayer?.id === player.id ? activePlayer : null;
+    if (rolling) rolling.activationRollStarted = true;
+    try {
+      await this.rollGates(context, player, gates);
+    } finally {
+      if (rolling) delete rolling.activationRollStarted;
+    }
   }
 
   private async rollGates(

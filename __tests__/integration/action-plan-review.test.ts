@@ -8,6 +8,33 @@ import { forceDice } from "../utils/test-helpers";
 import { board } from "../utils/interaction-board";
 
 describe("action plan review fixes", () => {
+  it.each([
+    ["no roll is needed", [], []],
+    ["the Bone Head roll passes", [SkillType.BONE_HEAD], [6]],
+  ] as const)("opens a Block from one click when %s", async (_, skills, rolls) => {
+    const { game, controller } = board(
+      [
+        { playerIndex: 0, x: 10, y: 5, skills: [...skills, ...(skills.length ? [] : [SkillType.SQUIG_RAGE])] },
+        { playerIndex: 1, x: 9, y: 5, skills: [SkillType.SQUIG_RESTRAINT] },
+      ],
+      [{ playerIndex: 0, x: 11, y: 5 }]
+    );
+    forceDice(game.ctx.rng, [...rolls]);
+    let opened = "";
+    game.ctx.eventBus.on(GameEventNames.UI_BlockDialog, (dialog) => {
+      opened = dialog.defenderId;
+    });
+    game.ctx.eventBus.on(GameEventNames.UI_RequestConfirmation, (request) => {
+      game.ctx.eventBus.emit(GameEventNames.UI_ConfirmationResult, {
+        actionId: request.actionId,
+        confirmed: true,
+      });
+    });
+    controller.handlePlayerClick(fixtureValue(game.ctx.team1.players[0]).id);
+    await controller.onSquareClicked(11, 5);
+    expect(opened).toBe(fixtureValue(game.ctx.team2.players[0]).id);
+  });
+
   it("reopens the action menu after Squig Rage knocks down a team-mate and rolls only once", async () => {
     const { game, controller, seen, act } = board(
       [
