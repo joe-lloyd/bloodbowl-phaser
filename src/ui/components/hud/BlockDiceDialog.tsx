@@ -378,7 +378,7 @@ function RollActions({
   onRoll: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex items-center justify-between gap-2 [&>button]:whitespace-nowrap [&>button]:px-3">
       {showCancel ? (
         <HudButton variant="ghost" hotkey="Escape" onClick={onCancel}>
           Cancel
@@ -389,7 +389,6 @@ function RollActions({
       <HudButton
         data-testid="block-roll-dice"
         variant="primary"
-        size="lg"
         hotkey="Enter"
         onClick={onRoll}
         disabled={isRolling}
@@ -584,7 +583,7 @@ function BlockRerolls({
       {roll.proAvailable && (
         <HudButton
           size="sm"
-          variant={proMode ? "gold" : "secondary"}
+          variant={proMode ? "selected" : "secondary"}
           onClick={onTogglePro}
         >
           {proMode ? "PICK A DIE…" : "USE PRO (re-roll one die)"}

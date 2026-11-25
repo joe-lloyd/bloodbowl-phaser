@@ -128,7 +128,7 @@ export function LeagueTeamProgress({
               </div>
               {status.kind !== "computer" && (
                 <HudButton
-                  variant={status.kind === "up-to-date" ? "secondary" : "gold"}
+                  variant={status.kind === "up-to-date" ? "secondary" : "primary"}
                   size="sm"
                   aria-label={`Progress team: ${team.name}`}
                   onClick={() =>

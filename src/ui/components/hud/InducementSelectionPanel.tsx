@@ -77,7 +77,7 @@ export function InducementSelectionPanel({
       className="max-h-[85dvh] overflow-y-auto hud-scroll"
       actions={
         <HudButton
-          variant="gold"
+          variant="primary"
           size="lg"
           block
           disabled={busy}

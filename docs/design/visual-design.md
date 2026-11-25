@@ -31,6 +31,27 @@ coach starts and waits for.
 - Red is the main button. Gold is the result.
 - Opening a result's details replaces the words. It adds no line of its own.
 
+### Buttons
+
+- `primary` is red. A panel has one, for what the coach most likely came to do.
+- `selected` is gold. It marks a choice that is on, never an action.
+- Equal choices, such as kick or receive, are all `secondary`.
+- `ghost` is the way out. `danger` throws something away.
+- Buttons in the right-hand column are medium. End Turn is large on a desktop.
+
+### Match panels
+
+A panel in the right-hand column has a `PanelHeader`, or a docked `DialogShell`
+when a coach must answer. The title is `text-hud-lg` in bone, over a gold line.
+Text sits in 12 pixels of padding, 8 on a phone.
+
+### Step lists
+
+Use `StepRow` from
+[`HudSteps.tsx`](../../src/ui/components/componentWarehouse/HudSteps.tsx) for
+steps and checklists, and `stepRowClass` with `StepMark` when a step is a
+button. Gold is the current step and a green tick is a finished one.
+
 ### Small text
 
 Before adding a label, caption or hint in small capitals, remove it and see

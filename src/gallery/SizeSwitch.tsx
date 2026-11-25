@@ -16,7 +16,7 @@ export function SizeSwitch({
         <HudButton
           key={id}
           size="sm"
-          variant={id === size ? "gold" : "ghost"}
+          variant={id === size ? "selected" : "ghost"}
           aria-pressed={id === size}
           onClick={() => {
             onChange(id);

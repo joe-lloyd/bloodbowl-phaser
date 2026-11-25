@@ -143,7 +143,7 @@ function FollowUpDialogView({
           </HudButton>
           <HudButton
             data-testid="follow-up-yes"
-            variant="gold"
+            variant="primary"
             hotkey="y"
             onClick={handleYes}
           >

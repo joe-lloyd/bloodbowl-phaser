@@ -43,7 +43,7 @@ export function KickOrReceive({
   return (
     <div className="grid grid-cols-2 gap-2">
       <HudButton
-        variant="gold"
+        variant="secondary"
         size="lg"
         className="px-3"
         onClick={() => {
@@ -53,7 +53,7 @@ export function KickOrReceive({
         KICK
       </HudButton>
       <HudButton
-        variant="primary"
+        variant="secondary"
         size="lg"
         className="px-3"
         onClick={() => {

@@ -16,7 +16,7 @@ export function InstallGame() {
     return (
       <HudButton
         data-testid="install-game"
-        variant="gold"
+        variant="secondary"
         className="mt-4"
         onClick={() => void install()}
       >

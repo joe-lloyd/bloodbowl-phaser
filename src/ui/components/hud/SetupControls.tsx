@@ -17,9 +17,9 @@ import {
 
 const SETUP_VARIANTS: Record<string, HudButtonVariant> = {
   red: "danger",
-  yellow: "gold",
+  yellow: "secondary",
   blue: "secondary",
-  green: "success",
+  green: "primary",
   gray: "secondary",
 };
 
@@ -154,7 +154,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
         <PanelHeader title={activeTeam?.name || "Unknown Team"} aside={title} />
       )}
 
-      <div className={`flex flex-col gap-2 ${compact ? "p-2" : "p-2.5"}`}>
+      <div className={`flex flex-col gap-2 ${compact ? "p-2" : "p-3"}`}>
         {concessionPending && (
           <ConcessionOffer status={status} onAction={handleAction} />
         )}

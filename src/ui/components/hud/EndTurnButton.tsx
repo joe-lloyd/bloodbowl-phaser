@@ -1,6 +1,6 @@
 import { GamePhase } from "@/types/GameState";
 import React, { useEffect, useRef, useState } from "react";
-import { hudButtonClass, KeyBadge } from "../componentWarehouse/HudKit";
+import { cx, hudButtonClass, KeyBadge } from "../componentWarehouse/HudKit";
 import { useHotkey } from "../../hotkeys";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useHeldOnline } from "../../hooks/useHeldOnline";
@@ -59,7 +59,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
         data-testid="end-turn"
         onClick={onClick}
         disabled={disabled || held}
-        className={`${hudButtonClass("primary", "lg")} min-h-[56px] px-10 font-hud-display !text-hud-xl !font-normal !tracking-[0.08em]`}
+        className={cx(hudButtonClass("primary", "lg", true), "!px-3")}
       >
         {label}
         <KeyBadge hotkey="shift+e" />
@@ -112,7 +112,10 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
           e.preventDefault();
         }}
         onClick={(e) => e.detail === 0 && onClick()}
-        className={`${hudButtonClass("primary", "lg", true)} relative min-h-[48px] select-none flex-col !gap-0.5 overflow-hidden px-2 whitespace-nowrap font-hud-display !text-hud-base !font-normal !tracking-[0.06em] [-webkit-touch-callout:none]`}
+        className={cx(
+          hudButtonClass("primary", "md", true),
+          "relative select-none flex-col !gap-0.5 overflow-hidden !px-2 py-1 [-webkit-touch-callout:none]"
+        )}
       >
         <span
           aria-hidden

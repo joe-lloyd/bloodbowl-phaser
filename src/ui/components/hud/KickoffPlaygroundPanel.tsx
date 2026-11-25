@@ -163,7 +163,7 @@ export function KickoffPlaygroundPanel(props: KickoffPlaygroundPanelProps) {
       >
         {open && <Choices {...props} />}
         <div className="flex gap-2">
-          <HudButton variant="gold" size="sm" onClick={onRestart}>
+          <HudButton variant="secondary" size="sm" onClick={onRestart}>
             Restart
           </HudButton>
           <HudButton

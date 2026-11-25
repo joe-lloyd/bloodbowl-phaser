@@ -1,6 +1,6 @@
 import { type Team } from "../../../types/Team";
 import { sppValuesFor } from "../../../game/progression/MatchStats";
-import { hudButtonClass } from "../componentWarehouse/HudKit";
+import { cx, hudButtonClass, hudChoiceClass } from "../componentWarehouse/HudKit";
 
 interface Props {
   team: Team;
@@ -47,11 +47,10 @@ export function MvpAwardCard({
               onClick={() => {
                 onToggleNominee(playerId);
               }}
-              className={`min-h-[40px] rounded-hud border px-3 py-2 text-left font-hud-label text-hud-base font-bold transition-colors disabled:cursor-default ${
-                slot >= 0
-                  ? "border-hud-gold bg-hud-blood text-white"
-                  : "border-white/10 bg-hud-raise text-hud-bone hover:border-hud-gold/60"
-              }`}
+              className={cx(
+                hudChoiceClass(slot >= 0),
+                "min-h-[40px] px-3 py-2 font-hud-label text-hud-base font-bold text-hud-bone"
+              )}
             >
               {slot >= 0 ? `${String(slot + 1)}. ` : ""}#{player.number}{" "}
               {player.playerName}

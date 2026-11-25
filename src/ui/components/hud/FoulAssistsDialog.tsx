@@ -60,7 +60,7 @@ function FoulAssistsDialogView({
             <HudButton
               key={count}
               data-testid={`foul-assists-${String(count)}`}
-              variant={count === request.available ? "gold" : "ghost"}
+              variant={count === request.available ? "primary" : "ghost"}
               {...(count <= 9 ? { hotkey: String(count) } : {})}
               onClick={() => {
                 answer(count);

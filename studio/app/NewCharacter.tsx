@@ -35,7 +35,7 @@ export function NewCharacter({ catalog, taken, onCreate }: NewCharacterProps) {
             {bases.map((model) => <option key={model.key} value={model.key}>{words(model.key)}</option>)}
           </Select>
         </Field>
-        <HudButton type="submit" variant="gold" disabled={!key || isTaken}>Create</HudButton>
+        <HudButton type="submit" variant="primary" disabled={!key || isTaken}>Create</HudButton>
       </form>
     </Section>
   );
