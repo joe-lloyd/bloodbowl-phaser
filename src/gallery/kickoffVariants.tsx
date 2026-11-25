@@ -33,6 +33,8 @@ const step = (make: (fx: MatchFixture) => Partial<KickoffEventStepState>) =>
       selectedPlayerIds: [],
       movedPlayerIds: [],
       awaitingPlacement: [],
+      stage: "choose",
+      canReselect: false,
       ...make(fx),
     };
     fx.services.gameService.getKickoffEventStep = () => state;
@@ -59,14 +61,24 @@ const STEPS = rows(
       drive: alertDefence,
     },
     {
+      id: "kickoff-step-start",
+      title: "Alert Defence: start",
+      drive: step((fx) => ({ selectedPlayerIds: ids(fx, 0, 1, 2) })),
+    },
+    {
       id: "kickoff-step-move",
-      title: "Alert Defence: choose a square",
-      drive: step((fx) => ({ selectedPlayerIds: ids(fx, 0) })),
+      title: "Alert Defence: move each player",
+      drive: step((fx) => ({
+        stage: "play",
+        canReselect: true,
+        selectedPlayerIds: ids(fx, 0, 1, 2),
+      })),
     },
     {
       id: "kickoff-step-done",
-      title: "Alert Defence: press Done",
+      title: "Alert Defence: every player moved",
       drive: step((fx) => ({
+        stage: "play",
         selectedPlayerIds: ids(fx, 0, 1, 2),
         movedPlayerIds: ids(fx, 0, 1, 2),
       })),
@@ -91,6 +103,17 @@ const STEPS = rows(
       drive: step((fx) => ({
         event: KickoffEvent.CHARGE,
         selectedPlayerIds: ids(fx, 0),
+      })),
+    },
+    {
+      id: "kickoff-charge-play",
+      title: "Charge: play each player",
+      drive: step((fx) => ({
+        event: KickoffEvent.CHARGE,
+        stage: "play",
+        canReselect: true,
+        selectedPlayerIds: ids(fx, 0, 1),
+        movedPlayerIds: ids(fx, 0),
       })),
     },
     {

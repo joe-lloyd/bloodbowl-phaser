@@ -1,9 +1,11 @@
-import { GameEventNames } from "../types/events";
+import { type AllEvents, GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { InjuryType, PlayerCondition, PlayerStatus } from "../types/Player";
 import { RosterName } from "../types/Team";
 import { getSidelineCrewInfo } from "../game/presentation/sidelineStaff";
 import { setActiveOnlineMatch } from "../network/OnlineMatch";
+import { readPlayground } from "../boundary/kickoffPlayground";
+import { KickoffPlaygroundPanel } from "../ui/components/hud/KickoffPlaygroundPanel";
 import type { MatchFixture } from "./fixtures";
 import {
   BLOCK_SCENE,
@@ -94,15 +96,15 @@ const SCORE_ROWS: MatchRow[] = [
   },
 ];
 
-const steps =
-  (currentStepId: string, list: { id: string; label: string }[]) =>
-  (fx: MatchFixture) => {
-    select(fx, 1, 0);
-    fx.bus.emit(GameEventNames.UI_UpdateActionSteps, {
-      currentStepId,
-      steps: list,
-    });
-  };
+type StepList = AllEvents[typeof GameEventNames.UI_UpdateActionSteps]["steps"];
+
+const steps = (currentStepId: string, list: StepList) => (fx: MatchFixture) => {
+  select(fx, 1, 0);
+  fx.bus.emit(GameEventNames.UI_UpdateActionSteps, {
+    currentStepId,
+    steps: list,
+  });
+};
 
 const MOVE_THEN_PASS = [
   { id: "move", label: "Move" },
@@ -149,6 +151,23 @@ const MENU_ROWS: MatchRow[] = [
     title: "Action sequence, last step",
     fixture: PASS_SCENE,
     open: steps("pass", MOVE_THEN_PASS),
+  },
+  {
+    id: "menu-sequence-jump",
+    title: "Action sequence, Jump chosen in the Move step",
+    fixture: PASS_SCENE,
+    open: steps("move", [
+      { id: "move", label: "Move", half: "jump" },
+      { id: "pass", label: "Pass" },
+    ]),
+  },
+  {
+    id: "menu-prone",
+    title: "A Prone player",
+    open: (fx) => {
+      livePlayer(fx, 1, 0).status = PlayerStatus.PRONE;
+      select(fx, 1, 0);
+    },
   },
   {
     id: "other-coach-prompt",
@@ -444,11 +463,31 @@ const WHOLE_HUD = rows({ group: "In play", section: "Whole HUD", view: hud }, [
     fixture: BLOCK_SCENE,
     view: (fx) => hud(fx, { mode: "sandbox" }),
     drive: inPlay((fx) => {
+      click('[data-testid="sandbox-toggle"]');
       fx.bus.emit(GameEventNames.ScenarioLoaded, {
         name: "Block & Injury Test",
         seed: 10,
         expectedOutcome: "Defender will be stunned",
       });
+    }),
+  },
+  {
+    id: "hud-playground",
+    title: "Kick-off playground",
+    fixture: BLOCK_SCENE,
+    view: (fx) =>
+      hud(fx, {
+        mode: "sandbox",
+        sandboxPanel: (
+          <KickoffPlaygroundPanel
+            config={readPlayground(new URLSearchParams())}
+            onChange={() => undefined}
+            onRestart={() => undefined}
+          />
+        ),
+      }),
+    drive: inPlay(() => {
+      click('[data-testid="sandbox-toggle"]');
     }),
   },
   {

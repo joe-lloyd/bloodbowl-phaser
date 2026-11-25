@@ -101,9 +101,9 @@ const PANELS: DriftSpec[] = [
     specimens: [
       {
         ...kickoffPanel,
-        variant: "kickoff-step-done",
+        variant: "kickoff-step-start",
         selector: "section.hud-slab button",
-        contains: "Done",
+        contains: "Start",
       },
       {
         ...docked,
@@ -165,7 +165,7 @@ const OPENING: DriftSpec[] = [
     id: "opening-containers",
     title: "Steps before the first turn",
     sentence:
-      "Weather, coin toss, inducements and the kick-off table follow each other, but on a desktop two are strips at the bottom and two are centred dialogs.",
+      "On a desktop, weather, the coin toss and the kick-off table share one strip. Inducements come in the same sequence but are a centred dialog with a larger heading.",
     specimens: [
       {
         variant: "inducement-panel",
@@ -200,7 +200,6 @@ const OPENING: DriftSpec[] = [
       "Centred dialogs pick their own width. The source has seven widths between 400 and 600 pixels, and some belong to dialogs that now sit in the dock and ignore them.",
     specimens: [
       { variant: "page-sign-in", label: "Sign in", selector: DIALOG },
-      { variant: "coin-start", label: "Coin toss", selector: DIALOG },
       {
         variant: "inducement-panel",
         label: "Inducements",
@@ -213,8 +212,14 @@ const OPENING: DriftSpec[] = [
     id: "waiting-lines",
     title: "Waiting for the other coach",
     sentence:
-      "The same message is a caps label in the coin toss, plain text in the kick-off step and a gold banner during a turn.",
+      "The same message is a tiny label in the coin toss, a large label in the weather roll, plain text in the kick-off step and a gold banner during a turn.",
     specimens: [
+      {
+        variant: "weather-online-waiting",
+        label: "Weather",
+        selector: "p",
+        contains: "Waiting",
+      },
       {
         variant: "coin-online-wait",
         label: "Coin toss",
