@@ -40,6 +40,7 @@ describe("action plan review fixes", () => {
       [
         { playerIndex: 0, x: 10, y: 5, skills: [SkillType.SQUIG_RAGE] },
         { playerIndex: 1, x: 10, y: 4 },
+        { playerIndex: 2, x: 3, y: 3 },
       ],
       [{ playerIndex: 0, x: 20, y: 9 }]
     );
@@ -69,6 +70,12 @@ describe("action plan review fixes", () => {
     expect(controller.currentActionMode).toBe("move");
     expect(gs.getState().activePlayer?.action).toBe("move");
     expect(seen.dice.filter((d) => d.includes(SkillType.SQUIG_RAGE))).toHaveLength(1);
+
+    expect(gs.cancelAction(squig.id)).toBe(true);
+    expect(gs.declareAction({ playerId: squig.id, action: "blitz" })).toBe(true);
+    controller.handlePlayerClick(fixtureValue(game.ctx.team1.players[2]).id);
+    expect(gs.hasPlayerActed(squig.id)).toBe(true);
+    expect(gs.getState().turn.hasBlitzed).toBe(false);
   });
 
   it("settles a deferred Bone Head roll before a Jump", async () => {

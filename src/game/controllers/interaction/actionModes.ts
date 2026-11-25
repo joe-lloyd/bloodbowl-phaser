@@ -394,9 +394,14 @@ function releaseActive(
   c: GameplayInteractionController,
   active: NonNullable<GameState["activePlayer"]>
 ): void {
-  if (active.committed || rageLeavesOpen(active))
+  if (active.committed) {
     c.gameService.finishActivation(active.id);
-  else c.gameService.cancelAction(active.id);
+    return;
+  }
+  const unspent =
+    active.action !== null && c.gameService.getMovementUsed(active.id) === 0;
+  if (unspent || !rageLeavesOpen(active)) c.gameService.cancelAction(active.id);
+  if (rageLeavesOpen(active)) c.gameService.finishActivation(active.id);
 }
 
 function releasePreviousPlayer(
