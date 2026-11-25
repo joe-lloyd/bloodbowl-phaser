@@ -218,7 +218,7 @@ HUMAN = dict(hip_w=0.15, thigh=0.41, shin=0.38, foot=0.3, ankle=0.11, sh_h=0.5, 
              torso=[(-0.07, .25, .18, 0), (0.1, .225, .165, 0), (0.3, .305, .195, 0), (0.44, .355, .195, .005),
                     (0.53, .24, .15, .01), (0.6, .12, .105, .01)])
 HUMAN_SCALE, VARG_SCALE, LIMB = 0.97, 1.0, 1.2   # overall size and limb thickness (semi-chunky)
-HAND = 0.68                                      # hands in proportion to the limbs they hang from
+HAND = {"m": 1.0, "f": 0.68}                     # women have the smaller hands
 # limb outlines: (fraction along the segment, radius, how far the muscle pushes out of line)
 THIGH = {"m": ((0, .14, 0), (.32, .152, .03), (.68, .112, .026), (.92, .076, .006), (1, .074, 0)),
          "f": ((0, .158, 0), (.22, .155, .016), (.65, .104, .016), (.92, .068, .004), (1, .066, 0))}
@@ -226,7 +226,7 @@ SHIN = {"m": ((.08, .08, .004), (.3, .122, .046), (.6, .078, .02), (.85, .054, .
         "f": ((.08, .07, .004), (.3, .104, .04), (.6, .066, .014), (.85, .046, 0), (1, .045, 0))}
 UARM = {"m": ((0, .096, 0), (.48, .114, .022), (.82, .076, 0), (1, .07, 0)),
         "f": ((0, .086, 0), (.45, .084, .008), (.85, .062, 0), (1, .06, 0))}
-FARM = {"m": ((.08, .078, 0), (.28, .094, .006), (.7, .07, 0), (1, .054, 0)),
+FARM = {"m": ((.08, .078, 0), (.28, .094, .006), (.7, .074, 0), (1, .066, 0)),
         "f": ((.08, .072, 0), (.28, .082, .004), (.7, .062, 0), (1, .05, 0))}
 VARG = dict(hip_w=0.22, thigh=0.5, shin=0.46, meta=0.48, foot=0.3, ankle=0.07, digi=True, sh_h=0.8, sh_w=0.5,
             uarm=0.6, farm=0.58, hand=0.2, neck_h=0.86, head_h=1.1, head_fwd=0.2, hunch=20,
@@ -324,7 +324,7 @@ def hand(J, P, L, tag, side, s, mode):
     if mode == "open" and not P.get("digi"):
         n = (J["F"] - d * J["F"].dot(d)).normalized() if abs(J["F"].dot(d)) < 0.8 else n
     t = n.cross(d) * s
-    hs = P["hand"] / 0.1 * L.get("hand_scale", HAND)
+    hs = P["hand"] / 0.1 * L.get("hand_scale", HAND[build_of(L)])
     gaunt = L.get("gauntlets")
     mat = "metal" if gaunt else L.get("gloves", L["skin"])
     claws = L.get("claws")
