@@ -29,7 +29,7 @@ only when its change has merged and was checked in the running game.
 - [x] D1. Charge is a miniature real turn. Players who were not picked count as already activated. The coach can pick and play the chosen players in any order, with every action Charge allows, and the turn ends only when they are all done, the coach ends it, or a turnover happens.
 - [x] D2. The receiving team's kick-off moves get the same treatment, where an event has any.
 - [x] D3. A playground to test each of these without playing a match.
-- [ ] D4. The computer coach uses its optional kick-off moves.
+- [x] D4. The computer coach uses its optional kick-off moves.
 
 ## E. Computer coach
 
