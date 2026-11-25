@@ -17,6 +17,7 @@ import {
   type BiteTargetDecisionRequest,
   type ReactionDecisionAnswer,
 } from "../../types/decisions";
+import { steadyFootingSaves } from "../rules/steadyFooting";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
 
@@ -114,7 +115,7 @@ export class ActivationGateOperation extends GameOperation {
           gameService.getTeammates(player.id)
         )[0];
         if (victim) {
-          this.lashOut(context, { player, victim, skill: gate.skill });
+          await this.lashOut(context, { player, victim, skill: gate.skill });
         } else {
           eventBus.emit(GameEventNames.SkillTriggered, {
             playerId: player.id,
@@ -191,7 +192,7 @@ export class ActivationGateOperation extends GameOperation {
       purpose: "squig-knock-down",
     });
     if (victim) {
-      this.lashOut(context, { player, victim, skill });
+      await this.lashOut(context, { player, victim, skill });
       this.reopenActivation(context);
     } else {
       this.distract(context, player, skill);
@@ -224,10 +225,10 @@ export class ActivationGateOperation extends GameOperation {
     this.endActivationNow(gameService);
   }
 
-  private lashOut(
+  private async lashOut(
     context: FlowContext,
     { player, victim, skill }: { player: Player; victim: Player; skill: string }
-  ): void {
+  ): Promise<void> {
     const { gameService, eventBus, flowManager } = context;
     const square = victim.gridPosition;
     if (!square) return;
@@ -237,6 +238,8 @@ export class ActivationGateOperation extends GameOperation {
       skill,
       effect: `${skill}: ${player.playerName} lashes out at ${victim.playerName}!`,
     });
+    const dice = gameService.getDiceController();
+    if (await steadyFootingSaves(victim, dice, eventBus, gameService)) return;
     victim.status = PlayerStatus.PRONE;
     eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: victim.id });
     eventBus.emit(GameEventNames.PlayerStatusChanged, victim);

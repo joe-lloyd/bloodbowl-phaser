@@ -8,6 +8,7 @@ import { RosterName } from "../../src/types/Team";
 import type { Scenario } from "../../src/types/Scenario";
 import { GameEventNames } from "../../src/types/events";
 import { SkillType, getSkill } from "../../src/types/Skills";
+import { forceDice } from "../utils/test-helpers";
 import { defaultAnswer } from "../../src/network/decisionTimeouts";
 
 type Placements = NonNullable<Scenario["setup"]["team1Placements"]>;
@@ -319,6 +320,66 @@ describe("Squig Rage", () => {
     expect(turnovers).toEqual([game.ctx.team1.id]);
     expect(wrangler.gridPosition).toEqual({ x: 10, y: 5 });
     expect(rolls).not.toContain("Ball & Chain Deviation");
+  });
+
+  it("drops a Chomp queued during the re-roll prompt when Rage forces a Block", async () => {
+    const { game, rolls } = match(
+      [{ playerIndex: 0, x: 15, y: 8 }],
+      [{ ...OPPONENT, x: 16, y: 8 }]
+    );
+    const hopper = fixtureValue(game.ctx.team1.players[0]);
+    const target = fixtureValue(game.ctx.team2.players[0]);
+    hopper.skills.push(getSkill(SkillType.MONSTROUS_MOUTH));
+    game.ctx.team1.rerolls = 1;
+    forceDice(game.ctx.rng, [1]);
+    const declared = await game.execute({
+      type: "declare-action",
+      playerId: hopper.id,
+      action: "chomp",
+    });
+    expect(declared.pendingDecision?.type).toBe("reroll");
+    expect(
+      await game.ctx.gameService.performSpecialAction(
+        "chomp",
+        hopper.id,
+        target.id
+      )
+    ).toBe(true);
+    const block = await game.execute({ type: "use-reroll", accept: false });
+    expect(block.pendingDecision?.type).toBe("block-dice");
+    expect(rolls.some((type) => type.includes("Chomp"))).toBe(false);
+    expect(target.conditions ?? []).toEqual([]);
+    expect(game.ctx.gameService.getState().activePlayer).toMatchObject({
+      id: hopper.id,
+      action: "block",
+    });
+  });
+
+  it("lets Steady Footing save a ball carrier from the knockdown", async () => {
+    const { game, wrangler, declare } = match(
+      [{ playerIndex: 4, x: 9, y: 5, skills: [SkillType.STEADY_FOOTING] }],
+      [{ ...OPPONENT, x: 18 }]
+    );
+    const carrier = fixtureValue(game.ctx.team1.players[4]);
+    const { gameService } = game.ctx;
+    gameService.getState().ballPosition = { x: 9, y: 5 };
+    game.ctx.team1.rerolls = 0;
+    forceDice(game.ctx.rng, [1, 6]);
+    const turnovers: string[] = [];
+    game.ctx.eventBus.on(GameEventNames.Turnover, ({ teamId }) => {
+      turnovers.push(teamId);
+    });
+    const raged = await declare();
+    if (raged.pendingDecision?.type === "bite-target") {
+      await game.execute({ type: "choose-bite-target", playerId: carrier.id });
+    }
+    expect(carrier.status).toBe(PlayerStatus.ACTIVE);
+    expect(gameService.getState().ballPosition).toEqual({ x: 9, y: 5 });
+    expect(turnovers).toEqual([]);
+    expect(gameService.getState().activePlayer).toMatchObject({
+      id: wrangler.id,
+      action: null,
+    });
   });
 
   it("skips the roll with a standing Herder three squares away diagonally", async () => {
