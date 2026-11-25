@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { cx, toneText, type HudTone } from "./hudTone";
 import { Eyebrow, Panel, PanelHeader } from "./HudPanel";
+import { Title } from "./HudTitle";
 
 const PAGE_WIDTH = {
   narrow: "max-w-[640px]",
@@ -36,7 +37,7 @@ export function PageShell({
         <div className="sticky bottom-0 z-40 border-t border-hud-gold/25 bg-hud-sunk/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm">
           <div
             className={cx(
-              "mx-auto flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 lg:px-10 phone:flex-nowrap phone:px-4 phone:py-2 phone:[&_button]:px-3 phone:[&_button]:text-[16px]",
+              "mx-auto flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 lg:px-10 phone:flex-nowrap phone:px-4 phone:py-2 phone:[&_button]:px-3 phone:[&_button]:text-hud-base",
               PAGE_WIDTH[width]
             )}
           >
@@ -68,9 +69,9 @@ export function PageHeader({
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div className="min-w-0">
           {eyebrow && <Eyebrow tone="gold">{eyebrow}</Eyebrow>}
-          <h1 className="mt-1 break-words font-hud-display text-[40px] uppercase leading-[1.05] tracking-[0.02em] text-hud-bone lg:text-[48px] phone:text-[28px]">
+          <Title level="page" as="h1" className="mt-1">
             {title}
-          </h1>
+          </Title>
           {subtitle && (
             <p className="mt-2 max-w-2xl font-hud-body text-hud-base text-hud-dim">
               {subtitle}
@@ -233,9 +234,9 @@ export function EmptyState({
         className
       )}
     >
-      <Heading className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-bone">
+      <Title level="card" as={Heading}>
         {title}
-      </Heading>
+      </Title>
       {children && (
         <div className="mt-2 max-w-md font-hud-body text-hud-base text-hud-dim">
           {children}

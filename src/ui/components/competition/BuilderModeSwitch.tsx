@@ -1,4 +1,5 @@
 import type { CompetitionType } from "../../../competition/types";
+import { ChoiceText } from "../componentWarehouse/HudTitle";
 import { choiceKeys } from "../componentWarehouse/choiceKeys";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
 
@@ -42,10 +43,7 @@ export function BuilderModeSwitch({
             onChange(option.id);
           }}
         >
-          <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
-            {option.label}
-          </span>
-          <span className="block text-hud-sm text-hud-dim">{option.detail(type)}</span>
+          <ChoiceText title={option.label} detail={option.detail(type)} />
         </button>
       ))}
     </div>

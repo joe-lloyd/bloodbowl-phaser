@@ -1,4 +1,5 @@
 import { CompetitionRulesLine } from "../common/CompetitionRulesLine";
+import { Title } from "../componentWarehouse/HudTitle";
 import { useParams } from "react-router-dom";
 import type {
   CompetitionDoc,
@@ -73,7 +74,7 @@ function RoundList({
     <div className="grid gap-6 lg:grid-cols-2">
       {rounds.map((round) => (
         <div key={round}>
-          <h3 className="hud-label mb-2 text-hud-gold">Round {round}</h3>
+          <Title level="row" as="h3" className="mb-2">Round {round}</Title>
           <div className="space-y-3">
             {competition.fixtures
               .filter((fixture) => fixture.round === round)

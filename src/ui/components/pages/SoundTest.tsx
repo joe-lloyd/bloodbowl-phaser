@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { useNavigate } from "react-router-dom";
 import { EventBus } from "../../../services/EventBus";
 import { SoundManager } from "../../sound/SoundManager";
@@ -106,9 +107,9 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
               className="flex items-center justify-between gap-4 rounded-hud border border-white/10 bg-black/30 px-3 py-2"
             >
               <div className="min-w-0">
-                <div className="font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
+                <Title level="row" as="p">
                   {sound.label}
-                </div>
+                </Title>
                 <div className="text-hud-sm text-hud-dim">
                   {BINDING_LABELS[sound.name].join(", ")}
                 </div>

@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
+import { ChoiceText, Title } from "../componentWarehouse/HudTitle";
 import { friendlyRefusal } from "../../../game/rules/club";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { type Team } from "../../../types/Team";
@@ -255,9 +256,9 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                       color={numToHex(team.colors.primary)}
                       className="h-4 w-4"
                     />
-                    <span className="min-w-0 flex-1 truncate font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
+                    <Title level="row" as="span" className="min-w-0 flex-1 truncate">
                       {team.name}
-                    </span>
+                    </Title>
                     <span className="shrink-0 text-hud-sm text-hud-dim">
                       {team.rosterName}
                     </span>
@@ -355,10 +356,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                   }
                 }}
               >
-                <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
-                  {label}
-                </span>
-                <span className="block text-hud-sm text-hud-dim">{detail}</span>
+                <ChoiceText title={label} detail={detail} />
               </button>
             ))}
           </div>
@@ -382,12 +380,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                     setDifficulty(id);
                   }}
                 >
-                  <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
-                    {label}
-                  </span>
-                  <span className="block text-hud-sm text-hud-dim">
-                    {detail}
-                  </span>
+                  <ChoiceText title={label} detail={detail} />
                 </button>
               ))}
             </div>
@@ -455,9 +448,9 @@ function Matchup({ team1, team2 }: { team1: Team | null; team2: Team | null }) {
     team ? (
       <span className="flex min-w-0 items-center gap-2">
         <TeamSwatch color={numToHex(team.colors.primary)} />
-        <span className="truncate font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] text-hud-bone">
+        <Title level="row" as="span" className="truncate">
           {team.name}
-        </span>
+        </Title>
       </span>
     ) : (
       <span className="hud-label shrink-0 text-hud-mute">Pick a team</span>

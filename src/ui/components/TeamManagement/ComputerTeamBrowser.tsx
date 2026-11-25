@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { useNavigate } from "react-router-dom";
 import {
   getComputerTeamTemplates,
@@ -98,9 +99,9 @@ export function ComputerTeamBrowser() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="hud-label">{template.rosterName}</span>
               </div>
-              <h3 className="mt-2 break-words font-hud-display text-hud-2xl uppercase text-hud-bone">
+              <Title level="card" as="h3" className="mt-2">
                 {template.name}
-              </h3>
+              </Title>
               <p className="mt-1 font-hud-body text-hud-sm text-hud-dim">
                 {template.buildName}
               </p>

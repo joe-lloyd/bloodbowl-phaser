@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { type Player, type PlayerStats } from "../../../types/Player";
 import type { Team } from "../../../types/Team";
@@ -158,9 +159,9 @@ export function PlayerPage() {
           <Section title="Skills">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <h3 className="hud-label mb-2 text-hud-gold">
+                <Title level="row" as="h3" className="mb-2">
                   Starting skills
-                </h3>
+                </Title>
                 {startingSkills.length === 0 ? (
                   <p className="text-hud-mute">None</p>
                 ) : (
@@ -174,7 +175,7 @@ export function PlayerPage() {
                 )}
               </div>
               <div>
-                <h3 className="hud-label mb-2 text-hud-gold">Gained skills</h3>
+                <Title level="row" as="h3" className="mb-2">Gained skills</Title>
                 {gainedSkills.length === 0 ? (
                   <p className="text-hud-mute">None</p>
                 ) : (

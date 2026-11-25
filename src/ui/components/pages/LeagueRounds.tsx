@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { roundFixtures, roundPlan } from "../../../competition/roundPlan";
 import {
   type CompetitionDoc,
@@ -68,7 +69,7 @@ export function LeagueRounds({
           <div className="grid lg:grid-cols-2 gap-6">
             {plan.upcoming.map((round) => (
               <div key={round}>
-                <h3 className="hud-label mb-2 text-hud-gold">Round {round}</h3>
+                <Title level="row" as="h3" className="mb-2">Round {round}</Title>
                 <div className="space-y-3">
                   {roundFixtures(competition.fixtures, round).map(
                     renderCompactFixture
@@ -123,9 +124,9 @@ function NextRound({
         data-testid="next-round"
         className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
       >
-        <h3 className="font-hud-display text-hud-2xl uppercase tracking-[0.03em] text-hud-bone">
+        <Title level="card" as="h3">
           Round {round}
-        </h3>
+        </Title>
         <span className="hud-label text-hud-dim">
           {played} of {fixtures.length}{" "}
           {fixtures.length === 1 ? "game" : "games"} played
@@ -322,9 +323,9 @@ function CompletedRound({
           onClick={() => {
             setOpen((shown) => !shown);
           }}
-          className="flex min-h-[44px] w-full items-center justify-between gap-3 px-4 py-3 text-left hud-label text-hud-gold hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
+          className="flex min-h-[44px] w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
         >
-          <span>Round {round}</span>
+          <Title level="row" as="span">Round {round}</Title>
           <span aria-hidden className="flex items-center gap-2 text-hud-dim">
             <svg
               viewBox="0 0 12 12"

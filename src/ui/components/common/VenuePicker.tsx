@@ -1,4 +1,5 @@
 import type { GameType } from "../../../game/variants/gameTypes";
+import { ChoiceText } from "../componentWarehouse/HudTitle";
 import { gameTypeRules } from "../../../game/variants/gameTypeRules";
 import type { Venue } from "../../../game/variants/pitchLayouts";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
@@ -60,12 +61,7 @@ export function VenuePicker({
             }}
             className={cx(hudChoiceClass(value === id), "px-3 py-2 text-left")}
           >
-            <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
-              {PICKS[id]?.name ?? id}
-            </span>
-            <span className="block text-hud-sm text-hud-dim">
-              {PICKS[id]?.line}
-            </span>
+            <ChoiceText title={PICKS[id]?.name ?? id} detail={PICKS[id]?.line} />
           </button>
         ))}
       </div>

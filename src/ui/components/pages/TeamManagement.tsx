@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { useNavigate } from "react-router-dom";
 import { type Team } from "../../../types/Team";
 import {
@@ -215,9 +216,9 @@ export function TeamManagement() {
         {tab === "computer" && <ComputerTeamBrowser />}
         {tab === "computer" && visibleTeams.length > 0 && (
           <div className="mb-5 mt-10">
-            <h2 className="font-hud-display text-hud-2xl uppercase text-hud-bone">
+            <Title level="section" as="h2">
               Competition teams
-            </h2>
+            </Title>
             <p className="mt-2 text-hud-sm text-hud-dim">
               These saved copies keep their own results, injuries, and
               development.
@@ -272,9 +273,9 @@ export function TeamManagement() {
                         </Chip>
                       )}
                     </div>
-                    <h3 className="mt-2 break-words font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-bone">
+                    <Title level="card" as="h3" className="mt-2">
                       {team.name}
-                    </h3>
+                    </Title>
                     <GameTypeLine team={team} status={status} />
                   </div>
 
@@ -295,7 +296,7 @@ export function TeamManagement() {
                               size={40}
                             />
                             <span
-                              className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-black/60 font-hud-label text-[9px] font-bold leading-none"
+                              className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-black/60 font-hud-label text-hud-2xs font-bold leading-none"
                               style={{
                                 backgroundColor: numToHex(team.colors.primary),
                                 color: numToHex(team.colors.secondary),

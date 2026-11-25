@@ -4,6 +4,7 @@ import {
   type MatchOptionsMenuEntry,
 } from "./computeMatchOptionsMenu";
 import { hudButtonClass } from "../componentWarehouse/HudKit";
+import { Title } from "../componentWarehouse/HudTitle";
 
 interface MatchOptionsMenuProps {
   entries: MatchOptionsMenuEntry[];
@@ -162,9 +163,9 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
               aria-label={confirming.confirm!.title}
               className="flex flex-col gap-2 p-1"
             >
-              <p className="font-hud-display text-hud-lg uppercase tracking-[0.03em] text-hud-bone">
+              <Title level="section" as="p">
                 {confirming.confirm!.title}
-              </p>
+              </Title>
               <p className="text-hud-sm text-hud-bone/85">
                 {confirming.confirm!.message}
               </p>

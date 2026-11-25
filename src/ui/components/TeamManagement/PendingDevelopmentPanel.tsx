@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
   calculateTeamValue,
@@ -89,9 +90,9 @@ export function PendingDevelopmentPanel({
 
   return (
     <Panel as="section" accent="blood" className="p-3">
-      <h3 className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-warn">
+      <Title level="section" as="h3">
         Pending team development
-      </h3>
+      </Title>
       {notice && (
         <Notice tone="info" role="status" className="mt-2">
           {notice}

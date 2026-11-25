@@ -1,4 +1,5 @@
 import type React from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { type Player, PlayerStatus } from "../../../types/Player";
 import type { GameState } from "../../../types/GameState";
 import type { EventBus } from "../../../services/EventBus";
@@ -194,9 +195,9 @@ function CardHeader({
             Comparing
           </span>
         )}
-        <div className="truncate font-hud-label text-hud-lg font-bold uppercase leading-tight tracking-[0.03em] text-hud-bone">
+        <Title level="row" as="p" className="truncate">
           {player.playerName}
-        </div>
+        </Title>
         <div className="truncate text-hud-sm text-hud-dim">
           {player.positionName}
           {player.level > 1 && ` • Lvl ${String(player.level)}`}

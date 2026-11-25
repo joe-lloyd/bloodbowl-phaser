@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Chip,
@@ -399,9 +400,9 @@ function JoinByCode({
         className="flex flex-col items-center gap-5 px-6 py-8 text-center"
       >
         <div>
-          <h1 className="mt-1 font-hud-display text-hud-3xl uppercase tracking-[0.02em] text-hud-bone">
+          <Title level="page" as="h1">
             Join Game
-          </h1>
+          </Title>
         </div>
         {inbox}
         <input
@@ -412,7 +413,7 @@ function JoinByCode({
           placeholder="MATCH CODE"
           maxLength={6}
           aria-label="Match code"
-          className="hud-field !min-h-[64px] !w-72 max-w-full text-center !font-hud-display !text-hud-2xl uppercase tracking-[0.3em] indent-[0.3em]"
+          className="hud-field !w-72 max-w-full text-center !font-hud-display !text-hud-2xl uppercase tracking-[0.3em] indent-[0.3em]"
         />
         <HudButton
           variant="primary"
@@ -600,9 +601,9 @@ function PlayerCard({
       <Eyebrow>{label}</Eyebrow>
       {player ? (
         <>
-          <p className="mt-1 truncate font-hud-display text-hud-xl uppercase tracking-[0.02em] text-hud-bone">
+          <Title level="card" as="p" className="mt-1 truncate">
             {player.displayName}
-          </p>
+          </Title>
           <p className="truncate font-hud-body text-hud-sm text-hud-dim">
             {player.team
               ? `${player.team.name} (${player.team.rosterName})`

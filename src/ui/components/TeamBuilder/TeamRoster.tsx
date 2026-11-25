@@ -140,7 +140,7 @@ export function TeamRoster({
 
             {player ? (
               <>
-                <td className="text-base">
+                <td className="text-hud-base">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <button
                       className="rounded-hud text-left font-hud-label font-bold uppercase tracking-[0.03em] text-hud-bone hover:text-hud-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
@@ -190,7 +190,7 @@ export function TeamRoster({
                       data-testid="drag-handle"
                       draggable
                       aria-label={`Drag ${player.playerName} to reorder`}
-                      className="cursor-grab select-none rounded-hud px-2 py-1 text-lg font-bold text-hud-mute hover:text-hud-gold active:cursor-grabbing"
+                      className="cursor-grab select-none rounded-hud px-2 py-1 text-hud-lg font-bold text-hud-mute hover:text-hud-gold active:cursor-grabbing"
                       title="Drag to Reorder"
                       onDragStart={(e) => {
                         e.dataTransfer.setData(
@@ -216,7 +216,7 @@ export function TeamRoster({
                       ≡
                     </span>
                     <button
-                      className="flex h-7 w-7 items-center justify-center rounded-hud font-bold text-hud-mute transition-colors hover:bg-hud-blood-deep/60 hover:text-[#ff8a8a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
+                      className="flex h-7 w-7 items-center justify-center rounded-hud font-bold text-hud-mute transition-colors hover:bg-hud-blood-deep/60 hover:text-hud-bad-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
                       onClick={() => {
                         onFirePlayer(player.id);
                       }}

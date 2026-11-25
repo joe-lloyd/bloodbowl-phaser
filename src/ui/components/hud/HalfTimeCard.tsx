@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import type { EventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { GameEventNames } from "../../../types/events";
@@ -109,15 +110,15 @@ function HalfTimeDetails({
     <>
       <p className="font-bold">{summary.score}</p>
       <p>{extraTime ? "A roll-off decides who kicks" : summary.kicker}</p>
-      <h3 className="hud-label mt-2">
+      <Title level="row" as="h3" className="mt-2">
         {extraTime ? "Re-rolls carried over" : "Re-rolls reset"}
-      </h3>
+      </Title>
       <ul data-testid="half-time-rerolls">
         {summary.rerolls.map((line) => (
           <li key={line}>{line}</li>
         ))}
       </ul>
-      <h3 className="hud-label mt-2">KO recovery</h3>
+      <Title level="row" as="h3" className="mt-2">KO recovery</Title>
       {summary.recovery.length ? (
         <ul data-testid="half-time-recovery">
           {summary.recovery.map((line) => (
@@ -129,7 +130,7 @@ function HalfTimeDetails({
       )}
       {summary.out.length > 0 && (
         <>
-          <h3 className="hud-label mt-2">Out for the match</h3>
+          <Title level="row" as="h3" className="mt-2">Out for the match</Title>
           <ul data-testid="half-time-out">
             {summary.out.map((line) => (
               <li key={line}>{line}</li>

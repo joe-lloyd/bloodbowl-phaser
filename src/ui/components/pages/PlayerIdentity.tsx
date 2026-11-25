@@ -71,20 +71,19 @@ function NameEditor(props: PlayerIdentityProps) {
       <input
         type="text"
         aria-label="Player name"
-        className="hud-field min-w-0 flex-1 font-hud-label text-base font-bold"
+        className="hud-field min-w-0 flex-1 font-hud-label text-hud-base font-bold"
         maxLength={MAX_NAME}
         value={draft}
         onChange={(event) => {
           setDraft(event.target.value);
         }}
       />
-      <HudButton type="submit" size="sm" disabled={draft.trim() === player.playerName}>
+      <HudButton type="submit" disabled={draft.trim() === player.playerName}>
         Rename
       </HudButton>
       {canRoll && (
         <HudButton
           type="button"
-          size="sm"
           variant="ghost"
           onClick={() => {
             void save(rollName(position, appearanceOf(player, team.rosterName)) ?? player.playerName);

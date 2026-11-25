@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { useNavigate } from "react-router-dom";
 import {
   fetchAllCoachTeams,
@@ -58,9 +59,9 @@ export function SharedTeamBrowser() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {others.map(({ ownerUid, team }) => (
             <Panel as="section" key={`${ownerUid}:${team.id}`} className="p-4">
-              <h2 className="truncate font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
+              <Title level="card" as="h2" className="truncate">
                 {team.name}
-              </h2>
+              </Title>
               <p className="font-hud-body text-hud-sm text-hud-dim">
                 {team.rosterName}
               </p>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import {
   GAME_TYPE_LABELS,
   readGameType,
@@ -42,9 +43,9 @@ function CompetitionCard({
       onClick={onOpen}
       className={cx(hudChoiceClass(false), "flex flex-col gap-3 p-5")}
     >
-      <span className="block font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
+      <Title level="card" as="span" className="block">
         {competition.name}
-      </span>
+      </Title>
       <span className="flex flex-wrap items-center gap-2">
         <Chip tone="info">
           {GAME_TYPE_LABELS[readGameType(competition.gameType)]}

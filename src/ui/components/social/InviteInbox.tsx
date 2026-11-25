@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import { useNavigate } from "react-router-dom";
 import type { Invite, LobbyInvite } from "../../../boundary/social";
 import { competitionPath } from "../../../competition/types";
@@ -139,9 +140,9 @@ function InviteCard({
         {text.label && (
           <span className="hud-label block text-hud-gold">{text.label}</span>
         )}
-        <span className="block font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] text-hud-bone">
+        <Title level="row" as="span" className="block">
           {text.line}
-        </span>
+        </Title>
       </span>
       <span className="flex flex-wrap gap-2">
         <HudButton variant="primary" disabled={busy} onClick={onAccept}>

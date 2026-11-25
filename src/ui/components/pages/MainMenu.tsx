@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Title } from "../componentWarehouse/HudTitle";
 import {
   GAME_TYPES,
   GAME_TYPE_LABELS,
@@ -144,9 +145,9 @@ export function MainMenu() {
   return (
     <PageShell width="wide" className="flex flex-col justify-center">
       <div className="mx-auto flex w-full max-w-5xl flex-col items-center py-6 text-center phone:py-0">
-        <h1 className="mt-2 font-hud-display text-[56px] uppercase leading-none tracking-[0.02em] text-hud-bone lg:text-[76px] phone:mt-0 phone:text-[40px]">
+        <Title level="hero" as="h1" className="mt-2 phone:mt-0">
           BLOOD BOWL
-        </h1>
+        </Title>
         <p className="mt-3 phone:mt-1 font-hud-label text-hud-base font-bold uppercase tracking-[0.08em] text-hud-dim">
           {GAME_TYPES.map((gameType) => GAME_TYPE_LABELS[gameType]).join(" · ")}
         </p>
@@ -474,10 +475,10 @@ function ResumeBanners({
                 ? "Resume match against the computer"
                 : "Resume local match"}
             </span>
-            <span className="mt-1 block font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
+            <Title level="card" as="span" className="mt-1 block">
               {localMatch.homeTeamName} {localMatch.homeScore} :{" "}
               {localMatch.awayScore} {localMatch.awayTeamName}
-            </span>
+            </Title>
             <span className="block text-hud-sm text-hud-dim">
               Half {localMatch.half}, turn {localMatch.turn}
             </span>
@@ -503,9 +504,9 @@ function MenuSection({
   return (
     <Panel as="section" className="flex flex-col gap-3 p-4 phone:gap-2 phone:p-3 phone:portrait:grid phone:portrait:grid-cols-2">
       <div className="flex items-baseline phone:portrait:col-span-2 justify-between gap-2 border-b border-hud-gold/20 pb-2">
-        <h2 className="font-hud-display text-hud-lg uppercase tracking-[0.06em] text-hud-bone">
+        <Title level="section" as="h2">
           {title}
-        </h2>
+        </Title>
         {note && <span className="hud-label text-hud-mute">{note}</span>}
       </div>
       {children}

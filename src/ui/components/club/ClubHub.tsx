@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { Title } from "../componentWarehouse/HudTitle";
 import type { Team } from "../../../types/Team";
 import { GAME_TYPE_LABELS } from "../../../game/variants/gameTypes";
 import { clubEntries } from "../../../game/rules/clubEntries";
@@ -34,9 +35,9 @@ function ClubCard({ team, onOpen }: { team: Team; onOpen: () => void }) {
       onClick={onOpen}
       className={cx(hudChoiceClass(false), "flex flex-col gap-3 p-5 text-left")}
     >
-      <span className="block font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
+      <Title level="card" as="span" className="block">
         {team.name}
-      </span>
+      </Title>
       <span className="flex flex-wrap items-center gap-2">
         <Chip tone="info">{team.rosterName}</Chip>
         {playable.map((entry) => (
