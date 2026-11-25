@@ -77,7 +77,12 @@ const PANELS: DriftSpec[] = [
         ...sequence,
         selector: `${MENU} div:has(> [data-testid^="action-step-"])`,
       },
-      { ...plan, selector: `${PLAN} ol` },
+      {
+        ...plan,
+        label: "Action plan on desktop",
+        size: "desktop",
+        selector: `${PLAN} ol`,
+      },
       { ...setup, selector: '[data-testid="setup-checklist"]' },
     ],
     facts: [
@@ -301,11 +306,13 @@ const BANNERS: DriftSpec[] = [
       {
         variant: "toast",
         label: "Phone toast",
+        size: "phone",
         selector: '[data-testid="phone-notice"]',
       },
       {
         variant: "toast",
         label: "Desktop log entry",
+        size: "desktop",
         selector: '[data-testid="dice-log"]',
       },
     ],
@@ -356,6 +363,7 @@ const BANNERS: DriftSpec[] = [
       {
         variant: "menu-none",
         label: "Phone log button",
+        size: "phone",
         selector: '[data-testid="dice-log-toggle"]',
       },
       {
@@ -520,12 +528,14 @@ const PAGES: DriftSpec[] = [
     specimens: [
       {
         variant: "setup-incomplete",
-        label: "Save a formation",
+        label: "Save a formation on desktop",
+        size: "desktop",
         selector: `${SETUP} input`,
       },
       {
         variant: "setup-incomplete",
         label: "Its button",
+        size: "desktop",
         selector: `${SETUP} button`,
         contains: "SAVE",
       },

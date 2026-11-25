@@ -1,7 +1,9 @@
 export const GALLERY_ROSTER_MODELS: readonly string[] = [
+  "big_un",
   "bret_catcher",
   "bret_squire",
   "bret_thrower",
+  "deathroller",
   "dwarf_blitzer",
   "dwarf_lineman",
   "dwarf_runner",
@@ -16,6 +18,8 @@ export const GALLERY_ROSTER_MODELS: readonly string[] = [
   "orc_lineman",
   "orc_thrower",
   "treeman_loren",
+  "troll",
+  "troll_slayer",
   "wardancer",
   "we_catcher",
   "we_lineman",

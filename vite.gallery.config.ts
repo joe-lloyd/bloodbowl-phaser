@@ -61,7 +61,7 @@ export default defineConfig(({ command }) => ({
   css: {
     postcss: {
       plugins: [
-        tailwindcss({ config: here("tailwind.config.js") }),
+        tailwindcss({ config: here("tailwind.gallery.config.js") }),
         autoprefixer(),
       ],
     },

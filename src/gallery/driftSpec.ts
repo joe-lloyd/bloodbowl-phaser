@@ -1,3 +1,5 @@
+import type { FrameSize } from "./frames";
+
 type Measure =
   | "width"
   | "height"
@@ -19,6 +21,7 @@ export interface Specimen {
   label: string;
   selector: string;
   contains?: string;
+  size?: FrameSize;
 }
 
 export interface DriftSpec {

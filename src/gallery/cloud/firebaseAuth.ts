@@ -1,4 +1,9 @@
-import { type CloudUser, cloudUser } from "./cloudData";
+import {
+  type CloudUser,
+  cloudUser,
+  onUserChange,
+  signOutUser,
+} from "./cloudData";
 import { FirebaseError } from "./firebaseApp";
 
 const refuse = () =>
@@ -17,12 +22,14 @@ export const signInWithEmailAndPassword = refuse;
 export const signInWithPopup = refuse;
 export const sendEmailVerification = refuse;
 export const sendPasswordResetEmail = refuse;
-export const signOut = () => Promise.resolve();
+export const signOut = () => Promise.resolve().then(signOutUser);
 
 export function onAuthStateChanged(
   _auth: unknown,
   next: (user: CloudUser | null) => void
 ): () => void {
   next(cloudUser());
-  return () => undefined;
+  return onUserChange(() => {
+    next(cloudUser());
+  });
 }

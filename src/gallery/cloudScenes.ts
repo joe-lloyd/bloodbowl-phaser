@@ -14,14 +14,14 @@ const RIVAL = "gallery-rival";
 const THIRD = "gallery-third";
 const CODE = "BLOOD7";
 
-export const seed = () => {
+export const seedEverything = () => {
   seedDevelopmentData();
 };
 
 const ROSTERS = ["Human", "Orc", "Dwarf", "Wood Elf"];
 
-export function fewTeams(): void {
-  seed();
+export function seed(): void {
+  seedEverything();
   const kept = loadTeams().filter(
     (team) =>
       ROSTERS.includes(team.rosterName) ||

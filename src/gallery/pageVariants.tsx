@@ -1,24 +1,10 @@
 import { seedCompetitionId } from "../seeding/seedMeta";
 import { TeamLibraryGate } from "../ui/components/TeamManagement/TeamLibraryGate";
 import { setTeamLibraryStatus } from "../game/managers/TeamManager";
-import { ClubFounding } from "../ui/components/club/ClubFounding";
-import { ClubHub } from "../ui/components/club/ClubHub";
-import { ClubPage } from "../ui/components/club/ClubPage";
-import { CompetitionBuilder } from "../ui/components/pages/CompetitionBuilder";
-import { CompetitionHub } from "../ui/components/pages/CompetitionHub";
-import { CompetitionView } from "../ui/components/pages/CompetitionView";
-import { FriendsPage } from "../ui/components/pages/FriendsPage";
-import { MainMenu } from "../ui/components/pages/MainMenu";
-import { OnlineLobby } from "../ui/components/pages/OnlineLobby";
-import { PlayerPage } from "../ui/components/pages/PlayerPage";
-import { SharedTeamBrowser } from "../ui/components/pages/SharedTeamBrowser";
 import { SoundTest } from "../ui/components/pages/SoundTest";
-import { TeamBuilder } from "../ui/components/pages/TeamBuilder";
 import { TeamManagement } from "../ui/components/pages/TeamManagement";
-import { TeamSelect } from "../ui/components/pages/TeamSelect";
 import {
   CLOUD_LEAGUE,
-  fewTeams,
   guestSeat,
   hostAlone,
   hostReady,
@@ -44,7 +30,7 @@ const teamPages = (section: string, list: readonly Row[]) =>
   pages("Team pages", section, list);
 const competitionPages = (section: string, list: readonly Row[]) =>
   pages("Competitions", section, list);
-const teamList = routed("/build-team", <TeamManagement />);
+const teamList = routed("/build-team");
 
 const nothing = () => undefined;
 
@@ -55,9 +41,8 @@ const press =
       click("button", label);
     });
 
-const menu = routed("/", <MainMenu />);
-const select = (query: string) =>
-  routed(`/select-team${query}`, <TeamSelect mode="play" />);
+const menu = routed("/");
+const select = (query: string) => routed(`/select-team${query}`);
 
 const MENU = pages("Pre-match", "Main menu", [
   { id: "page-menu", title: SIGNED_OUT, view: menu },
@@ -104,25 +89,15 @@ const showAdvancement = () =>
 
 const playerPage = () => {
   const team = teamAt(0);
-  return at({
-    path: `/build-team/${team.id}/player/${String(team.players[0]?.id)}`,
-    pattern: "/build-team/:teamId/player/:playerId",
-    element: <PlayerPage />,
-  });
+  return at(`/build-team/${team.id}/player/${String(team.players[0]?.id)}`);
 };
 
-const builder = (index: number) => () =>
-  at({
-    path: `/build-team/${teamAt(index).id}`,
-    pattern: "/build-team/:teamId",
-    element: <TeamBuilder />,
-  });
+const builder = (index: number) => () => at(`/build-team/${teamAt(index).id}`);
 
 const TEAMS = teamPages("Teams", [
   {
     id: "page-teams",
     title: "The team list",
-    prepare: fewTeams,
     view: teamList,
   },
   {
@@ -153,7 +128,7 @@ const BUILDER = teamPages("Team builder", [
   {
     id: "page-builder-new",
     title: "Choosing a roster",
-    view: routed("/build-team/new-team", <TeamBuilder />),
+    view: routed("/build-team/new-team"),
   },
   { id: "page-builder", title: "A team", view: builder(0) },
   { id: "page-builder-other", title: "Another roster", view: builder(3) },
@@ -192,7 +167,7 @@ const PLAYER = teamPages("Player development", [
   {
     id: "page-player-missing",
     title: "Player not found",
-    view: routed("/build-team/x/player/y", <PlayerPage />),
+    view: routed("/build-team/x/player/y"),
   },
 ]);
 
@@ -201,55 +176,37 @@ const CLUBS = teamPages("Clubs", [
     id: "page-clubs",
     title: "The clubs",
     prepare: withClubs,
-    view: routed("/clubs", <ClubHub />),
+    view: routed("/clubs"),
   },
   {
     id: "page-clubs-empty",
     title: "No clubs yet",
     prepare: signedIn,
-    view: routed("/clubs", <ClubHub />),
+    view: routed("/clubs"),
   },
   {
     id: "page-club",
     title: "A club",
     prepare: withClubs,
-    view: () =>
-      at({
-        path: `/clubs/${teamAt(0).id}`,
-        pattern: "/clubs/:teamId",
-        element: <ClubPage />,
-      }),
+    view: () => at(`/clubs/${teamAt(0).id}`),
   },
   {
     id: "page-club-founding",
     title: "Founding a club",
     prepare: signedIn,
-    view: routed("/clubs/new", <ClubFounding />),
+    view: routed("/clubs/new"),
   },
 ]);
 
 const league = (name: string) => () =>
-  at({
-    path: `/leagues/${seedCompetitionId("league", name)}`,
-    pattern: "/leagues/:id",
-    element: <CompetitionView type="league" />,
-  });
+  at(`/leagues/${seedCompetitionId("league", name)}`);
 
 const bracket = (name: string) => () =>
-  at({
-    path: `/tournaments/${seedCompetitionId("tournament", name)}`,
-    pattern: "/tournaments/:id",
-    element: <CompetitionView type="tournament" />,
-  });
+  at(`/tournaments/${seedCompetitionId("tournament", name)}`);
 
-const cloudLeague = () =>
-  at({
-    path: CLOUD_LEAGUE,
-    pattern: "/leagues/:id",
-    element: <CompetitionView type="league" />,
-  });
+const cloudLeague = () => at(CLOUD_LEAGUE);
 
-const hub = routed("/leagues", <CompetitionHub type="league" />);
+const hub = routed("/leagues");
 
 const COMPETITIONS = competitionPages("Lists", [
   { id: "page-leagues", title: "Leagues", view: hub },
@@ -263,7 +220,7 @@ const COMPETITIONS = competitionPages("Lists", [
   {
     id: "page-tournaments",
     title: "Tournaments",
-    view: routed("/tournaments", <CompetitionHub type="tournament" />),
+    view: routed("/tournaments"),
   },
 ]);
 
@@ -295,17 +252,14 @@ const TOURNAMENTS = competitionPages("Tournaments", [
   },
 ]);
 
-const newTournament = routed(
-  "/tournaments/new",
-  <CompetitionBuilder type="tournament" />
-);
+const newTournament = routed("/tournaments/new");
 
 const BUILDERS = competitionPages("Creating one", [
   { id: "page-new-tournament", title: "A tournament", view: newTournament },
   {
     id: "page-new-league",
     title: "A league",
-    view: routed("/leagues/new", <CompetitionBuilder type="league" />),
+    view: routed("/leagues/new"),
   },
   {
     id: "page-new-online",
@@ -316,12 +270,7 @@ const BUILDERS = competitionPages("Creating one", [
   },
 ]);
 
-const lobbyRoom = () =>
-  at({
-    path: LOBBY_PATH,
-    pattern: "/online/lobby/:code",
-    element: <OnlineLobby mode="host" />,
-  });
+const lobbyRoom = () => at(LOBBY_PATH);
 
 const LOBBIES = pages("Online", "Lobby", [
   {
@@ -363,12 +312,12 @@ const LOBBIES = pages("Online", "Lobby", [
     id: "page-join",
     title: "Join a game",
     prepare: openGamesList,
-    view: routed("/online/join", <OnlineLobby mode="join" />),
+    view: routed("/online/join"),
   },
 ]);
 
-const friends = routed("/friends", <FriendsPage />);
-const shared = routed("/shared-teams", <SharedTeamBrowser />);
+const friends = routed("/friends");
+const shared = routed("/shared-teams");
 
 const SOCIAL = pages("Online", "Friends and other coaches", [
   {
@@ -398,12 +347,7 @@ const SOUND = teamPages("Sound test", [
     id: "page-sound",
     title: "Every sound",
     prepare: withFriends,
-    view: (fx) =>
-      at({
-        path: "/music",
-        pattern: "/music",
-        element: <SoundTest eventBus={fx.bus} />,
-      }),
+    view: (fx) => at("/music", <SoundTest eventBus={fx.bus} />),
   },
 ]);
 

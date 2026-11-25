@@ -1,10 +1,8 @@
-import React from "react";
-import { MemoryRouter } from "react-router-dom";
 import { GameEventNames } from "../types/events";
 import { SubPhase } from "../types/GameState";
 import type { SetupTeamStatus } from "../types/SetupTypes";
 import type { OnlineMatch } from "../network/OnlineMatch";
-import type { LobbyDoc } from "../firebase/lobby";
+import { DEFAULT_SETTINGS, type LobbyDoc } from "../firebase/lobby";
 import {
   FormationManager,
   type FormationEntry,
@@ -261,8 +259,8 @@ export function lobby(fx: MatchFixture, patch: Partial<LobbyDoc>): LobbyDoc {
     code: "BLOOD",
     hostUid: "them",
     guestUid: "me",
-    status: "playing",
-    settings: { turnSeconds: 120, progressionEnabled: false },
+    status: "active",
+    settings: DEFAULT_SETTINGS,
     players: {},
     createdAt: null,
     timer: {
@@ -273,9 +271,5 @@ export function lobby(fx: MatchFixture, patch: Partial<LobbyDoc>): LobbyDoc {
       banks: { me: 120_000 },
     },
     ...patch,
-  } as LobbyDoc;
+  };
 }
-
-export const routed = (node: React.ReactNode) => (
-  <MemoryRouter>{node}</MemoryRouter>
-);

@@ -9,6 +9,7 @@ import { ConnectionBanner } from "../ui/pages/ConnectionBanner";
 import { TurnClock } from "../ui/pages/TurnClock";
 import { WaitingBanner } from "../ui/pages/WaitingBanner";
 import type { MatchFixture } from "./fixtures";
+import { LiveLobby } from "./LiveLobby";
 import { hud, inPlay, SCRIMMAGE } from "./matchStage";
 import { every, lobby, onlineMatch } from "./variantHelpers";
 import { type Row, rows, type Variant } from "./variant";
@@ -48,14 +49,18 @@ function clock(fx: MatchFixture, { timer = {}, match, opponentAway }: Clock) {
     ? { ...base, timer: { ...base.timer, ...timer } }
     : base;
   return (
-    <TurnClock
-      code="BLOOD"
-      lobby={timed}
-      match={online}
-      eventBus={fx.bus}
-      user={USER}
-      {...(opponentAway === undefined ? {} : { opponentAway })}
-    />
+    <LiveLobby lobby={timed}>
+      {(live) => (
+        <TurnClock
+          code={live.code}
+          lobby={live}
+          match={online}
+          eventBus={fx.bus}
+          user={USER}
+          {...(opponentAway === undefined ? {} : { opponentAway })}
+        />
+      )}
+    </LiveLobby>
   );
 }
 

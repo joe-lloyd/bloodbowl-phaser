@@ -1,9 +1,10 @@
 /**
  * Loads every UI gallery variant at desktop and phone size and reports the
- * ones that render nothing, log errors or miss a file. Then loads the index
- * and reports drift boxes that found nothing to cut out. Screenshots go to
- * OUT (default /tmp/ui-gallery). ONLY=a,b keeps the ids that contain
- * a or b, and ONLY=drift checks the drift section alone.
+ * ones that render nothing, miss their own component, log errors or miss a
+ * file. Then it uses the controls that once broke, and reports drift boxes
+ * that found nothing to cut out at either size. Screenshots go to OUT
+ * (default /tmp/ui-gallery). ONLY=a,b keeps the ids that contain a or b,
+ * ONLY=drift checks the drift section alone and ONLY=use the controls.
  *
  *   node scripts/hud-shots/check-gallery.mjs http://127.0.0.1:4310/
  */
@@ -46,6 +47,43 @@ const settle = (id) => {
   return /^page|^results|^announce|^turnover/.test(id) ? 1400 : 900;
 };
 
+const testId = (id) => `[data-testid="${id}"]`;
+const EXPECTED = [
+  [/^page-library-loading/, ".hud-page [role='status']"],
+  [/^page-sign-in/, testId("sign-in-dialog")],
+  [/^page-/, ".hud-page :is(h1, h2, h3, p)"],
+  [/^block-(buttons|panels|dialogs|bits|forms|header|type|colours)/, "[data-sheet]"],
+  [/^(block|confirm|reroll|reaction|bite|foul|apoth|follow|push|interc|sent|other-coach|inducement-(choice|wizard))/, "[data-decision-dialog], [data-testid='other-coach-prompt']"],
+  [/^inducement-panel/, "text=gold remaining"],
+  [/^kickoff-table/, testId("kickoff-table-dialog")],
+  [/^weather/, testId("weather-dialog")],
+  [/^coin/, "text=/coin toss/i"],
+  [/^kickoff-(result)/, testId("announcement")],
+  [/^kickoff-(?!aim)/, testId("kickoff-todo")],
+  [/^setup/, testId("setup-controls")],
+  [/^(announce|waiting-touchdown)/, testId("announcement")],
+  [/^turnover/, testId("turnover-moment")],
+  [/^(tray|banner)/, testId("dice-tray")],
+  [/^log/, testId("dice-log")],
+  [/^menu-(?!none)/, testId("player-action-menu")],
+  [/^action-plan/, testId("action-plan")],
+  [/^results/, "text=/full time/i"],
+  [/^half-time/, testId("half-time-card")],
+  [/^catch-up/, testId("turn-catch-up")],
+  [/^connection/, testId("connection-banner")],
+  [/^waiting-banner/, testId("waiting-banner")],
+  [/^refusal/, testId("refusal-notice")],
+  [/^options/, "[aria-haspopup='menu'][aria-expanded='true']"],
+  [/^loading/, "text=/filling the stands/i"],
+];
+
+async function missingComponent(page, id) {
+  const selector = EXPECTED.find(([pattern]) => pattern.test(id))?.[1];
+  if (!selector) return [];
+  const shown = (await page.locator(selector).filter({ visible: true }).count()) > 0;
+  return shown ? [] : [`${selector} is not on screen`];
+}
+
 let failures = 0;
 const errors = [];
 const report = (id, problems) => {
@@ -69,6 +107,7 @@ for (const [size, viewport] of Object.entries(SIZES))
     const page = await openPage(viewport, problems);
     await page.goto(`${base}?v=${id}&size=${size}`);
     await page.waitForTimeout(settle(id));
+    problems.push(...(await missingComponent(page, id)));
     const text = await page.evaluate(() => document.body.innerText.trim());
     if (!text) problems.push("renders no text");
     await page.screenshot({
@@ -79,7 +118,50 @@ for (const [size, viewport] of Object.entries(SIZES))
     await page.close();
   }
 
-if (!only || only === "drift") {
+const press = (name) => (page) =>
+  page.getByRole("button", { name }).first().click();
+const USES = [
+  ["page-menu", press("Teams"), "text=Create New Team"],
+  ["page-menu", press("Leagues"), "text=Founders League"],
+  ["page-library-failed", press("Back to Menu"), "text=Play Local"],
+  ["page-menu-signed-in", press("Sign out"), "text=Sign in"],
+  ["page-select", async (page) => {
+    const teams = page.locator("button[aria-pressed]", { hasText: "Founders" });
+    await teams.filter({ hasText: "Human" }).first().click();
+    await teams.filter({ hasText: "Orc" }).last().click();
+    await press(/Start Game/)(page);
+  }, "text=Not in the gallery"],
+  ["coin-online-ready", press(/ready/i), "text=/wins the toss/i"],
+  ["coin-online-guest", press(/ready/i), "text=/wins the toss/i"],
+  ["coin-online-won", press("Kick"), null, "text=/coin toss/i"],
+  ["clock-running", press(/Timeout,/), "text=Resume"],
+  ["results", press(/Continue to main menu/i), "text=Play Local"],
+];
+
+if (!only || only === "use")
+  for (const [size, viewport] of Object.entries(SIZES))
+    for (const [id, use, then, gone] of USES) {
+      checked++;
+      const problems = [];
+      const page = await openPage(viewport, problems);
+      await page.goto(`${base}?v=${id}&size=${size}`);
+      await page.waitForTimeout(1500);
+      await use(page)
+        .then(() =>
+          gone
+            ? page.locator(gone).waitFor({ state: "hidden", timeout: 9000 })
+            : page.locator(then).first().waitFor({ timeout: 15000 })
+        )
+        .catch((e) => problems.push(String(e).split("\n")[0]));
+      const text = await page.evaluate(() => document.body.innerText.trim());
+      if (!text) problems.push("went blank");
+      await page.screenshot({ path: `${out}/use-${id}-${size}.png` });
+      report(`use ${id} ${size}`, problems);
+      await page.close();
+    }
+
+async function checkDrift(size) {
+  await index.getByRole("button", { name: new RegExp(size, "i") }).click();
   for (const box of await index.$$("[data-drift]")) {
     checked++;
     await box.scrollIntoViewIfNeeded();
@@ -97,12 +179,16 @@ if (!only || only === "drift") {
     const missing = await box.$$eval("[data-cut='no']", (cuts) =>
       cuts.map((cut) => cut.closest("figure").innerText.split("\n")[0])
     );
-    await box.screenshot({ path: `${out}/drift-${id}.png` });
-    const problems = missing
-      .filter((label) => !/^phone/i.test(label))
-      .map((label) => `${label} was not found`);
-    report(`drift ${id}`, problems);
+    await box.screenshot({ path: `${out}/drift-${id}-${size}.png` });
+    report(
+      `drift ${id} ${size}`,
+      missing.map((label) => `${label} was not found`)
+    );
   }
+}
+
+if (!only || only === "drift") {
+  for (const size of Object.keys(SIZES)) await checkDrift(size);
   report("index", errors);
 }
 

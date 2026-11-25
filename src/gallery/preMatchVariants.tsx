@@ -6,6 +6,7 @@ import { OnlineCoinFlip } from "../ui/pages/OnlineCoinFlip";
 import { setActiveOnlineMatch } from "../network/OnlineMatch";
 import type { LobbyDoc } from "../firebase/lobby";
 import type { MatchFixture } from "./fixtures";
+import { LiveLobby } from "./LiveLobby";
 import { hud, SETUP_SCENE } from "./matchStage";
 import { click, later, lobby, onlineMatch, soon } from "./variantHelpers";
 import { rows, type Variant } from "./variant";
@@ -53,12 +54,19 @@ const toss =
     return (
       <>
         {hud(fx)}
-        <OnlineCoinFlip
-          code="BLOOD"
+        <LiveLobby
           lobby={lobby(fx, coinFlip ? { coinFlip } : {})}
-          match={match}
-          eventBus={fx.bus}
-        />
+          {...(role === "guest" ? { hostTossWinner: fx.team1.id } : {})}
+        >
+          {(live) => (
+            <OnlineCoinFlip
+              code={live.code}
+              lobby={live}
+              match={match}
+              eventBus={fx.bus}
+            />
+          )}
+        </LiveLobby>
       </>
     );
   };

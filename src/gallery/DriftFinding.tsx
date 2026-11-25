@@ -147,7 +147,7 @@ export function DriftFinding({
                   key={size}
                   specimen={specimen}
                   facts={finding.facts}
-                  size={size}
+                  size={specimen.size ?? size}
                 />
               )}
             </figure>

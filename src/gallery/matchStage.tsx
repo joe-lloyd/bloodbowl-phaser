@@ -4,8 +4,9 @@ import { GamePhase, SubPhase } from "../types/GameState";
 import { GameHUD } from "../ui/components/hud/GameHUD";
 import type { OnlineMatch } from "../network/OnlineMatch";
 import { setActiveOnlineMatch } from "../network/OnlineMatch";
+import { GalleryRoutes } from "./GalleryRoutes";
 import type { MatchFixture } from "./fixtures";
-import { onlineMatch, routed, soon } from "./variantHelpers";
+import { onlineMatch, soon } from "./variantHelpers";
 import { type Group, type Row, rows, type Variant } from "./variant";
 
 export type Opener = (fx: MatchFixture) => void;
@@ -19,7 +20,9 @@ export const KICKOFF_SCENE = { phase: GamePhase.KICKOFF };
 export const hud = (
   fx: MatchFixture,
   props: Omit<ComponentProps<typeof GameHUD>, "eventBus"> = {}
-) => routed(<GameHUD eventBus={fx.bus} {...props} />);
+) => (
+  <GalleryRoutes path="/match" own={<GameHUD eventBus={fx.bus} {...props} />} />
+);
 
 export const onlineHud =
   (overrides: Partial<OnlineMatch> = {}) =>
