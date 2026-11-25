@@ -44,12 +44,13 @@ async function exportCharacter(character: Character, onLine: OnLine): Promise<vo
   writeDraft(character);
   onLine(`Rendering ${key} on ${renderer.name}`);
   const warnings: string[] = [];
+  const inherited = character.looks.kind === "base";
   await renderer.layers(key, (line) => {
     onLine(line);
-    if (line.startsWith(`WARN ${key} `)) warnings.push(line);
+    if (line.startsWith(`WARN ${key} `) && !(inherited && line.includes(" draws nothing "))) warnings.push(line);
   });
-  if (character.looks.kind === "own" && warnings.length > 0) {
-    throw new Error("Not installed. A look choice draws nothing of its own, hides part of the base figure, or depends on a choice of another option. Put the parts that depend on each other in the same option.");
+  if (warnings.length > 0) {
+    throw new Error("Not installed. A look choice draws nothing of its own, hides part of the base figure, or depends on a choice of another option. Put the parts that depend on each other in the same option, or undo the edit that clashes with the base model's options.");
   }
   await run({ program: "python3", args: ["install_layered.py", path.join(WORK, "layered"), "--characters", DRAFTS, key], cwd: FACTORY, onLine });
   await publish(character, onLine);

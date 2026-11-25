@@ -77,22 +77,26 @@ def shade(base_res, shaded_res):
     return idx, np.zeros_like(base_res[1]), np.where(changed, 0.0, np.inf).astype(np.float32)
 
 
-def conflicts(stage, scale, key, body, parts, base):
-    """{"a.x + b.y": message} for choices of two options whose layers do not add up to the figure with both:
-    both change one object, or one changes how the other is drawn (a gorget takes the breastplate's metal)."""
+def conflicts(stage, scale, key, plan_row, anim):
+    """{"a.x" or "a.x + b.y": object names} where the layers do not add up to the figure: a choice hides base
+    objects, both choices change one object, or one changes how the other is drawn (a gorget takes the
+    breastplate's metal)."""
     spec = registry.LOOKS.get(key)
+    body, _, base, parts = plan_row
     if spec is None:
         return {}
 
     def drawn(model):
-        stage.build(model, model.pose("idle", 0, model.animations["idle"]), scale)
-        return signature()
+        stage.build(model, model.pose(anim, 0, model.animations[anim]), scale)
+        return {name[len(key) + 1:]: sig for name, sig in signature().items()}
 
     plain = drawn(base)
-    changes, found, hidden = [], {}, set()      # hidden base objects are reported on their own
+    changes, found, hidden = [], {}, set()
     for name, model, choice in parts:
         sig = drawn(model)
-        hidden |= plain.keys() - sig.keys()
+        if plain.keys() - sig.keys():
+            found[name] = plain.keys() - sig.keys()
+            hidden |= found[name]
         changes.append((name, choice, {k: v for k, v in sig.items() if plain.get(k) != v}))
     for (first, a, one), (second, b, two) in itertools.combinations(changes, 2):
         if a[0] == b[0]:
@@ -102,11 +106,28 @@ def conflicts(stage, scale, key, body, parts, base):
         wrong = {k for k in both.keys() | layered.keys() if both.get(k) != layered.get(k)} - hidden
         wrong |= {k for k in one.keys() & two.keys() if one[k] != two[k]}
         if wrong:
-            found["%s + %s" % (first, second)] = "depend on each other for %s" % sorted(wrong)[:6]
+            found["%s + %s" % (first, second)] = wrong
     return found
 
 
-def render_body(stage, scale, default, base, parts, a, warnings):
+def new_conflicts(stage, scale, key, plan_row, anim):
+    """The conflicts of a body, without the ones a character's base already has with the same look options."""
+    found = conflicts(stage, scale, key, plan_row, anim)
+    source = getattr(registry.get(key), "looks_from", None)
+    if not found or not source:
+        return found
+    base_row = next(row for row in plan(source)[0] if row[0] == plan_row[0])
+    known = conflicts(stage, scale, source, base_row, anim)
+    left = {label: names - known.get(label, set()) for label, names in found.items()}
+    return {label: names for label, names in left.items() if names}
+
+
+def add_warnings(warnings, found):
+    for label, names in found.items():
+        warnings.setdefault(label, set()).update(names)
+
+
+def render_body(stage, scale, default, base, parts, a):
     """{layer: {"anim/facing/i": cropped (x0, y0, idx, code, depth) or None}} for one body. Each part has a
     "<part>~shade" layer too: the base pixels its shadow darkens."""
     store = {"base": {}}
@@ -125,9 +146,6 @@ def render_body(stage, scale, default, base, parts, a, warnings):
                 stage.build(model, pose, scale)
                 sig = signature()
                 keep = {k for k, v in sig.items() if base_sig.get(k) != v}
-                gone = sorted(set(base_sig) - set(sig))
-                if gone:
-                    warnings.setdefault(lname, "removes base objects %s" % gone[:6])
                 if not keep <= set(base_sig):    # a part that only recolours the base casts the base's shadows
                     unchanged = {k for k in sig if k not in keep}
                     for f, res in stage.render_layer(a["facings"], unchanged, data=False).items():
@@ -289,9 +307,9 @@ def run(key, a, make_stage, target_height, calibrate, pad):
         for body, default, base, parts in bodies:
             stage, frame, height = make_stage(key, a["out"])
             scale, got = calibrate(stage, default, target_height(default, height))
-            if "idle" in a["anims"]:
-                warnings.update(conflicts(stage, scale, key, body, parts, base))
-            stores[body] = render_body(stage, scale, default, base, parts, a, warnings)
+            for anim in a["anims"]:
+                add_warnings(warnings, new_conflicts(stage, scale, key, (body, default, base, parts), anim))
+            stores[body] = render_body(stage, scale, default, base, parts, a)
             print("BODY %s %s idle=%dpx" % (key, body, got), flush=True)
     if a["stash"]:
         os.makedirs(a["stash"], exist_ok=True)
@@ -312,7 +330,7 @@ def unstash(folder, key, warnings):
         body = os.path.basename(path).split("__")[1]
         with open(path, "rb") as fh:
             chunk = pickle.load(fh)
-        warnings.update(chunk["warnings"])
+        add_warnings(warnings, chunk["warnings"])
         store = stores.setdefault(body, {})
         for lname, frames in chunk["store"].items():
             store.setdefault(lname, {}).update(frames)
@@ -330,8 +348,9 @@ def finish_model(key, a, rendered, helpers):
         if a["verify"] and body in stores:
             scale, _ = calibrate(stage, default, target_height(default, height))
             verify(stage, scale, spec, body, default, stores[body], ranges[body], a["verify"])
-    for lname, problem in warnings.items():
-        print("WARN %s %s %s" % (key, lname, problem), flush=True)
+    for lname, names in warnings.items():
+        problem = "depend on each other for" if " + " in lname else "removes base objects"
+        print("WARN %s %s %s %s" % (key, lname, problem, sorted(names)[:6]), flush=True)
     boxes = [(c[0], c[1], c[0] + c[2].shape[1], c[1] + c[2].shape[0])
              for store in stores.values() for frames in store.values() for c in frames.values() if c is not None]
     for body, _, _, parts in bodies:

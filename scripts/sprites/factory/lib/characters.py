@@ -95,12 +95,12 @@ def character_class(spec):
     return type("Character_" + spec["key"], (base,), attrs)
 
 
-def body_layouts(inherited):
-    """The base's per-body layout changes, for the bodies it has."""
+def body_layouts(inherited, chosen):
+    """The base's per-body layout changes, for the bodies it has and the keys the character leaves alone."""
     if inherited is None or inherited.body is None:
         return None
     known = {value for value, _ in inherited.options[0][2]}
-    return lambda body: inherited.body(body) if body in known else {}
+    return lambda body: {k: v for k, v in inherited.body(body).items() if k not in chosen} if body in known else {}
 
 
 def register_character(spec):
@@ -108,11 +108,12 @@ def register_character(spec):
     inherited = registry.LOOKS.get(spec["base"])
     registry.register(cls)
     registry.LOOKS.pop(cls.key, None)      # a draft without look options replaces a saved character with them
-    kind = spec["looks"]["kind"]
-    if kind == "own":
-        registry.register_looks(cls.key, own_looks(cls, spec["looks"], body_layouts(inherited)))
+    body = body_layouts(inherited, spec["layout"])
+    if spec["looks"]["kind"] == "own":
+        registry.register_looks(cls.key, own_looks(cls, spec["looks"], body))
     elif inherited:
-        registry.register_looks(cls.key, looks.Looks(cls, inherited.options, inherited.slots, inherited.body))
+        cls.looks_from = spec["base"]
+        registry.register_looks(cls.key, looks.Looks(cls, inherited.options, inherited.slots, body))
 
 
 def load(folder, errors):
