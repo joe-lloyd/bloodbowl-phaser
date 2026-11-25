@@ -281,7 +281,6 @@ describe("decision dock", () => {
     expect(
       container.querySelector('[data-testid="decision-team"]')?.textContent
     ).toBe("Home Team");
-    expect(container.textContent).toContain("Attacker Chooses");
   });
 
   it("shows waiting coaches a block without action buttons", async () => {

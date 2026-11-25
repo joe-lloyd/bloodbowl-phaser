@@ -156,7 +156,7 @@ function blockStage(c: GameplayInteractionController, actor: Player, target: Pla
     rolls: needsRush
       ? [{ kind: "rush", name: "Rush", target: requiredRoll(activeRules().rushTarget, rushRollModifier(state, actor)) }]
       : [],
-    notes: blockPreviewLines(analysis, actor, target, "attacker"),
+    notes: blockPreviewLines(analysis, actor, target, actor.teamId),
   };
 }
 

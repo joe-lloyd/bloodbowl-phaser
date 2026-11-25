@@ -3,8 +3,7 @@ import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import type { EventBus } from "../../../services/EventBus";
 import {
-  blockPreviewLines,
-  type BlockSide,
+  blockPreview,
 } from "../../../game/rules/rollPreview";
 import { type BlockAnalysis } from "../../../types/Actions";
 import type { Player } from "../../../types/Player";
@@ -287,14 +286,11 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
         </div>
       </div>
 
-      <BlockPreview
-        analysis={analysis}
+      <BlockMath
+        analysis={{ ...analysis, diceCount, isUphill }}
         attacker={attacker}
         defender={defender}
-        isUphill={isUphill}
       />
-
-      <DiceCount diceCount={diceCount} isUphill={isUphill} />
 
       {shownRoll ? (
         <BlockChoices
@@ -399,59 +395,39 @@ function RollActions({
   );
 }
 
-function BlockPreview({
+function BlockMath({
   analysis,
   attacker,
   defender,
-  isUphill,
 }: {
   analysis: BlockAnalysis;
   attacker: Player | undefined;
   defender: Player | undefined;
-  isUphill: boolean;
 }) {
-  const viewer: BlockSide =
-    defender && getActiveOnlineMatch()?.myTeamId === defender.teamId
-      ? "defender"
-      : "attacker";
-  const viewerPicks = isUphill === (viewer === "defender");
-  const previewLines =
-    attacker && defender
-      ? blockPreviewLines(analysis, attacker, defender, viewer)
-      : [];
-  return (
-    <div
-      data-testid="block-roll-analysis"
-      className="mt-2 font-hud-body text-hud-xs leading-snug"
-    >
-      {previewLines.map((line, index) => (
-        <div
-          key={index}
-          className={previewLineClass(line, index === 0 && !viewerPicks)}
-        >
-          {line}
-        </div>
-      ))}
-    </div>
+  if (!attacker || !defender) return null;
+  const { viewerPicks, dice, strength, notes } = blockPreview(
+    analysis,
+    attacker,
+    defender,
+    getActiveOnlineMatch()?.myTeamId ?? attacker.teamId
   );
-}
-
-function DiceCount({
-  diceCount,
-  isUphill,
-}: {
-  diceCount: number;
-  isUphill: boolean;
-}) {
+  const lines = strength.includes("+") ? [strength, ...notes] : notes;
   return (
-    <div className="mt-3 phone:mt-1 flex items-center justify-center gap-3">
-      <div className="font-hud-label text-hud-xl phone:text-hud-base font-bold uppercase tracking-[0.06em] text-hud-bone">
-        {diceCount} {diceCount === 1 ? "DIE" : "DICE"}{" "}
-        {isUphill ? <span className="text-hud-bad">(UPHILL)</span> : ""}
-      </div>
-      <div className="hud-label">
-        {isUphill ? "Defender Chooses" : "Attacker Chooses"}
-      </div>
+    <div data-testid="block-roll-analysis">
+      <p
+        className={`mt-3 phone:mt-1 text-center font-hud-label text-hud-xl phone:text-hud-base font-bold uppercase tracking-[0.06em] ${viewerPicks ? "text-hud-bone" : "text-hud-bad"}`}
+      >
+        {dice}
+      </p>
+      {lines.length > 0 && (
+        <div className="mt-2 font-hud-body text-hud-xs leading-snug">
+          {lines.map((line) => (
+            <div key={line} className={previewLineClass(line)}>
+              {line}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -514,8 +490,7 @@ function BlockChoices({
   );
 }
 
-function previewLineClass(line: string, warning: boolean): string {
-  if (warning) return "text-hud-bad font-bold";
+function previewLineClass(line: string): string {
   if (line.startsWith("Our assists")) return "text-hud-good";
   if (line.startsWith("Their assists")) return "text-hud-bad";
   return "";

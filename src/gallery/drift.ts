@@ -307,9 +307,9 @@ const PAGES: DriftSpec[] = [
       "The two smallest text sizes carry wide letter spacing meant for caps labels, so whole sentences in them look stretched next to the size above.",
     specimens: [
       {
-        variant: "block-2",
+        variant: "block-defender",
         label: "Block preview",
-        selector: '[data-testid="block-roll-analysis"]',
+        selector: '[data-testid="block-roll-analysis"] > div',
       },
       { ...kickoffPanel, selector: "ol", contains: "Choose" },
     ],

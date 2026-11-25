@@ -209,9 +209,8 @@ const PLAN_ROWS: MatchRow[] = [
             rolls: [],
             notes: [
               "2 dice, you pick",
-              "Our ST 5 (4 +1) vs their ST 3",
+              "ST 5 (4 +1) vs 3",
               "Our assists: #2",
-              "Their assists: none",
             ],
           },
         ],
@@ -262,9 +261,9 @@ const PLAN_ROWS: MatchRow[] = [
         square: { x: 12, y: 5 },
         lines: [
           "Block: 2 dice, you pick",
-          "Our ST 4 vs their ST 3",
-          "Our assists: #2 Blitzer",
-          "Their assists: #9 Lineman",
+          "ST 4 vs 3",
+          "Our assists: #2",
+          "Their assists: #9",
         ],
         danger: false,
         anchor: { x: 0.45, y: 0.45 },

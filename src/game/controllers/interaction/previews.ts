@@ -211,7 +211,7 @@ function blockTargetPreview(
   const analysis = new BlockValidator().analyzeBlock({ attacker: actor, defender: target, allPlayers: boardWith(c, actor), activeTeamId: c.gameService.getState().activeTeamId });
   const preview = {
     square,
-    lines: blockPreviewLines(analysis, actor, target, "attacker"),
+    lines: blockPreviewLines(analysis, actor, target, actor.teamId),
     danger: analysis.isUphill,
   };
   if (!adjacent)
