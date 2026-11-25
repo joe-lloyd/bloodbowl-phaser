@@ -7,30 +7,21 @@ import { type KickoffTodo, kickoffTodo, playersLeft } from "./kickoffSteps";
 import type { KickoffEventStepState } from "../../../game/kickoff/KickoffEventManager";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useEventBus } from "../../hooks/useEventBus";
-import { Chip, HudButton, Panel } from "../componentWarehouse/HudKit";
+import { Chip, HudButton, Panel, PanelHeader } from "../componentWarehouse/HudKit";
+import { StepRow } from "../componentWarehouse/HudSteps";
 
 function TodoList({ todo, active }: { todo: KickoffTodo; active: boolean }) {
   return (
-    <ol className="mt-2 space-y-1 font-hud-body text-hud-sm" data-testid="kickoff-todo">
-      {todo.lines.map((line, index) => {
-        const current = active && index === todo.current;
-        return (
-          <li
-            key={line}
-            aria-current={current ? "step" : undefined}
-            className={`flex gap-2 rounded-hud border-l-[3px] px-2.5 py-1 ${
-              current
-                ? "border-hud-gold bg-white/5 text-hud-bone"
-                : "border-hud-edge text-hud-dim"
-            }`}
-          >
-            <span className="w-3 shrink-0 font-hud-label font-bold tabular-nums">
-              {index + 1}
-            </span>
-            {line}
-          </li>
-        );
-      })}
+    <ol className="space-y-1" data-testid="kickoff-todo">
+      {todo.lines.map((line, index) => (
+        <StepRow
+          key={line}
+          state={active && index === todo.current ? "current" : "todo"}
+          number={index + 1}
+        >
+          {line}
+        </StepRow>
+      ))}
     </ol>
   );
 }
@@ -57,7 +48,7 @@ function ChoosingButtons({
       </HudButton>
       {step.event !== KickoffEvent.HIGH_KICK && (
         <HudButton
-          variant="gold"
+          variant="primary"
           disabled={step.selectedPlayerIds.length === 0}
           onClick={onStart}
         >
@@ -106,42 +97,40 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
     <Panel
       as="section"
       accent="gold"
-      className="pointer-events-auto mt-auto max-h-[48vh] phone:max-h-none w-full max-w-sm overflow-y-auto hud-scroll p-3 animate-hud-in"
+      className="pointer-events-auto mt-auto max-h-[48vh] phone:max-h-none w-full max-w-sm overflow-y-auto hud-scroll animate-hud-in"
     >
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-gold">
-          {step.event}
-        </h2>
-        <Chip tone="gold" className="shrink-0 !text-hud-sm">
-          {stepCount(step)}
-        </Chip>
+      <PanelHeader
+        as="h2"
+        title={step.event}
+        controls={<Chip tone="gold">{stepCount(step)}</Chip>}
+      />
+      <div className="p-3 phone:p-2">
+        <TodoList todo={kickoffTodo(step)} active={canAct} />
+        {!canAct && (
+          <p className="mt-2 text-hud-sm text-hud-bone">
+            Waiting for {team.name}'s coach…
+          </p>
+        )}
+
+        {canAct && (step.stage === "choose" || step.canReselect) && (
+          <div className="mt-3 flex justify-end gap-2">
+            {step.stage === "choose" ? (
+              <ChoosingButtons
+                step={step}
+                onSkip={answer(() => service.skipKickoffEventStep())}
+                onStart={answer(() => service.confirmKickoffEventStep())}
+              />
+            ) : (
+              <HudButton
+                variant="ghost"
+                onClick={answer(() => service.reselectKickoffEventPlayers())}
+              >
+                Change picks
+              </HudButton>
+            )}
+          </div>
+        )}
       </div>
-
-      <TodoList todo={kickoffTodo(step)} active={canAct} />
-      {!canAct && (
-        <p className="mt-2 text-hud-sm text-hud-bone">
-          Waiting for {team.name}'s coach…
-        </p>
-      )}
-
-      {canAct && (step.stage === "choose" || step.canReselect) && (
-        <div className="mt-3 flex justify-end gap-2">
-          {step.stage === "choose" ? (
-            <ChoosingButtons
-              step={step}
-              onSkip={answer(() => service.skipKickoffEventStep())}
-              onStart={answer(() => service.confirmKickoffEventStep())}
-            />
-          ) : (
-            <HudButton
-              variant="ghost"
-              onClick={answer(() => service.reselectKickoffEventPlayers())}
-            >
-              Change picks
-            </HudButton>
-          )}
-        </div>
-      )}
     </Panel>
   );
 }

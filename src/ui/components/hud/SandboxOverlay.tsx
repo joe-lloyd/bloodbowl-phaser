@@ -405,7 +405,7 @@ function SeedFinder({
         <button
           onClick={onFind}
           disabled={!outcomeId || searching}
-          className={hudButtonClass("gold", "sm")}
+          className={hudButtonClass("primary", "sm")}
         >
           {searching ? "…" : "FIND"}
         </button>

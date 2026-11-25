@@ -2,14 +2,8 @@ import type { DriftSpec, Fact, Specimen } from "./driftSpec";
 
 const SETUP = '[data-testid="setup-controls"]';
 const KICKOFF = "section.hud-slab";
-const MENU = '[data-testid="player-action-menu"]';
-const PLAN = '[data-testid="action-plan"]';
-const END_TURN = '[data-testid="end-turn"]';
 const PAGE = ".hud-page";
 const DIALOG = "[data-hotkey-scope] > .hud-slab";
-
-const HEADING =
-  "h2, [data-panel-header] > :first-child, :scope > .hud-label:not(:has(+ h2))";
 
 const font: Fact = { label: "Font", measure: "fontFamily" };
 const size: Fact = { label: "Text size", measure: "fontSize" };
@@ -25,170 +19,6 @@ const kickoffPanel: Specimen = {
   selector: KICKOFF,
   contains: "Alert Defence",
 };
-const sequence: Specimen = {
-  variant: "menu-sequence-second",
-  label: "Action sequence",
-  selector: MENU,
-};
-const plan: Specimen = {
-  variant: "action-plan-blitz",
-  label: "Action plan",
-  selector: PLAN,
-};
-const setup: Specimen = {
-  variant: "setup-checklist",
-  label: "Setup menu",
-  selector: SETUP,
-};
-const docked: Specimen = {
-  variant: "reaction",
-  label: "Docked dialog",
-  selector: "[data-decision-dialog] > .hud-slab",
-};
-
-const PANELS: DriftSpec[] = [
-  {
-    id: "panel-headings",
-    title: "Right-hand panel headings",
-    sentence:
-      "Five panels take turns in the right-hand column, and each has its own heading.",
-    specimens: [kickoffPanel, setup, sequence, plan, docked],
-    facts: [
-      {
-        label: "Heading size",
-        measure: "fontSize",
-        selector: HEADING,
-      },
-      {
-        label: "Heading colour",
-        measure: "color",
-        selector: HEADING,
-      },
-    ],
-  },
-  {
-    id: "step-lists",
-    title: "Lists of steps",
-    sentence:
-      "The game explains a sequence of steps in four ways, from tall numbered buttons to small lines with a ring.",
-    specimens: [
-      { ...kickoffPanel, selector: "ol", contains: "Choose" },
-      {
-        ...sequence,
-        selector: `${MENU} div:has(> [data-testid^="action-step-"])`,
-      },
-      {
-        ...plan,
-        label: "Action plan on desktop",
-        size: "desktop",
-        selector: `${PLAN} ol`,
-      },
-      { ...setup, selector: '[data-testid="setup-checklist"]' },
-    ],
-    facts: [
-      size,
-      font,
-      { label: "Row height", measure: "height", selector: "li, button" },
-    ],
-  },
-  {
-    id: "panel-padding",
-    title: "Panel padding",
-    sentence:
-      "The body padding changes from panel to panel, so text does not line up as they replace each other.",
-    specimens: [kickoffPanel, plan, docked],
-    facts: [padding, width],
-  },
-  {
-    id: "dock-buttons",
-    title: "Main button in the right-hand column",
-    sentence:
-      "The button that moves the turn on runs from 32 to 56 pixels tall. End Turn also asks for the display font but a later class gives it the label font.",
-    specimens: [
-      {
-        ...kickoffPanel,
-        variant: "kickoff-step-start",
-        selector: "section.hud-slab button",
-        contains: "Start",
-      },
-      {
-        ...docked,
-        selector: '[data-testid="reaction-yes"]',
-      },
-      {
-        ...plan,
-        selector: '[data-testid="action-plan-go"]',
-      },
-      {
-        ...setup,
-        variant: "setup-ready",
-        selector: `${SETUP} button`,
-        contains: "CONFIRM",
-      },
-      {
-        ...sequence,
-        label: "End activation",
-        selector: '[data-testid="action-end-activation"]',
-      },
-      {
-        ...sequence,
-        label: "End turn",
-        selector: END_TURN,
-      },
-    ],
-    facts: [height, width, size, font, fill],
-  },
-  {
-    id: "end-button-names",
-    title: "End button with a long name",
-    sentence:
-      "End Alert Defence wraps to two lines on a desktop, and a phone cuts off both ends of it because the button is sized for End Turn.",
-    specimens: [
-      {
-        variant: "menu-none",
-        label: "A normal turn",
-        selector: END_TURN,
-      },
-      {
-        variant: "kickoff-charge-play",
-        label: "Charge",
-        selector: END_TURN,
-      },
-      {
-        variant: "kickoff-step-move",
-        label: "Alert Defence",
-        selector: END_TURN,
-      },
-    ],
-    facts: [width, height, size],
-  },
-  {
-    id: "block-dialog-buttons",
-    title: "Block buttons in a narrow dock",
-    sentence:
-      "The Block dialog asks for a large button, which wraps to two lines on a desktop and runs past the panel edge, while the other docked dialogs use the medium size.",
-    specimens: [
-      {
-        variant: "block-2",
-        label: "Block",
-        selector: "[data-decision-dialog] > .hud-slab",
-      },
-      { ...docked, variant: "follow-up", label: "Follow up" },
-    ],
-    facts: [
-      {
-        label: "Last button height",
-        measure: "height",
-        selector: "button:last-of-type",
-      },
-      {
-        label: "Last button text",
-        measure: "fontSize",
-        selector: "button:last-of-type",
-      },
-    ],
-  },
-];
 
 const OPENING: DriftSpec[] = [
   {
@@ -445,31 +275,6 @@ const PAGES: DriftSpec[] = [
     facts: [font, size, colour],
   },
   {
-    id: "picked-choice",
-    title: "A picked choice",
-    sentence:
-      "A picked choice glows gold everywhere except the MVP list, which turns it red.",
-    specimens: [
-      {
-        variant: "page-select",
-        label: "Team selection",
-        selector: '[aria-checked="true"]',
-      },
-      {
-        variant: "results-progression",
-        label: "MVP nominee",
-        selector: "section button",
-        contains: "1. #",
-      },
-      {
-        variant: "block-forms",
-        label: "The shared choice",
-        selector: '[aria-pressed="true"]',
-      },
-    ],
-    facts: [fill, size, height],
-  },
-  {
     id: "body-text",
     title: "Body text colour",
     sentence:
@@ -505,11 +310,6 @@ const PAGES: DriftSpec[] = [
         variant: "block-2",
         label: "Block preview",
         selector: '[data-testid="block-roll-analysis"]',
-      },
-      {
-        variant: "setup-checklist",
-        label: "Setup rules",
-        selector: '[data-testid="setup-checklist"]',
       },
       { ...kickoffPanel, selector: "ol", contains: "Choose" },
     ],
@@ -556,7 +356,6 @@ const PAGES: DriftSpec[] = [
 ];
 
 export const DRIFT: readonly DriftSpec[] = [
-  ...PANELS,
   ...OPENING,
   ...BANNERS,
   ...PAGES,

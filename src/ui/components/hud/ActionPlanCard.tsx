@@ -2,17 +2,18 @@ import { useState } from "react";
 import { type IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import type { ActionPlanSummary, PlanStage } from "../../../game/rules/actionPlan";
-import { HudButton } from "../componentWarehouse/HudKit";
+import { HudButton, Panel, PanelHeader } from "../componentWarehouse/HudKit";
+import { StepRow } from "../componentWarehouse/HudSteps";
 import { planRollList, rollText, useActionPlan } from "./useActionPlan";
 
 function PlanButtons({
   eventBus,
   plan,
-  size,
+  hotkey = false,
 }: {
   eventBus: IEventBus;
   plan: ActionPlanSummary;
-  size: "sm" | "md";
+  hotkey?: boolean;
 }) {
   return (
     <>
@@ -20,7 +21,6 @@ function PlanButtons({
         data-testid="action-plan-clear"
         aria-label="Clear the plan"
         variant="ghost"
-        size={size}
         onClick={(event) => {
           event.stopPropagation();
           eventBus.emit(GameEventNames.UI_ClearMovePlan, undefined);
@@ -30,9 +30,8 @@ function PlanButtons({
       </HudButton>
       <HudButton
         data-testid="action-plan-go"
-        variant="gold"
-        size={size}
-        {...(size === "sm" ? { hotkey: "Enter" } : {})}
+        variant="primary"
+        {...(hotkey ? { hotkey: "Enter" } : {})}
         disabled={plan.blocked !== null}
         className="flex-1"
         onClick={(event) => {
@@ -46,10 +45,10 @@ function PlanButtons({
   );
 }
 
-function StageRow({ stage }: { stage: PlanStage }) {
+function StageRow({ stage, number }: { stage: PlanStage; number: number }) {
   const rolls = rollText(stage);
   return (
-    <li className="border-t border-white/10 pt-1.5 first:border-t-0 first:pt-0">
+    <StepRow state="todo" number={number}>
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-hud-label text-hud-sm font-bold uppercase tracking-[0.05em] text-hud-bone">
           {stage.label}
@@ -70,16 +69,16 @@ function StageRow({ stage }: { stage: PlanStage }) {
           {note}
         </div>
       ))}
-    </li>
+    </StepRow>
   );
 }
 
 function PlanDetails({ plan }: { plan: ActionPlanSummary }) {
   return (
     <>
-      <ol className="flex flex-col gap-1.5">
+      <ol className="flex flex-col gap-1">
         {plan.stages.map((stage, i) => (
-          <StageRow key={i} stage={stage} />
+          <StageRow key={i} stage={stage} number={i + 1} />
         ))}
       </ol>
       <div className="text-hud-xs text-hud-dim">
@@ -100,16 +99,19 @@ export function ActionPlanCard({ eventBus }: { eventBus: IEventBus }) {
   const plan = useActionPlan(eventBus);
   if (!plan) return null;
   return (
-    <div
+    <Panel
       data-testid="action-plan"
-      className="hud-slab pointer-events-auto flex w-full flex-col gap-2 p-2.5 font-hud-body text-hud-bone animate-hud-in"
+      accent="gold"
+      className="pointer-events-auto w-full font-hud-body text-hud-bone animate-hud-in"
     >
-      <span className="hud-label text-hud-gold">Plan · {plan.title}</span>
-      <PlanDetails plan={plan} />
-      <div className="flex items-center gap-2">
-        <PlanButtons eventBus={eventBus} plan={plan} size="sm" />
+      <PanelHeader title={`Plan · ${plan.title}`} />
+      <div className="flex flex-col gap-2 p-3">
+        <PlanDetails plan={plan} />
+        <div className="flex items-center gap-2">
+          <PlanButtons eventBus={eventBus} plan={plan} hotkey />
+        </div>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -143,7 +145,7 @@ export function PhonePlanBar({ eventBus, plan }: { eventBus: IEventBus; plan: Ac
             {plan.blocked ?? planRollList(plan)}
           </span>
         </button>
-        <PlanButtons eventBus={eventBus} plan={plan} size="md" />
+        <PlanButtons eventBus={eventBus} plan={plan} />
       </div>
     </div>
   );

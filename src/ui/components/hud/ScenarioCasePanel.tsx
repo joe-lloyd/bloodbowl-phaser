@@ -259,7 +259,7 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
             <button
               onClick={checkNow}
               data-testid="check-checkpoints"
-              className={`${hudButtonClass("gold", "sm")} flex-1`}
+              className={`${hudButtonClass("primary", "sm")} flex-1`}
             >
               CHECK
             </button>

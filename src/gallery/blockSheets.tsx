@@ -31,8 +31,7 @@ import { Button, Input, Select } from "../ui/components/common/NativeControls";
 
 const BUTTONS: readonly HudButtonVariant[] = [
   "primary",
-  "gold",
-  "success",
+  "selected",
   "secondary",
   "ghost",
   "danger",
@@ -163,7 +162,7 @@ function DialogSample({
           actions={
             <DialogActions>
               <HudButton variant="ghost">No</HudButton>
-              <HudButton variant="gold">Yes</HudButton>
+              <HudButton variant="primary">Yes</HudButton>
             </DialogActions>
           }
         >

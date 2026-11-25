@@ -99,7 +99,7 @@ export function RenderPane(props: RenderPaneProps) {
     <>
       <Section title="Preview" aside={`Blender on ${state.renderer}`}>
         <div className="mb-3 flex flex-wrap items-center gap-3">
-          <HudButton variant="gold" disabled={active} onClick={props.onPreview}>Preview</HudButton>
+          <HudButton variant="primary" disabled={active} onClick={props.onPreview}>Preview</HudButton>
           <HudButton disabled={active || dirty} onClick={props.onExport}>Export to the game</HudButton>
           <KitPicker kit={kit} onKit={props.onKit} />
           {dirty && <span className="text-hud-sm text-hud-mute">Save before you export.</span>}

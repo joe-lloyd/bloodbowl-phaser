@@ -332,7 +332,7 @@ export function TeamManagement() {
 
                   <div className="mt-auto flex gap-2">
                     <HudButton
-                      variant="gold"
+                      variant="secondary"
                       block
                       onClick={() => {
                         handleEditTeam(team.id);

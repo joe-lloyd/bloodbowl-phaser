@@ -596,7 +596,7 @@ export function MatchResultsScreen({
             <button
               onClick={() => void confirmSpp()}
               disabled={pendingMvpTeams.length > 0 || busy}
-              className={`${hudButtonClass("gold", "lg")} mt-5`}
+              className={`${hudButtonClass("primary", "lg")} mt-5`}
             >
               Confirm and assign SPP
             </button>

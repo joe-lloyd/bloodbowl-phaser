@@ -48,7 +48,7 @@ export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
           </HudButton>
           <HudButton
             data-testid="reaction-yes"
-            variant="gold"
+            variant="primary"
             hotkey="y"
             onClick={() => {
               answer(true);

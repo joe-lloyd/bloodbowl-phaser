@@ -106,12 +106,12 @@ function ConfirmationModalView({
             {confirmationLabel(data.cancelLabel, "Cancel")}
           </HudButton>
           {data.alternativeLabel && (
-            <HudButton variant="primary" onClick={handleAlternative}>
+            <HudButton variant="secondary" onClick={handleAlternative}>
               {data.alternativeLabel}
             </HudButton>
           )}
           <HudButton
-            variant={data.risky ? "primary" : "gold"}
+            variant="primary"
             hotkey="Enter"
             onClick={handleConfirm}
           >

@@ -105,7 +105,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
               <div key={source}>
                 <HudButton
                   data-testid={`reroll-use-${source}`}
-                  variant={source === "veteran" ? "secondary" : "gold"}
+                  variant={offered.length === 1 ? "primary" : "secondary"}
                   block
                   hotkey={String(index + 1)}
                   onClick={() => {

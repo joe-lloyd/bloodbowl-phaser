@@ -81,7 +81,7 @@ function ApothecaryActions({ answer }: { answer: (accept: boolean) => void }) {
         DECLINE
       </HudButton>
       <HudButton
-        variant="gold"
+        variant="primary"
         hotkey="y"
         onClick={() => {
           answer(true);

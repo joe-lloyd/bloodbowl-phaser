@@ -48,7 +48,7 @@ function CharacterList({ state, selected, onSelect }: { readonly state: StudioSt
     <Section title="Characters" bodyClassName="flex flex-col gap-1">
       {state.characters.length === 0 && <p className="text-hud-sm text-hud-mute">None yet.</p>}
       {state.characters.map(({ key, label }) => (
-        <HudButton key={key} size="sm" variant={key === selected ? "gold" : "ghost"} block onClick={() => { onSelect(key); }}>{label}</HudButton>
+        <HudButton key={key} size="sm" variant={key === selected ? "selected" : "ghost"} block onClick={() => { onSelect(key); }}>{label}</HudButton>
       ))}
     </Section>
   );
@@ -110,7 +110,7 @@ function Workbench({ studio, state }: WorkbenchProps) {
           <div className="min-w-0">
             <div className="sticky top-0 z-10 mb-3 flex items-center gap-3 bg-hud-ink py-2">
               <HudButton
-                variant="success"
+                variant="primary"
                 disabled={saving || !dirty || problem !== null}
                 onClick={() => void save(character)}
               >

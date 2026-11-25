@@ -281,7 +281,7 @@ function BribeChoice({
       </HudButton>
       <HudButton
         data-testid="bribe-yes"
-        variant="gold"
+        variant="primary"
         hotkey="y"
         onClick={() => {
           answer(true);

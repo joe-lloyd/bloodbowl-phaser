@@ -4,8 +4,7 @@ import { cx } from "./hudTone";
 
 export type HudButtonVariant =
   | "primary"
-  | "gold"
-  | "success"
+  | "selected"
   | "secondary"
   | "ghost"
   | "danger";
@@ -14,9 +13,7 @@ export type HudButtonSize = "xs" | "sm" | "md" | "lg";
 const VARIANT: Record<HudButtonVariant, string> = {
   primary:
     "bg-hud-blood text-white border-hud-blood-edge/70 shadow-hud-press-blood hover:bg-hud-blood-hot",
-  gold: "bg-hud-gold text-hud-ink border-hud-gold-hi shadow-hud-press-gold hover:bg-[#f0c45a]",
-  success:
-    "bg-[#2f7a3a] text-white border-hud-good/80 shadow-[0_3px_0_#123d1a] hover:bg-[#38904a]",
+  selected: "bg-hud-gold text-hud-ink border-hud-gold-hi shadow-hud-press-gold hover:bg-[#f0c45a]",
   secondary:
     "bg-hud-raise text-hud-bone border-white/15 shadow-hud-press-dark hover:border-hud-gold/60 hover:bg-hud-edge",
   ghost:
