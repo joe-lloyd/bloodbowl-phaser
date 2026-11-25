@@ -1,7 +1,7 @@
 import { copyFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import type { Character } from "../boundary/studio";
-import { CHARACTERS, PUBLISHES, TREE, TREE_CHARACTERS } from "./paths";
+import { DRAFTS, PUBLISHES, TREE, TREE_CHARACTERS } from "./paths";
 import { run, type OnLine } from "./run";
 
 const BRANCH = "studio/art";
@@ -23,7 +23,12 @@ export async function refreshTree(): Promise<void> {
   const pending = await openPullRequest();
   await git("checkout", "-q", "-B", BRANCH, pending ? `origin/${BRANCH}` : "origin/main");
   if (!pending) return;
-  await git("rebase", "-q", "origin/main").catch(() => git("rebase", "--abort"));
+  try {
+    await git("rebase", "-q", "origin/main");
+  } catch {
+    await git("rebase", "--abort");
+    throw new Error(`The open art pull request conflicts with main. Merge or close it, then export again: ${pending}`);
+  }
 }
 
 export async function publish(character: Character, onLine: OnLine): Promise<void> {
@@ -34,7 +39,7 @@ export async function publish(character: Character, onLine: OnLine): Promise<voi
   }
   mkdirSync(TREE_CHARACTERS, { recursive: true });
   const file = `${character.key}.json`;
-  copyFileSync(path.join(CHARACTERS, file), path.join(TREE_CHARACTERS, file));
+  copyFileSync(path.join(DRAFTS, file), path.join(TREE_CHARACTERS, file));
   await git("add", "-A", ...ART);
   if (await git("status", "--porcelain", "--", ...ART)) {
     await git("-c", "core.hooksPath=/dev/null", "commit", "-q", "-m", `art: export ${character.label} from the character studio`);
