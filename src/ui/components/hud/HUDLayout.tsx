@@ -21,7 +21,7 @@ interface HUDLayoutProps {
 const column =
   "absolute top-4 bottom-4 flex w-72 max-w-[40vw] flex-col gap-3 overflow-y-auto no-scrollbar";
 const stack = "flex min-h-0 flex-col gap-3";
-const top = `${stack} overflow-y-auto hud-scroll`;
+const top = `${stack} overflow-y-auto hud-scroll empty:hidden`;
 const bottom = `${stack} mt-auto shrink-0`;
 const filling = `${stack} flex-1 [justify-content:safe_flex-end]`;
 const panels = { [HUD_PANELS_ATTRIBUTE]: "" };

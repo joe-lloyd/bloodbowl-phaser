@@ -63,7 +63,8 @@ scroll inside it. The main button stays in view.
 [`HudBanner.tsx`](../../src/ui/components/componentWarehouse/HudBanner.tsx) has
 all three.
 
-- `BroadcastBanner` announces a result across the top. Red is a turnover.
+- `BroadcastBanner` announces a result across the top. The turnover is a
+  deliberate exception: huge, tilted and in the middle of the screen.
 - `PitchNotice` is a short message over the pitch. Its edge is red when
   something is wrong.
 - `WaitingLine` says who the coach is waiting for, inside a panel.

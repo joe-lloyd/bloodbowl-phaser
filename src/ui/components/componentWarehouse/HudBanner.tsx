@@ -4,17 +4,14 @@ import { cx } from "./hudTone";
 const HEADLINE = {
   strong: { edge: "border-hud-gold bg-hud-ink/95", text: "text-hud-bone" },
   quiet: { edge: "border-white/30 bg-hud-ink/85", text: "text-hud-dim" },
-  bad: { edge: "border-hud-gold bg-hud-blood", text: "text-white" },
 } as const;
 
 export function BroadcastBanner({
   headline,
   subtitle,
   tone = "strong",
-  as: Headline = "span",
 }: {
   headline: ReactNode;
-  as?: "span" | "h1";
   subtitle?: ReactNode;
   tone?: keyof typeof HEADLINE;
 }) {
@@ -26,22 +23,17 @@ export function BroadcastBanner({
           HEADLINE[tone].edge
         )}
       >
-        <Headline
+        <span
           className={cx(
             "block skew-x-12 text-center font-hud-display text-hud-4xl uppercase tracking-[0.04em] [text-shadow:0_3px_0_theme(colors.hud.ink)] phone:text-hud-2xl",
             HEADLINE[tone].text
           )}
         >
           {headline}
-        </Headline>
+        </span>
       </div>
       {subtitle && (
-        <div
-          className={cx(
-            "-mt-px max-w-[min(900px,calc(100vw-40rem))] -skew-x-12 px-6 py-1 phone:max-w-[calc(100vw-48px)]",
-            tone === "bad" ? "bg-hud-ink/95" : "bg-hud-blood"
-          )}
-        >
+        <div className="-mt-px max-w-[min(900px,calc(100vw-40rem))] -skew-x-12 bg-hud-blood px-6 py-1 phone:max-w-[calc(100vw-48px)]">
           <span className="block skew-x-12 text-center font-hud-label text-hud-lg font-bold tracking-[0.04em] text-white phone:text-hud-base">
             {subtitle}
           </span>

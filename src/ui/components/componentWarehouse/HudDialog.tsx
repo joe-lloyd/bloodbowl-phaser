@@ -99,7 +99,7 @@ export function DialogActions({
   return (
     <div
       className={cx(
-        "flex gap-2",
+        "flex gap-2 phone:landscape:gap-1",
         stack ? "flex-col" : "flex-wrap [&>button]:flex-auto"
       )}
     >

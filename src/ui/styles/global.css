@@ -235,9 +235,9 @@
 
 /*
  * The match HUD on a phone. Sideways, the buttons and the score share one row
- * and the right column starts under the corner buttons. Upright, the score
- * takes the whole width, the buttons sit under it, and a decision opens as a
- * sheet across the bottom.
+ * and both columns start under the strip. Upright, the score takes the whole
+ * width, the buttons sit under it, and a decision opens as a sheet across the
+ * bottom.
  */
 .phone-hud {
   --edge-top: calc(env(safe-area-inset-top) + 8px);
@@ -262,7 +262,7 @@
 }
 .phone-strip {
   width: 100%;
-  max-width: calc(100vw - var(--column) - var(--edge-right) - 140px);
+  max-width: 520px;
 }
 .phone-bottom-bar {
   bottom: var(--edge-bottom);
@@ -294,7 +294,7 @@
 }
 .phone-column-right {
   right: var(--edge-right);
-  top: calc(var(--edge-top) + 52px);
+  top: calc(var(--edge-top) + 72px);
 }
 @media (orientation: portrait) {
   .phone-hud {
@@ -309,9 +309,6 @@
   }
   .phone-top-bar > :last-child {
     grid-column: 3;
-  }
-  .phone-strip {
-    max-width: none;
   }
   .phone-card {
     --card-top: calc(var(--edge-top) + 136px);
