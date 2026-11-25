@@ -83,6 +83,9 @@ file with the art it produced.
 - **Export to the game** renders the saved character layered on Jellybingus, runs `install_layered.py`
   and points the positions under "Plays as" at it. Commit the changed files and open a pull request.
 - "Keep the base model's options" locks the parts those options control. "Set my own" unlocks them.
+- A look option adds parts to a base figure. It cannot change the body, such as the head or hunch. An
+  export stops before installing when a choice hides a base part. Hair under a helmet is the usual case:
+  make the hair a choice in the same option.
 - "Parts made for this base" are the parts its Python class draws itself, such as a goblin's nose.
 - Previews and exports run one at a time, over SSH in `bloodbowl-studio` in the home folder of the
   render machine. `STUDIO_BLENDER_HOST` names another Windows machine. `BLENDER` runs a local Blender.

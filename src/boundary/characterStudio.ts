@@ -58,7 +58,7 @@ export type OwnOption = z.infer<typeof ownOption>;
 export type LayoutValues = z.infer<typeof layout>;
 export type LayoutValue = z.infer<typeof scalar>;
 
-const fieldBase = { key: z.string(), generic: z.boolean() };
+const fieldBase = { key: z.string(), generic: z.boolean(), optional: z.boolean(), layered: z.boolean() };
 const field = z.discriminatedUnion("kind", [
   z.object({ ...fieldBase, kind: z.literal("toggle") }),
   z.object({ ...fieldBase, kind: z.literal("number") }),

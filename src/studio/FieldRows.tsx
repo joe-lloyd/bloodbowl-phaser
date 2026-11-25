@@ -66,7 +66,7 @@ function FieldControl({ id, field, value, catalog, disabled, onChange }: Control
         disabled={disabled}
         onChange={(event) => { onChange(event.target.value === NONE ? null : event.target.value); }}
       >
-        <option value={NONE}>None</option>
+        {(field.optional || value === null) && <option value={NONE}>None</option>}
         {value === true && <option value={ON}>On</option>}
         {optionsOf(field, catalog, value).map((name) => (
           <option key={name} value={name}>{words(name)}</option>

@@ -48,15 +48,23 @@ async function exportCharacter(character: Character, onLine: OnLine): Promise<vo
   await prepareReference();
   writeDraft(character);
   onLine(`Rendering ${key} on ${renderer.name}`);
-  await renderer.layers(key, onLine);
+  const warnings: string[] = [];
+  await renderer.layers(key, (line) => {
+    onLine(line);
+    if (line.startsWith(`WARN ${key} `)) warnings.push(line);
+  });
+  if (character.looks.kind === "own" && warnings.length > 0) {
+    throw new Error("Not installed. A look choice hides parts of the base figure. Set those parts as a choice in the same option.");
+  }
   await run({ program: "python3", args: ["install_layered.py", path.join(WORK, "layered"), "--characters", DRAFTS, key], cwd: FACTORY, onLine });
   onLine("Installed. Changed files:");
   await run({ program: "git", args: ["status", "--short", "--", ...ART], cwd: REPO, onLine });
 }
 
-function startExport(key: string): StudioJob {
+async function startExport(key: string): Promise<StudioJob> {
   const character = readCharacters().find((saved) => saved.key === key);
   if (!character) throw new Error(`Save ${key} before you export it`);
+  checkCharacter(character, await readCatalog());
   return queue.add("export", key, (onLine) => exportCharacter(character, onLine));
 }
 

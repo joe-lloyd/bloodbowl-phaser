@@ -7,15 +7,38 @@ against its base's reference sprite, times height. looks is {"kind": "base"} to 
 src/boundary/characterStudio.ts.
 """
 import glob
+import inspect
 import json
 import os
+import re
 
-from . import looks, registry
+from . import core, looks, parts, plans, registry
 from .plans import Biped
 
 STAND_INS = {"m": "Male", "f": "Female", "x": "Own build"}
-# A body part always needs a material or a kind, so an option's empty state leaves the character's own.
-BODY_KEYS = {"skin", "torso", "arms", "forearms", "legs", "gloves", "boots", "sole", "head", "eyes", "ears", "brow", "lip"}
+
+
+def generic_source():
+    return "\n".join(inspect.getsource(module) for module in (core, parts, plans))
+
+
+def drawn_keys(source):
+    """Layout keys a piece of drawing code reads from its layout L."""
+    return set(re.findall(r'\bL(?:\.get\(|\[)"([a-z]\w*)"', source))
+
+
+def optional_keys(source):
+    """Keys the code asks for without a default, so None turns them off. The others need a value."""
+    return set(re.findall(r'\bL\.get\("([a-z]\w*)"\)', source))
+
+
+GENERIC = drawn_keys(generic_source())
+OPTIONAL = optional_keys(generic_source())
+
+
+def can_be_off(key):
+    """Whether a layout key may be None; keys a team's own parts read always may."""
+    return key in OPTIONAL or key not in GENERIC
 
 
 def tupled(value):
@@ -28,9 +51,10 @@ def tupled(value):
 
 
 def empty_state(values):
-    """The layout of an option with nothing chosen: every part key its values set is off."""
+    """The layout of an option with nothing chosen: every part its values set is off.
+    Keys that always need a value keep the character's own."""
     keys = {k for v in values for k in (v["layout"] or {})}
-    return {k: None for k in keys if k not in BODY_KEYS and not k.endswith("_mat")}
+    return {k: None for k in keys if can_be_off(k)}
 
 
 def own_looks(cls, spec, body):

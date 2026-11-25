@@ -3,6 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { checkCharacter } from "../../scripts/studio/characterFiles";
 import { characterProblem, parseCatalog, type Character } from "../../src/boundary/characterStudio";
 
 const RAIDER: Character = {
@@ -58,6 +59,34 @@ describe("character studio catalogue", () => {
     const catalog = catalogWith({ ...RAIDER, looks: { kind: "base" } });
     const model = catalog.models.find((entry) => entry.key === "bog_raider");
     expect(model?.options.map((option) => option.name)).toEqual(["head", "pads"]);
+  });
+
+  it("says which fields always need a value and which a look option can change", () => {
+    const fields = new Map(catalogWith().fields.map((field) => [field.key, field]));
+    const offered = (key: string) => [fields.get(key)?.optional, fields.get(key)?.layered];
+    expect(offered("skin")).toEqual([false, true]);
+    expect(offered("helm")).toEqual([true, true]);
+    expect(offered("pothelm")).toEqual([true, true]);
+    expect(offered("head")).toEqual([false, false]);
+    expect(offered("hunch")).toEqual([false, false]);
+    expect(offered("no_arms")[1]).toBe(false);
+  });
+
+  it("refuses a character with no skin or a look option that changes the body", () => {
+    const catalog = catalogWith();
+    const own = (layout: Character["layout"]): Character => ({
+      ...RAIDER,
+      looks: { kind: "own", bodies: ["m"], options: [{ name: "a", label: "A", values: [{ value: "b", label: "B", layout }] }] },
+    });
+    expect(() => { checkCharacter({ ...RAIDER, layout: { skin: null } }, catalog); }).toThrow("skin always needs a value");
+    expect(() => { checkCharacter(own({ skin: null }), catalog); }).toThrow("skin always needs a value");
+    expect(() => { checkCharacter(own({ head: "skull" }), catalog); }).toThrow("head changes the body");
+    expect(() => { checkCharacter(own({ helm: "open", skin: "skin_orc" }), catalog); }).not.toThrow();
+  });
+
+  it("refuses inherited look options whose parts are left out", () => {
+    const character: Character = { ...RAIDER, parts: "drop", looks: { kind: "base" } };
+    expect(() => { checkCharacter(character, catalogWith()); }).toThrow("Keep those parts or set your own options");
   });
 
   it("drops a saved character's look options when a later copy has none", () => {

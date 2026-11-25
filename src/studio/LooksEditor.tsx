@@ -54,7 +54,7 @@ function ValueEditor({ index, ...props }: OptionEditorProps & { readonly index: 
       </div>
       <FieldRows
         catalog={catalog}
-        fields={usableFields(catalog, character)}
+        fields={usableFields(catalog, character).filter((field) => field.layered)}
         inherited={{}}
         layout={value.layout ?? {}}
         locked={NOTHING_LOCKED}

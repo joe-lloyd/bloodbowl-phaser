@@ -13,7 +13,6 @@ import inspect
 import io
 import json
 import os
-import re
 import sys
 from unittest.mock import MagicMock
 
@@ -33,11 +32,6 @@ def stand_in():
     sys.path.insert(0, FACTORY)
     for name in ("bpy", "mathutils", "numpy", "bmesh"):
         sys.modules[name] = MagicMock()
-
-
-def drawn_keys(source):
-    """Layout keys a piece of drawing code reads from its layout L."""
-    return set(re.findall(r'\bL(?:\.get\(|\[)"([a-z]\w*)"', source))
 
 
 def own_source(cls):
@@ -70,6 +64,7 @@ def scalars(layout):
 
 def model_entry(key, model, spec, generic, is_character):
     cls = type(model)
+    from lib.characters import drawn_keys
     reads = drawn_keys(own_source(cls))
     used = set(model.layout) | set(slot_keys(spec))
     return dict(key=key, character=is_character, doc=(cls.__doc__ or "").strip().split("\n")[0], race=model.race,
@@ -79,6 +74,10 @@ def model_entry(key, model, spec, generic, is_character):
                 bodies=[list(v) for v in spec.options[0][2]] if spec else [], lookKeys=slot_keys(spec),
                 options=[dict(name=n, label=label, values=[dict(value=v, label=text) for v, text in vals])
                          for n, label, vals in (spec.options[1:] if spec else [])])
+
+
+# Parts of the body itself: a layer can add to the base figure but cannot take these from it.
+BODY_SWITCHES = {"no_arms", "no_legs"}
 
 
 def fields(models, looks, races, materials, generic):
@@ -96,11 +95,14 @@ def fields(models, looks, races, materials, generic):
         seen.setdefault(key, []).extend(values)
     for key in generic:
         seen.setdefault(key, [])
+    from lib.characters import can_be_off
     out = []
     for key, values in sorted(seen.items()):
         field = field_kind([v for v in values if v is not None], materials)
         if field:
-            out.append(dict(key=key, generic=key in generic, **field))
+            part = can_be_off(key) and key not in BODY_SWITCHES
+            out.append(dict(key=key, generic=key in generic, optional=can_be_off(key) or None in values,
+                            layered=part or field["kind"] == "material", **field))
     return out
 
 
@@ -119,13 +121,13 @@ def field_kind(values, materials):
 
 def catalogue(folders):
     stand_in()
-    from lib import characters, core, parts, palette, plans, registry
+    from lib import characters, palette, plans, registry
     errors = registry.load_all(FACTORY)
     python_models = set(registry.MODELS)
     for folder in folders:
         characters.load(folder, errors)
     materials = {**{k: list(v) for k, v in palette.RAMPS.items()}, **{k: [v] for k, v in palette.FLAT.items()}}
-    generic = drawn_keys("\n".join(inspect.getsource(m) for m in (core, parts, plans)))
+    generic = characters.GENERIC
     bipeds = {k: m for k, m in registry.MODELS.items() if "__" not in k and isinstance(m, plans.Biped)}
     looks = {k: registry.LOOKS[k] for k in bipeds if k in registry.LOOKS}
     return dict(

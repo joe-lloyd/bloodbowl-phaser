@@ -34,10 +34,31 @@ function write(folder: string, character: Character): void {
   writeFileSync(path.join(folder, `${character.key}.json`), `${JSON.stringify(character, null, 2)}\n`);
 }
 
+function checkFields(character: Character, catalog: Catalog): void {
+  const choices = character.looks.kind === "own" ? character.looks.options.flatMap((option) => option.values) : [];
+  const fields = new Map(catalog.fields.map((field) => [field.key, field]));
+  const refuse = (key: string, reason: string) => {
+    throw new Error(`${key} ${reason}`);
+  };
+  for (const layout of [character.layout, ...choices.map((choice) => choice.layout ?? {})]) {
+    for (const [key, value] of Object.entries(layout)) {
+      if (value === null && fields.get(key)?.optional === false) refuse(key, "always needs a value");
+    }
+  }
+  for (const key of choices.flatMap((choice) => Object.keys(choice.layout ?? {}))) {
+    if (fields.get(key)?.layered === false) refuse(key, "changes the body, so set it on the character and not in a look option");
+  }
+}
+
 export function checkCharacter(character: Character, catalog: Catalog): void {
   const base = catalog.models.find((model) => model.key === character.base);
   if (!base || base.character) throw new Error(`${character.base} is not a model a character can start from`);
   if (!catalog.races.some((race) => race.key === character.race)) throw new Error(`Unknown race ${character.race}`);
+  checkFields(character, catalog);
+  const inherited = character.looks.kind === "base" ? base.lookKeys : [];
+  if (character.parts === "drop" && inherited.some((key) => base.ownKeys.includes(key))) {
+    throw new Error("The base's look options use parts made for it. Keep those parts or set your own options.");
+  }
   const taken = catalog.models.some((model) => model.key === character.key && !model.character);
   const isCharacter = readCharacters().some((saved) => saved.key === character.key);
   if (taken || (!isCharacter && installedModels().includes(character.key))) {
