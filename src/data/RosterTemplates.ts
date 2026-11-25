@@ -3199,3 +3199,14 @@ export function getAvailableRosterNames(): RosterName[] {
   ];
 }
 
+const SECRET_ROSTER_NAMES: readonly RosterName[] = [RosterName.WITCH_ELF];
+
+export function getSecretRosterNames(): readonly RosterName[] {
+  return SECRET_ROSTER_NAMES;
+}
+
+export function getStandardRosterNames(): RosterName[] {
+  return getAvailableRosterNames().filter(
+    (name) => !SECRET_ROSTER_NAMES.includes(name)
+  );
+}

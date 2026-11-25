@@ -147,3 +147,16 @@ test("the roster picker animates lineups and browses extra rosters", async ({
     page.getByRole("combobox", { name: "Roster", exact: true })
   ).toHaveValue("Amazon");
 });
+
+test("Witch Elves are built from the secret rosters", async ({ page }) => {
+  await page.goto("/build-team/new-team");
+  const card = page.getByTestId("roster-choice-Witch Elf");
+  await expect(page.getByTestId("roster-choice-Wood Elf")).toBeVisible();
+  await expect(card).toHaveCount(0);
+  await page.getByRole("tab", { name: "Secret team rosters" }).click();
+  await expect(card.locator("img")).toHaveJSProperty("naturalWidth", 1760);
+  await card.click();
+  await expect(
+    page.getByRole("combobox", { name: "Roster", exact: true })
+  ).toHaveValue("Witch Elf");
+});
