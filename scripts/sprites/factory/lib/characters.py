@@ -14,7 +14,7 @@ from . import looks, registry
 from .plans import Biped
 
 STAND_INS = {"m": "Male", "f": "Female", "x": "Own build"}
-# A body part always needs a material or a kind, so an option's empty state keeps the character's own.
+# A body part always needs a material or a kind, so an option's empty state leaves the character's own.
 BODY_KEYS = {"skin", "torso", "arms", "forearms", "legs", "gloves", "boots", "sole", "head", "eyes", "ears", "brow", "lip"}
 
 
@@ -27,10 +27,10 @@ def tupled(value):
     return value
 
 
-def empty_state(values, layout):
+def empty_state(values):
     """The layout of an option with nothing chosen: every part key its values set is off."""
     keys = {k for v in values for k in (v["layout"] or {})}
-    return {k: layout.get(k) if k in BODY_KEYS or k.endswith("_mat") else None for k in keys}
+    return {k: None for k in keys if k not in BODY_KEYS and not k.endswith("_mat")}
 
 
 def own_looks(cls, spec, body):
@@ -39,7 +39,7 @@ def own_looks(cls, spec, body):
     for option in spec["options"]:
         values = option["values"]
         options.append([option["name"], option["label"], [[v["value"], v["label"]] for v in values]])
-        slots[option["name"]] = (empty_state(values, cls.layout),
+        slots[option["name"]] = (empty_state(values),
                                  {v["value"]: tupled(v["layout"]) or looks.EMPTY for v in values})
     return looks.Looks(cls, options, slots, body)
 
@@ -69,6 +69,7 @@ def register_character(spec):
     cls = character_class(spec)
     inherited = registry.LOOKS.get(spec["base"])
     registry.register(cls)
+    registry.LOOKS.pop(cls.key, None)      # a draft without look options replaces a saved character with them
     kind = spec["looks"]["kind"]
     if kind == "own":
         registry.register_looks(cls.key, own_looks(cls, spec["looks"], body_layouts(inherited)))

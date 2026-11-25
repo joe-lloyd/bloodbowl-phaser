@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseCatalog, parseCharacter, parseSpriteManifest, type Catalog, type Character } from "../../src/boundary/characterStudio";
 import { CHARACTERS, DRAFTS, FACTORY, MANIFEST } from "./paths";
@@ -50,5 +50,6 @@ export function writeCharacter(character: Character): void {
 }
 
 export function writeDraft(character: Character): void {
+  rmSync(DRAFTS, { recursive: true, force: true });
   write(DRAFTS, character);
 }

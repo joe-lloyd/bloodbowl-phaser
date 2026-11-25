@@ -22,10 +22,20 @@ function unique(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
 }
 
+function sharedKeys(options: readonly z.infer<typeof ownOption>[]): string[] {
+  const keys = options.flatMap((option) => [...new Set(option.values.flatMap((value) => Object.keys(value.layout ?? {})))]);
+  return [...new Set(keys.filter((name, index) => keys.indexOf(name) !== index))];
+}
+
 const ownLooks = z
   .object({ kind: z.literal("own"), bodies: z.array(body).min(1), options: z.array(ownOption) })
   .refine((looks) => unique(looks.options.map((option) => option.name)), "Two look options share a name")
-  .refine((looks) => looks.options.every((option) => unique(option.values.map((v) => v.value))), "Two values of one look option share a name");
+  .refine((looks) => looks.options.every((option) => unique(option.values.map((v) => v.value))), "Two values of one look option share a name")
+  .superRefine((looks, context) => {
+    for (const name of sharedKeys(looks.options)) {
+      context.addIssue({ code: "custom", message: `Two look options both set ${name}. Set it in one of them.` });
+    }
+  });
 
 const characterSchema = z.object({
   key,

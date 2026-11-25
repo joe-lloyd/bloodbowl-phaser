@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { studioEnvironment } from "../../src/boundary/characterStudio";
-import { FACTORY, WORK } from "./paths";
+import { DRAFTS, FACTORY, WORK } from "./paths";
 import { run, type OnLine } from "./run";
 
 interface Renderer {
@@ -12,6 +12,7 @@ interface Renderer {
 
 const REMOTE = "bloodbowl-studio";
 const REMOTE_BLENDER = String.raw`"C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"`;
+const CHARACTER_FLAG = "--characters";
 const SOURCES = ["lib", "teams", "characters", "reference", "team_render.ps1"];
 const HEADLESS = ["-b", "--factory-startup", "--python", "lib/render.py", "--"];
 const STYLE = ["--density", "2", "--dither", "0"];
@@ -35,10 +36,10 @@ function localRenderer(blender: string): Renderer {
   return {
     name: blender,
     preview: async (key, args, onLine) => {
-      expectLine(await render([...args, "--characters", path.join(WORK, "drafts")], onLine), `PREVIEW ${key} `);
+      expectLine(await render([...args, CHARACTER_FLAG, DRAFTS], onLine), `PREVIEW ${key} `);
     },
     layers: async (key, onLine) => {
-      const args = ["--layers", "--models", key, ...STYLE, "--frames", "run=12", "--verify", "2"];
+      const args = ["--layers", "--models", key, ...STYLE, "--frames", "run=12", "--verify", "2", CHARACTER_FLAG, DRAFTS];
       expectLine(await render(args, onLine), `DONE ${key} `);
     },
   };
@@ -63,7 +64,7 @@ function remoteRenderer(host: string): Renderer {
     name: host,
     preview: async (key, args, onLine) => {
       await sync(onLine);
-      const command = [REMOTE_BLENDER, ...HEADLESS, ...args, "--characters", "drafts", "--out", "out-studio"].join(" ");
+      const command = [REMOTE_BLENDER, ...HEADLESS, ...args, CHARACTER_FLAG, "drafts", "--out", "out-studio"].join(" ");
       expectLine(await inside(command, onLine), `PREVIEW ${key} `);
       mkdirSync(path.join(WORK, "preview"), { recursive: true });
       await copy(`${host}:${REMOTE}/out-studio/preview/${key}.png`, path.join(WORK, "preview"));
@@ -71,7 +72,7 @@ function remoteRenderer(host: string): Renderer {
     layers: async (key, onLine) => {
       await sync(onLine);
       await inside(`(del /q stash-out-studio\\${key}__*.pkl 2>nul & rmdir /s /q out-studio\\layered\\${key} 2>nul & echo cleared)`, onLine);
-      await inside(`powershell -NoProfile -ExecutionPolicy Bypass -File team_render.ps1 -Models ${key} -Out out-studio`, onLine);
+      await inside(`powershell -NoProfile -ExecutionPolicy Bypass -File team_render.ps1 -Models ${key} -Out out-studio -Characters drafts`, onLine);
       expectLine(await inside(`type logs-out-studio\\pack-${key}.log`, onLine), `DONE ${key} `);
       await inside(`tar -czf layered.tgz -C out-studio/layered ${key}`, onLine);
       await copy(`${host}:${REMOTE}/layered.tgz`, path.join(WORK, "layered.tgz"));

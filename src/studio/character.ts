@@ -56,6 +56,12 @@ export function controlledKeys(catalog: Catalog, character: Character): Readonly
   return new Set(layouts.flatMap((layout) => Object.keys(layout)));
 }
 
+export function buildIsChosenByLooks(catalog: Catalog, character: Character): boolean {
+  const { looks } = character;
+  const bodies = looks.kind === "own" ? looks.bodies : (findBase(catalog, character)?.bodies.map(([value]) => value) ?? []);
+  return bodies.length > 0 && !bodies.includes("x");
+}
+
 export function usableFields(catalog: Catalog, character: Character): CatalogField[] {
   const own = new Set(character.parts === "keep" ? findBase(catalog, character)?.ownKeys : []);
   return catalog.fields.filter((field) => field.generic || own.has(field.key));

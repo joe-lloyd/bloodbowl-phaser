@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import type { Plugin } from "vite";
-import { CHARACTER_KEY, parseCharacter, parsePreview, type StudioJob, type StudioState } from "../../src/boundary/characterStudio";
+import { CHARACTER_KEY, parseCharacter, parsePreview, type Character, type StudioJob, type StudioState } from "../../src/boundary/characterStudio";
 import { createRenderer, previewArgs } from "./blender";
 import {
   checkCharacter,
@@ -43,20 +43,21 @@ async function state(): Promise<StudioState> {
   };
 }
 
-async function exportCharacter(key: string, onLine: OnLine): Promise<void> {
+async function exportCharacter(character: Character, onLine: OnLine): Promise<void> {
+  const { key } = character;
   await prepareReference();
-  rmSync(DRAFTS, { recursive: true, force: true });
-  mkdirSync(DRAFTS, { recursive: true });
+  writeDraft(character);
   onLine(`Rendering ${key} on ${renderer.name}`);
   await renderer.layers(key, onLine);
-  await run({ program: "python3", args: ["install_layered.py", path.join(WORK, "layered"), key], cwd: FACTORY, onLine });
+  await run({ program: "python3", args: ["install_layered.py", path.join(WORK, "layered"), "--characters", DRAFTS, key], cwd: FACTORY, onLine });
   onLine("Installed. Changed files:");
   await run({ program: "git", args: ["status", "--short", "--", ...ART], cwd: REPO, onLine });
 }
 
 function startExport(key: string): StudioJob {
-  if (!readCharacters().some((character) => character.key === key)) throw new Error(`Save ${key} before you export it`);
-  return queue.add("export", key, (onLine) => exportCharacter(key, onLine));
+  const character = readCharacters().find((saved) => saved.key === key);
+  if (!character) throw new Error(`Save ${key} before you export it`);
+  return queue.add("export", key, (onLine) => exportCharacter(character, onLine));
 }
 
 async function startPreview(request: IncomingMessage): Promise<StudioJob> {

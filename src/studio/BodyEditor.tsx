@@ -1,7 +1,7 @@
 import type { Catalog, Character } from "../boundary/characterStudio";
 import { Input, Select } from "../ui/components/common/NativeControls";
 import { Field, Section } from "../ui/components/componentWarehouse/HudKit";
-import { findBase, inheritedKnob, withoutKey, words, type Change } from "./character";
+import { buildIsChosenByLooks, findBase, inheritedKnob, withoutKey, words, type Change } from "./character";
 import { NumberRow } from "./NumberRows";
 
 interface EditorProps {
@@ -50,6 +50,7 @@ function rangeOf(name: string): typeof FACTOR {
 
 export function BasicsEditor({ catalog, character, onChange }: EditorProps) {
   const base = findBase(catalog, character);
+  const lookBuild = buildIsChosenByLooks(catalog, character);
   return (
     <Section title="Character" aside={`Starts from ${words(character.base)}`} bodyClassName="grid grid-cols-2 gap-3">
       <Field label="Name">
@@ -60,10 +61,11 @@ export function BasicsEditor({ catalog, character, onChange }: EditorProps) {
           {catalog.races.map((race) => <option key={race.key} value={race.key}>{words(race.key)}</option>)}
         </Select>
       </Field>
-      <Field label="Build">
+      <Field label="Build" hint={lookBuild ? "The body look option sets this." : undefined}>
         <Select
           className="hud-field"
           value={character.sex}
+          disabled={lookBuild}
           onChange={(event) => { onChange({ sex: SEXES.find(({ value }) => value === event.target.value)?.value ?? "x" }); }}
         >
           {SEXES.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}

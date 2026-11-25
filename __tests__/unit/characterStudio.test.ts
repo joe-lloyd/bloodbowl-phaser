@@ -60,6 +60,16 @@ describe("character studio catalogue", () => {
     expect(model?.options.map((option) => option.name)).toEqual(["head", "pads"]);
   });
 
+  it("drops a saved character's look options when a later copy has none", () => {
+    const plain = { ...RAIDER, base: "minotaur", race: "minotaur" };
+    const catalog = catalogWith(plain, { ...plain, looks: { kind: "base" }, layout: { skin: "fur_white" } });
+    const base = catalog.models.find((entry) => entry.key === "minotaur");
+    const model = catalog.models.find((entry) => entry.key === "bog_raider");
+    expect(base?.options).toEqual([]);
+    expect(model?.options).toEqual([]);
+    expect(model?.layout["skin"]).toBe("fur_white");
+  });
+
   it("reports a character it cannot build and keeps the others", () => {
     const catalog = catalogWith({ ...RAIDER, base: "no_such_model" }, { ...RAIDER, key: "marsh_raider" });
     expect(Object.keys(catalog.errors)).toEqual(["0.json"]);
@@ -74,6 +84,12 @@ describe("character studio catalogue", () => {
 describe("character files", () => {
   it.each(["../thrall", "bog__raider", "Bog", "bog raider", "bog&dir"])("rejects the key %s", (key) => {
     expect(characterProblem({ ...RAIDER, key })).not.toBeNull();
+  });
+
+  it("rejects two look options that set the same part", () => {
+    const helm = (name: string) => ({ name, label: name, values: [{ value: "a", label: "A", layout: { helm: "open" } }] });
+    const problem = characterProblem({ ...RAIDER, looks: { kind: "own", bodies: ["m"], options: [helm("hat"), helm("head")] } });
+    expect(problem).toContain("Two look options both set helm");
   });
 
   it("accepts a complete character", () => {
