@@ -1,0 +1,16 @@
+{
+  "witch_novice": [
+    ["body", "Body", [["f", "Female"]]],
+    ["hair", "Hair", [["ponytail", "Black ponytail"], ["braid", "Red braid"], ["swept", "White, swept back"], ["bun", "Blond bun"], ["topknot", "Pink topknot"], ["wild", "Wild black"]]],
+    ["top", "Top", [["bandeau", "Bandeau"], ["halter", "Halter"], ["strap", "One strap"]]],
+    ["bottom", "Bottom", [["briefs", "Briefs"], ["sash", "Briefs and sash"], ["loin", "Loincloth"]]],
+    ["marks", "Extras", [["none", "Nothing"], ["paint", "War paint"], ["mask", "Face mask"], ["stockings", "Striped stockings"]]]
+  ],
+  "witch_priestess": [
+    ["body", "Body", [["f", "Female"]]],
+    ["hair", "Hair", [["sleek", "Long and sleek"], ["mane", "Wild mane"], ["braid", "Braid"]]],
+    ["crown", "Crown", [["horns", "Horn crown"], ["swept", "Swept gold horns"]]],
+    ["cape", "Cape", [["long", "Long cape"], ["short", "Short cape"], ["none", "Nothing"]]],
+    ["pads", "Shoulders", [["both", "Both spiked"], ["left", "Left only"], ["none", "Bare"]]]
+  ]
+}

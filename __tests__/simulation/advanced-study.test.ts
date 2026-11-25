@@ -113,7 +113,7 @@ describe("advanced skill study", () => {
   });
   it("mirrors identical seed and variants and retains three comparison arms", () => {
     const jobs = advancedSchedule(variants);
-    expect(jobs).toHaveLength(1992);
+    expect(jobs).toHaveLength(2016);
     expect(new Set(jobs.map((j) => j.id)).size).toBe(jobs.length);
     for (let i = 0; i < jobs.length; i += 2) {
       expect(fixtureValue(jobs[i + 1]).seed).toBe(fixtureValue(jobs[i]).seed);
@@ -127,7 +127,7 @@ describe("advanced skill study", () => {
       "random-vs-base",
       "focused-vs-random",
     ])
-      expect(jobs.filter((j) => j.comparison === arm)).toHaveLength(664);
+      expect(jobs.filter((j) => j.comparison === arm)).toHaveLength(672);
   });
   it("removes native skills before a controlled script, without mutating its fixture", async () => {
     const { config } = fixtureValue(findRuleConfig("horns-blitz-strength"));

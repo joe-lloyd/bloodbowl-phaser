@@ -14,7 +14,7 @@ dice and coaching decisions.
 
 - Local matches for two coaches sharing a screen, with saved-match resume
   and no account required.
-- Team building across 30 rosters, including the updated High Elves,
+- Team building across 32 rosters, including the updated High Elves,
   Bretonnians and Tomb Kings. Hire players, choose team colours and manage
   development and career statistics.
 - Complete match flow from coin toss and setup through kick-offs,

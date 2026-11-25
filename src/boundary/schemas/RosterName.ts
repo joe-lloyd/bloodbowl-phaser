@@ -32,5 +32,6 @@ export const rosterNameSchema: z.ZodType<RosterName> = z.union([
   z.literal("Tomb Kings"),
   z.literal("Underworld Denizens"),
   z.literal("Vampire"),
+  z.literal("Witch Elf"),
   z.literal("Wood Elf"),
 ]);

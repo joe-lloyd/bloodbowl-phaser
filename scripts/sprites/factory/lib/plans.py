@@ -84,6 +84,10 @@ RACES = {
 DEFAULT_STANCE = dict(lean=4, legs={"l": (5, 9, 8), "r": (-4, 9, 8)}, arms={"l": (8, 22, 30), "r": (8, 22, 30)},
                       hands="relaxed")
 
+# per torso ring from the hips up: (width, depth, shift back)
+ATHLETE = {"m": ((0.96, 1.04, 0.01), (0.84, 0.92, 0.0), (0.98, 1.06, -0.005), (1.08, 1.14, -0.01), (1.12, 1.06, 0.0), (1.0, 1.0, 0.0)),
+           "f": ((1.16, 1.22, 0.035), (0.82, 0.88, 0.0), (0.95, 1.0, 0.0), (0.98, 1.0, 0.0), (0.98, 1.0, 0.0), (1.0, 1.0, 0.0))}
+
 class Biped(Model):
     """Two-legged figure built from the approved concept's body, costume and face parts.
 
@@ -106,8 +110,8 @@ class Biped(Model):
     mount = None             # (forward metres, height metres): put the pelvis there instead of on its legs
 
     def unlined(self):
-        """A black line round a woman's chin reads as a beard."""
-        return ("chin", "neck", "head") if self.sex == "f" else ()
+        """A black line round a woman's chin reads as a beard, and round a man's chest as breasts."""
+        return ("chin", "neck", "head") if self.sex == "f" else ("pec-1", "pec1")
 
     def pose(self, name, i, n):
         p = anim.BIPED[name](self, i, n)
@@ -142,6 +146,9 @@ class Biped(Model):
         P["sh_w"] *= sw * (0.5 + 0.5 * tk)
         P["torso"] = [(h * tl, rx * tk * (sw if h > 0.2 else waist * belly if h > 0 else belly),
                        ry * tk * ((1 + (sw - 1) * 0.5) if h > 0.2 else waist * belly), b) for h, rx, ry, b in P["torso"]]
+        if belly <= 1:               # athletes: a narrow waist under a full chest, and curved hips
+            P["torso"] = [(h, rx * shape[0], ry * shape[1], b + shape[2])
+                          for (h, rx, ry, b), shape in zip(P["torso"], ATHLETE["f" if fem else "m"])]
         P["hunch"] = k("hunch", 0) + L.get("hunch", 0)
         P["head_fwd"] = k("head_fwd", 0.0)
         if k("digi", False):

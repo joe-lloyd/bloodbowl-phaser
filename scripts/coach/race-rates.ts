@@ -130,7 +130,7 @@ const entries = Object.entries(RosterName).flatMap(
     const name = FUMBBL_NAMES[roster] ?? roster;
     const bucket = totals.get(name);
     if (!bucket || bucket.games < MIN_GAMES) {
-      if (roster === RosterName.NIGHT_GOBLIN) return [];
+      if (roster === RosterName.NIGHT_GOBLIN || roster === RosterName.WITCH_ELF) return [];
       throw new Error(`no FUMBBL rates for ${roster} (looked for "${name}")`);
     }
     const per = (rate: Rate) => round(bucket[rate] / bucket.games);

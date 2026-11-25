@@ -1207,6 +1207,20 @@ const definitions: readonly ComputerTeamTemplate[] = [
     rerolls: 0,
   },
   {
+    id: "witch-elf-full-coven",
+    name: "Hex Appeal",
+    rosterName: RosterName.WITCH_ELF,
+    colors: { primary: 0x8a1a3a, secondary: 0xc8a04a },
+    buildName: "Full coven",
+    sourceUrl: "https://github.com/joe-lloyd/bloodbowl-phaser",
+    players: [
+      ["Witch Elf Novice", 5],
+      ["Witch Elf", 1],
+      ["Witch Elf Priestess", 1],
+    ],
+    rerolls: 0,
+  },
+  {
     id: "wood-elf-wardance-party",
     name: "Dance Floor Casualties",
     rosterName: RosterName.WOOD_ELF,

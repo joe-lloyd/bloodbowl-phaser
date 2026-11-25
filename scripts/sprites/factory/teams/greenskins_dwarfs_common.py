@@ -292,15 +292,12 @@ BEARD_DEFAULTS = {"spade": (1.2, 1.1), "fork": (1.1, 1.0), "long": (1.1, 1.0), "
 
 def opt_beard(J, L, tag, mat, pose, tie=None, own=None):
     """The beard the layout's gd_beard names (None draws none). own=(kind, ln, wide) keeps the position's
-    own proportions for its own kind. Women's beards are short chin beards with no moustache."""
+    own proportions for its own kind."""
     kind = L.get("gd_beard")
     if not kind:
         return
     ln, wide = own[1:] if own and own[0] == kind else BEARD_DEFAULTS[kind]
-    fem = L.get("sex") == "f"
-    if fem:
-        ln, wide = ln * 0.45, wide * 0.72
-    beard(J, tag, mat, kind, ln, tie, wide, pose, tache=not fem)
+    beard(J, tag, mat, kind, ln, tie, wide, pose)
 
 def side_braids(J, tag, mat, tie="kit2", pose=None, ln=1.0):
     """Two long plaits from beside the ears, hanging down in front of the shoulders; they stream back in
