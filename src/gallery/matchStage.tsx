@@ -19,7 +19,6 @@ export const OPENING_SCENE = {
   subPhase: SubPhase.INTRO,
 };
 export const SETUP_SCENE = { phase: GamePhase.SETUP };
-export const KICKOFF_SCENE = { ...SCRIMMAGE, phase: GamePhase.KICKOFF };
 
 export const hud = (
   fx: MatchFixture,

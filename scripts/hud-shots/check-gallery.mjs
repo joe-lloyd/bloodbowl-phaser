@@ -41,7 +41,8 @@ async function openPage(viewport, errors) {
 }
 
 const settle = (id) => {
-  if (/^(coin|weather)/.test(id)) return 3600;
+  if (/^(coin|weather|interception|sent-off|follow|push)/.test(id)) return 5500;
+  if (/^kickoff-(?!table|aim|result)/.test(id)) return 2600;
   if (/^(tray|banner|block-rolled|kickoff-table-r|page-player-spp)/.test(id))
     return 3000;
   return /^page|^results|^announce|^turnover/.test(id) ? 1400 : 900;
@@ -149,8 +150,29 @@ const USES = [
     await page.getByTestId("setup-controls").getByRole("button").first().click();
     await page.getByText("My cage").last().click();
   }, "text=/confirm setup/i"],
+  ["block-rolled", async (page) => {
+    const faces = () =>
+      page
+        .locator("[data-block-result]")
+        .evaluateAll((dice) => dice.map((die) => die.dataset.blockResult));
+    await press(/Brawler/i)(page);
+    await page.waitForTimeout(5000);
+    const [first, second] = await faces();
+    if (first === "both-down" || second !== "skull")
+      throw new Error(`Brawler left ${first} and ${second}`);
+  }, testId("block-dice-dialog")],
+  ["follow-up", press(/^Yes/i), null, testId("follow-up-dialog")],
+  ["hud-playground", async (page) => {
+    await press(/Change event/i)(page);
+    const event = page.locator("select").first();
+    const option = event.locator("option", { hasText: "Quick Snap" }).first();
+    await event.selectOption(await option.getAttribute("value"));
+    await page.waitForTimeout(500);
+    const kept = await event.locator("option:checked").innerText();
+    if (!kept.includes("Quick Snap")) throw new Error(`it shows ${kept}`);
+  }, "text=Restart"],
   ["sent-off-bribe", press(/Use a Bribe/i), testId("sent-off-outcome")],
-  ["foul-assists", press(/\+2/), null, testId("foul-assists-dialog")],
+  ["foul-assists", press(/\+1/), null, testId("foul-assists-dialog")],
   ["setup-ready", press(/Confirm setup/i), null, testId("setup-controls")],
   ["setup-incomplete", press(/^Load/i), "text=/confirm setup/i"],
   ["results-mvp", press(/Confirm and assign/i), "text=/confirmed/i"],

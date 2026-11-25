@@ -1,18 +1,14 @@
+import { registerActionCommands } from "../game/controllers/handlers/actionCommands";
 import { actionStepsFor } from "../game/controllers/interaction/actionSteps";
 import { FormationManager } from "../game/managers/FormationManager";
-import { SetupValidator } from "../game/validators/SetupValidator";
 import { scopeEventBus } from "../services/scopedEventBus";
-import {
-  type ActionStep,
-  type AllEvents,
-  GameEventNames,
-} from "../types/events";
-import type { FormationPosition, SetupTeamStatus } from "../types/SetupTypes";
+import { type ActionStep, GameEventNames } from "../types/events";
+import { GamePhase, SubPhase } from "../types/GameState";
+import type { Team } from "../types/Team";
 import type { MatchFixture } from "./fixtures";
-import { BLOCK_FACES, GALLERY_FORMATIONS, rollBlock } from "./variantHelpers";
+import { GALLERY_FORMATIONS } from "./variantHelpers";
 
 type Bus = ReturnType<typeof scopeEventBus>;
-type SetupAction = AllEvents[typeof GameEventNames.UI_SetupAction];
 
 function answerActionMenu(bus: Bus): void {
   let steps: ActionStep[] = [];
@@ -49,142 +45,106 @@ function answerActionMenu(bus: Bus): void {
   bus.on(GameEventNames.UI_ClearMovePlan, dropPlan);
 }
 
-type BlockRequest = Pick<
-  AllEvents[typeof GameEventNames.UI_RollBlockDice],
-  "attackerId" | "defenderId" | "numDice" | "isAttackerChoice"
->;
-
-const FACES = Object.values(BLOCK_FACES);
-
-function answerBlocks(bus: Bus, fx: MatchFixture): void {
-  let rolled: BlockRequest | null = null;
-  const roll = () => {
-    if (!rolled) return;
-    const { attackerId, defenderId, numDice, isAttackerChoice } = rolled;
-    rollBlock(fx, {
-      results: FACES.slice(2, 2 + numDice),
-      attackerId,
-      defenderId,
-      isAttackerChoice,
-    });
-  };
-  bus.on(GameEventNames.BlockDiceRolled, (data) => {
-    rolled = data;
-  });
-  bus.on(GameEventNames.UI_RollBlockDice, (data) => {
-    rolled = data;
-    setTimeout(roll, 300);
-  });
-  bus.on(GameEventNames.UI_TeamRerollBlock, roll);
-  bus.on(GameEventNames.UI_ProRerollBlockDie, roll);
-  bus.on(GameEventNames.UI_BrawlerRerollBlockDie, roll);
-  bus.on(GameEventNames.UI_BlockResultSelected, ({ result }) => {
-    bus.emit(GameEventNames.DecisionResolved, {
-      type: "block-dice",
-      result: result.type,
-    });
-  });
+interface SetupDesk {
+  bus: Bus;
+  fx: MatchFixture;
+  active: () => Team;
 }
 
-function placed(
-  status: SetupTeamStatus,
-  isTeam1: boolean,
-  positions: FormationPosition[]
-): SetupTeamStatus {
-  const { restrictions } = new SetupValidator().validateFormation({
-    positions,
-    isTeam1,
-    availablePlayerCount: status.availablePlayerCount,
-  });
-  return {
-    ...status,
-    placedPlayerCount: positions.length,
-    restrictions,
-    canConfirm: positions.length >= status.requiredPlayerCount,
-  };
-}
-
-function answerSetup(bus: Bus, fx: MatchFixture): void {
+function setupActions({ bus, fx, active }: SetupDesk) {
+  const { gameService } = fx.services;
   const manager = new FormationManager();
-  let status: SetupTeamStatus | null = null;
-  const isTeam1 = () => status?.teamId !== fx.team2.id;
-  const listFormations = () => {
+  const list = () => {
+    const isTeam1 = active() === fx.team1;
     bus.emit(GameEventNames.UI_FormationsUpdated, {
-      formations: manager.listAllFormations(GALLERY_FORMATIONS, isTeam1()),
-      isTeam1: isTeam1(),
+      formations: manager.listAllFormations(GALLERY_FORMATIONS, isTeam1),
+      isTeam1,
     });
-  };
-  const place = (positions: FormationPosition[]) => {
-    if (status)
-      bus.emit(
-        GameEventNames.SetupRestrictionsUpdated,
-        placed(status, isTeam1(), positions)
-      );
-  };
-  const formation = (name = "") =>
-    manager.getFormation(GALLERY_FORMATIONS, name, isTeam1()) ?? [];
-  const hide = () => {
-    bus.emit(GameEventNames.UI_HideSetupControls, undefined);
   };
   const actions: Partial<Record<string, (name?: string) => void>> = {
-    confirm: hide,
-    concede: hide,
-    clear: () => {
-      place([]);
-    },
-    load: (name) => {
-      place(formation(name));
+    list,
+    confirm: () => {
+      gameService.confirmSetup(active().id);
     },
     continue: () => {
-      if (status)
-        bus.emit(GameEventNames.SetupRestrictionsUpdated, {
-          ...status,
-          concessionDecision: "continue",
-        });
+      gameService.resolveSetupConcession(active().id, false);
+    },
+    concede: () => {
+      gameService.resolveSetupConcession(active().id, true);
+    },
+    clear: () => {
+      active().players.forEach(({ id }) => {
+        gameService.removePlayer(id);
+      });
+    },
+    load: (name = "") => {
+      const formation = manager.getFormation(
+        GALLERY_FORMATIONS,
+        name,
+        active() === fx.team1
+      );
+      if (formation) gameService.applySetupFormation(active().id, formation);
     },
     save: (name = "") => {
-      manager.saveFormation(GALLERY_FORMATIONS, formation("Balanced"), name);
-      listFormations();
+      const positions = active().players.flatMap(({ id, gridPosition }) =>
+        gridPosition ? [{ playerId: id, ...gridPosition }] : []
+      );
+      manager.saveFormation(GALLERY_FORMATIONS, positions, name);
+      list();
     },
     delete: (name = "") => {
       manager.deleteFormation(GALLERY_FORMATIONS, name);
-      listFormations();
+      list();
     },
   };
-  bus.on(GameEventNames.UI_ShowSetupControls, (shown) => {
-    status = shown.status ?? null;
-  });
-  bus.on(GameEventNames.SetupRestrictionsUpdated, (next) => {
-    status = next;
-  });
-  bus.on(GameEventNames.UI_SetupAction, ({ action, name }: SetupAction) => {
+  return actions;
+}
+
+function answerSetup(bus: Bus, fx: MatchFixture): void {
+  const { gameService } = fx.services;
+  const active = () =>
+    gameService.getState().activeTeamId === fx.team2.id ? fx.team2 : fx.team1;
+  const actions = setupActions({ bus, fx, active });
+  bus.on(GameEventNames.UI_SetupAction, ({ action, name }) => {
     actions[action]?.(name);
+  });
+  bus.on(GameEventNames.PhaseChanged, ({ phase, subPhase }) => {
+    const status = gameService.getSetupStatus(active().id);
+    const placing =
+      subPhase === SubPhase.SETUP_KICKING ||
+      subPhase === SubPhase.SETUP_RECEIVING;
+    if (phase === GamePhase.SETUP && placing && status)
+      bus.emit(GameEventNames.UI_ShowSetupControls, {
+        subPhase,
+        activeTeam: active(),
+        status,
+      });
+    else bus.emit(GameEventNames.UI_HideSetupControls, undefined);
   });
 }
 
-function answerDecisions(bus: Bus, fx: MatchFixture): void {
-  const { gameService } = fx.services;
-  bus.on(GameEventNames.UI_RerollResponse, ({ accept, source }) => {
-    gameService.answerReroll(accept, source);
-  });
-  bus.on(GameEventNames.UI_ReactionResponse, ({ accept }) => {
-    gameService.answerReaction(accept);
-  });
-  bus.on(GameEventNames.UI_InterceptionResponse, ({ playerId }) => {
-    gameService.answerInterception(playerId);
-  });
-  bus.on(GameEventNames.UI_ApothecaryResponse, ({ accept }) => {
-    gameService.answerApothecary(accept);
+function answerMoves(bus: Bus): void {
+  bus.on(GameEventNames.PlayerMoved, ({ followUpData, presentationId }) => {
+    if (followUpData)
+      bus.emit(GameEventNames.UI_FollowUpPrompt, {
+        ...followUpData,
+        repeat: true,
+      });
+    if (presentationId)
+      bus.emit(GameEventNames.UI_PresentationAcknowledged, {
+        id: presentationId,
+      });
   });
 }
 
 export function standInForScene(fx: MatchFixture): () => void {
   const bus = scopeEventBus(fx.bus);
+  const stopCommands = registerActionCommands(fx.services.gameService, bus);
   answerActionMenu(bus);
-  answerBlocks(bus, fx);
+  answerMoves(bus);
   answerSetup(bus, fx);
-  answerDecisions(bus, fx);
   return () => {
+    stopCommands();
     bus.dispose();
   };
 }

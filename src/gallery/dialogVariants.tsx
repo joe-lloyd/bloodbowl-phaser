@@ -1,17 +1,51 @@
 import { GameEventNames } from "../types/events";
+import { GamePhase, SubPhase } from "../types/GameState";
 import type {
   BiteTargetDecisionRequest,
   DecisionRequest,
-  InducementChoiceDecisionRequest,
-  RerollSource,
+  RerollableRollKind,
 } from "../types/decisions";
+import { PlayerStatus, type Player } from "../types/Player";
+import { RosterName } from "../types/Team";
+import type { Scenario } from "../types/Scenario";
+import { offerApothecary } from "../game/inducements/apothecary";
+import { CastSportsWizardOperation } from "../game/inducements/sportsWizard";
+import { BloodlustBiteOperation } from "../game/operations/BloodlustBiteOperation";
+import { SendOffOperation } from "../game/operations/SendOffOperation";
+import { eligibleSkills } from "../game/progression/progression";
+import { withRerollOffer } from "../game/skills/rerolls";
+import {
+  everyReroll,
+  followUp,
+  openBlock,
+  pushed,
+  rollBlock,
+} from "./blockScenes";
 import { setActiveOnlineMatch } from "../network/OnlineMatch";
 import { getSkill, SkillType } from "../types/Skills";
-import type { BlockRollData } from "../services/BlockResolutionService";
 import type { MatchFixture } from "./fixtures";
-import { BLOCK_FACES, later, onlineMatch, rollBlock } from "./variantHelpers";
-import { type Opener, playRows } from "./matchStage";
+import { onlineMatch } from "./variantHelpers";
+import { livePlayer, type Opener, playRows, SCRIMMAGE } from "./matchStage";
 import type { Variant } from "./variant";
+
+const INTERCEPTION: Scenario = {
+  id: "gallery-interception",
+  name: "Interception",
+  description: "A pass over two opponents",
+  setup: {
+    team1Placements: [
+      { playerIndex: 0, x: 6, y: 7, hasBall: true },
+      { playerIndex: 1, x: 12, y: 7 },
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 9, y: 7 },
+      { playerIndex: 1, x: 10, y: 7 },
+    ],
+    activeTeam: "team1",
+    phase: GamePhase.PLAY,
+    subPhase: SubPhase.TURN_RECEIVING,
+  },
+};
 
 const STOP = "Stop here";
 
@@ -27,60 +61,27 @@ const reaction = (skill: string, prompt: string): Opener =>
     prompt,
   }));
 
-const biteTarget = ({
-  purpose,
-  targets = 1,
-}: Pick<BiteTargetDecisionRequest, "purpose"> & { targets?: 1 | 2 }): Opener =>
-  decision((fx) => ({
-    type: "bite-target",
-    playerId: fx.player(1, 0).id,
-    chooserTeamId: fx.team1.id,
-    targetIds: [fx.player(targets, 1).id, fx.player(targets, 2).id],
-    ...(purpose ? { purpose } : {}),
-  }));
+const NIGHT_GOBLINS = { ...SCRIMMAGE, team1Roster: RosterName.NIGHT_GOBLIN };
 
-const inducementChoice = (
-  kind: InducementChoiceDecisionRequest["kind"],
-  extra: Partial<InducementChoiceDecisionRequest>
+const squigRage = (
+  purpose: NonNullable<BiteTargetDecisionRequest["purpose"]>,
+  team: 1 | 2
 ): Opener =>
-  decision((fx) => ({
-    type: "inducement-choice",
-    kind,
-    chooserTeamId: fx.team1.id,
-    playerIds: [fx.player(1, 4).id, fx.player(1, 5).id],
-    optional: true,
-    ...extra,
-  }));
+  decision((fx) => {
+    learn(SkillType.SQUIG_RAGE)(livePlayer(fx, 1, 0));
+    return {
+      type: "bite-target",
+      playerId: fx.player(1, 0).id,
+      chooserTeamId: fx.team1.id,
+      targetIds: near(fx, team).map(({ id }) => id),
+      purpose,
+    };
+  });
 
 const decision =
   (make: (fx: MatchFixture) => DecisionRequest): Opener =>
   (fx) => {
     void ask(fx, make(fx));
-  };
-
-function openBlock(
-  fx: MatchFixture,
-  { dice, uphill, st }: { dice: number; uphill: boolean; st: [number, number] }
-) {
-  fx.bus.emit(GameEventNames.UI_BlockDialog, {
-    attackerId: fx.player(2, 0).id,
-    defenderId: fx.player(1, 0).id,
-    analysis: {
-      diceCount: dice,
-      isUphill: uphill,
-      attackerST: st[0],
-      defenderST: st[1],
-      barricadeCover: false,
-      attackerAssists: [],
-      defenderAssists: [],
-    },
-  });
-}
-
-const block =
-  (dice: number, uphill: boolean, st: [number, number]): Opener =>
-  (fx) => {
-    openBlock(fx, { dice, uphill, st });
   };
 
 interface Confirmation {
@@ -102,76 +103,46 @@ const confirm =
   };
 
 const reroll =
-  ({
-    sources,
-    skill,
-    needed,
-  }: {
-    sources: RerollSource[];
-    skill?: string;
-    needed?: number;
-  }): Opener =>
+  (
+    kind: RerollableRollKind,
+    needed: number,
+    prepare: (player: Player) => void
+  ): Opener =>
   (fx) => {
-    fx.team1.rerolls = 2;
-    fx.services.gameService.getState().turn.teamId = fx.team1.id;
-    void ask(fx, {
-      type: "reroll",
-      playerId: fx.player(1, 1).id,
-      chooserTeamId: fx.team1.id,
-      rollKind: "dodge",
-      sources,
-      ...(skill === undefined ? {} : { skill }),
-      roll: 1,
-      ...(needed === undefined ? {} : { needed }),
+    const { gameService } = fx.services;
+    const player = livePlayer(fx, 1, 1);
+    prepare(player);
+    gameService.declareAction({ playerId: player.id, action: "move" });
+    let rolls = [1, 6];
+    void withRerollOffer(gameService.getFlowContext(), player, kind, () => {
+      const [roll = 6, ...rest] = rolls;
+      rolls = rest;
+      return { success: roll >= needed, roll, needed };
     });
   };
 
-const bothDice: BlockRollData["results"] = [
-  BLOCK_FACES.bothDown,
-  BLOCK_FACES.skull,
-];
+const teamRerolls = (fx: MatchFixture) => {
+  fx.team1.rerolls = 2;
+};
 
-const rolledBlock =
-  (extra: Partial<BlockRollData>): Opener =>
-  (fx) => {
-    openBlock(fx, { dice: 2, uphill: false, st: [4, 3] });
-    later(50, () => {
-      rollBlock(fx, { results: bothDice, ...extra });
-    });
+const learn =
+  (...skills: SkillType[]) =>
+  (player: Player) => {
+    player.skills.push(...skills.map((skill) => getSkill(skill)));
   };
 
-const sentOff =
-  (steps: (fx: MatchFixture) => void): Opener =>
-  (fx) => {
-    fx.bus.emit(GameEventNames.RefereeCall, {
-      step: "called",
-      playerId: fx.player(1, 0).id,
-      teamId: fx.team1.id,
-      cause: "foul",
-    });
-    steps(fx);
-  };
+const bribeOffered: Opener = (fx) => {
+  const { gameService } = fx.services;
+  gameService.getState().bribes = { [fx.team1.id]: 1 };
+  void new SendOffOperation(fx.player(1, 0).id, "Sent off").execute(
+    gameService.getFlowContext()
+  );
+};
 
-function refereeRules(fx: MatchFixture, bribed: boolean): void {
-  const call = {
-    playerId: fx.player(1, 0).id,
-    teamId: fx.team1.id,
-    cause: "foul",
-  } as const;
-  if (bribed)
-    fx.bus.emit(GameEventNames.RefereeCall, {
-      ...call,
-      step: "bribed",
-      roll: 4,
-      works: true,
-    });
-  fx.bus.emit(GameEventNames.RefereeCall, {
-    ...call,
-    step: "outcome",
-    result: bribed ? "bribed" : "sent-off",
-    presentationId: "gallery-referee",
-  });
-}
+const near = (fx: MatchFixture, team: 1 | 2) =>
+  [0, 1, 2]
+    .map((index) => livePlayer(fx, team, index))
+    .filter(({ id }) => id !== fx.player(1, 0).id);
 
 const CONFIRM_ROWS = playRows("Confirmations", [
   {
@@ -234,119 +205,115 @@ const CONFIRM_ROWS = playRows("Confirmations", [
 ]);
 
 const BLOCK_ROWS = playRows("Blocks", [
-  { id: "block-1", title: "1 die", open: block(1, false, [3, 3]) },
-  { id: "block-2", title: "2 dice", open: block(2, false, [4, 3]) },
+  { id: "block-1", title: "1 die", open: openBlock({ strength: [3, 3] }) },
+  { id: "block-2", title: "2 dice", open: openBlock({ strength: [4, 3] }) },
   {
     id: "block-3-uphill",
     title: "3 dice uphill, the defender chooses",
-    open: block(3, true, [2, 6]),
+    open: openBlock({ strength: [2, 6] }),
   },
   {
     id: "block-rolled",
     title: "Rolled, with every re-roll offered",
-    open: rolledBlock({
-      teamRerollAvailable: true,
-      proAvailable: true,
-      brawlerAvailable: true,
-    }),
+    fixture: { ...SCRIMMAGE, seed: 12 },
+    open: everyReroll(
+      rollBlock({ strength: [4, 3] }, { numDice: 2, isAttackerChoice: true })
+    ),
   },
   {
     id: "block-rolled-plain",
     title: "Rolled, no re-roll to use",
-    open: rolledBlock({}),
+    open: rollBlock(
+      { strength: [4, 3] },
+      { numDice: 2, isAttackerChoice: true }
+    ),
   },
   {
     id: "block-defender",
     title: "Online, the defending coach's view",
     open: (fx) => {
-      setActiveOnlineMatch(onlineMatch(fx, { myTeamId: fx.team1.id }));
+      setActiveOnlineMatch(
+        onlineMatch(fx, { myTeamId: fx.team1.id, mayAct: () => false })
+      );
       fx.player(1, 0).skills.push(getSkill(SkillType.BLOCK));
-      openBlock(fx, { dice: 2, uphill: true, st: [3, 4] });
+      openBlock({ attacking: 2, strength: [3, 4] })(fx);
     },
   },
-  {
-    id: "push-choice",
-    title: "Choose a push square",
-    open: (fx) => {
-      fx.bus.emit(GameEventNames.UI_SelectPushDirection, {
-        defenderId: fx.player(1, 0).id,
-        attackerId: fx.player(2, 0).id,
-        validDirections: [{ x: 1, y: 0 }],
-        canFollowUp: true,
-      });
-    },
-  },
-  {
-    id: "follow-up",
-    title: "Follow up",
-    open: (fx) => {
-      fx.bus.emit(GameEventNames.UI_FollowUpPrompt, {
-        attackerId: fx.player(2, 0).id,
-        targetSquare: { x: 10, y: 7 },
-      });
-    },
-  },
+  { id: "push-choice", title: "Choose a push square", open: pushed },
+  { id: "follow-up", title: "Follow up", open: followUp },
 ]);
 
 const REROLL_ROWS = playRows("Re-rolls and reactions", [
   {
     id: "reroll-both",
     title: "Re-roll: skill or team",
-    open: reroll({ sources: ["skill", "team"], skill: "Dodge", needed: 3 }),
+    open: (fx) => {
+      teamRerolls(fx);
+      reroll("dodge", 3, learn(SkillType.DODGE))(fx);
+    },
   },
   {
     id: "reroll-pro",
     title: "Re-roll: Pro or team",
-    open: reroll({ sources: ["pro", "team"], needed: 4 }),
+    open: (fx) => {
+      teamRerolls(fx);
+      reroll("dodge", 4, learn(SkillType.PRO))(fx);
+    },
   },
   {
     id: "reroll-team",
     title: "Re-roll: the Veteran",
-    open: reroll({ sources: ["veteran"] }),
+    open: reroll("pickup", 3, (player) => {
+      player.veteran = true;
+    }),
   },
   {
     id: "reaction",
     title: "A reactive skill",
-    open: reaction(
-      "Stand Firm",
-      "Use Stand Firm to refuse the push and stay in place?"
-    ),
+    open: (fx) => {
+      learn(SkillType.STAND_FIRM)(livePlayer(fx, 1, 0));
+      reaction(
+        SkillType.STAND_FIRM,
+        "Use Stand Firm to refuse the push and stay in place?"
+      )(fx);
+    },
   },
   {
     id: "interception",
     title: "Interception: pick a player",
-    open: decision((fx) => ({
-      type: "interception",
-      chooserTeamId: fx.team2.id,
-      passerId: fx.player(1, 0).id,
-      candidates: [
-        {
-          playerId: fx.player(2, 0).id,
-          playerName: fx.player(2, 0).playerName,
-          modifier: -2,
-        },
-        {
-          playerId: fx.player(2, 1).id,
-          playerName: "Orc Big Un Blocker Lineman #12",
-          modifier: -3,
-        },
-      ],
-    })),
+    fixture: { scenario: INTERCEPTION, seed: 3 },
+    open: (fx) => {
+      livePlayer(fx, 2, 1).playerName = "Grimgutz Skullsplitta the Unwashed";
+      const { gameService } = fx.services;
+      const passerId = fx.player(1, 0).id;
+      gameService.declareAction({ playerId: passerId, action: "pass" });
+      void gameService.throwBall({ passerId, targetX: 12, targetY: 7 });
+    },
   },
   {
     id: "bite-target",
     title: "Bloodlust: choose a Thrall to bite",
-    open: biteTarget({}),
+    fixture: { ...SCRIMMAGE, team1Roster: RosterName.VAMPIRE },
+    open: (fx) => {
+      learn(SkillType.BLOODLUST)(livePlayer(fx, 1, 0));
+      void new BloodlustBiteOperation(
+        fx.player(1, 0).id,
+        "consequences",
+        () => undefined
+      ).execute(fx.services.gameService.getFlowContext());
+    },
   },
   {
     id: "bite-squig-knock",
     title: "Squig Rage: choose a team-mate to knock down",
-    open: biteTarget({ purpose: "squig-knock-down" }),
+    fixture: NIGHT_GOBLINS,
+    open: squigRage("squig-knock-down", 1),
   },
   {
     id: "bite-squig-block",
     title: "Squig Rage: choose an opponent to Block",
-    open: biteTarget({ purpose: "squig-block", targets: 2 }),
+    fixture: NIGHT_GOBLINS,
+    open: squigRage("squig-block", 2),
   },
 ]);
 
@@ -354,47 +321,42 @@ const FOUL_ROWS = playRows("Fouls and injuries", [
   {
     id: "foul-assists",
     title: "How many Offensive Assists to add",
-    open: decision((fx) => ({
-      type: "foul-assists",
-      playerId: fx.player(1, 0).id,
-      targetId: fx.player(2, 0).id,
-      chooserTeamId: fx.team1.id,
-      available: 2,
-      defensive: 1,
-    })),
+    fixture: { scenario: "ux-foul-preview" },
+    open: (fx) => {
+      const { gameService } = fx.services;
+      const foulerId = fx.player(1, 0).id;
+      gameService.declareAction({ playerId: foulerId, action: "foul" });
+      void gameService.foulPlayer(foulerId, 10, 5);
+    },
   },
   {
     id: "sent-off",
     title: "Sent off, before arguing",
-    open: sentOff(() => undefined),
+    open: (fx) => {
+      fx.bus.emit(GameEventNames.RefereeCall, {
+        step: "called",
+        playerId: fx.player(1, 0).id,
+        teamId: fx.team1.id,
+        cause: "foul",
+      });
+    },
   },
   {
     id: "sent-off-bribe",
     title: "Sent off, a Bribe to use",
-    open: sentOff((fx) => {
-      fx.services.gameService.getState().bribes = { [fx.team1.id]: 1 };
-      void ask(fx, {
-        type: "reaction",
-        playerId: fx.player(1, 0).id,
-        chooserTeamId: fx.team1.id,
-        skill: "Bribe",
-        prompt: "Use a Bribe?",
-      }).then((answer) => {
-        refereeRules(fx, "accept" in answer && answer.accept);
-      });
-    }),
+    open: bribeOffered,
   },
   {
     id: "apothecary",
     title: "Apothecary after a casualty",
-    open: decision((fx) => ({
-      type: "apothecary",
-      id: "x",
-      chooserTeamId: fx.team1.id,
-      playerId: fx.player(1, 1).id,
-      resultKind: "casualty",
-      casualtyType: "seriously-hurt",
-    })),
+    open: (fx) => {
+      const player = livePlayer(fx, 1, 1);
+      player.status = PlayerStatus.INJURED;
+      void offerApothecary(fx.services.gameService, fx.bus, player, {
+        resultKind: "casualty",
+        casualtyType: "seriously-hurt",
+      });
+    },
   },
 ]);
 
@@ -402,14 +364,27 @@ const INDUCEMENT_ROWS = playRows("Inducement choices", [
   {
     id: "inducement-choice",
     title: "Intensive Training",
-    open: inducementChoice("intensive-training", {
-      skills: ["Block", "Dodge", "Sure Hands"],
+    open: decision((fx) => {
+      const player = livePlayer(fx, 1, 1);
+      return {
+        type: "inducement-choice",
+        kind: "intensive-training",
+        chooserTeamId: fx.team1.id,
+        playerIds: [player.id],
+        skills: eligibleSkills(player, player.primary ?? []),
+        optional: false,
+      };
     }),
   },
   {
     id: "inducement-wizard",
     title: "Sports Wizard",
-    open: inducementChoice("sports-wizard", { spells: ["fireball", "zap"] }),
+    fixture: { scenario: "sports-wizard-spells" },
+    open: (fx) => {
+      void new CastSportsWizardOperation(fx.team1.id).execute(
+        fx.services.gameService.getFlowContext()
+      );
+    },
   },
 ]);
 

@@ -2,17 +2,10 @@ import { InjuryResult } from "../game/controllers/InjuryController";
 import { type ChatMessage, setActiveOnlineMatch } from "../network/OnlineMatch";
 import { GameEventNames } from "../types/events";
 import type { MatchFixture } from "./fixtures";
+import { rollBlock } from "./blockScenes";
 import { LogAlone } from "./LogAlone";
 import { diceRows, type MatchRow } from "./matchStage";
-import {
-  BLOCK_FACES,
-  click,
-  every,
-  fillLog,
-  later,
-  onlineMatch,
-  rollBlock,
-} from "./variantHelpers";
+import { click, every, fillLog, later, onlineMatch } from "./variantHelpers";
 import type { Variant } from "./variant";
 
 const CHAT: ChatMessage[] = [
@@ -176,21 +169,18 @@ const TRAY_ROWS: MatchRow[] = [
   {
     id: "tray-block",
     title: "Two block dice held for a choice",
-    open: (fx) => {
-      rollBlock(fx, {
-        results: [BLOCK_FACES.push, BLOCK_FACES.dodge],
-      });
-    },
+    open: rollBlock(
+      { strength: [4, 3] },
+      { numDice: 2, isAttackerChoice: true }
+    ),
   },
   {
     id: "tray-block-three",
     title: "Three block dice, the defender chooses",
-    open: (fx) => {
-      rollBlock(fx, {
-        isAttackerChoice: false,
-        results: [BLOCK_FACES.skull, BLOCK_FACES.bothDown, BLOCK_FACES.pow],
-      });
-    },
+    open: rollBlock(
+      { strength: [2, 6] },
+      { numDice: 3, isAttackerChoice: false }
+    ),
   },
 ];
 

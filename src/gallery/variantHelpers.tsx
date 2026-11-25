@@ -1,13 +1,6 @@
 import { GameEventNames } from "../types/events";
-import { SubPhase } from "../types/GameState";
-import type { SetupTeamStatus } from "../types/SetupTypes";
 import type { OnlineMatch } from "../network/OnlineMatch";
 import { DEFAULT_SETTINGS, type LobbyDoc } from "../firebase/lobby";
-import {
-  FormationManager,
-  type FormationEntry,
-} from "../game/managers/FormationManager";
-import type { BlockRollData } from "../services/BlockResolutionService";
 import { type MatchFixture } from "./fixtures";
 
 export const later = (ms: number, fn: () => void) => {
@@ -39,60 +32,6 @@ export const click = (selector: string, text?: string) => {
 };
 
 export const GALLERY_FORMATIONS = "gallery";
-
-function presets(isTeam1: boolean): FormationEntry[] {
-  return new FormationManager().listAllFormations(GALLERY_FORMATIONS, isTeam1);
-}
-
-function withSaved(): FormationEntry[] {
-  const manager = new FormationManager();
-  const positions = manager.getDefaultFormation(true);
-  manager.saveFormation(GALLERY_FORMATIONS, positions, "My cage");
-  return presets(true);
-}
-
-export function showSetup(
-  fx: MatchFixture,
-  {
-    subPhase,
-    activeTeam,
-    status,
-    formations = presets(activeTeam.id === fx.team1.id),
-  }: {
-    subPhase: SubPhase;
-    activeTeam: { id: string; name: string };
-    status: Partial<SetupTeamStatus>;
-    formations?: FormationEntry[];
-  }
-) {
-  fx.bus.emit(GameEventNames.UI_ShowSetupControls, {
-    subPhase,
-    activeTeam,
-    status: {
-      teamId: activeTeam.id,
-      placedPlayerCount: 0,
-      requiredPlayerCount: 7,
-      availablePlayerCount: 7,
-      restrictions: [],
-      canConfirm: false,
-      concessionDecision: "not-offered",
-      ...status,
-    },
-  });
-  fx.bus.emit(GameEventNames.UI_FormationsUpdated, {
-    formations,
-    isTeam1: activeTeam.id === fx.team1.id,
-  });
-}
-
-export function showPlacing(fx: MatchFixture) {
-  showSetup(fx, {
-    subPhase: SubPhase.SETUP_KICKING,
-    activeTeam: { id: fx.team1.id, name: fx.team1.name },
-    status: { placedPlayerCount: 4 },
-    formations: withSaved(),
-  });
-}
 
 export const LONG = {
   team1Name: "The Altdorf Sorcerer-Kings of Middenheim",
@@ -204,27 +143,6 @@ export function fillLog(fx: MatchFixture, rounds: number) {
     fx.bus.emit(GameEventNames.UI_Notification, "Select a Kicker first!");
   }
 }
-
-export const rollBlock = (
-  fx: MatchFixture,
-  roll: Pick<BlockRollData, "results"> & Partial<BlockRollData>
-) => {
-  fx.bus.emit(GameEventNames.BlockDiceRolled, {
-    attackerId: fx.player(2, 0).id,
-    defenderId: fx.player(1, 0).id,
-    numDice: roll.results.length,
-    isAttackerChoice: true,
-    ...roll,
-  });
-};
-
-export const BLOCK_FACES = {
-  skull: { type: "skull" as const, icon: "", label: "Attacker Down" },
-  bothDown: { type: "both-down" as const, icon: "", label: "Both Down" },
-  push: { type: "push" as const, icon: "", label: "Push" },
-  dodge: { type: "pow-dodge" as const, icon: "", label: "POW!/Dodge" },
-  pow: { type: "pow" as const, icon: "", label: "POW!" },
-};
 
 export function onlineMatch(
   fx: MatchFixture,

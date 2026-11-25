@@ -15,7 +15,7 @@ const [width, height] = size === "phone" ? [844, 390] : [1280, 720];
 const MOST = 14;
 const FURNITURE =
   /^(⚙|A-|A\+|Log$|⤢|⛶|Dice$|Chat$|Match Options|Not in)/i;
-const SETTLE = /^(coin-(result|computer)|weather-shown|tray|banner|block-rolled)/;
+const SETTLE = /^(coin-(result|computer)|weather-shown|tray|banner|block-rolled|kickoff|interception|sent-off|follow|push)/;
 
 const browser = await chromium.launch({
   args: ["--use-gl=angle", "--use-angle=swiftshader"],

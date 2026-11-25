@@ -4,10 +4,13 @@ import {
   KICKOFF_TABLE_ROLL,
   KickoffEvent,
 } from "../game/kickoff/kickoffEvents";
-import { type KickRecord, newKick } from "../game/kickoff/kickRecord";
-import { openedKickoffTurn } from "../game/kickoff/kickoffTurn";
+import { readPlayground } from "../boundary/kickoffPlayground";
+import {
+  playgroundLanding,
+  playgroundScenario,
+} from "../data/kickoffPlayground";
 import type { MatchFixture } from "./fixtures";
-import { hud, KICKOFF_SCENE, onlineHud } from "./matchStage";
+import { hud, onlineHud } from "./matchStage";
 import { every, later, soon } from "./variantHelpers";
 import { rows, type Variant } from "./variant";
 
@@ -23,62 +26,56 @@ const enterKickoff = (fx: MatchFixture) => {
 
 interface Step {
   event?: KickoffEvent;
-  limit?: number;
-  picked?: number[];
+  picks?: number;
+  play?: boolean;
+  finished?: number;
 }
 
-const LANDING = { x: 15, y: 5 };
+const PLAYGROUND = readPlayground(new URLSearchParams());
+const KICKOFF_SCENE = { scenario: playgroundScenario(PLAYGROUND) };
+const LANDING = playgroundLanding(KICKOFF_SCENE.scenario, PLAYGROUND.kicking);
 
-const pickedIn = (fx: MatchFixture, { picked = [] }: Step) =>
-  picked.map((index) => fx.player(1, index).id);
-
-function startKick(fx: MatchFixture): KickRecord {
-  enterKickoff(fx);
-  const kick = newKick(fx.team1.id, "coach");
-  fx.services.gameService.getState().kick = kick;
-  return kick;
+function pick(fx: MatchFixture, picks: number): string[] {
+  const { gameService } = fx.services;
+  return fx.team1.players.reduce<string[]>(
+    (chosen, { id }) =>
+      chosen.length < picks && gameService.selectKickoffEventPlayer(id)
+        ? [...chosen, id]
+        : chosen,
+    []
+  );
 }
 
-const choosing = (step: Step = {}) =>
+function answerStep(fx: MatchFixture, step: Step): void {
+  const { gameService } = fx.services;
+  const { picks = 0, play = false, finished = 0 } = step;
+  const chosen = picks > 0 ? pick(fx, picks) : [];
+  fx.bus.emit(GameEventNames.KickoffEventStepChanged, undefined);
+  if (!play) return;
+  gameService.confirmKickoffEventStep();
+  chosen.slice(0, finished).forEach((id) => {
+    gameService.finishActivation(id);
+  });
+}
+
+const rehearse = (step: Step = {}) =>
   soon((fx) => {
-    const { event = KickoffEvent.ALERT_DEFENCE, limit = 3 } = step;
-    const choice = { event, teamId: fx.team1.id, selectionLimit: limit };
-    startKick(fx).step = {
-      ...choice,
-      stage: "choose",
-      selectedPlayerIds: pickedIn(fx, step),
-      ...(event === KickoffEvent.HIGH_KICK ? { landingSquare: LANDING } : {}),
+    const answer = () => {
+      fx.bus.off(GameEventNames.KickoffEventStepStarted, answer);
+      later(50, () => {
+        answerStep(fx, step);
+      });
     };
-    fx.bus.emit(GameEventNames.KickoffEventStepStarted, choice);
+    fx.bus.on(GameEventNames.KickoffEventStepStarted, answer);
+    void fx.services.gameService.rehearseKickoffEvent({
+      event: step.event ?? KickoffEvent.ALERT_DEFENCE,
+      isTeam1Kicking: true,
+      landing: LANDING,
+      selectionLimit: 3,
+    });
   });
 
-const playing = (step: Step, moved: number[] = []) =>
-  soon((fx) => {
-    const { event = KickoffEvent.ALERT_DEFENCE, limit = 3 } = step;
-    const teamId = fx.team1.id;
-    const state = fx.services.gameService.getState();
-    const kick = startKick(fx);
-    const opened = openedKickoffTurn(
-      state,
-      {
-        event,
-        teamId,
-        playerIds: pickedIn(fx, step),
-        selectionLimit: limit,
-      },
-      [...fx.team1.players, ...fx.team2.players]
-    );
-    if (!opened) throw new Error(`${event} has no mini-turn.`);
-    pickedIn(fx, { picked: moved }).forEach((id) =>
-      opened.turn.activatedPlayerIds.add(id)
-    );
-    state.activeTeamId = teamId;
-    state.turn = opened.turn;
-    kick.step = opened.step;
-    fx.bus.emit(GameEventNames.KickoffTurnStarted, { event, teamId });
-  });
-
-const alertDefence = choosing();
+const alertDefence = rehearse();
 
 const STEPS = rows(
   { group: "Kick-off", section: SECTION, fixture: KICKOFF_SCENE, view: hud },
@@ -96,37 +93,37 @@ const STEPS = rows(
     {
       id: "kickoff-step-start",
       title: "Alert Defence: start",
-      drive: choosing({ picked: [0, 1, 2] }),
+      drive: rehearse({ picks: 3 }),
     },
     {
       id: "kickoff-step-move",
       title: "Alert Defence: move each player",
-      drive: playing({ picked: [0, 1, 2] }),
-    },
-    {
-      id: "kickoff-step-done",
-      title: "Alert Defence: every player moved",
-      drive: playing({ picked: [0, 1, 2] }, [0, 1, 2]),
+      drive: rehearse({ picks: 3, play: true }),
     },
     {
       id: "kickoff-highkick",
       title: "High Kick",
-      drive: choosing({ event: KickoffEvent.HIGH_KICK, limit: 1 }),
+      drive: rehearse({ event: KickoffEvent.HIGH_KICK }),
     },
     {
       id: "kickoff-quick-snap",
       title: "Quick Snap",
-      drive: choosing({ event: KickoffEvent.QUICK_SNAP }),
+      drive: rehearse({ event: KickoffEvent.QUICK_SNAP }),
     },
     {
       id: "kickoff-charge",
       title: "Charge: choose players",
-      drive: choosing({ event: KickoffEvent.CHARGE, picked: [0] }),
+      drive: rehearse({ event: KickoffEvent.CHARGE, picks: 1 }),
     },
     {
       id: "kickoff-charge-play",
       title: "Charge: play each player",
-      drive: playing({ event: KickoffEvent.CHARGE, picked: [0, 1] }, [0]),
+      drive: rehearse({
+        event: KickoffEvent.CHARGE,
+        picks: 2,
+        play: true,
+        finished: 1,
+      }),
     },
     {
       id: "kickoff-waiting",

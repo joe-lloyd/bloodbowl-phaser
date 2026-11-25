@@ -4,8 +4,7 @@ import { InjuryType, PlayerCondition, PlayerStatus } from "../types/Player";
 import { RosterName } from "../types/Team";
 import { getSidelineCrewInfo } from "../game/presentation/sidelineStaff";
 import { setActiveOnlineMatch } from "../network/OnlineMatch";
-import { readPlayground } from "../boundary/kickoffPlayground";
-import { KickoffPlaygroundPanel } from "../ui/components/hud/KickoffPlaygroundPanel";
+import { PlaygroundPanel } from "./PlaygroundPanel";
 import type { MatchFixture } from "./fixtures";
 import {
   BLOCK_SCENE,
@@ -482,18 +481,7 @@ const WHOLE_HUD = rows({ group: "In play", section: "Whole HUD", view: hud }, [
     view: (fx) =>
       hud(fx, {
         mode: "sandbox",
-        sandboxPanel: (
-          <KickoffPlaygroundPanel
-            config={readPlayground(new URLSearchParams())}
-            onChange={() => undefined}
-            onRestart={() => {
-              fx.bus.emit(
-                GameEventNames.UI_Notification,
-                "The game restarts the kick-off on the pitch here."
-              );
-            }}
-          />
-        ),
+        sandboxPanel: <PlaygroundPanel fx={fx} />,
       }),
     drive: inPlay(() => {
       openScenarios();

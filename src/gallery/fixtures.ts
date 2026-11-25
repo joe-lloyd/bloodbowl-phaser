@@ -4,13 +4,15 @@ import { ServiceContainer } from "../services/ServiceContainer";
 import { GameService } from "../services/GameService";
 import { TeamFactory } from "../game/TeamFactory";
 import { applyScenario } from "../game/applyScenario";
+import type { Scenario } from "../types/Scenario";
 import { SCENARIOS } from "../data/scenarios";
 import { RosterName, type Team } from "../types/Team";
 import { GamePhase, type SubPhase } from "../types/GameState";
 import { type Player } from "../types/Player";
 
 export interface FixtureOptions {
-  scenario?: string;
+  scenario?: string | Scenario;
+  seed?: number;
   team1Name?: string;
   team2Name?: string;
   team1Color?: number;
@@ -31,10 +33,16 @@ export interface MatchFixture {
   player: (team: 1 | 2, index: number) => Player;
 }
 
+function findScenario(
+  wanted: FixtureOptions["scenario"]
+): Scenario | undefined {
+  return typeof wanted === "string"
+    ? SCENARIOS.find(({ id }) => id === wanted)
+    : wanted;
+}
+
 export function setupMatch(options: FixtureOptions = {}): MatchFixture {
-  const scenario = options.scenario
-    ? SCENARIOS.find((s) => s.id === options.scenario)
-    : undefined;
+  const scenario = findScenario(options.scenario);
   const team1 = TeamFactory.createTestTeam(
     options.team1Roster ?? scenario?.setup.team1Roster ?? RosterName.HUMAN,
     options.team1Name ?? "Reikland Reavers",
@@ -68,7 +76,7 @@ export function setupMatch(options: FixtureOptions = {}): MatchFixture {
     team1: team1,
     team2: team2,
     initialState: state,
-    seed: 7,
+    seed: options.seed ?? 7,
     progressionEnabled: options.progression ?? false,
   });
   services.gameService.seedTurnCounts(state.turn.turnNumber || 1);
