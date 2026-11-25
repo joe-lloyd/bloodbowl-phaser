@@ -1,5 +1,4 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
-import { activationLost } from "../rules/activationLost";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { type IGameService } from "../../services/interfaces/IGameService";
@@ -89,7 +88,6 @@ export class ThrowTeammateOperation extends GameOperation {
     const thrower = gameService.getPlayerById(this.throwerId);
     const teammate = gameService.getPlayerById(this.teammateId);
     if (!thrower?.gridPosition || !teammate?.gridPosition) return;
-    if (activationLost(gameService, thrower.id)) return;
 
     gameService.commitAction(this.throwerId);
 

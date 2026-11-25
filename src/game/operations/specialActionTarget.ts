@@ -1,6 +1,5 @@
 import { type Player, PlayerStatus } from "../../types/Player";
 import { GameEventNames } from "../../types/events";
-import { activationLost } from "../rules/activationLost";
 import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { type SkillType } from "../../types/Skills";
@@ -71,7 +70,6 @@ export abstract class AdjacentTargetOperation extends GameOperation {
     const attacker = context.gameService.getPlayerById(this.attackerId);
     const target = context.gameService.getPlayerById(this.targetId);
     if (!attacker?.gridPosition || !target?.gridPosition) return null;
-    if (activationLost(context.gameService, attacker.id)) return null;
 
     const refusal = adjacentStandingRefusal(
       { from: attacker.gridPosition, to: target.gridPosition },

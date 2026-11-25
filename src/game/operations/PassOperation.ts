@@ -1,5 +1,4 @@
 import { souvenirModifier } from "../inducements/souvenirModifiers";
-import { activationLost } from "../rules/activationLost";
 import { GameOperation } from "../core/GameOperation";
 import { GameConfig } from "../../config/GameConfig";
 import type { FlowContext } from "../core/GameFlowManager";
@@ -302,7 +301,6 @@ export class PassOperation extends GameOperation {
 
     const passer = gameService.getPlayerById(this.passerId);
     if (!passer?.gridPosition) return;
-    if (activationLost(gameService, passer.id)) return;
 
     gameService.commitAction(this.passerId);
 

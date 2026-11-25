@@ -1,4 +1,3 @@
-import { activationLost } from "../rules/activationLost";
 import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
@@ -27,7 +26,6 @@ export class HandoffOperation extends GameOperation {
     if (!passer?.gridPosition || !target?.gridPosition) {
       return;
     }
-    if (activationLost(gameService, passer.id)) return;
 
     if (!isLegalHandoffTarget(passer, target)) {
       eventBus.emit(

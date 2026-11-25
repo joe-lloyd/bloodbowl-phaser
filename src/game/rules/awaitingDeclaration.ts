@@ -24,3 +24,11 @@ export function awaitingDeclaration(
 export function rageLeavesOpen(active: GameState["activePlayer"]): boolean {
   return !!active?.squigRageSettled && !active.committed;
 }
+
+export function activationRolling(
+  state: Pick<GameState, "activePlayer">,
+  playerId: string
+): boolean {
+  const active = state.activePlayer;
+  return active?.id === playerId && active.activationRollStarted === true;
+}

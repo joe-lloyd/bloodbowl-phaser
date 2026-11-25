@@ -322,7 +322,7 @@ describe("Squig Rage", () => {
     expect(rolls).not.toContain("Ball & Chain Deviation");
   });
 
-  it("drops a Chomp queued during the re-roll prompt when Rage forces a Block", async () => {
+  it("refuses a Chomp clicked during the re-roll prompt when Rage forces a Block", async () => {
     const { game, rolls } = match(
       [{ playerIndex: 0, x: 15, y: 8 }],
       [{ ...OPPONENT, x: 16, y: 8 }]
@@ -344,7 +344,7 @@ describe("Squig Rage", () => {
         hopper.id,
         target.id
       )
-    ).toBe(true);
+    ).toBe(false);
     const block = await game.execute({ type: "use-reroll", accept: false });
     expect(block.pendingDecision?.type).toBe("block-dice");
     expect(rolls.some((type) => type.includes("Chomp"))).toBe(false);
@@ -353,6 +353,87 @@ describe("Squig Rage", () => {
       id: hopper.id,
       action: "block",
     });
+  });
+
+  it("keeps the Blitz when a Chomp is clicked during the re-roll prompt", async () => {
+    const { game } = match(
+      [{ playerIndex: 0, x: 15, y: 8 }],
+      [{ ...OPPONENT, x: 16, y: 8 }]
+    );
+    const hopper = fixtureValue(game.ctx.team1.players[0]);
+    const target = fixtureValue(game.ctx.team2.players[0]);
+    const gs = game.ctx.gameService;
+    hopper.skills.push(getSkill(SkillType.MONSTROUS_MOUTH));
+    game.ctx.team1.rerolls = 1;
+    forceDice(game.ctx.rng, [1]);
+    await game.execute({
+      type: "declare-action",
+      playerId: hopper.id,
+      action: "blitz",
+      blockReplacement: "chomp",
+    });
+    await gs.performSpecialAction("chomp", hopper.id, target.id);
+    await game.execute({ type: "use-reroll", accept: false });
+    expect(gs.getState().turn.hasBlitzed).toBe(false);
+    expect(gs.getMovementUsed(hopper.id)).toBe(0);
+  });
+
+  it("keeps the Punt when it is clicked during the re-roll prompt", async () => {
+    const { game } = match(
+      [
+        { playerIndex: 0, x: 15, y: 8 },
+        { playerIndex: 5, x: 15, y: 9 },
+      ],
+      [{ ...OPPONENT, x: 24 }]
+    );
+    const hopper = fixtureValue(game.ctx.team1.players[0]);
+    const mate = fixtureValue(game.ctx.team1.players[5]);
+    const gs = game.ctx.gameService;
+    hopper.skills.push(getSkill(SkillType.PUNT));
+    gs.getState().ballPosition = { x: 15, y: 8 };
+    game.ctx.team1.rerolls = 1;
+    forceDice(game.ctx.rng, [1]);
+    const declare = () =>
+      game.execute({
+        type: "declare-action",
+        playerId: hopper.id,
+        action: "punt",
+      });
+    await declare();
+    await gs.puntBall(hopper.id, 1, 0);
+    await game.execute({ type: "use-reroll", accept: false });
+    await game.execute({ type: "choose-bite-target", playerId: mate.id });
+    expect(gs.getState().ballPosition).toEqual({ x: 15, y: 8 });
+    expect((await declare()).ok).toBe(true);
+  });
+
+  it("refuses a Gaze clicked before Bloodlust changes the action to Move", async () => {
+    const { game, rolls } = match(
+      [{ playerIndex: 5, x: 15, y: 8 }],
+      [{ ...OPPONENT, x: 16, y: 8 }]
+    );
+    const gazer = fixtureValue(game.ctx.team1.players[5]);
+    const target = fixtureValue(game.ctx.team2.players[0]);
+    const gs = game.ctx.gameService;
+    gazer.skills.push(
+      getSkill(SkillType.HYPNOTIC_GAZE),
+      { ...getSkill(SkillType.BLOODLUST), parameter: "3+" }
+    );
+    game.ctx.team1.rerolls = 1;
+    forceDice(game.ctx.rng, [1]);
+    const declared = await game.execute({
+      type: "declare-action",
+      playerId: gazer.id,
+      action: "gaze",
+    });
+    expect(declared.pendingDecision?.type).toBe("reroll");
+    expect(await gs.performSpecialAction("gaze", gazer.id, target.id)).toBe(
+      false
+    );
+    await game.execute({ type: "use-reroll", accept: false });
+    await game.execute({ type: "use-reaction", accept: true });
+    expect(gs.getState().activePlayer?.action).toBe("move");
+    expect(rolls.some((type) => type.includes("Gaze"))).toBe(false);
   });
 
   it("lets Steady Footing save a ball carrier from the knockdown", async () => {

@@ -1,4 +1,3 @@
-import { activationLost } from "../rules/activationLost";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { type IGameService } from "../../services/interfaces/IGameService";
@@ -34,7 +33,6 @@ export class BombardierOperation extends GameOperation {
 
     const thrower = gameService.getPlayerById(this.throwerId);
     if (!thrower?.gridPosition) return;
-    if (activationLost(gameService, thrower.id)) return;
     if (thrower.status !== PlayerStatus.ACTIVE) {
       eventBus.emit(
         GameEventNames.UI_Notification,

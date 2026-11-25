@@ -34,7 +34,6 @@ export class ActivationGateOperation extends GameOperation {
 
   async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService;
-    const eventBus = context.eventBus;
     const player = gameService.getPlayerById(this.playerId);
     if (!player?.gridPosition) return;
 
@@ -43,11 +42,22 @@ export class ActivationGateOperation extends GameOperation {
       this.action,
       gameService.getTeammates(this.playerId)
     );
+    const state = gameService.getState();
+    if (state.activePlayer?.id === player.id)
+      state.activePlayer.activationRollStarted = true;
+    await this.rollGates(context, player, gates);
+    if (state.activePlayer?.id === player.id)
+      delete state.activePlayer.activationRollStarted;
+  }
+
+  private async rollGates(
+    context: FlowContext,
+    player: Player,
+    gates: ActivationGate[]
+  ): Promise<void> {
+    const { gameService, eventBus } = context;
     for (const gate of gates) {
-      if (gate.onFail.kind === "squigRage") {
-        const activation = gameService.getState().activePlayer;
-        if (activation?.id === player.id) activation.activationRollStarted = true;
-      } else {
+      if (gate.onFail.kind !== "squigRage") {
         gameService.commitAction(this.playerId);
       }
       const dice = gameService.getDiceController();

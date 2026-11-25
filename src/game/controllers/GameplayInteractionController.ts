@@ -380,10 +380,14 @@ export class GameplayInteractionController {
     return { valid: false, gridX: -1, gridY: -1 };
   }
 
+  private rollingActivation(): boolean {
+    return !!this.gameService.getState().activePlayer?.activationRollStarted;
+  }
+
   private consumesSquareClick(x: number, y: number): boolean {
     if (this.targets.handleBiteTargetClick(this.getPlayerAt(x, y)?.id)) return true;
     if (this.targets.handleSpellClick(x, y)) return true;
-    if (this.isBusy) return true;
+    if (this.isBusy || this.rollingActivation()) return true;
     return this.push.click(x, y) || this.push.active;
   }
 
@@ -440,7 +444,7 @@ export class GameplayInteractionController {
     if (getActiveOnlineMatch()?.mayAct() === false) return;
 
     if (this.consumesPlayerTarget(playerId)) return;
-    if (this.isBusy) return;
+    if (this.isBusy || this.rollingActivation()) return;
     console.log(
       `[Interaction] handlePlayerClick: ${playerId}. Mode: ${String(this.currentActionMode)}, Step: ${String(this.currentStepId)}, Selected: ${String(this.selectedPlayerId)}`
     );

@@ -1,5 +1,4 @@
 import { ballOnSquare, groundBall } from "@/game/rules/ballInTheAir";
-import { activationLost } from "../rules/activationLost";
 import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { isOnPitch } from "../rules/pitchSquares";
@@ -7,6 +6,7 @@ import { settleOffObstacle } from "../rules/ballFlight";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type Player } from "../../types/Player";
+import { type GameState } from "../../types/GameState";
 import { type ReactionDecisionAnswer } from "../../types/decisions";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
@@ -47,16 +47,8 @@ interface Square {
   y: number;
 }
 
-function canPunt(
-  punter: Player,
-  at: Square,
-  gameService: FlowContext["gameService"]
-): boolean {
-  return (
-    !activationLost(gameService, punter.id) &&
-    hasSkill(punter.skills, SkillType.PUNT) &&
-    ballOnSquare(gameService.getState(), at)
-  );
+function canPunt(punter: Player, at: Square, state: GameState): boolean {
+  return hasSkill(punter.skills, SkillType.PUNT) && ballOnSquare(state, at);
 }
 
 function puntFlight(
@@ -92,7 +84,7 @@ export class PuntOperation extends GameOperation {
     const { gameService, eventBus, flowManager } = context;
     const punter = gameService.getPlayerById(this.playerId);
     if (!punter?.gridPosition) return;
-    if (!canPunt(punter, punter.gridPosition, gameService)) return;
+    if (!canPunt(punter, punter.gridPosition, gameService.getState())) return;
 
     const dice = gameService.getDiceController();
     let directionRoll = dice.rollD6("Punt Direction", punter.teamId);
