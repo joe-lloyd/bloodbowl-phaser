@@ -41,8 +41,11 @@ foreach ($model in $Models.Split(",")) {
 }
 "$($jobs.Count) chunks to render" | Out-File "$logs/plan.txt"
 $running = @()
+$started = 0
 foreach ($job in $jobs) {
   Wait-Slot $running
+  $started++
+  Write-Host "Chunk $started of $($jobs.Count): $($job[0])"
   $running += Start-Blender -Opts $job[1] -Log "$logs/$($job[0])"
 }
 $running | Wait-Process
@@ -69,5 +72,9 @@ foreach ($model in $packed) {
     $failed += "$model pack failed, see $log"
   }
 }
-if ($failed.Count -gt 0) { ("FAILED`n" + ($failed -join "`n")) | Out-File "$logs/all.done" }
+if ($failed.Count -gt 0) {
+  ("FAILED`n" + ($failed -join "`n")) | Out-File "$logs/all.done"
+  $failed | ForEach-Object { Write-Host "FAILED $_" }
+  exit 1
+}
 else { "ALL DONE" | Out-File "$logs/all.done" }

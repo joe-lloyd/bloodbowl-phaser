@@ -12,6 +12,8 @@
                     out/sheet/<model>/<n>.png plus out/sheet/<model>.json; nothing cached
   --force           re-render even if cached / finished
   --finish          only rebuild manifest.json and the team sheets from the finished atlases
+  --characters DIR  also load the JSON characters of a folder, over those in characters/
+  --kits A-B,C-D    preview one row per pair of team colours (hex, no #)
   --list            print the registered model keys
   --examples        also load teams/_examples.py (demo_* models showing every body plan)
 
@@ -25,7 +27,7 @@ import numpy as np
 FACTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if FACTORY not in sys.path:
     sys.path.insert(0, FACTORY)
-from lib import pixel, atlas, registry, palette, anim, layers
+from lib import pixel, atlas, registry, palette, anim, layers, characters
 
 PAD = 48                    # spare canvas around today's frame, so wide poses are measured before framing
 REF = os.path.join(FACTORY, "reference")
@@ -34,7 +36,8 @@ ROSTERS = json.load(open(os.path.join(REF, "rosters.json")))
 def parse(argv):
     a = dict(models=[], anims=list(anim.ANIMS), facings=list(pixel.FACINGS), out=os.path.join(FACTORY, "out"),
              preview=False, sheet=False, force=False, finish=False, list=False, all=False, batch=None, examples=False,
-             density=1, frames={}, dither=None, tones=None, layers=False, verify=0, stash=None, pack=None, bodies=[])
+             density=1, frames={}, dither=None, tones=None, layers=False, verify=0, stash=None, pack=None, bodies=[],
+             characters=None, kits=[])
     it = iter(argv)
     for tok in it:
         if tok == "--models":
@@ -47,8 +50,10 @@ def parse(argv):
             a["out"] = os.path.abspath(next(it))
         elif tok == "--batch":
             a["batch"] = next(it)
-        elif tok in ("--stash", "--pack"):
+        elif tok in ("--stash", "--pack", "--characters"):
             a[tok[2:]] = os.path.abspath(next(it))
+        elif tok == "--kits":
+            a["kits"] = [tuple("#" + c for c in pair.split("-")) for pair in next(it).split(",")]
         elif tok == "--bodies":
             a["bodies"] = next(it).split(",")
         elif tok == "--bodies-of":
@@ -87,8 +92,10 @@ def today(key):
 DENSITY = [1]
 
 def base_key(key):
-    """A look variant is named <model>__<look>; it is sized and coloured like its model."""
-    return key.split("__")[0]
+    """A look variant is named <model>__<look>; it is sized and coloured like its model. A character is sized
+    and coloured like the model it starts from."""
+    key = key.split("__")[0]
+    return getattr(registry.MODELS.get(key), "ref_key", key)
 
 def team_colours(key):
     used = ROSTERS["models"].get(base_key(key), {}).get("used_by", [])
@@ -205,6 +212,9 @@ PREVIEW = [("idle", 0, "se"), ("idle", 0, "e"), ("idle", 0, "n"), ("run", 2, "e"
 def preview(key, a):
     t0 = time.time()
     model = registry.get(key)
+    choice = characters.default_choice(key)
+    if choice:
+        model = registry.LOOKS[key].variant(choice)
     stage, frame, height = make_stage(key, a["out"])
     target = target_height(model, height)
     scale, got = calibrate(stage, model, target)
@@ -214,8 +224,9 @@ def preview(key, a):
         cells.append(stage.render([f])[f])
     ys = np.concatenate([np.nonzero(c >= 0)[0] for c in cells]); xs = np.concatenate([np.nonzero(c >= 0)[1] for c in cells])
     y0, y1, x0, x1 = ys.min() - 2, ys.max() + 3, xs.min() - 2, xs.max() + 3
-    strip = np.concatenate([atlas.tinted(atlas.layers(c[y0:y1, x0:x1], stage.pal), team_colours(key)) for c in cells], axis=1)
-    img = atlas.on_green(strip)
+    strips = [np.concatenate([atlas.tinted(atlas.layers(c[y0:y1, x0:x1], stage.pal), kit) for c in cells], axis=1)
+              for kit in (a["kits"] or [team_colours(key)])]
+    img = atlas.on_green(np.concatenate(strips, axis=0))
     for j, (name, i, f) in enumerate(PREVIEW):
         atlas.text(img, j * (x1 - x0) * 3 + 2, 2, "%s %s" % (name, f))
     os.makedirs(os.path.join(a["out"], "preview"), exist_ok=True)
@@ -285,6 +296,9 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     a = parse(argv)
     errors = registry.load_all(FACTORY, private=a["examples"])
+    for folder in (os.path.join(FACTORY, "characters"), a["characters"]):
+        if folder:
+            characters.load(folder, errors)
     if a.get("bodies_of"):
         print("BODIES " + " ".join(body for body, _, _, _ in layers.plan(a["bodies_of"])[0]))
         return

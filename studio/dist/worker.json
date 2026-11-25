@@ -1,0 +1,14 @@
+{
+  "name": "sprite-studio",
+  "main": "index.ts",
+  "modules": [],
+  "compatibilityDate": "2026-09-01",
+  "port": 8019,
+  "url": "https://sprites.home.arpa",
+  "network": "lan",
+  "bindings": {
+    "ASSETS": { "type": "assets", "path": "public" },
+    "HELPER": { "type": "http", "address": "192.168.2.48:3941" },
+    "TOKEN": { "type": "secret", "secret": "helper-token" }
+  }
+}

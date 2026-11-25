@@ -49,6 +49,7 @@
     "e2e",
     "scripts",
     "gallery",
+    "studio",
     "*.ts"
   ],
   "exclude": [
