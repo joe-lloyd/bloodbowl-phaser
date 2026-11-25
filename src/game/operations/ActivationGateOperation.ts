@@ -37,14 +37,17 @@ export class ActivationGateOperation extends GameOperation {
     const player = gameService.getPlayerById(this.playerId);
     if (!player?.gridPosition) return;
 
-    const gates = activationGates(
-      player,
-      this.action,
-      gameService.getTeammates(this.playerId)
-    );
-    if (gates.length === 0) return;
     const { activePlayer } = gameService.getState();
     const rolling = activePlayer?.id === player.id ? activePlayer : null;
+    const gates = unresolvedGates(
+      activationGates(
+        player,
+        this.action,
+        gameService.getTeammates(this.playerId)
+      ),
+      rolling?.squigRageSettled === true
+    );
+    if (gates.length === 0) return;
     if (rolling) rolling.activationRollStarted = true;
     try {
       await this.rollGates(context, player, gates);
@@ -274,6 +277,15 @@ export class ActivationGateOperation extends GameOperation {
     }
     gameService.finishActivation(this.playerId);
   }
+}
+
+function unresolvedGates(
+  gates: ActivationGate[],
+  squigRageSettled: boolean
+): ActivationGate[] {
+  if (!squigRageSettled) return gates;
+  const rage = gates.findIndex((gate) => gate.onFail.kind === "squigRage");
+  return gates.slice(rage + 1);
 }
 
 function adjacentStandingPlayers(player: Player, others: Player[]): Player[] {

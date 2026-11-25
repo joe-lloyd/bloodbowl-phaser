@@ -98,7 +98,7 @@ function declareForPlayer({
   activating,
 }: PlayerDeclaration): boolean {
   const held = parts.state.activePlayer;
-  const firstAction = secondActionAfter(parts, held, playerId);
+  const firstAction = secondActionAfter(held, playerId);
   if (
     razzleDazzleRefuses({
       parts,
@@ -156,14 +156,20 @@ function endsOnSwitch(held: Declaration): boolean {
   return rageLeavesOpen(held) || held.razzleDazzle?.awaitingSecond === true;
 }
 
-function secondActionAfter(
+function finishOnSwitch(
   parts: GameParts,
   held: Declaration | null,
   playerId: string
+): void {
+  if (!held || held.id === playerId || !endsOnSwitch(held)) return;
+  parts.playerActionManager.cancelAction(held.id);
+  parts.game.finishActivation(held.id);
+}
+
+function secondActionAfter(
+  held: Declaration | null,
+  playerId: string
 ): ActionType | undefined {
-  if (held && held.id !== playerId && endsOnSwitch(held)) {
-    parts.game.finishActivation(held.id);
-  }
   return held?.id === playerId && held.razzleDazzle?.awaitingSecond
     ? held.razzleDazzle.actions[0]
     : undefined;
@@ -228,9 +234,10 @@ function mayRedeclare({
   }
 
   const live = parts.state.activePlayer;
-  if (!live || mustRedeclare(parts.state, activating.id)) return true;
+  if (!live || live.razzleDazzle?.awaitingSecond) return true;
+  if (mustRedeclare(parts.state, live.id)) return true;
   if (live.blockReplacement || blockReplacement) return false;
-  return releaseLiveDeclaration({
+  return mayReleaseLiveDeclaration({
     parts,
     live,
     playerId: activating.id,
@@ -238,7 +245,7 @@ function mayRedeclare({
   });
 }
 
-function releaseLiveDeclaration({
+function mayReleaseLiveDeclaration({
   parts,
   live,
   playerId,
@@ -264,9 +271,6 @@ function releaseLiveDeclaration({
       `Cannot change the declared Action — ${PlayerActionManager.describeCommitReason(status.reason)}.`
     );
     return false;
-  }
-  if (ONCE_PER_TURN_ACTIONS.has(live.action)) {
-    parts.playerActionManager.cancelAction(existingId);
   }
   return true;
 }
@@ -452,6 +456,11 @@ function recordDeclaration(
   const { player, action } = declaring;
   const playerId = player.id;
 
+  if (!parts.playerActionManager.canDeclareAction(playerId, action)) {
+    return false;
+  }
+  finishOnSwitch(parts, declaring.held, playerId);
+
   const prior = parts.state.activePlayer;
   const stalling =
     prior?.id === playerId && prior.stalling !== undefined
@@ -496,7 +505,6 @@ function finishDeclaration(
 
   if (held?.id === playerId && held.squigRageSettled) {
     declared.squigRageSettled = true;
-    return true;
   }
   if (
     player.skills.some(

@@ -248,6 +248,39 @@ describe("Squig Rage", () => {
       expect(gs.getState().turn.hasHandedOff).toBe(false);
     });
 
+    it("keeps the Hopper's activation when another player's declaration is refused", async () => {
+      const { game, gs, hopper, declare } = await ragedHopper();
+      const other = fixtureValue(game.ctx.team1.players[3]);
+      const refuse = () =>
+        game.execute({
+          type: "declare-action",
+          playerId: other.id,
+          action: "chomp",
+        });
+      expect((await refuse()).ok).toBe(false);
+      expect(gs.hasPlayerActed(hopper.id)).toBe(false);
+      expect((await declare("handoff")).ok).toBe(true);
+      const held = structuredClone(gs.getState().activePlayer);
+      expect((await refuse()).ok).toBe(false);
+      expect(gs.getState().activePlayer).toEqual(held);
+      expect((await declare("handoff", other.id)).ok).toBe(true);
+      expect(gs.hasPlayerActed(hopper.id)).toBe(true);
+      expect(gs.getState().turn.hasHandedOff).toBe(false);
+    });
+
+    it("rolls Bone Head but not Squig Rage again when the Hopper redeclares", async () => {
+      const { game, gs, hopper, rolls, declare } = await ragedHopper();
+      hopper.skills.push(getSkill(SkillType.BONE_HEAD));
+      const rolled = rolls.length;
+      forceDice(game.ctx.rng, [1]);
+      expect((await declare("move")).ok).toBe(true);
+      expect(rolls.slice(rolled)).toEqual([
+        expect.stringContaining("Bone Head"),
+      ]);
+      expect(hopper.conditions).toContainEqual({ type: "Distracted" });
+      expect(gs.hasPlayerActed(hopper.id)).toBe(true);
+    });
+
     it("refuses to move before the coach declares again", async () => {
       const { game, hopper } = await ragedHopper();
       const start = { ...fixtureValue(hopper.gridPosition) };
