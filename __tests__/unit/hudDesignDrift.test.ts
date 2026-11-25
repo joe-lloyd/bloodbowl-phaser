@@ -81,7 +81,6 @@ const ALLOWED = new Set([
   "src/ui/components/hud/Announcer.tsx: #000",
   "src/ui/components/hud/LoadingScreen.tsx: #000",
   "src/ui/components/hud/ScenarioCasePanel.tsx: font-mono",
-  "src/ui/components/hud/DiceLog.tsx: hud-field flex-1 !min-h-[32px]",
   "src/ui/components/hud/TurnoverOverlay.tsx: <h1 className",
   "src/ui/components/hud/TurnoverOverlay.tsx: text-[clamp(64px,10vw,120px)]",
   "src/ui/components/componentWarehouse/HudBits.tsx: #ffe9a8",

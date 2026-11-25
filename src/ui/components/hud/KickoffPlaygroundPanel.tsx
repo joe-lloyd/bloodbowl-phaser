@@ -33,7 +33,7 @@ function Choice({
       <span className="hud-label">{label}</span>
       <Select
         aria-label={label}
-        className="hud-field cursor-pointer"
+        className="hud-field hud-field-sm cursor-pointer"
         value={value}
         onChange={(event) => {
           onPick(event.target.value);

@@ -84,6 +84,11 @@
     pointer-events: auto;
     transition: border-color 120ms ease;
   }
+  .hud-field-sm {
+    min-height: 32px;
+    padding: 4px 8px;
+    font-size: 13px;
+  }
   .hud-field:hover:not(:disabled) {
     border-color: rgb(227 180 72 / 0.5);
   }

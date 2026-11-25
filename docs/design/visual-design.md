@@ -82,7 +82,8 @@ button. Gold is the current step and a green tick is a finished one.
   levels: hero, page, section, card and row. A heading never has its own classes.
 - Text uses the `text-hud-*` sizes and the palette. `bone` is text, `dim` is
   secondary text, `gold` is a result or a selection.
-- A field is as tall as the medium button beside it.
+- A field is as tall as the medium button beside it. Next to a small button,
+  such as in chat or a tool panel, use `hud-field-sm`.
 
 `hudDesignDrift.test.ts` fails the build when a screen breaks these rules or
 makes its own panel, title, field height or button fill. Its list of exceptions

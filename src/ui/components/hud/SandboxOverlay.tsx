@@ -81,7 +81,7 @@ interface ScenarioInfo {
   expectedOutcome?: string;
 }
 
-const selectClass = "hud-field cursor-pointer";
+const selectClass = "hud-field hud-field-sm cursor-pointer";
 const boxClass =
   "rounded-hud border border-white/10 bg-black/30 px-2.5 py-1.5 text-hud-sm text-hud-bone/85";
 
@@ -374,7 +374,7 @@ function SeedFinder({
             e.stopPropagation();
           }}
           placeholder="Seed"
-          className="hud-field tabular-nums"
+          className="hud-field hud-field-sm tabular-nums"
         />
         <button
           onClick={onRandomSeed}
