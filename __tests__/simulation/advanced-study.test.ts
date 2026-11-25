@@ -127,7 +127,7 @@ describe("advanced skill study", () => {
       "random-vs-base",
       "focused-vs-random",
     ])
-      expect(jobs.filter((j) => j.comparison === arm)).toHaveLength(664);
+      expect(jobs.filter((j) => j.comparison === arm)).toHaveLength(672);
   });
   it("removes native skills before a controlled script, without mutating its fixture", async () => {
     const { config } = fixtureValue(findRuleConfig("horns-blitz-strength"));
