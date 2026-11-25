@@ -32,7 +32,15 @@ export const TurnoverOverlay: React.FC<TurnoverOverlayProps> = ({
       className="absolute inset-0 z-[200] flex items-start justify-center pt-[18vh] phone:landscape:pt-[96px] phone:portrait:pt-[160px] bg-[radial-gradient(ellipse_at_center,rgba(92,10,14,0.55),rgba(0,0,0,0.55)_70%)] pointer-events-none"
     >
       <div className="animate-hud-slam">
-        <BroadcastBanner headline="TURNOVER" subtitle={message} tone="bad" />
+        <BroadcastBanner
+          headline={
+            <span role="heading" aria-level={1}>
+              TURNOVER
+            </span>
+          }
+          subtitle={message}
+          tone="bad"
+        />
       </div>
     </div>
   );
