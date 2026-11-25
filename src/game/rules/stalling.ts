@@ -8,6 +8,7 @@ import { PrayerToNuffle } from "../../types/Inducements";
 import { prayerInPlay } from "../inducements/matchInducements";
 import { type StallingPenalty } from "../variants/gameTypeRules";
 import { isStandableSquare } from "./pitchSquares";
+import { restrainedByHerder } from "../skills/rules/SquigRageRule";
 
 const ACTIVATION_ROLLS = [
   SkillType.BONE_HEAD,
@@ -23,14 +24,28 @@ interface Square {
   y: number;
 }
 
-function canRunWithBall(
-  player: Player,
-  ball: Square | null,
-  start: Square
-): boolean {
+function canRunWithBall({
+  player,
+  players,
+  ball,
+  start,
+}: {
+  player: Player;
+  players: Player[];
+  ball: Square | null;
+  start: Square;
+}): boolean {
   if (!ball || ball.x !== start.x || ball.y !== start.y) return false;
   if (player.status !== PlayerStatus.ACTIVE) return false;
-  return !ACTIVATION_ROLLS.some((skill) => hasSkill(player.skills, skill));
+  if (ACTIVATION_ROLLS.some((skill) => hasSkill(player.skills, skill)))
+    return false;
+  return (
+    !hasSkill(player.skills, SkillType.SQUIG_RAGE) ||
+    restrainedByHerder(
+      player,
+      players.filter((mate) => mate.teamId === player.teamId)
+    )
+  );
 }
 
 const onPitch = (square: Square): boolean => isStandableSquare(square);
@@ -59,7 +74,10 @@ export function canScoreWithoutDice({
   side: 1 | 2;
 }): boolean {
   const start = player.gridPosition;
-  if (!start || !canRunWithBall(player, state.ballPosition, start)) {
+  if (
+    !start ||
+    !canRunWithBall({ player, players, ball: state.ballPosition, start })
+  ) {
     return false;
   }
 

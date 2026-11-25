@@ -106,6 +106,7 @@ export async function standUp(
 
   if (
     parts.state.activePlayer?.id !== playerId ||
+    parts.state.activePlayer.forcedBlock ||
     parts.turnManager.isTurnoverInProgress()
   )
     return;

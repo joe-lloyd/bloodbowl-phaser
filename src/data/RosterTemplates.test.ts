@@ -5,7 +5,7 @@ import {
 } from "./RosterTemplates";
 
 describe("Sevens roster tiers (MP4)", () => {
-  it("matches the Spike! Journal 22 tier list for all 30 rosters", () => {
+  it("assigns a Sevens tier to every standard roster", () => {
     const tiers = Object.fromEntries(
       getAvailableRosterNames().map((name) => [
         name,
@@ -40,6 +40,7 @@ describe("Sevens roster tiers (MP4)", () => {
       Khorne: 3,
       "Underworld Denizens": 3,
       Gnome: 4,
+      "Night Goblin": 4,
       Goblin: 4,
       Ogre: 4,
       Snotling: 4,

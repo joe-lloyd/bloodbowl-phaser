@@ -38,6 +38,7 @@ export function requestedDecision(
         playerId: request.playerId,
         chooserTeamId: request.chooserTeamId,
         targetIds: [...request.targetIds],
+        ...(request.purpose ? { purpose: request.purpose } : {}),
       };
     case "interception":
       return {

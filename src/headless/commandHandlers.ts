@@ -13,6 +13,7 @@ import { type Player, PlayerStatus } from "../types/Player";
 import { BlockValidator } from "../game/validators/BlockValidator";
 import { isBlockReplacement } from "../types/BlockReplacement";
 import { Inducement } from "../types/Inducements";
+import { canChooseBiteTarget } from "../types/decisions";
 import { isStandableSquare } from "../game/rules/pitchSquares";
 
 type QueryCommand = Extract<
@@ -509,7 +510,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
     refuseUnless(
       host,
       pending,
-      cmd.playerId === undefined || pending.targetIds.includes(cmd.playerId),
+      canChooseBiteTarget(pending, cmd.playerId),
       "invalid-bite-target"
     );
     refuseUnless(

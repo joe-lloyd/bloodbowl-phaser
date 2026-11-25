@@ -101,6 +101,8 @@ export const skillTypeSchema: z.ZodType<SkillType> = z.union([
   z.literal("Right Stuff"),
   z.literal("Secret Weapon"),
   z.literal("Stab"),
+  z.literal("Squig Rage"),
+  z.literal("Squig Restraint"),
   z.literal("Stunty"),
   z.literal("Swoop"),
   z.literal("Take Root"),

@@ -62,10 +62,9 @@ export class PlayerActionManager {
 
   public isActionCommitted(playerId: string): CommitStatus {
     const active = this.state.activePlayer;
-    if (!active || active.id !== playerId) return { committed: false };
+    if (active?.id !== playerId) return { committed: false };
 
-    const before = active.razzleDazzle?.movementBefore ?? 0;
-    if ((this.state.turn.movementUsed.get(playerId) ?? 0) > before) {
+    if (this.movedSinceDeclaration(active)) {
       return { committed: true, reason: "movement" };
     }
     if (active.blockReplacementUsed) {
@@ -74,10 +73,15 @@ export class PlayerActionManager {
     if (this.state.turn.activatedPlayerIds.has(playerId)) {
       return { committed: true, reason: "activated" };
     }
-    if (active.committed) {
+    if (active.committed || active.activationRollStarted) {
       return { committed: true, reason: "gate" };
     }
     return { committed: false };
+  }
+
+  private movedSinceDeclaration(active: NonNullable<GameState["activePlayer"]>): boolean {
+    const used = this.state.turn.movementUsed.get(active.id) ?? 0;
+    return used > (active.razzleDazzle?.movementBefore ?? 0);
   }
 
   public static describeCommitReason(reason: CommitReason): string {

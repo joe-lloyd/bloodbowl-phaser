@@ -9,9 +9,13 @@ import {
   PlayerCondition,
   addCondition,
 } from "../../types/Player";
-import { activationGates, withRerollOffer } from "../skills";
+import { activationGates, playersWithin, withRerollOffer } from "../skills";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { type ActivationGate } from "../skills/SkillRule";
-import { type ReactionDecisionAnswer } from "../../types/decisions";
+import {
+  type BiteTargetDecisionRequest,
+  type ReactionDecisionAnswer,
+} from "../../types/decisions";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
 
@@ -38,11 +42,21 @@ export class ActivationGateOperation extends GameOperation {
       gameService.getTeammates(this.playerId)
     );
     for (const gate of gates) {
-      gameService.commitAction(this.playerId);
+      if (gate.onFail.kind === "squigRage") {
+        const activation = gameService.getState().activePlayer;
+        if (activation?.id === player.id) activation.activationRollStarted = true;
+      } else {
+        gameService.commitAction(this.playerId);
+      }
       const dice = gameService.getDiceController();
       const doRoll = () => {
-        const r = dice.rollSkillCheck(
-          { reason: gate.skill,target: gate.target,modifier: gate.modifier,playerName: player.playerName,teamId: player.teamId }        );
+        const r = dice.rollSkillCheck({
+          reason: gate.skill,
+          target: gate.target,
+          modifier: gate.modifier,
+          playerName: player.playerName,
+          teamId: player.teamId,
+        });
         return r;
       };
       const result = await withRerollOffer(
@@ -52,7 +66,10 @@ export class ActivationGateOperation extends GameOperation {
         doRoll,
         { rollName: String(gate.skill) }
       );
-      if (result.success) continue;
+      if (result.success) {
+        gameService.commitAction(this.playerId);
+        continue;
+      }
       await this.applyFailure(context, player, gate);
       break;
     }
@@ -68,18 +85,7 @@ export class ActivationGateOperation extends GameOperation {
 
     switch (gate.onFail.kind) {
       case "distracted": {
-        addCondition(player, PlayerCondition.DISTRACTED);
-        eventBus.emit(GameEventNames.SkillTriggered, {
-          playerId: player.id,
-          skill: gate.skill,
-          effect: `${gate.skill}: ${player.playerName} becomes Distracted — the activation ends`,
-        });
-        eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-        eventBus.emit(
-          GameEventNames.UI_Notification,
-          `${player.playerName} is Distracted!`
-        );
-        this.endActivationNow(gameService);
+        this.distract(context, player, gate.skill);
         return;
       }
       case "endActivation": {
@@ -102,63 +108,25 @@ export class ActivationGateOperation extends GameOperation {
         return;
       }
       case "lashOut": {
-        const victims = gameService
-          .getTeammates(this.playerId)
-          .filter(
-            (p) =>
-              p.status === PlayerStatus.ACTIVE &&
-              p.gridPosition &&
-              player.gridPosition &&
-              Math.abs(p.gridPosition.x - player.gridPosition.x) <= 1 &&
-              Math.abs(p.gridPosition.y - player.gridPosition.y) <= 1
-          )
-          .sort(
-            (a, b) =>
-              a.gridPosition!.y - b.gridPosition!.y ||
-              a.gridPosition!.x - b.gridPosition!.x
-          );
-        const victim = victims[0];
-        if (!victim?.gridPosition) {
+        const victim = adjacentStandingPlayers(
+          player,
+          gameService.getTeammates(player.id)
+        )[0];
+        if (victim) {
+          this.lashOut(context, { player, victim, skill: gate.skill });
+        } else {
           eventBus.emit(GameEventNames.SkillTriggered, {
             playerId: player.id,
             skill: gate.skill,
-            effect: `${gate.skill}: no team-mate adjacent — the activation ends`,
+            effect: `${gate.skill}: no team-mate adjacent. The activation ends.`,
           });
           this.endActivationNow(gameService);
-          return;
-        }
-
-        eventBus.emit(GameEventNames.SkillTriggered, {
-          playerId: player.id,
-          skill: gate.skill,
-          effect: `${gate.skill}: ${player.playerName} lashes out at ${victim.playerName}!`,
-        });
-        victim.status = PlayerStatus.PRONE;
-        eventBus.emit(GameEventNames.PlayerKnockedDown, {
-          playerId: victim.id,
-        });
-        eventBus.emit(GameEventNames.PlayerStatusChanged, victim);
-
-        const ball = groundBall(gameService.getState());
-        const hadBall =
-          !!ball &&
-          ball.x === victim.gridPosition.x &&
-          ball.y === victim.gridPosition.y;
-        if (hadBall) {
-          context.flowManager.add(
-            new BounceOperation({ ...victim.gridPosition }),
-            true
-          );
-        }
-        context.flowManager.add(
-          new ArmourOperation(victim.id, this.playerId, undefined, "lash-out"),
-          true
-        );
-        if (hadBall) {
-          gameService.triggerTurnover("Lashed out at the ball carrier");
         }
         return;
       }
+      case "squigRage":
+        await this.resolveSquigRage(context, player);
+        return;
       case "bloodlust": {
         eventBus.emit(GameEventNames.SkillTriggered, {
           playerId: player.id,
@@ -189,6 +157,89 @@ export class ActivationGateOperation extends GameOperation {
     }
   }
 
+  private async resolveSquigRage(
+    context: FlowContext,
+    player: Player
+  ): Promise<void> {
+    const { gameService, eventBus } = context;
+    const skill = SkillType.SQUIG_RAGE;
+    const opponents = adjacentStandingPlayers(
+      player,
+      gameService.getOpponents(player.teamId)
+    );
+    const opponent = canRageBlock(player)
+      ? await chooseRageOpponent(gameService, player, opponents)
+      : undefined;
+    if (opponent) {
+      eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: player.id,
+        skill,
+        effect: `${player.playerName} must Block ${opponent.playerName}.`,
+      });
+      await gameService.forceBlock(player.id, opponent.id);
+      return;
+    }
+
+    const targets = adjacentStandingPlayers(
+      player,
+      gameService.getTeammates(player.id)
+    );
+    const victim = await chooseRageTarget(gameService, {
+      player,
+      targets,
+      purpose: "squig-knock-down",
+    });
+    if (victim) {
+      gameService.commitAction(player.id);
+      this.lashOut(context, { player, victim, skill });
+    } else {
+      this.distract(context, player, skill);
+    }
+  }
+
+  private distract(context: FlowContext, player: Player, skill: string): void {
+    const { gameService, eventBus } = context;
+    addCondition(player, PlayerCondition.DISTRACTED);
+    eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: player.id,
+      skill,
+      effect: `${skill}: ${player.playerName} becomes Distracted. The activation ends.`,
+    });
+    eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+    eventBus.emit(
+      GameEventNames.UI_Notification,
+      `${player.playerName} is Distracted!`
+    );
+    this.endActivationNow(gameService);
+  }
+
+  private lashOut(
+    context: FlowContext,
+    { player, victim, skill }: { player: Player; victim: Player; skill: string }
+  ): void {
+    const { gameService, eventBus, flowManager } = context;
+    const square = victim.gridPosition;
+    if (!square) return;
+
+    eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: player.id,
+      skill,
+      effect: `${skill}: ${player.playerName} lashes out at ${victim.playerName}!`,
+    });
+    victim.status = PlayerStatus.PRONE;
+    eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: victim.id });
+    eventBus.emit(GameEventNames.PlayerStatusChanged, victim);
+
+    const ball = groundBall(gameService.getState());
+    const hadBall = ball?.x === square.x && ball.y === square.y;
+    if (hadBall) flowManager.add(new BounceOperation({ ...square }), true);
+    flowManager.add(
+      new ArmourOperation(victim.id, player.id, undefined, "lash-out"),
+      true
+    );
+    if (hadBall) gameService.triggerTurnover("Lashed out at the ball carrier");
+  }
+
   private endActivationNow(gameService: IGameService): void {
     const state = gameService.getState();
     if (state.activePlayer?.id === this.playerId) {
@@ -196,4 +247,63 @@ export class ActivationGateOperation extends GameOperation {
     }
     gameService.finishActivation(this.playerId);
   }
+}
+
+function adjacentStandingPlayers(player: Player, others: Player[]): Player[] {
+  const square = player.gridPosition;
+  if (!square) return [];
+  return playersWithin(square, others, 1)
+    .flatMap((other) =>
+      other.status === PlayerStatus.ACTIVE && other.gridPosition
+        ? [{ other, at: other.gridPosition }]
+        : []
+    )
+    .sort((a, b) => a.at.y - b.at.y || a.at.x - b.at.x)
+    .map(({ other }) => other);
+}
+
+function canRageBlock(player: Player): boolean {
+  return (
+    player.status === PlayerStatus.ACTIVE ||
+    (player.status === PlayerStatus.PRONE &&
+      hasSkill(player.skills, SkillType.JUMP_UP))
+  );
+}
+
+async function chooseRageOpponent(
+  gameService: IGameService,
+  player: Player,
+  opponents: Player[]
+): Promise<Player | undefined> {
+  if (opponents.length < 2) return opponents[0];
+  return chooseRageTarget(gameService, {
+    player,
+    targets: opponents,
+    purpose: "squig-block",
+  });
+}
+
+async function chooseRageTarget(
+  gameService: IGameService,
+  {
+    player,
+    targets,
+    purpose,
+  }: {
+    player: Player;
+    targets: Player[];
+    purpose: NonNullable<BiteTargetDecisionRequest["purpose"]>;
+  }
+): Promise<Player | undefined> {
+  if (targets.length === 0) return;
+  const answer = await gameService.getDecisionService().request({
+    type: "bite-target",
+    playerId: player.id,
+    chooserTeamId: player.teamId,
+    targetIds: targets.map((target) => target.id),
+    purpose,
+  });
+  if ("targetId" in answer)
+    return targets.find((target) => target.id === answer.targetId);
+  return undefined;
 }

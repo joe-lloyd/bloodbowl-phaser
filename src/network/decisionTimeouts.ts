@@ -61,7 +61,6 @@ function inducementDefault(
 
 const fixedAnswers: Partial<Record<PendingDecision["type"], HeadlessCommand>> = {
   reaction: { type: "use-reaction", accept: false },
-  "bite-target": { type: "choose-bite-target" },
   reroll: { type: "use-reroll", accept: false },
   interception: { type: "choose-interception" },
   apothecary: { type: "use-apothecary", accept: false },
@@ -71,6 +70,12 @@ const fixedAnswers: Partial<Record<PendingDecision["type"], HeadlessCommand>> = 
 export function defaultAnswer(pending: PendingDecision): HeadlessCommand | null {
   const fixed = fixedAnswers[pending.type];
   if (fixed) return { ...fixed };
+  if (pending.type === "bite-target") {
+    const target = pending.targetIds[0];
+    return pending.purpose === "squig-block" && target
+      ? { type: "choose-bite-target", playerId: target }
+      : { type: "choose-bite-target" };
+  }
   if (pending.type === "block-dice") return blockDiceDefault(pending);
   if (pending.type === "push-direction") return pushDefault(pending);
   if (pending.type === "inducement-choice") return inducementDefault(pending);

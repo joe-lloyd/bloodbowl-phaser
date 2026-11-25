@@ -1,4 +1,4 @@
-import { RosterName } from "../types/Team";
+import { type RosterName } from "../types/Team";
 import {
   SPP_VALUES,
   type SppValues,
@@ -8,10 +8,10 @@ import { RACE_RATES } from "./raceRates";
 
 export const AVERAGE_TOUCHDOWNS = 2;
 
-const ROSTERS = Object.values(RosterName);
+const OBSERVED_RATES = Object.values(RACE_RATES);
 const MEAN_TOUCHDOWNS =
-  ROSTERS.reduce((sum, roster) => sum + RACE_RATES[roster].touchdowns, 0) /
-  ROSTERS.length;
+  OBSERVED_RATES.reduce((sum, rate) => sum + rate.touchdowns, 0) /
+  OBSERVED_RATES.length;
 
 export interface Standard {
   touchdowns: number;
@@ -32,8 +32,8 @@ export function scoringSpp(
 }
 
 export function standardFor(roster: RosterName): Standard {
-  const touchdowns =
-    (AVERAGE_TOUCHDOWNS * RACE_RATES[roster].touchdowns) / MEAN_TOUCHDOWNS;
+  const rate = RACE_RATES[roster]?.touchdowns ?? MEAN_TOUCHDOWNS;
+  const touchdowns = (AVERAGE_TOUCHDOWNS * rate) / MEAN_TOUCHDOWNS;
   return {
     touchdowns,
     values: sppValuesFor(roster),

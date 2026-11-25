@@ -79,6 +79,7 @@ export interface BlockDeclaredContext extends TriggerContextBase {
   defenderStrength: number;
 
   isBlitz: boolean;
+  isBallAndChain: boolean;
 
   cancelled: boolean;
 
@@ -296,6 +297,7 @@ type ActivationGateFailure =
   | { kind: "endActivation" }
   | { kind: "rooted" }
   | { kind: "lashOut" }
+  | { kind: "squigRage" }
   | { kind: "bloodlust" };
 
 export interface ActivationGate {

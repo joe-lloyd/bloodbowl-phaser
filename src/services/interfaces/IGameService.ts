@@ -169,6 +169,7 @@ export interface IGameService {
   standUp(playerId: string): Promise<void>;
 
   previewBlock(attackerId: string, defenderId: string): void;
+  forceBlock(attackerId: string, defenderId: string): Promise<void>;
 
   multipleBlock(
     attackerId: string,

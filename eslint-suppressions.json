@@ -3320,7 +3320,7 @@
       "count": 1
     },
     "sonarjs/no-duplicate-string": {
-      "count": 3
+      "count": 2
     }
   },
   "src/data/computerTeamCatalogue.ts": {
@@ -3695,7 +3695,7 @@
       "count": 2
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 5
+      "count": 4
     },
     "complexity": {
       "count": 5
@@ -3814,7 +3814,7 @@
       "count": 1
     },
     "@typescript-eslint/prefer-optional-chain": {
-      "count": 4
+      "count": 3
     },
     "@typescript-eslint/switch-exhaustiveness-check": {
       "count": 3
@@ -3990,9 +3990,6 @@
   "src/game/operations/ActivationGateOperation.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 4
     },
     "@typescript-eslint/no-unnecessary-type-conversion": {
       "count": 1

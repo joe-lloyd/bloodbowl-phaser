@@ -203,6 +203,7 @@ export const RaceKeyWord = {
   SKELETON: "Skeleton",
   SNOTLING: "Snotling",
   SPAWN: "Spawn",
+  SQUIG: "Squig",
   TREEMAN: "Treeman",
   TROLL: "Troll",
   UNDEAD: "Undead",

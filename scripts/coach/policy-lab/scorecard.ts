@@ -38,7 +38,7 @@ interface Bar {
 
 function barOf(roster: RosterName, tier: Tier): Bar {
   const standard = STANDARDS[tier];
-  const people = RACE_RATES[roster].wins;
+  const people = RACE_RATES[roster]?.wins ?? standard.points;
   return people < standard.points
     ? { points: people, scores: standard.scores, pointsFrom: "fumbbl" }
     : { ...standard, pointsFrom: "tier" };

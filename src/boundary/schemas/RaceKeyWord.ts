@@ -22,6 +22,7 @@ export const raceKeyWordSchema: z.ZodType<RaceKeyWord> = z.union([
   z.literal("Minotaur"),
   z.literal("Skeleton"),
   z.literal("Spawn"),
+  z.literal("Squig"),
   z.literal("Treeman"),
   z.literal("Troll"),
   z.literal("Undead"),

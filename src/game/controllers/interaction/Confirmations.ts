@@ -231,6 +231,8 @@ export const GATE_FAILURE_TEXT: Record<ActivationGate["onFail"]["kind"], string>
   rooted: "On a fail they are Rooted and cannot leave their square.",
   lashOut:
     "On a fail they lash out at a Standing team-mate next to them. With none beside them, the activation ends.",
+  squigRage:
+    "On a fail they Block an adjacent opponent, lash out at a team-mate, or become Distracted.",
   bloodlust:
     "On a fail they may switch to a Move, and must bite a Thrall before the activation ends.",
 };

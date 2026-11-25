@@ -104,6 +104,9 @@ export interface GameState {
 
     committed?: boolean;
 
+    forcedBlock?: true;
+    activationRollStarted?: true;
+
     bloodlustUnsated?: boolean;
 
     grudgeMatch?: boolean;

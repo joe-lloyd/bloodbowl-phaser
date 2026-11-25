@@ -443,6 +443,10 @@ export class GameService implements IGameService {
     this.parts.blockManager.previewBlock(attackerId, defenderId);
   }
 
+  forceBlock(attackerId: string, defenderId: string): Promise<void> {
+    return blockActions.forceBlock(this.parts, attackerId, defenderId);
+  }
+
   multipleBlock(
     attackerId: string,
     defender1Id: string,

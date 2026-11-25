@@ -66,6 +66,20 @@ const SUPPORTED_DECLARATIONS = new Set<ActionType>([
   "punt",
 ]);
 
+function playerTargetCandidates(
+  pending: Extract<PendingDecision, { type: "bite-target" }>,
+  name: (id: string) => string
+): Candidate[] {
+  const verb = { "squig-block": "Block", "squig-knock-down": "Knock down" };
+  const action = pending.purpose ? verb[pending.purpose] : "Bite";
+  const candidates = pending.targetIds.map((playerId) =>
+    one({ type: "choose-bite-target", playerId }, `${action} ${name(playerId)}`)
+  );
+  if (pending.purpose === "squig-block") return candidates;
+  const decline = pending.purpose === "squig-knock-down" ? "Become Distracted" : "Bite nobody";
+  return [...candidates, one({ type: "choose-bite-target" }, decline)];
+}
+
 export async function enumerateDecision(
   game: HeadlessGame,
   kickingTeamId: string | null
@@ -264,15 +278,7 @@ function decisionCandidates(
         ),
       ];
     case "bite-target":
-      return [
-        ...pending.targetIds.map((playerId) =>
-          one(
-            { type: "choose-bite-target", playerId },
-            `Bite ${name(playerId)}`
-          )
-        ),
-        one({ type: "choose-bite-target" }, "Bite nobody"),
-      ];
+      return playerTargetCandidates(pending, name);
     case "interception":
       return [
         ...pending.candidates.map((c) =>

@@ -31,6 +31,30 @@ function isStandingOpponent(
   );
 }
 
+export async function forceBlock(
+  parts: GameParts,
+  attackerId: string,
+  defenderId: string
+): Promise<void> {
+  const { blockManager, game, movementManager, state } = parts;
+  const attacker = game.getPlayerById(attackerId);
+  if (!attacker || state.activePlayer?.id !== attackerId) return;
+
+  state.activePlayer = {
+    id: attackerId,
+    action: "block",
+    committed: true,
+    forcedBlock: true,
+  };
+  if (attacker.status === PlayerStatus.PRONE) {
+    await movementManager.standUp(attackerId);
+    if (game.hasPlayerActed(attackerId)) return;
+  }
+
+  blockManager.previewBlock(attackerId, defenderId);
+  await blockManager.startBlock(attackerId, defenderId);
+}
+
 export async function multipleBlock({
   parts,
   attackerId,
@@ -222,6 +246,7 @@ function blockDeclarationRefuses(
     awaitingSecondAction(parts, attackerId) ||
     (declaration.action !== "block" && declaration.action !== "blitz") ||
     declaration.blockReplacement !== undefined ||
+    declaration.forcedBlock === true ||
     parts.game.hasUsedBlitzBlock(attackerId)
   );
 }

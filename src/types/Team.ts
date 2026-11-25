@@ -125,6 +125,7 @@ export const RosterName = {
   KHORNE: "Khorne",
   LIZARDMEN: "Lizardmen",
   NECROMANTIC_HORROR: "Necromantic Horror",
+  NIGHT_GOBLIN: "Night Goblin",
   NORSE: "Norse",
   NURGLE: "Nurgle",
   OGRE: "Ogre",

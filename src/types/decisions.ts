@@ -61,6 +61,16 @@ export interface BiteTargetDecisionRequest {
   chooserTeamId: string;
 
   targetIds: string[];
+  purpose?: "squig-knock-down" | "squig-block";
+}
+
+export function canChooseBiteTarget(
+  request: BiteTargetDecisionRequest,
+  targetId: string | undefined
+): boolean {
+  return targetId === undefined
+    ? request.purpose !== "squig-block"
+    : request.targetIds.includes(targetId);
 }
 
 export interface BiteTargetDecisionAnswer {

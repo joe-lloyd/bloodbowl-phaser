@@ -84,6 +84,7 @@ function BiteTargetPromptView({
   sent,
   biteNobody,
 }: BiteTargetPromptViewProps) {
+  const copy = biteTargetCopy(request, biter);
   return (
     <DialogShell
       placement="dock"
@@ -94,26 +95,49 @@ function BiteTargetPromptView({
           playerId={request.playerId}
         />
       }
-      title="Bloodlust: choose who to bite"
+      title={copy.title}
       actions={
-        <DialogActions>
-          <HudButton
-            data-testid="bite-target-none"
-            variant="ghost"
-            disabled={sent}
-            onClick={biteNobody}
-          >
-            Bite nobody
-          </HudButton>
-        </DialogActions>
+        copy.decline && (
+          <DialogActions>
+            <HudButton
+              data-testid="bite-target-none"
+              variant="ghost"
+              disabled={sent}
+              onClick={biteNobody}
+            >
+              {copy.decline}
+            </HudButton>
+          </DialogActions>
+        )
       }
     >
-      <p>
-        {biter ?? "This player"} can bite {request.targetIds.length} Thrall
-        Linemen. Click the one to bite on the pitch: they are marked in red.
-      </p>
+      <p>{copy.detail}</p>
     </DialogShell>
   );
+}
+
+function biteTargetCopy(
+  request: BiteTargetDecisionRequest,
+  biter: string | undefined
+) {
+  if (request.purpose === "squig-block") {
+    return {
+      title: "Choose an opponent for Squig Rage",
+      detail: "Click a marked opponent to Block them.",
+    };
+  }
+  if (request.purpose === "squig-knock-down") {
+    return {
+      title: "Choose a team-mate for Squig Rage",
+      detail: "Click a marked team-mate to knock them down and continue the activation.",
+      decline: "Become Distracted",
+    };
+  }
+  return {
+    title: "Bloodlust: choose who to bite",
+    detail: `${biter ?? "This player"} can bite ${String(request.targetIds.length)} Thrall Linemen. Click the one to bite on the pitch: they are marked in red.`,
+    decline: "Bite nobody",
+  };
 }
 
 const BITE_TARGET = "bite-target";

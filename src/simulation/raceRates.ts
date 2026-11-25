@@ -11,7 +11,7 @@ export interface RaceRates {
   blocks: number;
 }
 
-export const RACE_RATES: Record<RosterName, RaceRates> = {
+export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
   [RosterName.AMAZON]: {
     games: 17559,
     wins: 0.59,

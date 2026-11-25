@@ -793,6 +793,24 @@ export const SKILL_CATALOG = {
     parameterForm: null,
     description: "+1 to the Throw Team-mate roll.",
   },
+  "Squig Rage": {
+    kind: "trait",
+    category: null,
+    usage: "passive",
+    compulsory: true,
+    parameterForm: null,
+    description:
+      "On 1 or 2 when activated, Block an adjacent opponent and end the activation. If unable, knock down a nearby team-mate and roll Armour, or become Distracted.",
+  },
+  "Squig Restraint": {
+    kind: "trait",
+    category: null,
+    usage: "passive",
+    compulsory: true,
+    parameterForm: null,
+    description:
+      "While Standing, this player lets team-mates within three squares ignore Squig Rage.",
+  },
   Stunty: {
     kind: "trait",
     category: null,

@@ -73,6 +73,7 @@ import { DrunkardRule } from "./rules/DrunkardRule";
 import { LonerRule } from "./rules/LonerRule";
 import { ProRule } from "./rules/ProRule";
 import { AnimalSavageryRule } from "./rules/AnimalSavageryRule";
+import { SquigRageRule } from "./rules/SquigRageRule";
 import { BloodlustRule } from "./rules/BloodlustRule";
 import { AnimosityRule } from "./rules/AnimosityRule";
 import { HatredRule } from "./rules/HatredRule";
@@ -185,6 +186,8 @@ function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.LONER, LonerRule);
   SkillRegistry.register(SkillType.PRO, ProRule);
   SkillRegistry.register(SkillType.ANIMAL_SAVAGERY, AnimalSavageryRule);
+  SkillRegistry.register(SkillType.SQUIG_RAGE, SquigRageRule);
+  SkillRegistry.register(SkillType.SQUIG_RESTRAINT, {});
   SkillRegistry.register(SkillType.BLOODLUST, BloodlustRule);
   SkillRegistry.register(SkillType.ANIMOSITY, AnimosityRule);
   SkillRegistry.register(SkillType.HATRED, HatredRule);
