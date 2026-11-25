@@ -75158,9 +75158,9 @@
    "Vargheist": "vargheist"
   },
   "Witch Elf": {
-   "Witch Elf": "witch_elf",
-   "Witch Elf Novice": "witch_novice",
-   "Witch Elf Priestess": "witch_priestess"
+   "Death Hag": "witch_priestess",
+   "Priestess": "witch_novice",
+   "Witch Elf": "witch_elf"
   },
   "Wood Elf": {
    "Loren Forest Treeman": "treeman_loren",
