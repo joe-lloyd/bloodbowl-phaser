@@ -8,6 +8,11 @@ interface Environment {
   readonly TOKEN: string;
 }
 
+const TYPES: Readonly<Record<string, string>> = {
+  html: "text/html; charset=utf-8",
+  js: "text/javascript; charset=utf-8",
+  css: "text/css; charset=utf-8",
+};
 const HELPED = ["/studio-api/", "/sprites/"];
 
 function changesFromElsewhere(request: Request, url: URL): boolean {
@@ -27,11 +32,20 @@ async function askHelper(request: Request, url: URL, env: Environment): Promise<
   }
 }
 
+async function asset(request: Request, url: URL, env: Environment): Promise<Response> {
+  const target = url.pathname === "/" ? new URL("/index.html", url) : url;
+  const response = await env.ASSETS.fetch(new Request(target, { method: request.method, headers: request.headers }));
+  const headers = new Headers(response.headers);
+  const type = TYPES[target.pathname.split(".").pop() ?? ""];
+  if (response.ok && type) headers.set("content-type", type);
+  headers.set("cache-control", "no-cache");
+  return new Response(response.body, { status: response.status, headers });
+}
+
 export default {
   fetch(request: Request, env: Environment): Promise<Response> {
     const url = new URL(request.url);
     if (HELPED.some((start) => url.pathname.startsWith(start))) return askHelper(request, url, env);
-    const target = url.pathname === "/" ? new URL("/index.html", url) : url;
-    return env.ASSETS.fetch(new Request(target, { method: request.method, headers: request.headers }));
+    return asset(request, url, env);
   },
 };
