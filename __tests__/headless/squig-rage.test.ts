@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { enumerateDecision } from "../../src/simulation/candidates";
+import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
+import { newKick } from "../../src/game/kickoff/kickRecord";
+import {
+  mayReselect,
+  openedKickoffTurn,
+} from "../../src/game/kickoff/kickoffTurn";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { RosterName } from "../../src/types/Team";
@@ -279,6 +285,40 @@ describe("Squig Rage", () => {
       ]);
       expect(hopper.conditions).toContainEqual({ type: "Distracted" });
       expect(gs.hasPlayerActed(hopper.id)).toBe(true);
+    });
+
+    it("stands a prone Hopper up after it passes Bone Head", async () => {
+      const { game, hopper } = await ragedHopper();
+      hopper.status = PlayerStatus.PRONE;
+      hopper.skills.push(getSkill(SkillType.BONE_HEAD));
+      forceDice(game.ctx.rng, [6, 6]);
+      const stood = await game.execute({
+        type: "stand-up",
+        playerId: hopper.id,
+      });
+      expect(stood.ok).toBe(true);
+      expect(hopper.status).toBe(PlayerStatus.ACTIVE);
+    });
+
+    it("keeps the kickoff picks locked once Squig Rage has resolved", async () => {
+      const { gs, hopper } = await ragedHopper();
+      const state = gs.getState();
+      const turn = openedKickoffTurn(
+        state,
+        {
+          event: KickoffEvent.BLITZ,
+          teamId: hopper.teamId,
+          playerIds: [hopper.id],
+          selectionLimit: 1,
+        },
+        []
+      );
+      const { step, turn: data } = fixtureValue(turn);
+      const kick = { ...newKick(hopper.teamId, "event"), step };
+      expect(mayReselect({ ...state, turn: data, kick })).toBe(false);
+      expect(
+        mayReselect({ ...state, turn: data, kick, activePlayer: null })
+      ).toBe(true);
     });
 
     it("refuses to move before the coach declares again", async () => {

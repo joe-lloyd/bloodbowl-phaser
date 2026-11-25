@@ -99,7 +99,10 @@ function declareMove(parts: GameParts, playerId: string): void {
 }
 
 function declareMoveToStand(parts: GameParts, playerId: string): boolean {
-  if (mustRedeclare(parts.state, playerId)) declareMove(parts, playerId);
+  if (mustRedeclare(parts.state, playerId)) {
+    declareMove(parts, playerId);
+    return true;
+  }
   if (!mayUseBaseMove(parts, playerId, "stand")) return false;
   if (parts.state.activePlayer?.id !== playerId) declareMove(parts, playerId);
   return true;
