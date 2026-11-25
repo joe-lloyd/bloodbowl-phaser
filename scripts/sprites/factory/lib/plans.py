@@ -86,7 +86,7 @@ DEFAULT_STANCE = dict(lean=4, legs={"l": (5, 9, 8), "r": (-4, 9, 8)}, arms={"l":
 
 # per torso ring from the hips up: (width, depth, shift back)
 ATHLETE = {"m": ((0.96, 1.04, 0.01), (0.84, 0.92, 0.0), (0.98, 1.06, -0.005), (1.08, 1.14, -0.01), (1.12, 1.06, 0.0), (1.0, 1.0, 0.0)),
-           "f": ((1.16, 1.22, 0.035), (0.82, 0.88, 0.0), (0.95, 1.0, 0.0), (0.98, 1.0, 0.0), (0.98, 1.0, 0.0), (1.0, 1.0, 0.0))}
+           "f": ((1.16, 1.22, 0.035), (0.7, 0.78, 0.0), (0.9, 0.96, 0.0), (0.98, 1.0, 0.0), (0.98, 1.0, 0.0), (1.0, 1.0, 0.0))}
 
 class Biped(Model):
     """Two-legged figure built from the approved concept's body, costume and face parts.
@@ -149,6 +149,7 @@ class Biped(Model):
         if belly <= 1:               # athletes: a narrow waist under a full chest, and curved hips
             P["torso"] = [(h, rx * shape[0], ry * shape[1], b + shape[2])
                           for (h, rx, ry, b), shape in zip(P["torso"], ATHLETE["f" if fem else "m"])]
+        P["bust"] = fem and self.race not in ("halfling", "gnome")
         P["hunch"] = k("hunch", 0) + L.get("hunch", 0)
         P["head_fwd"] = k("head_fwd", 0.0)
         if k("digi", False):
@@ -214,6 +215,7 @@ class Biped(Model):
             core.panel(J, P, tag, False, 0.45, 0.14, L["loin"], flare, trim=L.get("loin_trim"), top=0.03)
         if L.get("jersey"):
             tband(tag + "jersey", J, P, [0.08, 0.22, 0.36, P["sh_h"], P["sh_h"] + 0.04], L["jersey"], k=1.05, add=0.015, solid=0.03)
+            core.cups(J, P, tag + "jersey", L["jersey"], off=0.02)
         if L.get("shorts"):
             tband(tag + "shorts", J, P, [-0.085, 0.0, 0.1], L["shorts"], k=1.07, add=0.012, solid=0.03)
         if L.get("breast"):

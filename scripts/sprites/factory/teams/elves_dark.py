@@ -186,9 +186,7 @@ class WitchElf(looks.Fine, Biped):
         if L.get("elf_horns"):
             ec.swept_horns(J, tag, L["elf_horns"], k=1.25, up=1.3, back=0.8, r=0.065)
         tband(tag + "bandeau", J, P, [0.33, 0.4, 0.47], "kit1", k=1.06, add=0.012)
-        for sd in (-1, 1):          # a fuller, shaped bust under the bandeau
-            core.ellipsoid(tag + "cup%d" % sd, surf(J, P, 0.385, 27 * sd, -0.005), (0.1, 0.095, 0.098), "kit1",
-                           core.basis(J["X"], J["F"], J["u"]))
+        core.cups(J, P, tag, "kit1")
         ec.torso_stripe(J, P, tag, "halter", [(0.47, -30), (P["sh_h"] + 0.04, -12)], "kit1", r=0.03)
         ec.torso_stripe(J, P, tag, "halter2", [(0.47, 30), (P["sh_h"] + 0.04, 12)], "kit1", r=0.03)
         for side, sd in (("l", -1), ("r", 1)):

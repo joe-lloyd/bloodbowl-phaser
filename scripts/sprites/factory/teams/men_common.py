@@ -158,6 +158,7 @@ def tooth_necklace(tag, J, P, n=5, mat="bone", span=62, ln=0.1):
 
 def bandeau(tag, J, P, mat, lo=0.3, hi=0.47, trim=None):
     tband(tag + "top", J, P, [lo, (lo + hi) / 2, hi], mat, k=1.07, add=0.015, solid=0.03)
+    core.cups(J, P, tag, mat, off=0.01)
     if trim:
         tband(tag + "toptrim", J, P, [lo - 0.012, lo + 0.03], trim, k=1.07, add=0.028, solid=0.03)
 

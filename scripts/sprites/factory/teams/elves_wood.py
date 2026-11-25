@@ -72,6 +72,7 @@ class Catcher(looks.Fine, Biped):
         ec.loose_hair(J, L, tag, length=0.5)
         if L.get("sex") == "f":     # her leaf top; a man goes bare-chested
             tband(tag + "top", J, P, [0.3, 0.38, 0.47], "kit1", k=1.06, add=0.012)
+            core.cups(J, P, tag, "kit1")
             ec.torso_stripe(J, P, tag, "strap", [(0.47, 32), (P["sh_h"] + 0.04, 14)], "kit1", r=0.035)
         ec.leaf_ring(J, P, tag, 0.08, 11, 0.4, "kit1", width=0.12, droop=0.8, off=0.03, name="skirt")
         sh = J["arms"]["l"][0]
@@ -175,6 +176,7 @@ class Wardancer(looks.Fine, Biped):
                     ec.arm_band(J, L, tag, side, t, t + 0.13, paint, "upper", grow=1.04, name="tat%d" % i)
         if L.get("sex") == "f":     # her bound chest wrap
             tband(tag + "wrap", J, P, [0.31, 0.39, 0.47], "kit2", k=1.07, add=0.016)
+            core.cups(J, P, tag, "kit2", off=0.005)
         for side in ("l", "r"):
             ec.leg_band(J, L, tag, side, 0.25, 0.4, "kit2", "thigh", name="garter")
         ec.sash(J, P, tag, pose, "kit2", sd=-1, length=0.66, n=3)

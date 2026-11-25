@@ -316,6 +316,7 @@ def chest_wrap(J, P, tag, mat, trim=None):
     """A wrap of cloth or fur over the chest: a woman's top for bare-chested costumes."""
     sh = P["sh_h"]
     tband(tag + "wrap", J, P, [sh * 0.5, sh * 0.62, sh * 0.76, sh * 0.86], mat, k=1.04, add=0.02, solid=0.03)
+    core.cups(J, P, tag, mat, off=0.01)
     if trim:
         tband(tag + "wraptrim", J, P, [sh * 0.48, sh * 0.53], trim, k=1.05, add=0.03, solid=0.03)
 

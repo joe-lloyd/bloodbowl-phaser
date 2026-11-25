@@ -311,6 +311,16 @@ def build_of(L):
     return "f" if L.get("sex") == "f" else "m"
 
 # ------------------------------------------------------------- body parts
+def cups(J, P, tag, mat, off=0.0):
+    """A woman's shaped chest in the colour of what she wears over it."""
+    if not P.get("bust"):
+        return
+    h = P["sh_h"] * 0.77
+    r = tprof(P, h)[0] * 0.39
+    for sd in (-1, 1):
+        ellipsoid(tag + "cup%d" % sd, surf(J, P, h, 27 * sd, off - 0.005), (r, r * 0.95, r * 0.98), mat,
+                  basis(J["X"], J["F"], J["u"]))
+
 def hand(J, P, L, tag, side, s, mode):
     """Palm, four three-jointed fingers and a thumb; modes: relaxed, fist, open."""
     mode = L.get("hand_modes", {}).get(side, mode)
@@ -399,6 +409,8 @@ def body(J, P, L, tag, pose):
     k = L.get("limb", 1.0) * LIMB
     u, X = J["u"], J["X"]
     loft(tag + "torso", [tring(J, P, r[0]) for r in P["torso"]], L["torso"])
+    if L["torso"] != L["skin"] and not L["torso"].startswith("skin"):
+        cups(J, P, tag, L["torso"])
     if build_of(L) == "m" and L["torso"] == L["skin"] and L.get("head", "human") == "human":
         for sd in (-1, 1):           # a bare chest shows its muscle
             at = surf(J, P, P["sh_h"] * 0.84, 30 * sd, -0.07)
@@ -842,6 +854,7 @@ def breastplate(J, P, L, tag):
     tband(tag + "plackart", J, P, [0.1, 0.2, 0.3], mat, k=1.1, add=0.012, solid=0.03)
     tband(tag + "cuirass", J, P, [0.25, 0.36, sh - 0.04, sh + 0.035], mat, k=1.1, add=0.03, solid=0.03)
     tband(tag + "cuirim", J, P, [0.235, 0.275], trim, k=1.1, add=0.045, solid=0.03)
+    cups(J, P, tag + "plate", mat, off=0.045)
     # centre ridge and an emblem in the team colour
     if L.get("sex") != "f":                       # a centre ridge reads as a man's chest
         tube(tag + "bridge", [surf(J, P, 0.28, 0, 0.065), surf(J, P, 0.38, 0, 0.085), surf(J, P, sh, 0, 0.06)],
