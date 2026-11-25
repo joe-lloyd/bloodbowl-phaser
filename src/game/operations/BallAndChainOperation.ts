@@ -46,6 +46,8 @@ export class BallAndChainOperation extends GameOperation {
 
     const fanatic = gameService.getPlayerById(this.fanaticId);
     if (!fanatic?.gridPosition) return;
+    const active = gameService.getState().activePlayer;
+    if (active?.id !== fanatic.id || active.action !== "ballAndChain") return;
     if (fanatic.status !== PlayerStatus.ACTIVE) {
       eventBus.emit(
         GameEventNames.UI_Notification,

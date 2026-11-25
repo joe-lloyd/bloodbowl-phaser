@@ -177,6 +177,19 @@ describe("Squig Rage", () => {
     expect(game.ctx.gameService.hasPlayerActed(wrangler.id)).toBe(true);
   });
 
+  it("drops a swing queued during the re-roll prompt when Rage ends the activation", async () => {
+    const { game, wrangler, rolls, declare } = match([], [
+      { ...OPPONENT, x: 13 },
+    ]);
+    game.ctx.team1.rerolls = 1;
+    expect((await declare()).pendingDecision?.type).toBe("reroll");
+    void game.ctx.gameService.ballAndChain(wrangler.id, 1, 0);
+    await game.execute({ type: "use-reroll", accept: false });
+    expect(wrangler.conditions).toContainEqual({ type: "Distracted" });
+    expect(wrangler.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(rolls).not.toContain("Ball & Chain Deviation");
+  });
+
   it("skips the roll with a standing Herder three squares away diagonally", async () => {
     const { game, rolls, wrangler, declare } = match(
       [{ playerIndex: 2, x: 7, y: 8 }],
