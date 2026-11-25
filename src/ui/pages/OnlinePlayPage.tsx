@@ -329,7 +329,6 @@ function EndMatchModal({
       backdrop="heavy"
       tone="blood"
       title="End Match?"
-      width="w-[420px]"
       actions={
         <DialogActions>
           <HudButton variant="ghost" onClick={onDecline}>

@@ -3,7 +3,6 @@ import type { DriftSpec, Fact, Specimen } from "./driftSpec";
 const SETUP = '[data-testid="setup-controls"]';
 const KICKOFF = "section.hud-slab";
 const PAGE = ".hud-page";
-const DIALOG = "[data-hotkey-scope] > .hud-slab";
 
 const font: Fact = { label: "Font", measure: "fontFamily" };
 const size: Fact = { label: "Text size", measure: "fontSize" };
@@ -11,7 +10,6 @@ const colour: Fact = { label: "Text colour", measure: "color" };
 const fill: Fact = { label: "Fill", measure: "backgroundColor" };
 const width: Fact = { label: "Width", measure: "width" };
 const height: Fact = { label: "Height", measure: "height" };
-const padding: Fact = { label: "Padding", measure: "padding" };
 
 const kickoffPanel: Specimen = {
   variant: "kickoff-step-move",
@@ -20,107 +18,7 @@ const kickoffPanel: Specimen = {
   contains: "Alert Defence",
 };
 
-const OPENING: DriftSpec[] = [
-  {
-    id: "opening-containers",
-    title: "Steps before the first turn",
-    sentence:
-      "On a desktop, weather, the coin toss and the kick-off table share one strip. Inducements come in the same sequence but are a centred dialog with a larger heading.",
-    specimens: [
-      {
-        variant: "inducement-panel",
-        label: "Inducements",
-        selector: DIALOG,
-      },
-      {
-        variant: "weather-waiting",
-        label: "Weather",
-        selector: '[data-testid="weather-dialog"] > .hud-slab',
-      },
-      { variant: "coin-start", label: "Coin toss", selector: DIALOG },
-      {
-        variant: "kickoff-table",
-        label: "Kick-off table",
-        selector: '[data-testid="kickoff-table-dialog"] > .hud-slab',
-      },
-    ],
-    facts: [
-      width,
-      {
-        label: "Heading size",
-        measure: "fontSize",
-        selector: "h1, h2, [data-panel-header] > :first-child",
-      },
-    ],
-  },
-  {
-    id: "dialog-widths",
-    title: "Centred dialog widths",
-    sentence:
-      "Centred dialogs pick their own width. The source has seven widths between 400 and 600 pixels, and some belong to dialogs that now sit in the dock and ignore them.",
-    specimens: [
-      { variant: "page-sign-in", label: "Sign in", selector: DIALOG },
-      {
-        variant: "inducement-panel",
-        label: "Inducements",
-        selector: DIALOG,
-      },
-    ],
-    facts: [width, padding],
-  },
-  {
-    id: "waiting-lines",
-    title: "Waiting for the other coach",
-    sentence:
-      "The same message is a large label in the opening rolls, plain text in the kick-off step and a gold banner during a turn.",
-    specimens: [
-      {
-        variant: "weather-online-waiting",
-        label: "Weather",
-        selector: "p",
-        contains: "Waiting",
-      },
-      {
-        variant: "kickoff-waiting",
-        label: "Kick-off step",
-        selector: "p",
-        contains: "Waiting",
-      },
-      {
-        variant: "waiting-banner",
-        label: "During a turn",
-        selector: '[data-testid="waiting-banner"]',
-      },
-    ],
-    facts: [font, size, colour],
-  },
-];
-
 const BANNERS: DriftSpec[] = [
-  {
-    id: "notices",
-    title: "Short notices over the pitch",
-    sentence:
-      "Three notices share one place under the score, each with its own padding, edge and text style.",
-    specimens: [
-      {
-        variant: "waiting-banner",
-        label: "Waiting",
-        selector: '[data-testid="waiting-banner"]',
-      },
-      {
-        variant: "refusal-notice",
-        label: "Refused click",
-        selector: '[data-testid="refusal-notice"]',
-      },
-      {
-        variant: "connection-slow",
-        label: "Connection",
-        selector: '[data-testid="connection-banner"]',
-      },
-    ],
-    facts: [padding, size, font, height],
-  },
   {
     id: "toasts",
     title: "Toasts",
@@ -142,37 +40,6 @@ const BANNERS: DriftSpec[] = [
       },
     ],
     facts: [width, height],
-  },
-  {
-    id: "big-banners",
-    title: "Big result banners",
-    sentence:
-      "Announcements, roll results and turnovers each pick their own headline size, and the turnover is also red and tilted.",
-    specimens: [
-      {
-        variant: "announce-touchdown",
-        label: "Announcement",
-        selector: '[data-testid="announcement"] > div',
-      },
-      {
-        variant: "banner-armour",
-        label: "Roll result",
-        selector: '[data-testid="roll-banner"]',
-      },
-      {
-        variant: "turnover",
-        label: "Turnover",
-        selector: '[data-testid="turnover-moment"] > div',
-      },
-    ],
-    facts: [
-      {
-        label: "Headline size",
-        measure: "fontSize",
-        selector: "h1, span, p",
-      },
-      height,
-    ],
   },
   {
     id: "corner-buttons",
@@ -275,32 +142,6 @@ const PAGES: DriftSpec[] = [
     facts: [font, size, colour],
   },
   {
-    id: "body-text",
-    title: "Body text colour",
-    sentence:
-      "Dialog and notice text uses a one-off cream that is not in the palette, while other text uses bone or dim.",
-    specimens: [
-      {
-        variant: "reaction",
-        label: "Dialog text",
-        selector: "[data-decision-dialog] p",
-      },
-      {
-        variant: "kickoff-waiting",
-        label: "Kick-off text",
-        selector: "p",
-        contains: "Waiting",
-      },
-      {
-        variant: "block-bits",
-        label: "Empty state text",
-        selector: "div.mt-2",
-        contains: "An empty list",
-      },
-    ],
-    facts: [colour, size],
-  },
-  {
     id: "small-text",
     title: "Small sentences",
     sentence:
@@ -356,7 +197,6 @@ const PAGES: DriftSpec[] = [
 ];
 
 export const DRIFT: readonly DriftSpec[] = [
-  ...OPENING,
   ...BANNERS,
   ...PAGES,
 ];

@@ -130,7 +130,6 @@ function FollowUpDialogView({
       eyebrow={<DecisionTeam playerId={offer.attackerId} />}
       testId="follow-up-dialog"
       title="Follow Up?"
-      width="w-[400px]"
       actions={
         <DialogActions>
           <HudButton

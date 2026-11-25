@@ -99,7 +99,6 @@ function ConfirmationModalView({
       tone={data.risky ? "blood" : "gold"}
       titleAs="h3"
       title={data.title}
-      width="w-[420px]"
       actions={
         <DialogActions>
           <HudButton variant="ghost" hotkey="Escape" onClick={handleCancel}>

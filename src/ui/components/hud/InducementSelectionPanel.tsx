@@ -1,7 +1,8 @@
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { Inducement } from "../../../types/Inducements";
 import { NO_PURCHASE_LIMIT } from "../../../game/inducements/catalog";
-import { DialogShell, HudButton, Notice } from "../componentWarehouse/HudKit";
+import { HudButton, Notice } from "../componentWarehouse/HudKit";
+import { OpeningPanel } from "./OpeningPanel";
 import { usePregameCommand } from "./pregameInducementHooks";
 
 const EFFECTS: Partial<Record<Inducement, string>> = {
@@ -68,14 +69,11 @@ export function InducementSelectionPanel({
         : service.selectInducement(teamId, inducement, quantity)
     );
   return (
-    <DialogShell
+    <OpeningPanel
+      testId="inducement-panel"
       zClass="z-[100]"
       title={`Inducements — ${team.name}`}
-      width="w-[600px]"
-      placement="center"
-      backdrop="heavy"
-      className="max-h-[85dvh] overflow-y-auto hud-scroll"
-      actions={
+      footer={
         <HudButton
           variant="primary"
           size="lg"
@@ -165,6 +163,6 @@ export function InducementSelectionPanel({
           );
         })}
       </div>
-    </DialogShell>
+    </OpeningPanel>
   );
 }

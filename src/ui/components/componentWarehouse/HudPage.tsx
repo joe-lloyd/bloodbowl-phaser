@@ -193,7 +193,7 @@ export function Notice({
     <div
       role={role}
       className={cx(
-        "rounded-hud border border-l-[3px] border-white/10 bg-black/35 px-4 py-3 font-hud-body text-hud-sm text-[#ddd5c6]",
+        "rounded-hud border border-l-[3px] border-white/10 bg-black/35 px-4 py-3 font-hud-body text-hud-sm text-hud-bone",
         NOTICE_EDGE[tone],
         className
       )}

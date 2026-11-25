@@ -4,6 +4,7 @@ import { type IEventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { GameEventNames, type StepPrompt } from "../../../types/events";
 import { useEventBus } from "../../hooks/useEventBus";
+import { WaitingLine } from "../componentWarehouse/HudBanner";
 import { Panel } from "../componentWarehouse/HudKit";
 
 export function OtherCoachPrompt({ eventBus }: { eventBus: IEventBus }) {
@@ -30,10 +31,9 @@ export function OtherCoachPrompt({ eventBus }: { eventBus: IEventBus }) {
     <Panel
       accent="info"
       data-testid="other-coach-prompt"
-      aria-live="polite"
-      className="pointer-events-none w-full px-3 py-2 font-hud-label text-hud-base font-bold text-hud-bone"
+      className="pointer-events-none w-full px-3 py-2"
     >
-      {stepPromptLine(team.name, prompt)}
+      <WaitingLine>{stepPromptLine(team.name, prompt)}</WaitingLine>
     </Panel>
   );
 }

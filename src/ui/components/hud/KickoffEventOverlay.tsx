@@ -9,6 +9,8 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useEventBus } from "../../hooks/useEventBus";
 import { Chip, HudButton, Panel, PanelHeader } from "../componentWarehouse/HudKit";
 import { StepRow } from "../componentWarehouse/HudSteps";
+import type { StepState } from "../componentWarehouse/stepRow";
+import { WaitingLine } from "../componentWarehouse/HudBanner";
 
 function TodoList({ todo, active }: { todo: KickoffTodo; active: boolean }) {
   return (
@@ -16,7 +18,7 @@ function TodoList({ todo, active }: { todo: KickoffTodo; active: boolean }) {
       {todo.lines.map((line, index) => (
         <StepRow
           key={line}
-          state={active && index === todo.current ? "current" : "todo"}
+          state={todoState(index, todo.current, active)}
           number={index + 1}
         >
           {line}
@@ -24,6 +26,15 @@ function TodoList({ todo, active }: { todo: KickoffTodo; active: boolean }) {
       ))}
     </ol>
   );
+}
+
+function todoState(
+  index: number,
+  current: number,
+  active: boolean
+): StepState {
+  if (index < current) return "done";
+  return active && index === current ? "current" : "todo";
 }
 
 function stepCount(step: KickoffEventStepState): string {
@@ -107,9 +118,9 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
       <div className="p-3 phone:p-2">
         <TodoList todo={kickoffTodo(step)} active={canAct} />
         {!canAct && (
-          <p className="mt-2 text-hud-sm text-hud-bone">
-            Waiting for {team.name}'s coach…
-          </p>
+          <div className="mt-2">
+            <WaitingLine>Waiting for {team.name}'s coach…</WaitingLine>
+          </div>
         )}
 
         {canAct && (step.stage === "choose" || step.canReselect) && (
