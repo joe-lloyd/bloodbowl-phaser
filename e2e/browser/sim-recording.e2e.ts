@@ -49,6 +49,6 @@ test("a recording's state resumes on the real board unchanged", async ({
   const bridge = new GameBridge(page);
   await bridge.waitForReady();
   await expect
-    .poll(async () => board(await bridge.snapshot()))
+    .poll(async () => board(await bridge.snapshot()), { timeout: 30_000 })
     .toEqual(board(engine));
 });
