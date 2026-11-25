@@ -9,7 +9,7 @@ import {
 } from "../types/events";
 import type { FormationPosition, SetupTeamStatus } from "../types/SetupTypes";
 import type { MatchFixture } from "./fixtures";
-import { BLOCK_FACES, rollBlock } from "./variantHelpers";
+import { BLOCK_FACES, GALLERY_FORMATIONS, rollBlock } from "./variantHelpers";
 
 type Bus = ReturnType<typeof scopeEventBus>;
 type SetupAction = AllEvents[typeof GameEventNames.UI_SetupAction];
@@ -49,18 +49,30 @@ function answerActionMenu(bus: Bus): void {
   bus.on(GameEventNames.UI_ClearMovePlan, dropPlan);
 }
 
+type BlockRequest = Pick<
+  AllEvents[typeof GameEventNames.UI_RollBlockDice],
+  "attackerId" | "defenderId" | "numDice" | "isAttackerChoice"
+>;
+
 const FACES = Object.values(BLOCK_FACES);
 
 function answerBlocks(bus: Bus, fx: MatchFixture): void {
-  let dice = 2;
-  bus.on(GameEventNames.BlockDiceRolled, ({ numDice }) => {
-    dice = numDice;
-  });
+  let rolled: BlockRequest | null = null;
   const roll = () => {
-    rollBlock(fx, { results: FACES.slice(2, 2 + dice) });
+    if (!rolled) return;
+    const { attackerId, defenderId, numDice, isAttackerChoice } = rolled;
+    rollBlock(fx, {
+      results: FACES.slice(2, 2 + numDice),
+      attackerId,
+      defenderId,
+      isAttackerChoice,
+    });
   };
-  bus.on(GameEventNames.UI_RollBlockDice, ({ numDice }) => {
-    dice = numDice;
+  bus.on(GameEventNames.BlockDiceRolled, (data) => {
+    rolled = data;
+  });
+  bus.on(GameEventNames.UI_RollBlockDice, (data) => {
+    rolled = data;
     setTimeout(roll, 300);
   });
   bus.on(GameEventNames.UI_TeamRerollBlock, roll);
@@ -96,10 +108,9 @@ function answerSetup(bus: Bus, fx: MatchFixture): void {
   const manager = new FormationManager();
   let status: SetupTeamStatus | null = null;
   const isTeam1 = () => status?.teamId !== fx.team2.id;
-  const key = "gallery";
   const listFormations = () => {
     bus.emit(GameEventNames.UI_FormationsUpdated, {
-      formations: manager.listAllFormations(key, isTeam1()),
+      formations: manager.listAllFormations(GALLERY_FORMATIONS, isTeam1()),
       isTeam1: isTeam1(),
     });
   };
@@ -111,7 +122,7 @@ function answerSetup(bus: Bus, fx: MatchFixture): void {
       );
   };
   const formation = (name = "") =>
-    manager.getFormation(key, name, isTeam1()) ?? [];
+    manager.getFormation(GALLERY_FORMATIONS, name, isTeam1()) ?? [];
   const hide = () => {
     bus.emit(GameEventNames.UI_HideSetupControls, undefined);
   };
@@ -132,11 +143,11 @@ function answerSetup(bus: Bus, fx: MatchFixture): void {
         });
     },
     save: (name = "") => {
-      manager.saveFormation(key, formation("Balanced"), name);
+      manager.saveFormation(GALLERY_FORMATIONS, formation("Balanced"), name);
       listFormations();
     },
     delete: (name = "") => {
-      manager.deleteFormation(key, name);
+      manager.deleteFormation(GALLERY_FORMATIONS, name);
       listFormations();
     },
   };

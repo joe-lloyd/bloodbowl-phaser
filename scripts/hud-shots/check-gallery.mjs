@@ -134,6 +134,21 @@ const USES = [
   ["menu-block", press(/^Block/i), testId("action-step-block")],
   ["action-plan-blitz", press(/Go/), null, testId("action-plan")],
   ["block-2", press(/Roll dice/i), "text=/click a die|press 1|pick a die|tap/i"],
+  ["block-3-uphill", async (page) => {
+    await press(/Roll dice/i)(page);
+    await page.getByRole("button", { name: /Roll dice/i }).waitFor({ state: "hidden" });
+    await page.waitForTimeout(4000);
+  }, "text=/defender chooses/i"],
+  ["setup-incomplete", async (page) => {
+    const list = page.locator("select").filter({ hasText: "My cage" });
+    if (await list.isVisible()) {
+      await list.selectOption("My cage");
+      await press(/^Load/i)(page);
+      return;
+    }
+    await page.getByTestId("setup-controls").getByRole("button").first().click();
+    await page.getByText("My cage").last().click();
+  }, "text=/confirm setup/i"],
   ["sent-off-bribe", press(/Use a Bribe/i), testId("sent-off-outcome")],
   ["foul-assists", press(/\+2/), null, testId("foul-assists-dialog")],
   ["setup-ready", press(/Confirm setup/i), null, testId("setup-controls")],

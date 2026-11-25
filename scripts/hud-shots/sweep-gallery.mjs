@@ -75,22 +75,20 @@ async function press(id, button) {
   try {
     await page.waitForFunction(
       ([at, name]) =>
-        (
-          document.querySelectorAll("button, [role='radio'], [role='tab']")[at]
-            ?.innerText ?? ""
-        )
-          .replace(/\s+/g, " ")
-          .startsWith(name),
+        [...document.querySelectorAll("button, [role='radio'], [role='tab']")]
+          .slice(at, at + 1)
+          .some((found) =>
+            (found.innerText || found.ariaLabel || "")
+              .replace(/\s+/g, " ")
+              .startsWith(name)
+          ),
       [button.index, button.name.slice(0, 8)]
     );
     const before = await look(page, button.index);
-    await page.evaluate(
-      (at) =>
-        document
-          .querySelectorAll("button, [role='radio'], [role='tab']")
-          [at].click(),
-      button.index
-    );
+    await page
+      .locator("button, [role='radio'], [role='tab']")
+      .nth(button.index)
+      .click();
     await page.waitForTimeout(1600);
     const after = await look(page, button.index);
     const boxed = before.box !== after.box;

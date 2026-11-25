@@ -27,13 +27,16 @@ const reaction = (skill: string, prompt: string): Opener =>
     prompt,
   }));
 
-const biteTarget = (extra: Partial<BiteTargetDecisionRequest>): Opener =>
+const biteTarget = ({
+  purpose,
+  targets = 1,
+}: Pick<BiteTargetDecisionRequest, "purpose"> & { targets?: 1 | 2 }): Opener =>
   decision((fx) => ({
     type: "bite-target",
     playerId: fx.player(1, 0).id,
     chooserTeamId: fx.team1.id,
-    targetIds: [fx.player(1, 1).id, fx.player(1, 2).id],
-    ...extra,
+    targetIds: [fx.player(targets, 1).id, fx.player(targets, 2).id],
+    ...(purpose ? { purpose } : {}),
   }));
 
 const inducementChoice = (
@@ -113,7 +116,7 @@ const reroll =
     fx.services.gameService.getState().turn.teamId = fx.team1.id;
     void ask(fx, {
       type: "reroll",
-      playerId: fx.player(1, 4).id,
+      playerId: fx.player(1, 1).id,
       chooserTeamId: fx.team1.id,
       rollKind: "dodge",
       sources,
@@ -317,9 +320,13 @@ const REROLL_ROWS = playRows("Re-rolls and reactions", [
       chooserTeamId: fx.team2.id,
       passerId: fx.player(1, 0).id,
       candidates: [
-        { playerId: "a", playerName: "Orc Blitzer #5", modifier: -2 },
         {
-          playerId: "b",
+          playerId: fx.player(2, 0).id,
+          playerName: fx.player(2, 0).playerName,
+          modifier: -2,
+        },
+        {
+          playerId: fx.player(2, 1).id,
           playerName: "Orc Big Un Blocker Lineman #12",
           modifier: -3,
         },
@@ -339,7 +346,7 @@ const REROLL_ROWS = playRows("Re-rolls and reactions", [
   {
     id: "bite-squig-block",
     title: "Squig Rage: choose an opponent to Block",
-    open: biteTarget({ purpose: "squig-block" }),
+    open: biteTarget({ purpose: "squig-block", targets: 2 }),
   },
 ]);
 
@@ -384,7 +391,7 @@ const FOUL_ROWS = playRows("Fouls and injuries", [
       type: "apothecary",
       id: "x",
       chooserTeamId: fx.team1.id,
-      playerId: fx.player(1, 4).id,
+      playerId: fx.player(1, 1).id,
       resultKind: "casualty",
       casualtyType: "seriously-hurt",
     })),

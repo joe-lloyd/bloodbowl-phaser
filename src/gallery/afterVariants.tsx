@@ -22,7 +22,7 @@ const halfTime = (fx: MatchFixture) => {
 
 const catchUp = (fx: MatchFixture) => {
   fx.services.gameService.getState().activeTeamId = fx.team2.id;
-  const hurt = fx.player(1, 0);
+  const hurt = fx.player(1, 3);
   hurt.status = PlayerStatus.STUNNED;
   fx.bus.emit(GameEventNames.PlayerKnockedDown, { playerId: hurt.id });
   fx.bus.emit(GameEventNames.BallScattered, {

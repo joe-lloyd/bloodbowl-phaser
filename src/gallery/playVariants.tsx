@@ -279,16 +279,16 @@ const CARD_ROWS: MatchRow[] = [
     id: "card-selected",
     title: "Selected player",
     open: (fx) => {
-      livePlayer(fx, 1, 4).spp = 8;
-      select(fx, 1, 4);
+      livePlayer(fx, 1, 1).spp = 8;
+      select(fx, 1, 1);
     },
   },
   {
     id: "card-compare",
     title: "Comparing a hovered opponent",
     open: (fx) => {
-      select(fx, 1, 4);
-      fx.bus.emit(GameEventNames.UI_ShowPlayerInfo, livePlayer(fx, 2, 5));
+      select(fx, 1, 1);
+      fx.bus.emit(GameEventNames.UI_ShowPlayerInfo, livePlayer(fx, 2, 1));
     },
   },
   {

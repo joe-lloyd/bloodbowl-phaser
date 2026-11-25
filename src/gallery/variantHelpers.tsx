@@ -38,20 +38,17 @@ export const click = (selector: string, text?: string) => {
   target?.click();
 };
 
+export const GALLERY_FORMATIONS = "gallery";
+
 function presets(isTeam1: boolean): FormationEntry[] {
-  return new FormationManager().listAllFormations("gallery", isTeam1);
+  return new FormationManager().listAllFormations(GALLERY_FORMATIONS, isTeam1);
 }
 
 function withSaved(): FormationEntry[] {
-  return [
-    ...presets(true),
-    {
-      name: "My cage",
-      builtIn: false,
-      use: "any",
-      positions: new FormationManager().getDefaultFormation(true),
-    },
-  ];
+  const manager = new FormationManager();
+  const positions = manager.getDefaultFormation(true);
+  manager.saveFormation(GALLERY_FORMATIONS, positions, "My cage");
+  return presets(true);
 }
 
 export function showSetup(
