@@ -20,6 +20,7 @@ export interface MatchGameEvents {
   [GameEventNames.TurnEnded]: { teamId: string };
   [GameEventNames.ActionResolved]: { playerId: string };
   [GameEventNames.RazzleDazzleSecondAction]: { playerId: string };
+  [GameEventNames.ActionMustBeRedeclared]: { playerId: string };
   [GameEventNames.TurnDataUpdated]: {
     hasBlitzed: boolean;
     hasPassed: boolean;

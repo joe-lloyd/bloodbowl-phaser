@@ -9,6 +9,7 @@ import {
   PlayerCondition,
   addCondition,
 } from "../../types/Player";
+import { openActivation } from "../managers/PlayerActionManager";
 import { activationGates, playersWithin, withRerollOffer } from "../skills";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type ActivationGate } from "../skills/SkillRule";
@@ -16,6 +17,7 @@ import {
   type BiteTargetDecisionRequest,
   type ReactionDecisionAnswer,
 } from "../../types/decisions";
+import { steadyFootingSaves } from "../rules/steadyFooting";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
 
@@ -32,20 +34,36 @@ export class ActivationGateOperation extends GameOperation {
 
   async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService;
-    const eventBus = context.eventBus;
     const player = gameService.getPlayerById(this.playerId);
     if (!player?.gridPosition) return;
 
-    const gates = activationGates(
-      player,
-      this.action,
-      gameService.getTeammates(this.playerId)
+    const { activePlayer } = gameService.getState();
+    const rolling = activePlayer?.id === player.id ? activePlayer : null;
+    const gates = unresolvedGates(
+      activationGates(
+        player,
+        this.action,
+        gameService.getTeammates(this.playerId)
+      ),
+      rolling?.squigRageSettled === true
     );
+    if (gates.length === 0) return;
+    if (rolling) rolling.activationRollStarted = true;
+    try {
+      await this.rollGates(context, player, gates);
+    } finally {
+      if (rolling) delete rolling.activationRollStarted;
+    }
+  }
+
+  private async rollGates(
+    context: FlowContext,
+    player: Player,
+    gates: ActivationGate[]
+  ): Promise<void> {
+    const { gameService, eventBus } = context;
     for (const gate of gates) {
-      if (gate.onFail.kind === "squigRage") {
-        const activation = gameService.getState().activePlayer;
-        if (activation?.id === player.id) activation.activationRollStarted = true;
-      } else {
+      if (gate.onFail.kind !== "squigRage") {
         gameService.commitAction(this.playerId);
       }
       const dice = gameService.getDiceController();
@@ -113,7 +131,7 @@ export class ActivationGateOperation extends GameOperation {
           gameService.getTeammates(player.id)
         )[0];
         if (victim) {
-          this.lashOut(context, { player, victim, skill: gate.skill });
+          await this.lashOut(context, { player, victim, skill: gate.skill });
         } else {
           eventBus.emit(GameEventNames.SkillTriggered, {
             playerId: player.id,
@@ -190,11 +208,21 @@ export class ActivationGateOperation extends GameOperation {
       purpose: "squig-knock-down",
     });
     if (victim) {
-      gameService.commitAction(player.id);
-      this.lashOut(context, { player, victim, skill });
+      await this.lashOut(context, { player, victim, skill });
+      this.reopenActivation(context);
     } else {
       this.distract(context, player, skill);
     }
+  }
+
+  private reopenActivation({ gameService, eventBus }: FlowContext): void {
+    const state = gameService.getState();
+    if (gameService.isTurnoverInProgress()) return;
+    if (state.activePlayer?.id !== this.playerId) return;
+    state.activePlayer = openActivation(state.activePlayer);
+    eventBus.emit(GameEventNames.ActionMustBeRedeclared, {
+      playerId: this.playerId,
+    });
   }
 
   private distract(context: FlowContext, player: Player, skill: string): void {
@@ -213,10 +241,10 @@ export class ActivationGateOperation extends GameOperation {
     this.endActivationNow(gameService);
   }
 
-  private lashOut(
+  private async lashOut(
     context: FlowContext,
     { player, victim, skill }: { player: Player; victim: Player; skill: string }
-  ): void {
+  ): Promise<void> {
     const { gameService, eventBus, flowManager } = context;
     const square = victim.gridPosition;
     if (!square) return;
@@ -226,6 +254,8 @@ export class ActivationGateOperation extends GameOperation {
       skill,
       effect: `${skill}: ${player.playerName} lashes out at ${victim.playerName}!`,
     });
+    const dice = gameService.getDiceController();
+    if (await steadyFootingSaves(victim, dice, eventBus, gameService)) return;
     victim.status = PlayerStatus.PRONE;
     eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: victim.id });
     eventBus.emit(GameEventNames.PlayerStatusChanged, victim);
@@ -247,6 +277,15 @@ export class ActivationGateOperation extends GameOperation {
     }
     gameService.finishActivation(this.playerId);
   }
+}
+
+function unresolvedGates(
+  gates: ActivationGate[],
+  squigRageSettled: boolean
+): ActivationGate[] {
+  if (!squigRageSettled) return gates;
+  const rage = gates.findIndex((gate) => gate.onFail.kind === "squigRage");
+  return gates.slice(rage + 1);
 }
 
 function adjacentStandingPlayers(player: Player, others: Player[]): Player[] {

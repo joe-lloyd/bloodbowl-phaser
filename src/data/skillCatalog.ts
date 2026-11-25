@@ -800,7 +800,7 @@ export const SKILL_CATALOG = {
     compulsory: true,
     parameterForm: null,
     description:
-      "On 1 or 2 when activated, Block an adjacent opponent and end the activation. If unable, knock down a nearby team-mate and roll Armour, or become Distracted.",
+      "On 1 or 2 when activated, Block an adjacent opponent and end the activation. If unable, knock down a nearby team-mate, roll Armour and declare again, or become Distracted.",
   },
   "Squig Restraint": {
     kind: "trait",

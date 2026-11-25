@@ -1,4 +1,5 @@
 import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
+import { activationRolling, awaitingDeclaration } from "@/game/rules/awaitingDeclaration";
 import { actFirstBlocks } from "@/game/inducements/potionHooks";
 import type { Team } from "@/types/Team";
 import { groundBall } from "@/game/rules/ballInTheAir";
@@ -132,8 +133,8 @@ export function awaitingSecondAction(
   playerId: string
 ): boolean {
   return (
-    parts.state.activePlayer?.id === playerId &&
-    !!parts.state.activePlayer.razzleDazzle?.awaitingSecond
+    awaitingDeclaration(parts.state, playerId) ||
+    activationRolling(parts.state, playerId)
   );
 }
 

@@ -7,6 +7,7 @@ export const GameEventNames = {
   TurnEnded: "turnEnded",
   ActionResolved: "actionResolved",
   RazzleDazzleSecondAction: "razzleDazzleSecondAction",
+  ActionMustBeRedeclared: "actionMustBeRedeclared",
   TurnDataUpdated: "turnDataUpdated",
   PlayerPlaced: "playerPlaced",
   PlayerRemoved: "playerRemoved",

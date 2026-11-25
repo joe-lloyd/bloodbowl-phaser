@@ -62,6 +62,13 @@ fold that object into the option instead.
 flat atlases, writes its manifest entry (with the options and palette tables the game reads) and copies
 a golden frame to `__tests__/fixtures/layered/` for the compositor's unit test.
 
+## Models made by hand in Blender
+
+`art/<model>.blend` holds a model made by hand, and a small class draws its parts; see `cave_maw` in
+`teams/small_folk_squig.py`. Materials are named after palette keys and limbs turn about their object origins.
+The file has no other copy, so save edits back to `art/` and render the model again. Copy `art/` to the render
+machine with `lib/` and `teams/`.
+
 ## The acceptance checklist (every model)
 
 1. Unique position: team-mates can be told apart by silhouette alone at about 42 px (headgear, build,

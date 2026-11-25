@@ -1,3 +1,4 @@
+import { awaitingDeclaration } from "@/game/rules/awaitingDeclaration";
 import { scopeEventBus } from "../../services/scopedEventBus";
 import type { InteractionScene, InteractionPitch, InteractionMovement, InteractionMarker } from "./interaction/ports";
 import type Phaser from "phaser";
@@ -210,7 +211,8 @@ export class GameplayInteractionController {
   private bindGameEvents(): void {
     this.eventBus.on(GameEventNames.DecisionResolved, this.onDecisionResolved);
     this.eventBus.on( GameEventNames.DecisionRequested, this.onDecisionRequested );
-    this.eventBus.on( GameEventNames.RazzleDazzleSecondAction, this.onRazzleDazzleSecondAction );
+    this.eventBus.on( GameEventNames.RazzleDazzleSecondAction, this.onAwaitingDeclaration );
+    this.eventBus.on( GameEventNames.ActionMustBeRedeclared, this.onAwaitingDeclaration );
     this.eventBus.on( GameEventNames.NetworkCommandRejected, this.onNetworkCommandRejected );
     this.eventBus.on(GameEventNames.GameStateRestored, this.resumeActivePlayer);
     this.eventBus.on(GameEventNames.GameStateRestored, this.onStateRestored);
@@ -272,10 +274,9 @@ export class GameplayInteractionController {
     this.syncKickoffStepInteraction();
   };
 
-  private onRazzleDazzleSecondAction = ({ playerId }: { playerId: string }) => {
+  private onAwaitingDeclaration = ({ playerId }: { playerId: string }) => {
     setTimeout(() => {
-      const active = this.gameService.getState().activePlayer;
-      if (active?.id === playerId && active.razzleDazzle?.awaitingSecond) {
+      if (awaitingDeclaration(this.gameService.getState(), playerId)) {
         this.selectPlayer(playerId);
       }
     }, 50);
@@ -379,10 +380,14 @@ export class GameplayInteractionController {
     return { valid: false, gridX: -1, gridY: -1 };
   }
 
+  public rollingActivation(): boolean {
+    return !!this.gameService.getState().activePlayer?.activationRollStarted;
+  }
+
   private consumesSquareClick(x: number, y: number): boolean {
     if (this.targets.handleBiteTargetClick(this.getPlayerAt(x, y)?.id)) return true;
     if (this.targets.handleSpellClick(x, y)) return true;
-    if (this.isBusy) return true;
+    if (this.isBusy || this.rollingActivation()) return true;
     return this.push.click(x, y) || this.push.active;
   }
 
@@ -439,7 +444,7 @@ export class GameplayInteractionController {
     if (getActiveOnlineMatch()?.mayAct() === false) return;
 
     if (this.consumesPlayerTarget(playerId)) return;
-    if (this.isBusy) return;
+    if (this.isBusy || this.rollingActivation()) return;
     console.log(
       `[Interaction] handlePlayerClick: ${playerId}. Mode: ${String(this.currentActionMode)}, Step: ${String(this.currentStepId)}, Selected: ${String(this.selectedPlayerId)}`
     );
@@ -498,8 +503,7 @@ export class GameplayInteractionController {
 
   declareMoveIfNone(playerId: string, action?: string | null): boolean {
     if (this.undeclared) return true;
-    const active = this.gameService.getState().activePlayer;
-    if (active?.id === playerId && active.razzleDazzle?.awaitingSecond) {
+    if (awaitingDeclaration(this.gameService.getState(), playerId)) {
       return this.gameService.declareAction({ playerId: playerId, action: "move" });
     }
     if (!action) {

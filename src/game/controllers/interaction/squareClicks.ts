@@ -1,3 +1,6 @@
+import type { ActionType } from "@/types/events";
+import { settleActivationRoll } from "./activationRoll";
+import { awaitingDeclaration } from "@/game/rules/awaitingDeclaration";
 import { isOwnActor } from "./players";
 import { adjacentTo, withinOneSquare } from "./squares";
 import { GameEventNames } from "@/types/events";
@@ -69,6 +72,14 @@ function isDownedOpponent(
   );
 }
 
+function rollAllows(
+  c: GameplayInteractionController,
+  playerId: string,
+  action: ActionType
+): boolean | Promise<boolean> {
+  return !c.rollingActivation() || settleActivationRoll(c, playerId, action);
+}
+
 async function foulInsteadOfBlock(
 { c,playerId,x,y }: { c: GameplayInteractionController; playerId: string; x: number; y: number; }): Promise<void> {
   if (c.undeclared) {
@@ -76,6 +87,7 @@ async function foulInsteadOfBlock(
     c.dropFinish();
     c.pitch.clearPath();
     await selectAction(c, { playerId, action: "foul" });
+    if (!(await rollAllows(c, playerId, "foul"))) return;
     await c.onSquareClicked(x, y);
     return;
   }
@@ -89,6 +101,7 @@ async function foulInsteadOfBlock(
     return;
   }
   enterActionMode({ c,playerId,action: "foul",blockReplacement: null });
+  if (!(await rollAllows(c, playerId, "foul"))) return;
   await c.onSquareClicked(x, y);
 }
 
@@ -123,7 +136,7 @@ function declarationOf(
   playerId: string
 ): { action?: string | null; replacement?: BlockReplacement } {
   const active = state.activePlayer;
-  if (active?.id !== playerId || active.razzleDazzle?.awaitingSecond) {
+  if (active?.id !== playerId || awaitingDeclaration(state, playerId)) {
     return {};
   }
   const replacement = active.blockReplacementUsed ? undefined : active.blockReplacement;
@@ -149,6 +162,16 @@ async function attackInsteadOfBlock(
     c.isBusy = false;
     c.deselectPlayer();
   }
+}
+
+async function previewAfterRoll(
+  c: GameplayInteractionController,
+  blockerId: string,
+  targetId: string
+): Promise<void> {
+  c.deselectPlayer();
+  if (c.rollingActivation() && !(await settleActivationRoll(c, blockerId, "block"))) return;
+  c.gameService.previewBlock(blockerId, targetId);
 }
 
 async function blockFromClick(
@@ -193,9 +216,7 @@ async function blockFromClick(
     return;
   }
 
-  c.deselectPlayer();
-
-  c.gameService.previewBlock(blocker.id, target.id);
+  await previewAfterRoll(c, blocker.id, target.id);
 }
 
 function clickOtherPlayer(

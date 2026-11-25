@@ -106,6 +106,7 @@ export interface GameState {
 
     forcedBlock?: true;
     activationRollStarted?: true;
+    squigRageSettled?: true;
 
     bloodlustUnsated?: boolean;
 
