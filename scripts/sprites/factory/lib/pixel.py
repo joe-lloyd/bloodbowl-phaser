@@ -107,6 +107,7 @@ class Stage:
     def build(self, model, pose, scale):
         """Clear the scene, build the model in this pose and apply the whole-figure pose keys."""
         self.clear()
+        self.unlined = [object_code("%s_%s" % (model.key, part)) for part in model.unlined()]
         model.build(pose)
         core.ROOT[0] = None
         scene = bpy.context.scene.collection
@@ -199,6 +200,9 @@ class Stage:
             return {f: (idx, np.zeros(idx.shape, np.int16), np.where(solid, 0.0, np.inf).astype(np.float32))
                     for f, (idx, solid) in classified.items()}
         extra = self.shoot_data()
+        for f, (idx, solid) in classified.items():
+            black = solid & (self.darker[idx] == self.out_i)
+            extra[f] = (np.where(black & np.isin(extra[f][0], self.unlined), 0, extra[f][0]), extra[f][1])
         return {f: (idx, np.where(solid, extra[f][0], 0).astype(np.int16),
                     np.where(solid, extra[f][1], np.inf).astype(np.float32)) for f, (idx, solid) in classified.items()}
 

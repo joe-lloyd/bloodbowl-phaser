@@ -24,6 +24,10 @@ class Model:
     lie_shift = 0.75         # metres it slides forward while falling, so the lying body stays on its square
     animations = dict(anim.ANIMS)
 
+    def unlined(self):
+        """Parts whose darkest pixels get no inner line."""
+        return ()
+
     def pose(self, name, i, n):
         raise NotImplementedError
 
@@ -100,6 +104,10 @@ class Biped(Model):
     stance = DEFAULT_STANCE
     stride, arm_swing, run_lean, jump = 38, 32, 14, 0.2
     mount = None             # (forward metres, height metres): put the pelvis there instead of on its legs
+
+    def unlined(self):
+        """A black line round a woman's chin reads as a beard."""
+        return ("chin", "neck", "head") if self.sex == "f" else ()
 
     def pose(self, name, i, n):
         p = anim.BIPED[name](self, i, n)
