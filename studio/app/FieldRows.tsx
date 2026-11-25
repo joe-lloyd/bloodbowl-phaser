@@ -48,7 +48,7 @@ function FieldControl({ id, field, value, catalog, disabled, onChange }: Control
       <Input
         id={id}
         type="number"
-        step="0.05"
+        step={field.whole ? "1" : "0.05"}
         className="hud-field"
         value={typeof value === "number" ? value : 0}
         disabled={disabled}

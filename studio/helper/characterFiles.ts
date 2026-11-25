@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { parseCatalog, parseCharacter, parseSpriteManifest, type Catalog, type Character } from "../boundary/studio";
+import { parseCatalog, parseCharacter, parseSpriteManifest, type Catalog, type CatalogField, type Character, type LayoutValue } from "../boundary/studio";
 import { CHARACTERS, DRAFTS, FACTORY, MANIFEST, TREE_CHARACTERS } from "./paths";
 import { run } from "./run";
 
@@ -39,6 +39,12 @@ function write(folder: string, character: Character): void {
   writeFileSync(path.join(folder, `${character.key}.json`), `${JSON.stringify(character, null, 2)}\n`);
 }
 
+function valueProblem(value: LayoutValue, field: CatalogField | undefined): string | null {
+  if (value === null) return field?.optional === false ? "always needs a value" : null;
+  const fraction = typeof value === "number" && !Number.isInteger(value);
+  return fraction && field?.kind === "number" && field.whole ? "needs a whole number" : null;
+}
+
 function checkFields(character: Character, catalog: Catalog): void {
   const choices = character.looks.kind === "own" ? character.looks.options.flatMap((option) => option.values) : [];
   const fields = new Map(catalog.fields.map((field) => [field.key, field]));
@@ -47,7 +53,8 @@ function checkFields(character: Character, catalog: Catalog): void {
   };
   for (const layout of [character.layout, ...choices.map((choice) => choice.layout ?? {})]) {
     for (const [key, value] of Object.entries(layout)) {
-      if (value === null && fields.get(key)?.optional === false) refuse(key, "always needs a value");
+      const problem = valueProblem(value, fields.get(key));
+      if (problem) refuse(key, problem);
     }
   }
   for (const key of choices.flatMap((choice) => Object.keys(choice.layout ?? {}))) {

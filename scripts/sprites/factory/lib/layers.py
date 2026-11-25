@@ -17,9 +17,9 @@ mod 256). json: {"frames": {"anim/facing/i": [x, y, w, h, offset]}} with x, y in
 offset counted in pixels from the start of each plane.
 
 A part that removes an object the base has (a hood that hides the ears, say) cannot be expressed as a
-layer; the driver prints a warning, and --verify shows how far the composite is from a full render.
+layer; the driver prints a warning, as it does when two options change one part differently, and --verify shows how far the composite is from a full render.
 """
-import bpy, os, json, glob, pickle, random, zlib
+import bpy, os, json, glob, itertools, pickle, random, zlib
 import numpy as np
 from . import pixel, registry, palette, atlas
 
@@ -37,7 +37,7 @@ def signature():
         co = np.empty(len(me.vertices) * 3, np.float32)
         me.vertices.foreach_get("co", co)
         m = ob.matrix_world
-        sig[ob.name] = (tuple(x.name if x else "" for x in me.materials), len(me.vertices), round(float(co.sum()), 3),
+        sig[ob.name] = (tuple(x.name if x else "" for x in me.materials), len(me.vertices), round(float(co.sum(dtype=np.float64)), 3),
                         tuple(round(v, 4) for v in m.translation), tuple(round(v, 4) for v in m.to_quaternion()))
     return sig
 
@@ -77,6 +77,17 @@ def shade(base_res, shaded_res):
     return idx, np.zeros_like(base_res[1]), np.where(changed, 0.0, np.inf).astype(np.float32)
 
 
+def overlaps(changes):
+    """{"a.x + b.y": message} for parts of two options that change one object differently. Only one copy can
+    show in the game, and not always the one a full render of the look draws."""
+    found = {}
+    for (one, first, a), (other, second, b) in itertools.combinations(changes, 2):
+        shared = sorted(k for k in a.keys() & b.keys() if a[k] != b[k])
+        if one != other and shared:
+            found["%s + %s" % (first, second)] = "both change %s" % shared[:6]
+    return found
+
+
 def render_body(stage, scale, default, base, parts, a, warnings):
     """{layer: {"anim/facing/i": cropped (x0, y0, idx, code, depth) or None}} for one body. Each part has a
     "<part>~shade" layer too: the base pixels its shadow darkens."""
@@ -92,19 +103,22 @@ def render_body(stage, scale, default, base, parts, a, warnings):
             base_res = stage.render_layer(a["facings"])
             for f, res in base_res.items():
                 store["base"]["%s/%s/%d" % (name, f, i)] = crop(res)
-            for lname, model, _ in parts:
+            changes = []
+            for lname, model, (slot, _) in parts:
                 stage.build(model, pose, scale)
                 sig = signature()
                 keep = {k for k, v in sig.items() if base_sig.get(k) != v}
                 gone = sorted(set(base_sig) - set(sig))
                 if gone:
-                    warnings.setdefault(lname, gone[:6])
+                    warnings.setdefault(lname, "removes base objects %s" % gone[:6])
+                changes.append((slot, lname, {k: sig[k] for k in keep}))
                 if not keep <= set(base_sig):    # a part that only recolours the base casts the base's shadows
                     unchanged = {k for k in sig if k not in keep}
                     for f, res in stage.render_layer(a["facings"], unchanged, data=False).items():
                         store[lname + SHADE]["%s/%s/%d" % (name, f, i)] = crop(shade(base_res[f], res))
                 for f, res in stage.render_layer(a["facings"], keep).items():
                     store[lname]["%s/%s/%d" % (name, f, i)] = crop(res)
+            warnings.update(overlaps(changes))
         print("LAYERS %s %s done" % (default.key, name), flush=True)
     return store
 
@@ -299,8 +313,8 @@ def finish_model(key, a, rendered, helpers):
         if a["verify"] and body in stores:
             scale, _ = calibrate(stage, default, target_height(default, height))
             verify(stage, scale, spec, body, default, stores[body], ranges[body], a["verify"])
-    for lname, gone in warnings.items():
-        print("WARN %s %s removes base objects %s" % (key, lname, gone), flush=True)
+    for lname, problem in warnings.items():
+        print("WARN %s %s %s" % (key, lname, problem), flush=True)
     boxes = [(c[0], c[1], c[0] + c[2].shape[1], c[1] + c[2].shape[0])
              for store in stores.values() for frames in store.values() for c in frames.values() if c is not None]
     for body, _, _, parts in bodies:

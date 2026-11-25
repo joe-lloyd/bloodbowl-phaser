@@ -112,7 +112,7 @@ def field_kind(values, materials):
     if all(isinstance(v, bool) for v in values):
         return dict(kind="toggle")
     if all(isinstance(v, (int, float)) for v in values):
-        return dict(kind="number")
+        return dict(kind="number", whole=all(isinstance(v, int) for v in values))
     words = sorted({v for v in values if isinstance(v, str)})
     if words and all(w in materials for w in words):
         return dict(kind="material")
@@ -130,10 +130,11 @@ def catalogue(folders):
     generic = characters.GENERIC
     bipeds = {k: m for k, m in registry.MODELS.items() if "__" not in k and isinstance(m, plans.Biped)}
     looks = {k: registry.LOOKS[k] for k in bipeds if k in registry.LOOKS}
+    own = {k: m for k, m in bipeds.items() if k in python_models}
     return dict(
         races=[dict(key=k, knobs={n: v for n, v in race.items() if n != "L"}, layout=scalars(race["L"])) for k, race in plans.RACES.items()],
         knobs=list(KNOBS), materials=[dict(key=k, colors=v) for k, v in sorted(materials.items())],
-        fields=fields(bipeds, looks, plans.RACES, materials, generic), errors=errors,
+        fields=fields(own, {k: looks[k] for k in own if k in looks}, plans.RACES, materials, generic), errors=errors,
         models=[model_entry(k, m, looks.get(k), generic, k not in python_models) for k, m in sorted(bipeds.items())])
 
 

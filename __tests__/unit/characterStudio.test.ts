@@ -113,6 +113,12 @@ describe("character studio catalogue", () => {
     expect([optional.get("tank"), optional.get("breast"), optional.get("helm")]).toEqual([false, true, true]);
   });
 
+  it("refuses a fraction where the drawing code counts", () => {
+    const catalog = catalogWith({ ...RAIDER, layout: { bars: 2.05 } });
+    expect(() => { checkCharacter({ ...RAIDER, layout: { bars: 2.05 } }, catalog); }).toThrow("bars needs a whole number");
+    expect(() => { checkCharacter({ ...RAIDER, layout: { bars: 3, beard_len: 0.35 } }, catalog); }).not.toThrow();
+  });
+
   it("will not replace a Python model", () => {
     expect(Object.keys(catalogWith({ ...RAIDER, key: "thrall" }).errors)).toEqual(["0.json"]);
   });

@@ -25,8 +25,10 @@ export async function refreshTree(): Promise<void> {
   if (!pending) return;
   try {
     await git("rebase", "-q", "origin/main");
-  } catch {
-    await git("rebase", "--abort");
+  } catch (error) {
+    await git("rebase", "--abort").catch(() => {
+      throw error;
+    });
     throw new Error(`The open art pull request conflicts with main. Merge or close it, then export again: ${pending}`);
   }
 }
