@@ -1,0 +1,12 @@
+{
+  "squig_wrangler": [
+    ["body", "Body", [["x", "Goblin"]]],
+    ["hood", "Hood", [["pointed", "Pointed hood"], ["floppy", "Floppy hood"], ["rag", "Head rag"]]],
+    ["rags", "Rags", [["skirt", "Ragged skirt"], ["robe", "Ragged robe"]]]
+  ],
+  "squig_hopper": [
+    ["body", "Body", [["x", "Goblin"]]],
+    ["helm", "Headgear", [["spike", "Spiked helm"], ["cap", "Leather cap"], ["pointed", "Pointed hood"], ["floppy", "Floppy hood"]]],
+    ["chest", "Chest", [["jersey", "Jersey"], ["bare", "Bare chest"]]]
+  ]
+}

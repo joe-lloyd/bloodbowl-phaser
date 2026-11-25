@@ -13,7 +13,7 @@ interface Renderer {
 const REMOTE = "bloodbowl-studio";
 const REMOTE_BLENDER = String.raw`"C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"`;
 const CHARACTER_FLAG = "--characters";
-const SOURCES = ["lib", "teams", "characters", "reference", "team_render.ps1"];
+const SOURCES = ["lib", "teams", "characters", "art", "reference", "team_render.ps1"];
 const HEADLESS = ["-b", "--factory-startup", "--python", "lib/render.py", "--"];
 const STYLE = ["--density", "2", "--dither", "0"];
 const REPORTED = /^(DONE|PREVIEW|VERIFY|WARN|FAILED|NO SPEC|CHARACTER ERROR|TEAM FILE ERROR|BODY|LAYERS|Chunk)|CLIPPED|Error:/;
@@ -58,7 +58,7 @@ function remoteRenderer(host: string): Renderer {
     await run({ program: "env", args: pack });
     await ssh(`if not exist ${REMOTE} mkdir ${REMOTE}`, onLine);
     await copy(bundle, `${host}:${REMOTE}/factory.tgz`);
-    await inside("(rmdir /s /q lib teams characters drafts 2>nul & tar -xzf factory.tgz)", onLine);
+    await inside("(rmdir /s /q lib teams characters art drafts 2>nul & tar -xzf factory.tgz)", onLine);
   };
 
   return {

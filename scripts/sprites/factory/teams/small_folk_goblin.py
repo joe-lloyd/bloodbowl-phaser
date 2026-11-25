@@ -17,6 +17,21 @@ def gob_face(J, L, tag, ears=1.0, nose=0.2):
     sf.long_nose(J, L, tag, ln=nose)
 
 
+def tall_hood(J, tag, kind):
+    """A tall hood in the primary colour, "floppy" or stiffly "pointed"."""
+    if not kind:
+        return
+    c, X, F, U, s = sf.hf(J)
+    cap(tag + "hood", c + U * 0.01 - F * 0.02, (s[0] * 1.2, s[1] * 1.2, s[2] * 1.2), "kit1", (U * 0.6 - F * 0.8).normalized(),
+        cut=-0.35, rot=J["head_R"], thick=0.03)
+    b = c + U * s[2] * 0.75 - F * s[1] * 0.3
+    if kind == "floppy":
+        pts = [b, b + U * 0.28 - F * 0.1, b + U * 0.42 - F * 0.34, b + U * 0.3 - F * 0.56]
+    else:
+        pts = [b, b + U * 0.3 - F * 0.02, b + U * 0.58 + F * 0.02, b + U * 0.82 + F * 0.06]
+    tube(tag + "hoodtip", pts, [s[0] * 0.8, s[0] * 0.5, s[0] * 0.28, 0.03], "kit1", ref=X, n=8)
+
+
 def goggles(J, tag, strap="kit2"):
     """Big brass flying goggles with a strap round the head."""
     c, X, F, U, s = sf.hf(J)
@@ -223,17 +238,7 @@ class Fanatic(looks.Fine, Biped):
     def extras(self, J, P, L, tag, pose):
         super().extras(J, P, L, tag, pose)
         gob_face(J, L, tag, ears=0.9, nose=0.24)
-        c, X, F, U, s = sf.hf(J)
-        hood = L.get("hood")
-        if hood:                             # tall hood in the primary colour, floppy or stiffly pointed
-            cap(tag + "hood", c + U * 0.01 - F * 0.02, (s[0] * 1.2, s[1] * 1.2, s[2] * 1.2), "kit1", (U * 0.6 - F * 0.8).normalized(),
-                cut=-0.35, rot=J["head_R"], thick=0.03)
-            b = c + U * s[2] * 0.75 - F * s[1] * 0.3
-            if hood == "floppy":
-                pts = [b, b + U * 0.28 - F * 0.1, b + U * 0.42 - F * 0.34, b + U * 0.3 - F * 0.56]
-            else:
-                pts = [b, b + U * 0.3 - F * 0.02, b + U * 0.58 + F * 0.02, b + U * 0.82 + F * 0.06]
-            tube(tag + "hoodtip", pts, [s[0] * 0.8, s[0] * 0.5, s[0] * 0.28, 0.03], "kit1", ref=X, n=8)
+        tall_hood(J, tag, L.get("hood"))
         if L.get("rags"):                    # ragged skirt or robe of kit2 cloth
             core.skirt(J, P, L, tag, L["rags"], (-178, 178), pose.get("flare", 0.1), "kit2", lining="kit2", jag=0.5, top=0.08)
         gl, gr = J["grip_l"][0], J["grip_r"][0]
