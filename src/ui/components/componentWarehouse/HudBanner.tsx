@@ -11,8 +11,10 @@ export function BroadcastBanner({
   headline,
   subtitle,
   tone = "strong",
+  as: Headline = "span",
 }: {
   headline: ReactNode;
+  as?: "span" | "h1";
   subtitle?: ReactNode;
   tone?: keyof typeof HEADLINE;
 }) {
@@ -24,14 +26,14 @@ export function BroadcastBanner({
           HEADLINE[tone].edge
         )}
       >
-        <span
+        <Headline
           className={cx(
             "block skew-x-12 text-center font-hud-display text-hud-4xl uppercase tracking-[0.04em] [text-shadow:0_3px_0_theme(colors.hud.ink)] phone:text-hud-2xl",
             HEADLINE[tone].text
           )}
         >
           {headline}
-        </span>
+        </Headline>
       </div>
       {subtitle && (
         <div

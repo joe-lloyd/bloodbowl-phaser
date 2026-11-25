@@ -33,11 +33,8 @@ export const TurnoverOverlay: React.FC<TurnoverOverlayProps> = ({
     >
       <div className="animate-hud-slam">
         <BroadcastBanner
-          headline={
-            <span role="heading" aria-level={1}>
-              TURNOVER
-            </span>
-          }
+          headline="TURNOVER"
+          as="h1"
           subtitle={message}
           tone="bad"
         />
