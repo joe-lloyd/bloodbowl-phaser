@@ -4,6 +4,7 @@ const SETUP = '[data-testid="setup-controls"]';
 const KICKOFF = "section.hud-slab";
 const MENU = '[data-testid="player-action-menu"]';
 const PLAN = '[data-testid="action-plan"]';
+const END_TURN = '[data-testid="end-turn"]';
 const PAGE = ".hud-page";
 const DIALOG = "[data-hotkey-scope] > .hud-slab";
 
@@ -127,10 +128,34 @@ const PANELS: DriftSpec[] = [
       {
         ...sequence,
         label: "End turn",
-        selector: '[data-testid="end-turn"]',
+        selector: END_TURN,
       },
     ],
     facts: [height, width, size, font, fill],
+  },
+  {
+    id: "end-button-names",
+    title: "End button with a long name",
+    sentence:
+      "End Alert Defence wraps to two lines on a desktop, and a phone cuts off both ends of it because the button is sized for End Turn.",
+    specimens: [
+      {
+        variant: "menu-none",
+        label: "A normal turn",
+        selector: END_TURN,
+      },
+      {
+        variant: "kickoff-charge-play",
+        label: "Charge",
+        selector: END_TURN,
+      },
+      {
+        variant: "kickoff-step-move",
+        label: "Alert Defence",
+        selector: END_TURN,
+      },
+    ],
+    facts: [width, height, size],
   },
   {
     id: "block-dialog-buttons",

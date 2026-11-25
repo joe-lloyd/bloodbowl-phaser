@@ -7,6 +7,7 @@ import { useNearScreen } from "./useNearScreen";
 
 const MARGIN = 10;
 const REMEASURE_MS = 600;
+const HELD_MS = 8000;
 const WIDEST = 560;
 
 interface Cut {
@@ -42,8 +43,11 @@ function useCut(
 ): Cut | null {
   const [cut, setCut] = useState<Cut | null>(null);
   useEffect(() => {
+    let seenAt = Date.now();
     const timer = setInterval(() => {
-      setCut((held) => cutOut(frame.current, specimen, facts) ?? held);
+      const next = cutOut(frame.current, specimen, facts);
+      if (next) seenAt = Date.now();
+      if (next || Date.now() - seenAt > HELD_MS) setCut(next);
     }, REMEASURE_MS);
     return () => {
       clearInterval(timer);
@@ -54,11 +58,7 @@ function useCut(
 
 function Numbers({ cut, facts }: { cut: Cut | null; facts: readonly Fact[] }) {
   if (!cut)
-    return (
-      <p className="mt-2 text-hud-sm text-hud-mute">
-        Not shown at this screen size.
-      </p>
-    );
+    return <p className="mt-2 text-hud-sm text-hud-mute">Not on screen.</p>;
   return (
     <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 text-hud-sm">
       {facts.map((fact, index) => (

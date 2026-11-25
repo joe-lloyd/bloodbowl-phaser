@@ -6,7 +6,7 @@ export const FRAME_SIZES = {
 export type FrameSize = keyof typeof FRAME_SIZES;
 
 export const isFrameSize = (value: string | null): value is FrameSize =>
-  value !== null && value in FRAME_SIZES;
+  value === "desktop" || value === "phone";
 
 export const frameUrl = (id: string, size: FrameSize) =>
   `?v=${id}&size=${size}`;

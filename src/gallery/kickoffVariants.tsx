@@ -4,7 +4,8 @@ import {
   KICKOFF_TABLE_ROLL,
   KickoffEvent,
 } from "../game/kickoff/kickoffEvents";
-import type { KickoffEventStepState } from "../game/kickoff/KickoffEventManager";
+import { type KickRecord, newKick } from "../game/kickoff/kickRecord";
+import { openedKickoffTurn } from "../game/kickoff/kickoffTurn";
 import type { MatchFixture } from "./fixtures";
 import { hud, KICKOFF_SCENE, onlineHud } from "./matchStage";
 import { every, later, soon } from "./variantHelpers";
@@ -20,32 +21,64 @@ const enterKickoff = (fx: MatchFixture) => {
   });
 };
 
-const ids = (fx: MatchFixture, ...players: number[]) =>
-  players.map((index) => fx.player(1, index).id);
+interface Step {
+  event?: KickoffEvent;
+  limit?: number;
+  picked?: number[];
+}
 
-const step = (make: (fx: MatchFixture) => Partial<KickoffEventStepState>) =>
+const LANDING = { x: 15, y: 5 };
+
+const pickedIn = (fx: MatchFixture, { picked = [] }: Step) =>
+  picked.map((index) => fx.player(1, index).id);
+
+function startKick(fx: MatchFixture): KickRecord {
+  enterKickoff(fx);
+  const kick = newKick(fx.team1.id, "coach");
+  fx.services.gameService.getState().kick = kick;
+  return kick;
+}
+
+const choosing = (step: Step = {}) =>
   soon((fx) => {
-    enterKickoff(fx);
-    const state: KickoffEventStepState = {
-      event: KickoffEvent.ALERT_DEFENCE,
-      teamId: fx.team1.id,
-      selectionLimit: 3,
-      selectedPlayerIds: [],
-      movedPlayerIds: [],
-      awaitingPlacement: [],
+    const { event = KickoffEvent.ALERT_DEFENCE, limit = 3 } = step;
+    const choice = { event, teamId: fx.team1.id, selectionLimit: limit };
+    startKick(fx).step = {
+      ...choice,
       stage: "choose",
-      canReselect: false,
-      ...make(fx),
+      selectedPlayerIds: pickedIn(fx, step),
+      ...(event === KickoffEvent.HIGH_KICK ? { landingSquare: LANDING } : {}),
     };
-    fx.services.gameService.getKickoffEventStep = () => state;
-    fx.bus.emit(GameEventNames.KickoffEventStepStarted, {
-      event: state.event,
-      teamId: state.teamId,
-      selectionLimit: state.selectionLimit,
-    });
+    fx.bus.emit(GameEventNames.KickoffEventStepStarted, choice);
   });
 
-const alertDefence = step(() => ({}));
+const playing = (step: Step, moved: number[] = []) =>
+  soon((fx) => {
+    const { event = KickoffEvent.ALERT_DEFENCE, limit = 3 } = step;
+    const teamId = fx.team1.id;
+    const state = fx.services.gameService.getState();
+    const kick = startKick(fx);
+    const opened = openedKickoffTurn(
+      state,
+      {
+        event,
+        teamId,
+        playerIds: pickedIn(fx, step),
+        selectionLimit: limit,
+      },
+      [...fx.team1.players, ...fx.team2.players]
+    );
+    if (!opened) throw new Error(`${event} has no mini-turn.`);
+    pickedIn(fx, { picked: moved }).forEach((id) =>
+      opened.turn.activatedPlayerIds.add(id)
+    );
+    state.activeTeamId = teamId;
+    state.turn = opened.turn;
+    kick.step = opened.step;
+    fx.bus.emit(GameEventNames.KickoffTurnStarted, { event, teamId });
+  });
+
+const alertDefence = choosing();
 
 const STEPS = rows(
   { group: "Kick-off", section: SECTION, fixture: KICKOFF_SCENE, view: hud },
@@ -63,58 +96,37 @@ const STEPS = rows(
     {
       id: "kickoff-step-start",
       title: "Alert Defence: start",
-      drive: step((fx) => ({ selectedPlayerIds: ids(fx, 0, 1, 2) })),
+      drive: choosing({ picked: [0, 1, 2] }),
     },
     {
       id: "kickoff-step-move",
       title: "Alert Defence: move each player",
-      drive: step((fx) => ({
-        stage: "play",
-        canReselect: true,
-        selectedPlayerIds: ids(fx, 0, 1, 2),
-      })),
+      drive: playing({ picked: [0, 1, 2] }),
     },
     {
       id: "kickoff-step-done",
       title: "Alert Defence: every player moved",
-      drive: step((fx) => ({
-        stage: "play",
-        selectedPlayerIds: ids(fx, 0, 1, 2),
-        movedPlayerIds: ids(fx, 0, 1, 2),
-      })),
+      drive: playing({ picked: [0, 1, 2] }, [0, 1, 2]),
     },
     {
       id: "kickoff-highkick",
       title: "High Kick",
-      drive: step(() => ({
-        event: KickoffEvent.HIGH_KICK,
-        selectionLimit: 1,
-        landingSquare: { x: 15, y: 5 },
-      })),
+      drive: choosing({ event: KickoffEvent.HIGH_KICK, limit: 1 }),
     },
     {
       id: "kickoff-quick-snap",
       title: "Quick Snap",
-      drive: step(() => ({ event: KickoffEvent.QUICK_SNAP })),
+      drive: choosing({ event: KickoffEvent.QUICK_SNAP }),
     },
     {
       id: "kickoff-charge",
       title: "Charge: choose players",
-      drive: step((fx) => ({
-        event: KickoffEvent.CHARGE,
-        selectedPlayerIds: ids(fx, 0),
-      })),
+      drive: choosing({ event: KickoffEvent.CHARGE, picked: [0] }),
     },
     {
       id: "kickoff-charge-play",
       title: "Charge: play each player",
-      drive: step((fx) => ({
-        event: KickoffEvent.CHARGE,
-        stage: "play",
-        canReselect: true,
-        selectedPlayerIds: ids(fx, 0, 1),
-        movedPlayerIds: ids(fx, 0),
-      })),
+      drive: playing({ event: KickoffEvent.CHARGE, picked: [0, 1] }, [0]),
     },
     {
       id: "kickoff-waiting",

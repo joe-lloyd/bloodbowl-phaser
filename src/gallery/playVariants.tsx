@@ -156,7 +156,7 @@ const MENU_ROWS: MatchRow[] = [
     id: "menu-sequence-jump",
     title: "Action sequence, Jump chosen in the Move step",
     fixture: PASS_SCENE,
-    open: steps("move", [
+    open: steps("jump", [
       { id: "move", label: "Move", half: "jump" },
       { id: "pass", label: "Pass" },
     ]),
@@ -446,6 +446,10 @@ const BANNERS = rows(
   ]
 );
 
+const openScenarios = () => {
+  click('[data-testid="sandbox-toggle"]');
+};
+
 const WHOLE_HUD = rows({ group: "In play", section: "Whole HUD", view: hud }, [
   {
     id: "hud-play",
@@ -463,7 +467,7 @@ const WHOLE_HUD = rows({ group: "In play", section: "Whole HUD", view: hud }, [
     fixture: BLOCK_SCENE,
     view: (fx) => hud(fx, { mode: "sandbox" }),
     drive: inPlay((fx) => {
-      click('[data-testid="sandbox-toggle"]');
+      openScenarios();
       fx.bus.emit(GameEventNames.ScenarioLoaded, {
         name: "Block & Injury Test",
         seed: 10,
@@ -487,7 +491,7 @@ const WHOLE_HUD = rows({ group: "In play", section: "Whole HUD", view: hud }, [
         ),
       }),
     drive: inPlay(() => {
-      click('[data-testid="sandbox-toggle"]');
+      openScenarios();
     }),
   },
   {
@@ -500,6 +504,7 @@ const WHOLE_HUD = rows({ group: "In play", section: "Whole HUD", view: hud }, [
         fx.bus.emit(GameEventNames.PhaseChanged, {
           phase: GamePhase.SANDBOX_IDLE,
         });
+        openScenarios();
       }),
   },
 ]);

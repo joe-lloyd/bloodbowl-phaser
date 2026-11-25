@@ -326,6 +326,7 @@ const FOUL_ROWS = playRows("Fouls and injuries", [
     id: "sent-off-bribe",
     title: "Sent off, a Bribe to use",
     open: sentOff((fx) => {
+      fx.services.gameService.getState().bribes = { [fx.team1.id]: 1 };
       reaction("Bribe", "Use a Bribe?")(fx);
     }),
   },

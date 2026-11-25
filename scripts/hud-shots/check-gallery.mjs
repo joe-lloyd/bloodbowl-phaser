@@ -32,8 +32,9 @@ async function openPage(viewport, errors) {
   });
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("response", (r) => {
-    if (r.status() >= 400 && r.url().startsWith(base))
-      errors.push(`${r.status()} ${r.url().slice(base.length)}`);
+    const { origin, pathname } = new URL(r.url());
+    const ours = origin === new URL(base).origin && pathname !== "/favicon.ico";
+    if (ours && r.status() >= 400) errors.push(`${r.status()} ${pathname}`);
   });
   return page;
 }
