@@ -36,8 +36,12 @@ const KIND = {
 } as const;
 
 export function RollTablePanel(props: RollTablePanelProps) {
-  const [peek, setPeek] = useState<RollTableRow | null>(null);
-  const { kind, title, intro, stage, result, rows } = props;
+  const { kind, title, intro, step, stage, result, rows } = props;
+  const [peeked, setPeeked] = useState<{
+    row: RollTableRow | null;
+    step: WeatherStep;
+  }>({ row: null, step });
+  const peek = peeked.step === step ? peeked.row : null;
   return (
     <RollShell
       testId={KIND[kind].dialog}
@@ -50,7 +54,14 @@ export function RollTablePanel(props: RollTablePanelProps) {
       idle={<IdleDice />}
       action={props.action}
       table={
-        <StripCells kind={kind} rows={rows} result={result} onPeek={setPeek} />
+        <StripCells
+          kind={kind}
+          rows={rows}
+          result={result}
+          onPeek={(row) => {
+            setPeeked({ row, step });
+          }}
+        />
       }
     >
       <div className="grid [&>*]:[grid-area:1/1]">
@@ -75,7 +86,7 @@ function Message({
   result,
   peek,
 }: RollTablePanelProps & { peek: RollTableRow | null }) {
-  if (peek && peek !== result)
+  if (peek && peek.name !== result?.name)
     return (
       <div data-testid={`${kind}-table-detail`}>
         <RowText row={peek} />
@@ -160,6 +171,7 @@ function StripCell({
       <span
         tabIndex={0}
         onMouseEnter={onPeek}
+        onClick={onPeek}
         onFocus={onPeek}
         className={`flex min-h-[38px] w-full cursor-help items-center gap-1.5 rounded-hud border px-1.5 py-0.5 font-hud-label text-hud-sm font-bold uppercase leading-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold ${
           hit

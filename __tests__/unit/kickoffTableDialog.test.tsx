@@ -104,6 +104,55 @@ describe("KickoffTableDialog", () => {
     vi.useRealTimers();
   });
 
+  it.each([
+    ["hovers", new MouseEvent("mouseover", { bubbles: true })],
+    ["focuses", new FocusEvent("focusin", { bubbles: true })],
+  ])("shows the result to a coach who %s another row", async (_, look) => {
+    await act(async () => {
+      bus.emit(GameEventNames.KickoffTableReady, {
+        presentationId: "kickoff-ready-6",
+        kickingTeamId: "team1",
+      });
+      await Promise.resolve();
+    });
+    const shown = (part: string) =>
+      container.querySelector(`[data-testid="kickoff-table-${part}"]`)
+        ?.textContent;
+    await act(async () => {
+      fixtureValue(
+        container.querySelector('[data-testid="kickoff-table"] li > span')
+      ).dispatchEvent(look);
+      await Promise.resolve();
+    });
+    expect(shown("detail")).toContain("Get the Ref");
+    await act(async () => {
+      bus.emit(GameEventNames.DiceRoll, {
+        rollType: "Kickoff Event",
+        diceType: "2d6",
+        value: [5, 5],
+        total: 10,
+        description: "Kickoff Event: 5 + 5 = 10",
+      });
+      bus.emit(GameEventNames.KickoffTableRolled, {
+        presentationId: "kickoff-table-6",
+        roll: 10,
+        event: KickoffEvent.CHARGE,
+      });
+      await Promise.resolve();
+    });
+    expect(shown("result")).toContain("Charge!");
+    expect(shown("detail")).toBeUndefined();
+    await act(async () => {
+      fixtureValue(
+        container.querySelector<HTMLElement>(
+          '[data-testid="kickoff-table"] li > span'
+        )
+      ).click();
+      await Promise.resolve();
+    });
+    expect(shown("detail")).toContain("Get the Ref");
+  });
+
   it("never opens for a kick an online page replays while catching up", async () => {
     await act(async () => {
       bus.emit(GameEventNames.KickoffTableReady, {
