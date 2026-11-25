@@ -190,6 +190,34 @@ describe("Squig Rage", () => {
     expect(rolls).not.toContain("Ball & Chain Deviation");
   });
 
+  it("drops a queued swing when Rage knocks down the ball carrier", async () => {
+    const { game, wrangler, rolls, declare } = match(
+      [{ playerIndex: 4, x: 9, y: 5 }],
+      [{ ...OPPONENT, x: 18 }]
+    );
+    const carrier = fixtureValue(game.ctx.team1.players[4]);
+    game.ctx.gameService.getState().ballPosition = { x: 9, y: 5 };
+    game.ctx.team1.rerolls = 1;
+    const turnovers: string[] = [];
+    game.ctx.eventBus.on(GameEventNames.Turnover, ({ teamId }) => {
+      turnovers.push(teamId);
+    });
+    expect((await declare()).pendingDecision?.type).toBe("reroll");
+    void game.ctx.gameService.ballAndChain(wrangler.id, 1, 0);
+    let response = await game.execute({ type: "use-reroll", accept: false });
+    if (response.pendingDecision?.type === "bite-target") {
+      response = await game.execute({
+        type: "choose-bite-target",
+        playerId: carrier.id,
+      });
+    }
+    expect(response.ok).toBe(true);
+    expect(carrier.status).not.toBe(PlayerStatus.ACTIVE);
+    expect(turnovers).toEqual([game.ctx.team1.id]);
+    expect(wrangler.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(rolls).not.toContain("Ball & Chain Deviation");
+  });
+
   it("skips the roll with a standing Herder three squares away diagonally", async () => {
     const { game, rolls, wrangler, declare } = match(
       [{ playerIndex: 2, x: 7, y: 8 }],
