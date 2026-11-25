@@ -1,25 +1,17 @@
 import type { ReactNode, RefObject } from "react";
 import { PHONE_QUERY } from "../../../game/presentation/phoneLayout";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
-import { DialogShell, Panel, PanelHeader } from "../componentWarehouse/HudKit";
-
-const STAGE = {
-  strip: "h-[176px] w-[240px] shrink-0",
-  dialog:
-    "mx-auto h-[min(180px,32dvh)] w-full landscape:mx-0 landscape:w-[240px] landscape:shrink-0",
-} as const;
+import { HudButton, Panel, PanelHeader } from "../componentWarehouse/HudKit";
 
 interface RollShellProps {
   testId: string;
   title: string;
-  aside: string;
   zClass: string;
-  width: string;
   header?: ReactNode;
   stage: RefObject<HTMLDivElement | null>;
   stageTestId: string;
   thrown: boolean;
-  waiting?: ReactNode;
+  idle?: ReactNode;
   action: ReactNode;
   table?: ReactNode;
   children: ReactNode;
@@ -27,57 +19,35 @@ interface RollShellProps {
 
 export function RollShell(props: RollShellProps) {
   const phone = useMediaQuery(PHONE_QUERY);
-  return phone ? <ShellDialog {...props} /> : <ShellStrip {...props} />;
-}
-
-function Stage({
-  stage,
-  stageTestId,
-  thrown,
-  waiting,
-  shape,
-}: Pick<RollShellProps, "stage" | "stageTestId" | "thrown" | "waiting"> & {
-  shape: keyof typeof STAGE;
-}) {
-  return (
-    <>
-      {!thrown && waiting && (
-        <div className={`${STAGE[shape]} grid place-items-center`}>
-          {waiting}
-        </div>
-      )}
-      <div
-        ref={stage}
-        data-testid={stageTestId}
-        className={thrown ? STAGE[shape] : "hidden"}
-      />
-    </>
-  );
-}
-
-function ShellStrip(props: RollShellProps) {
   return (
     <div
-      className={`pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4 ${props.zClass}`}
+      className={`pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4 phone:pointer-events-auto phone:inset-0 phone:items-center phone:bg-black/40 phone:px-2 ${props.zClass}`}
       data-testid={props.testId}
       data-hotkey-scope=""
-      data-hud-frame="bottom"
+      data-hud-frame={phone ? undefined : "bottom"}
     >
       <Panel
         as="section"
         accent="gold"
         aria-label={props.title}
-        className="pointer-events-auto w-[min(640px,calc(100vw-39rem))] min-w-[min(560px,100%)] animate-hud-in"
+        className="pointer-events-auto w-[min(640px,calc(100vw-39rem))] min-w-[min(560px,100%)] animate-hud-in phone:max-h-[calc(100dvh-1rem)] phone:w-[640px] phone:min-w-0 phone:max-w-full phone:overflow-y-auto"
       >
-        <PanelHeader title={props.title} as="h2" aside={props.aside} />
-        <div className="p-3">
+        <PanelHeader title={props.title} as="h2" />
+        <div className="p-3 phone:p-2">
           {props.header}
-          <div className="flex min-h-[56px] flex-wrap items-center gap-4">
-            <Stage {...props} shape="strip" />
-            <div className="min-w-[110px] flex-1 font-hud-body text-hud-base [overflow-wrap:anywhere]">
-              {props.children}
+          <div className="flex gap-4 phone:gap-3 phone:portrait:flex-col">
+            <RollStage {...props} />
+            <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 phone:gap-1">
+              <div className="min-h-[96px] font-hud-body text-hud-base phone:text-hud-sm [overflow-wrap:anywhere]">
+                {props.children}
+              </div>
+              <div
+                className="flex min-h-[52px] flex-col justify-center"
+                data-testid="roll-action"
+              >
+                {props.action}
+              </div>
             </div>
-            <div className="ml-auto shrink-0 empty:hidden">{props.action}</div>
           </div>
           {props.table}
         </div>
@@ -86,27 +56,38 @@ function ShellStrip(props: RollShellProps) {
   );
 }
 
-function ShellDialog(props: RollShellProps) {
+function RollStage({
+  stage,
+  stageTestId,
+  thrown,
+  idle,
+}: Pick<RollShellProps, "stage" | "stageTestId" | "thrown" | "idle">) {
   return (
-    <DialogShell
-      zClass={props.zClass}
-      placement="center"
-      backdrop="light"
-      titleAs="h1"
-      title={props.title}
-      width={props.width}
-      className="text-center"
-      testId={props.testId}
-    >
-      {props.header}
-      <div className="space-y-3 [@media(max-height:600px)]:space-y-1">
-        <div className="landscape:flex landscape:items-center landscape:justify-center landscape:gap-4">
-          <Stage {...props} shape="dialog" />
-          <div>{props.children}</div>
-        </div>
-        {props.table}
-        {props.action}
-      </div>
-    </DialogShell>
+    <div className="relative h-[176px] w-[240px] shrink-0 phone:h-[min(176px,36dvh)] phone:portrait:w-full">
+      <div
+        ref={stage}
+        data-testid={stageTestId}
+        className="absolute inset-0"
+      />
+      {!thrown && (
+        <div className="absolute inset-0 grid place-items-center">{idle}</div>
+      )}
+    </div>
+  );
+}
+
+export function RollBusy({ children }: { children: ReactNode }) {
+  return (
+    <HudButton variant="primary" size="lg" block disabled>
+      {children}
+    </HudButton>
+  );
+}
+
+export function RollWait({ name }: { name: string }) {
+  return (
+    <p className="line-clamp-2 font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
+      Waiting for {name} to ready up…
+    </p>
   );
 }

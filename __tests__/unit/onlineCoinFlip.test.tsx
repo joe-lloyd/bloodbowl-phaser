@@ -281,13 +281,31 @@ describe("online weather", () => {
     });
     await tick(20);
     expect(coins.length).toBe(1);
-    expect(text()).not.toContain("Rolled 11");
+    expect(container.querySelector('[data-testid="weather-result"]')).toBeNull();
+    const blizzard = container.querySelector(
+      '[data-testid="weather-table"] li:last-child > span'
+    );
+    const preview = () =>
+      container.querySelector('[data-testid="weather-table-detail"]')
+        ?.textContent;
+    await act(async () => {
+      blizzard?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(preview()).toContain("Blizzard");
     await act(async () => {
       fixtureValue(coins[0]).land();
     });
     await tick(800);
-    expect(text()).toContain("Pouring Rain");
-    expect(text()).toContain("Rolled 11");
+    expect(
+      container.querySelector('[data-testid="weather-result"]')?.textContent
+    ).toContain("Pouring Rain");
+    expect(preview()).toBeUndefined();
+    await act(async () => {
+      blizzard?.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(preview()).toContain("Blizzard");
     expect(container.querySelector("[data-current]")?.textContent).toContain(
       "Pouring Rain"
     );

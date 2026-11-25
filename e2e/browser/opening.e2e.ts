@@ -70,6 +70,11 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   await expect(weather).toBeVisible({ timeout: 15_000 });
   await expect(flip).toHaveCount(0);
   await expect(page.getByTestId("weather-table").locator("li")).toHaveCount(5);
+  const panel = weather.locator("section");
+  await panel.evaluate((el) =>
+    Promise.all(el.getAnimations().map((slide) => slide.finished))
+  );
+  const before = await panel.boundingBox();
   await shot("weather-ready");
   await page.getByRole("button", { name: "ROLL WEATHER" }).click();
   await expect(
@@ -78,17 +83,9 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   await expect(page.getByTestId("weather-result")).toBeVisible({
     timeout: 15_000,
   });
-  const rolled = (await app.bridge.events()).find(
-    (e) =>
-      e.name === GameEventNames.DiceRoll &&
-      (e.data as { rollType: string }).rollType === "Weather"
-  );
-  const total = (rolled?.data as { total: number }).total;
   const state = await app.bridge.snapshot();
   await expect(page.getByTestId("weather-result")).toContainText(state.weather);
-  await expect(page.getByTestId("weather-result")).toContainText(
-    `Rolled ${String(total)}`
-  );
+  expect(await panel.boundingBox()).toEqual(before);
   await expect(
     page.getByTestId("weather-table").locator("li[data-current]")
   ).toContainText(state.weather);

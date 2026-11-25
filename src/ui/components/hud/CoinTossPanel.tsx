@@ -6,7 +6,7 @@ export function CoinTossPanel(props: {
   stage: RefObject<HTMLDivElement | null>;
   thrown: boolean;
   header?: ReactNode;
-  waiting?: ReactNode;
+  idle?: ReactNode;
   action?: ReactNode;
   children?: ReactNode;
 }) {
@@ -15,9 +15,7 @@ export function CoinTossPanel(props: {
       {...props}
       testId="coin-dialog"
       title="Coin toss"
-      aside="Heads or tails"
       zClass="z-[100]"
-      width="w-[480px]"
       stageTestId="coin-stage"
       action={props.action}
     >
@@ -29,10 +27,10 @@ export function CoinTossPanel(props: {
 export function TossWinner({ name, note }: { name: string; note: string }) {
   return (
     <div className="animate-hud-in">
-      <div className="font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-gold">
+      <div className="font-hud-display text-hud-xl uppercase tracking-[0.02em] text-hud-gold">
         {name} wins the toss!
       </div>
-      <p className="text-hud-dim">{note}</p>
+      <p className="mt-1 text-hud-dim">{note}</p>
     </div>
   );
 }
@@ -43,10 +41,11 @@ export function KickOrReceive({
   onChoose: (choice: "kick" | "receive") => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 landscape:min-w-[130px] landscape:grid-cols-1 phone:landscape:grid-cols-2">
+    <div className="grid grid-cols-2 gap-2">
       <HudButton
         variant="gold"
         size="lg"
+        className="px-3"
         onClick={() => {
           onChoose("kick");
         }}
@@ -56,6 +55,7 @@ export function KickOrReceive({
       <HudButton
         variant="primary"
         size="lg"
+        className="px-3"
         onClick={() => {
           onChoose("receive");
         }}

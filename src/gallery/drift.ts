@@ -242,17 +242,11 @@ const OPENING: DriftSpec[] = [
     id: "waiting-lines",
     title: "Waiting for the other coach",
     sentence:
-      "The same message is a tiny label in the coin toss, a large label in the weather roll, plain text in the kick-off step and a gold banner during a turn.",
+      "The same message is a large label in the opening rolls, plain text in the kick-off step and a gold banner during a turn.",
     specimens: [
       {
         variant: "weather-online-waiting",
         label: "Weather",
-        selector: "p",
-        contains: "Waiting",
-      },
-      {
-        variant: "coin-online-wait",
-        label: "Coin toss",
         selector: "p",
         contains: "Waiting",
       },
