@@ -63,7 +63,9 @@ async function showUphillBlock(myTeamId: string) {
     });
   });
   return [
-    ...container.querySelectorAll('[data-testid="block-roll-analysis"] > div'),
+    ...container.querySelectorAll(
+      '[data-testid="block-roll-analysis"] > p, [data-testid="block-roll-analysis"] > div > div'
+    ),
   ].map((line) => line.textContent);
 }
 
@@ -71,10 +73,9 @@ it("speaks to the defending coach as the one who picks", async () => {
   const defenderNumber = fixtureValue(game.ctx.team2.players[1]).number;
   expect(await showUphillBlock(game.ctx.team2.id)).toEqual([
     "2 dice, you pick",
-    "Our ST 4 (3 +1) vs their ST 3",
+    "ST 4 (3 +1) vs 3",
     `Our assists: #${String(defenderNumber)}`,
-    "Their assists: none",
-    "We have Block: safe on Both Down",
+    "Our Block: safe on Both Down",
   ]);
 });
 
@@ -82,9 +83,8 @@ it("still speaks to the attacking coach from their side", async () => {
   const defenderNumber = fixtureValue(game.ctx.team2.players[1]).number;
   expect(await showUphillBlock(game.ctx.team1.id)).toEqual([
     "2 dice, they pick",
-    "Our ST 3 vs their ST 4 (3 +1)",
-    "Our assists: none",
+    "ST 3 vs 4 (3 +1)",
     `Their assists: #${String(defenderNumber)}`,
-    "They have Block: safe on Both Down",
+    "Their Block: safe on Both Down",
   ]);
 });

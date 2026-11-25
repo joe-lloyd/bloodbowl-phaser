@@ -139,7 +139,7 @@ const USES = [
     await press(/Roll dice/i)(page);
     await page.getByRole("button", { name: /Roll dice/i }).waitFor({ state: "hidden" });
     await page.waitForTimeout(4000);
-  }, "text=/defender chooses/i"],
+  }, "text=/they pick/i"],
   ["setup-incomplete", async (page) => {
     const list = page.locator("select").filter({ hasText: "My cage" });
     if (await list.isVisible()) {

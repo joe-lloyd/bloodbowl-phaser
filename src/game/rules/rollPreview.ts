@@ -191,8 +191,16 @@ export function passTarget(
   );
 }
 
-const assistLine = (side: "Our" | "Their", players: Player[]): string =>
-  `${side} assists: ${players.length ? players.map((p) => `#${String(p.number)}`).join(", ") : "none"}`;
+const assistLines = (ours: Player[], theirs: Player[]): string[] =>
+  [
+    { side: "Our", players: ours },
+    { side: "Their", players: theirs },
+  ]
+    .filter(({ players }) => players.length > 0)
+    .map(
+      ({ side, players }) =>
+        `${side} assists: ${players.map((p) => `#${String(p.number)}`).join(", ")}`
+    );
 
 export type BlockSide = "attacker" | "defender";
 
@@ -213,46 +221,67 @@ function strengthLine(
   const defending = strengthPart(defender.stats.ST, analysis.defenderST);
   const [ours, theirs] =
     viewer === "attacker" ? [attacking, defending] : [defending, attacking];
-  return `Our ST ${ours} vs their ST ${theirs}`;
+  return `ST ${ours} vs ${theirs}`;
 }
 
-export function blockPreviewLines(
+interface BlockPreview {
+  dice: string;
+  strength: string;
+  notes: string[];
+}
+
+export function blockPreview(
   analysis: BlockAnalysis,
   attacker: Player,
   defender: Player,
   viewer: BlockSide
-): string[] {
+): BlockPreview {
   const viewerPicks = analysis.isUphill === (viewer === "defender");
   const [ours, theirs] =
     viewer === "attacker"
       ? [analysis.attackerAssists, analysis.defenderAssists]
       : [analysis.defenderAssists, analysis.attackerAssists];
+  return {
+    dice: `${String(analysis.diceCount)} ${analysis.diceCount === 1 ? "die" : "dice"}, ${viewerPicks ? "you" : "they"} pick`,
+    strength: strengthLine(analysis, { attacker, defender }, viewer),
+    notes: [
+      ...assistLines(ours, theirs),
+      ...blockNotes(analysis, { attacker, defender }, viewer),
+    ],
+  };
+}
 
-  const attackerIs = viewer === "attacker" ? "We" : "They";
-  const defenderIs = viewer === "defender" ? "We" : "They";
-  const lines = [
-    `${String(analysis.diceCount)} ${analysis.diceCount === 1 ? "die" : "dice"}, ${viewerPicks ? "you" : "they"} pick`,
-    strengthLine(analysis, { attacker, defender }, viewer),
-    assistLine("Our", ours),
-    assistLine("Their", theirs),
-  ];
-  if (analysis.barricadeCover)
-    lines.push(`${defenderIs} are behind a Barricade: +1 ST`);
+function blockNotes(
+  analysis: BlockAnalysis,
+  { attacker, defender }: { attacker: Player; defender: Player },
+  viewer: BlockSide
+): string[] {
+  const [attacking, defending] =
+    viewer === "attacker" ? ["Our", "Their"] : ["Their", "Our"];
+  const notes: string[] = [];
+  if (analysis.barricadeCover) notes.push(`${defending} Barricade: +1 ST`);
   if (has(defender, SkillType.DODGE))
-    lines.push(
+    notes.push(
       has(attacker, SkillType.TACKLE)
-        ? `${defenderIs} have Dodge. ${attackerIs === "We" ? "Our" : "Their"} Tackle cancels it.`
-        : `${defenderIs} have Dodge: Stumble becomes Push`
+        ? `${attacking} Tackle cancels Dodge`
+        : `${defending} Dodge: Stumble becomes Push`
     );
   if (has(defender, SkillType.BLOCK))
-    lines.push(`${defenderIs} have Block: safe on Both Down`);
+    notes.push(`${defending} Block: safe on Both Down`);
   if (has(attacker, SkillType.BLOCK))
-    lines.push(`${attackerIs} have Block: safe on Both Down`);
+    notes.push(`${attacking} Block: safe on Both Down`);
   if (has(attacker, SkillType.WRESTLE) || has(defender, SkillType.WRESTLE))
-    lines.push("Wrestle can put both players Prone on Both Down");
+    notes.push("Wrestle: both may go Prone on Both Down");
   if (has(defender, SkillType.STAND_FIRM))
-    lines.push(`${defenderIs} have Stand Firm: may refuse a Push`);
-  return lines;
+    notes.push(`${defending} Stand Firm: may refuse a Push`);
+  return notes;
+}
+
+export function blockPreviewLines(
+  ...block: Parameters<typeof blockPreview>
+): string[] {
+  const { dice, strength, notes } = blockPreview(...block);
+  return [dice, strength, ...notes];
 }
 
 export interface RouteRoll {
@@ -295,8 +324,7 @@ export function foulPreview(
   const targetNumber = effectiveAV(target, state) - modifier;
   const lines = [
     rollLabel("Armour", targetNumber),
-    assistLine("Our", analysis.offensiveAssists),
-    assistLine("Their", analysis.defensiveAssists),
+    ...assistLines(analysis.offensiveAssists, analysis.defensiveAssists),
   ];
   if (
     has(fouler, SkillType.LONE_FOULER) &&

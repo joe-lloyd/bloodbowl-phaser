@@ -288,9 +288,9 @@ describe("roll preview analysis", () => {
     expect(blockPreviewLines(analysis, player, defender, "attacker")).toEqual(
       expect.arrayContaining([
         "2 dice, you pick",
-        "Our ST 4 (3 +1) vs their ST 3",
+        "ST 4 (3 +1) vs 3",
         "Our assists: #8",
-        "They have Dodge: Stumble becomes Push",
+        "Their Dodge: Stumble becomes Push",
       ])
     );
   });
@@ -303,12 +303,10 @@ describe("roll preview analysis", () => {
       activeTeamId: "ours",
     });
     expect(
-      blockPreviewLines(analysis, player, strong, "attacker").slice(0, 4)
+      blockPreviewLines(analysis, player, strong, "attacker")
     ).toEqual([
       "2 dice, they pick",
-      "Our ST 3 vs their ST 4",
-      "Our assists: none",
-      "Their assists: none",
+      "ST 3 vs 4",
     ]);
   });
   it("shows the foul's assisted armour target", () => {

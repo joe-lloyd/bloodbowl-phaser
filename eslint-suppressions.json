@@ -4402,14 +4402,8 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
     },
-    "complexity": {
-      "count": 1
-    },
     "max-params": {
       "count": 9
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
     }
   },
   "src/game/rules/secureBall.ts": {

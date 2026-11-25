@@ -184,7 +184,7 @@ describe("GameplayInteractionController", () => {
       const plan = eventBusSpies.emit.mock.calls
         .filter(([name, data]) => name === GameEventNames.UI_ActionPlan && data)
         .at(-1);
-      expect(JSON.stringify(plan?.[1])).toContain("Our ST 4 vs their ST 3");
+      expect(JSON.stringify(plan?.[1])).toContain("ST 4 vs 3");
 
       eventBusSpies.emit.mockClear();
       void (controller).onSquareClicked(10, 10);

@@ -76,16 +76,16 @@ test("block hover names the chooser, assists and Dodge before opening the dialog
   await app.pitch.hoverSquare(await app.pitch.squareOf("team2:0"));
   const preview = page.getByTestId("target-roll-preview");
   await expect(preview).toContainText("2 dice, you pick");
-  await expect(preview).toContainText(/Our ST \d.* vs their ST \d/);
+  await expect(preview).toContainText(/ST \d.* vs \d/);
   await expect(preview).toContainText("Our assists: #2");
-  await expect(preview).toContainText("They have Dodge");
+  await expect(preview).toContainText("Their Dodge");
   await page.screenshot({ path: test.info().outputPath("block-preview.png") });
   await app.pitch.clickPlayer("team2:0");
   await expect(page.getByTestId("block-roll-analysis")).toContainText(
     "Our assists: #2"
   );
   await expect(page.getByTestId("block-roll-analysis")).toContainText(
-    "They have Dodge"
+    "Their Dodge"
   );
   await page.screenshot({ path: test.info().outputPath("block-dialog.png") });
 });
@@ -185,7 +185,7 @@ test("a blitz plan lists the block's Rush, and Go rolls it with no extra prompt"
   const plan = page.getByTestId("action-plan");
   await expect(plan).toContainText("Block");
   await expect(plan).toContainText("Rush 2+");
-  await expect(plan).toContainText(/Our ST \d.* vs their ST \d/);
+  await expect(plan).toContainText(/ST \d.* vs \d/);
   await page.screenshot({ path: test.info().outputPath("blitz-plan.png") });
 
   await page.getByTestId("action-plan-go").click();
