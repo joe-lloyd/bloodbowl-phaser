@@ -294,6 +294,18 @@ describe("roll preview analysis", () => {
       ])
     );
   });
+  it("counts one die as a die", () => {
+    const analysis = new BlockValidator().analyzeBlock({
+      attacker: player,
+      defender: enemy,
+      allPlayers: [player, enemy],
+      activeTeamId: "ours",
+    });
+    expect(blockPreviewLines(analysis, player, enemy, "attacker")).toEqual([
+      "1 die, you pick",
+      "ST 3 vs 3",
+    ]);
+  });
   it("says the defender picks when they are stronger", () => {
     const strong = { ...enemy, stats: { ...enemy.stats, ST: 4 } };
     const analysis = new BlockValidator().analyzeBlock({
