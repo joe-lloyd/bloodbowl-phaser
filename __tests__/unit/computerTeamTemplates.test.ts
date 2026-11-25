@@ -93,7 +93,7 @@ describe("computer team templates", () => {
     ).toBe(false);
     expect(
       getComputerTeamTemplates({ ruleset: NAF_SEVENS_RULESET })
-    ).toHaveLength(84);
+    ).toHaveLength(85);
     expect(() => createComputerTeamFromTemplate(id)).toThrow(
       "Too many Insignificant"
     );
