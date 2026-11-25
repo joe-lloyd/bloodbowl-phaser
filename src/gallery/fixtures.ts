@@ -6,7 +6,7 @@ import { TeamFactory } from "../game/TeamFactory";
 import { applyScenario } from "../game/applyScenario";
 import { SCENARIOS } from "../data/scenarios";
 import { RosterName, type Team } from "../types/Team";
-import { GamePhase } from "../types/GameState";
+import { GamePhase, type SubPhase } from "../types/GameState";
 import { type Player } from "../types/Player";
 
 export interface FixtureOptions {
@@ -18,6 +18,7 @@ export interface FixtureOptions {
   team1Roster?: RosterName;
   team2Roster?: RosterName;
   phase?: GamePhase;
+  subPhase?: SubPhase;
   progression?: boolean;
 }
 
@@ -55,7 +56,10 @@ export function setupMatch(options: FixtureOptions = {}): MatchFixture {
         team2: team2,
         startingPhase: options.phase ?? GamePhase.PLAY,
       });
-  if (options.phase) state.phase = options.phase;
+  Object.assign(state, {
+    ...(options.phase ? { phase: options.phase } : {}),
+    ...(options.subPhase ? { subPhase: options.subPhase } : {}),
+  });
 
   setActiveOnlineMatch(null);
   ServiceContainer.reset();

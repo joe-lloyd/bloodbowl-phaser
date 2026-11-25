@@ -1,5 +1,6 @@
 import { GameEventNames } from "../types/events";
 import type {
+  BiteTargetDecisionRequest,
   DecisionRequest,
   InducementChoiceDecisionRequest,
   RerollSource,
@@ -14,6 +15,9 @@ import type { Variant } from "./variant";
 
 const STOP = "Stop here";
 
+const ask = (fx: MatchFixture, request: DecisionRequest) =>
+  fx.services.gameService.getDecisionService().request(request);
+
 const reaction = (skill: string, prompt: string): Opener =>
   decision((fx) => ({
     type: "reaction",
@@ -21,6 +25,15 @@ const reaction = (skill: string, prompt: string): Opener =>
     chooserTeamId: fx.team1.id,
     skill,
     prompt,
+  }));
+
+const biteTarget = (extra: Partial<BiteTargetDecisionRequest>): Opener =>
+  decision((fx) => ({
+    type: "bite-target",
+    playerId: fx.player(1, 0).id,
+    chooserTeamId: fx.team1.id,
+    targetIds: [fx.player(1, 1).id, fx.player(1, 2).id],
+    ...extra,
   }));
 
 const inducementChoice = (
@@ -39,7 +52,7 @@ const inducementChoice = (
 const decision =
   (make: (fx: MatchFixture) => DecisionRequest): Opener =>
   (fx) => {
-    fx.bus.emit(GameEventNames.DecisionRequested, make(fx));
+    void ask(fx, make(fx));
   };
 
 function openBlock(
@@ -98,7 +111,7 @@ const reroll =
   (fx) => {
     fx.team1.rerolls = 2;
     fx.services.gameService.getState().turn.teamId = fx.team1.id;
-    fx.bus.emit(GameEventNames.DecisionRequested, {
+    void ask(fx, {
       type: "reroll",
       playerId: fx.player(1, 4).id,
       chooserTeamId: fx.team1.id,
@@ -135,6 +148,27 @@ const sentOff =
     });
     steps(fx);
   };
+
+function refereeRules(fx: MatchFixture, bribed: boolean): void {
+  const call = {
+    playerId: fx.player(1, 0).id,
+    teamId: fx.team1.id,
+    cause: "foul",
+  } as const;
+  if (bribed)
+    fx.bus.emit(GameEventNames.RefereeCall, {
+      ...call,
+      step: "bribed",
+      roll: 4,
+      works: true,
+    });
+  fx.bus.emit(GameEventNames.RefereeCall, {
+    ...call,
+    step: "outcome",
+    result: bribed ? "bribed" : "sent-off",
+    presentationId: "gallery-referee",
+  });
+}
 
 const CONFIRM_ROWS = playRows("Confirmations", [
   {
@@ -295,12 +329,17 @@ const REROLL_ROWS = playRows("Re-rolls and reactions", [
   {
     id: "bite-target",
     title: "Bloodlust: choose a Thrall to bite",
-    open: decision((fx) => ({
-      type: "bite-target",
-      playerId: fx.player(1, 0).id,
-      chooserTeamId: fx.team1.id,
-      targetIds: [fx.player(1, 1).id, fx.player(1, 2).id],
-    })),
+    open: biteTarget({}),
+  },
+  {
+    id: "bite-squig-knock",
+    title: "Squig Rage: choose a team-mate to knock down",
+    open: biteTarget({ purpose: "squig-knock-down" }),
+  },
+  {
+    id: "bite-squig-block",
+    title: "Squig Rage: choose an opponent to Block",
+    open: biteTarget({ purpose: "squig-block" }),
   },
 ]);
 
@@ -327,7 +366,15 @@ const FOUL_ROWS = playRows("Fouls and injuries", [
     title: "Sent off, a Bribe to use",
     open: sentOff((fx) => {
       fx.services.gameService.getState().bribes = { [fx.team1.id]: 1 };
-      reaction("Bribe", "Use a Bribe?")(fx);
+      void ask(fx, {
+        type: "reaction",
+        playerId: fx.player(1, 0).id,
+        chooserTeamId: fx.team1.id,
+        skill: "Bribe",
+        prompt: "Use a Bribe?",
+      }).then((answer) => {
+        refereeRules(fx, "accept" in answer && answer.accept);
+      });
     }),
   },
   {

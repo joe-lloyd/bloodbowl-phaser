@@ -1,7 +1,9 @@
 import { seedCompetitionId } from "../seeding/seedMeta";
 import { TeamLibraryGate } from "../ui/components/TeamManagement/TeamLibraryGate";
-import { setTeamLibraryStatus } from "../game/managers/TeamManager";
-import { SoundTest } from "../ui/components/pages/SoundTest";
+import {
+  setTeamLibraryRetry,
+  setTeamLibraryStatus,
+} from "../game/managers/TeamManager";
 import { TeamManagement } from "../ui/components/pages/TeamManagement";
 import {
   CLOUD_LEAGUE,
@@ -15,6 +17,7 @@ import {
   otherCoaches,
   RANDOM_ROLL,
   rolledPlayer,
+  seed,
   signedIn,
   teamAt,
   withClubs,
@@ -41,6 +44,13 @@ const press =
       click("button", label);
     });
 
+const pickTeam = (roster: string, at: number) => {
+  const matches = [
+    ...document.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"),
+  ].filter((button) => button.textContent.includes(`${roster} Founders`));
+  matches.at(at)?.click();
+};
+
 const menu = routed("/");
 const select = (query: string) => routed(`/select-team${query}`);
 
@@ -62,6 +72,16 @@ const MENU = pages("Pre-match", "Main menu", [
 
 const SELECT = pages("Pre-match", "Team selection", [
   { id: "page-select", title: "Two coaches", view: select("") },
+  {
+    id: "page-select-picked",
+    title: "Both teams picked",
+    view: select(""),
+    drive: () =>
+      later(500, () => {
+        pickTeam("Human", 0);
+        pickTeam("Orc", -1);
+      }),
+  },
   {
     id: "page-select-computer",
     title: "Against the computer",
@@ -112,7 +132,11 @@ const TEAMS = teamPages("Teams", [
       title:
         status === "loading" ? "The library is loading" : "The library failed",
       prepare: () => {
+        seed();
         setTeamLibraryStatus(status);
+        setTeamLibraryRetry(() => {
+          setTeamLibraryStatus("loaded");
+        });
       },
       view: routed(
         "/build-team",
@@ -232,6 +256,15 @@ const LEAGUES = competitionPages("Leagues", [
     id: "page-league-signup",
     title: "Online sign-ups, entering a team",
     prepare: organizedByRival,
+    drive: () =>
+      later(900, () => {
+        const choice = document.querySelector<HTMLSelectElement>(
+          'select[aria-label="Team to enter"]'
+        );
+        if (!choice) return;
+        choice.selectedIndex = 1;
+        choice.dispatchEvent(new Event("change", { bubbles: true }));
+      }),
     view: cloudLeague,
   },
   {
@@ -347,7 +380,7 @@ const SOUND = teamPages("Sound test", [
     id: "page-sound",
     title: "Every sound",
     prepare: withFriends,
-    view: (fx) => at("/music", <SoundTest eventBus={fx.bus} />),
+    view: routed("/music"),
   },
 ]);
 

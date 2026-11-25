@@ -1,13 +1,13 @@
 import { GameEventNames } from "../types/events";
 import { LoadingScreen } from "../ui/components/hud/LoadingScreen";
-import { InducementSelectionPanel } from "../ui/components/hud/InducementSelectionPanel";
+import { PregameInducements } from "../ui/components/hud/PregameInducements";
 import { WEATHER_ROLL } from "../ui/components/hud/weatherThrow";
 import { OnlineCoinFlip } from "../ui/pages/OnlineCoinFlip";
 import { setActiveOnlineMatch } from "../network/OnlineMatch";
 import type { LobbyDoc } from "../firebase/lobby";
 import type { MatchFixture } from "./fixtures";
 import { LiveLobby } from "./LiveLobby";
-import { hud, SETUP_SCENE } from "./matchStage";
+import { hud, OPENING_SCENE } from "./matchStage";
 import { click, later, lobby, onlineMatch, soon } from "./variantHelpers";
 import { rows, type Variant } from "./variant";
 
@@ -29,6 +29,19 @@ const rollWeather = (fx: MatchFixture) => {
     resultState: "none",
     teamId: fx.team1.id,
   });
+};
+
+const otherCoachReadies = (fx: MatchFixture) => {
+  const answer = ({ teamIds }: { teamIds: string[] }) => {
+    if (teamIds.length === 1)
+      later(2000, () => {
+        fx.services.gameService.readyForWeather(fx.team2.id);
+      });
+  };
+  fx.bus.on(GameEventNames.WeatherReady, answer);
+  return () => {
+    fx.bus.off(GameEventNames.WeatherReady, answer);
+  };
 };
 
 const startToss = (fx: MatchFixture) => {
@@ -73,7 +86,7 @@ const toss =
 
 const SHARED = {
   group: "Pre-match",
-  fixture: SETUP_SCENE,
+  fixture: OPENING_SCENE,
   view: hud,
 } as const;
 
@@ -93,16 +106,27 @@ const LOADING = rows({ ...SHARED, section: "Loading the stadium" }, [
   },
 ]);
 
+function startShopping(fx: MatchFixture): void {
+  const { gameService } = fx.services;
+  fx.team2.rerolls = 6;
+  gameService.getState().pregameInducements = { ready: {} };
+  gameService.readyForWeather(fx.team1.id);
+  gameService.readyForWeather(fx.team2.id);
+}
+
 const INDUCEMENTS = rows({ ...SHARED, section: "Pre-match inducements" }, [
   {
     id: "inducement-panel",
     title: "Shopping",
-    view: (fx) => (
-      <InducementSelectionPanel
-        teamId={fx.team1.id}
-        onChanged={() => undefined}
-      />
-    ),
+    view: (fx) => {
+      startShopping(fx);
+      return (
+        <>
+          {hud(fx)}
+          <PregameInducements eventBus={fx.bus} />
+        </>
+      );
+    },
   },
 ]);
 
@@ -122,7 +146,12 @@ const WEATHER = rows({ ...SHARED, section: "Weather" }, [
       });
     }),
   },
-  { id: "weather-online", title: "Online: ready up", view: toss(null) },
+  {
+    id: "weather-online",
+    title: "Online: ready up",
+    view: toss(null),
+    drive: otherCoachReadies,
+  },
   {
     id: "weather-online-waiting",
     title: "Online: waiting for the other coach",

@@ -237,9 +237,13 @@ function change(ref: DocumentRef, data: Data) {
 
 const settled = (work: () => void) => Promise.resolve().then(work);
 
-export const setDoc = (ref: DocumentRef, data: Data) =>
+export const setDoc = (
+  ref: DocumentRef,
+  data: Data,
+  options: { merge?: boolean } = {}
+) =>
   settled(() => {
-    write(ref, data);
+    write(ref, options.merge ? { ...readDocument(ref.path), ...data } : data);
   });
 
 export const updateDoc = (ref: DocumentRef, data: Data) =>

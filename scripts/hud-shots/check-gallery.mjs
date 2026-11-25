@@ -123,7 +123,24 @@ const press = (name) => (page) =>
 const USES = [
   ["page-menu", press("Teams"), "text=Create New Team"],
   ["page-menu", press("Leagues"), "text=Founders League"],
+  ["page-menu-signed-in", press("Sound Test"), "text=/Interaction sound/i"],
+  ["page-menu-signed-in", press("Join"), "text=Match Lobby"],
+  ["page-lobby-ready", press("Start Match"), "text=Not in the gallery"],
+  ["page-league-signup", press("Enter team"), "text=Leave"],
+  ["weather-waiting", press(/roll weather/i), "text=/on to the coin toss/i"],
+  ["weather-online", press(/roll weather/i), "text=/on to the coin toss/i"],
+  ["kickoff-table", press(/roll kick-off/i), testId("kickoff-table-result")],
+  ["inducement-panel", press(/^Buy/), "text=/465,000 . 480,000/"],
+  ["menu-block", press(/^Block/i), testId("action-step-block")],
+  ["action-plan-blitz", press(/Go/), null, testId("action-plan")],
+  ["block-2", press(/Roll dice/i), "text=/click a die|press 1|pick a die|tap/i"],
+  ["sent-off-bribe", press(/Use a Bribe/i), testId("sent-off-outcome")],
+  ["foul-assists", press(/\+2/), null, testId("foul-assists-dialog")],
+  ["setup-ready", press(/Confirm setup/i), null, testId("setup-controls")],
+  ["setup-incomplete", press(/^Load/i), "text=/confirm setup/i"],
+  ["results-mvp", press(/Confirm and assign/i), "text=/confirmed/i"],
   ["page-library-failed", press("Back to Menu"), "text=Play Local"],
+  ["page-library-failed", press("Retry"), "text=Human Founders"],
   ["page-menu-signed-in", press("Sign out"), "text=Sign in"],
   ["page-select", async (page) => {
     const teams = page.locator("button[aria-pressed]", { hasText: "Founders" });
@@ -164,21 +181,32 @@ async function checkDrift(size) {
   await index.getByRole("button", { name: new RegExp(size, "i") }).click();
   for (const box of await index.$$("[data-drift]")) {
     checked++;
-    await box.scrollIntoViewIfNeeded();
+    await box.evaluate((node) => {
+      window.scrollTo(0, node.getBoundingClientRect().top + scrollY - 90);
+    });
     const id = await box.getAttribute("data-drift");
     await index.waitForTimeout(3000);
     await index
       .waitForFunction(
         (drift) =>
-          !document.querySelector(`[data-drift='${drift}'] [data-cut='no']`),
+          [...document.querySelectorAll(`[data-drift='${drift}'] figure`)].every(
+            (figure) => figure.querySelector("[data-cut='yes']")
+          ),
         id,
-        { timeout: 25000 }
+        { timeout: 90000 }
       )
       .catch(() => undefined);
     await index.waitForTimeout(1500);
-    const missing = await box.$$eval("[data-cut='no']", (cuts) =>
-      cuts.map((cut) => cut.closest("figure").innerText.split("\n")[0])
+    const figures = await box.$$eval("figure", (all) =>
+      all.map((figure) => ({
+        label: figure.innerText.split("\n")[0],
+        cut: !!figure.querySelector("[data-cut='yes']"),
+      }))
     );
+    const missing = figures
+      .filter((figure) => !figure.cut)
+      .map((figure) => figure.label);
+    if (figures.length === 0) missing.push("any specimen");
     await box.screenshot({ path: `${out}/drift-${id}-${size}.png` });
     report(
       `drift ${id} ${size}`,

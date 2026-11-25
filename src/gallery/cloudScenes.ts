@@ -94,7 +94,8 @@ const invite = (kind: string, fromUid: string, extra: object = {}) => {
 };
 
 export function withInvites(): void {
-  withFriends();
+  organizedByRival();
+  openLobby(lobbyDoc(RIVAL));
   invite("match", RIVAL, { code: CODE });
   invite("competition", THIRD, {
     competitionType: "league",
@@ -134,7 +135,12 @@ export const LOBBY_PATH = `/online/lobby/${CODE}`;
 
 export function hostAlone(): void {
   withFriends();
-  openLobby(lobbyDoc(ME, { listed: true }));
+  openLobby(
+    lobbyDoc(ME, {
+      listed: true,
+      players: { [ME]: player(ME, "Joe", teamAt(0)) },
+    })
+  );
 }
 
 const bothPlayers = (ready: boolean) => ({
@@ -144,7 +150,14 @@ const bothPlayers = (ready: boolean) => ({
 
 export const hostReady = (ready: boolean) => () => {
   withFriends();
-  openLobby(lobbyDoc(ME, { guestUid: RIVAL, players: bothPlayers(ready) }));
+  const seeds = { [ME]: "gallery", [RIVAL]: "gallery" };
+  openLobby(
+    lobbyDoc(ME, {
+      guestUid: RIVAL,
+      players: bothPlayers(ready),
+      ...(ready ? { seedCommits: seeds, seedReveals: seeds } : {}),
+    })
+  );
 };
 
 export function guestSeat(): void {

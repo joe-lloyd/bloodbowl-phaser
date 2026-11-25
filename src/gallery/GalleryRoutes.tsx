@@ -6,6 +6,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+import { EventBus } from "../services/EventBus";
 import { ClubFounding } from "../ui/components/club/ClubFounding";
 import { ClubHub } from "../ui/components/club/ClubHub";
 import { ClubPage } from "../ui/components/club/ClubPage";
@@ -22,6 +23,7 @@ import { MainMenu } from "../ui/components/pages/MainMenu";
 import { OnlineLobby } from "../ui/components/pages/OnlineLobby";
 import { PlayerPage } from "../ui/components/pages/PlayerPage";
 import { SharedTeamBrowser } from "../ui/components/pages/SharedTeamBrowser";
+import { SoundTest } from "../ui/components/pages/SoundTest";
 import { TeamBuilder } from "../ui/components/pages/TeamBuilder";
 import { TeamManagement } from "../ui/components/pages/TeamManagement";
 import { TeamSelect } from "../ui/components/pages/TeamSelect";
@@ -50,6 +52,8 @@ function NotInGallery() {
   );
 }
 
+const galleryBus = new EventBus();
+
 const PAGES: readonly [string, ReactNode][] = [
   ["/", <MainMenu key="menu" />],
   ["/build-team", <TeamManagement key="teams" />],
@@ -67,6 +71,7 @@ const PAGES: readonly [string, ReactNode][] = [
   ["/tournaments", <CompetitionHub key="cups" type="tournament" />],
   ["/tournaments/new", <CompetitionBuilder key="new-cup" type="tournament" />],
   ["/tournaments/:id", <CompetitionView key="cup" type="tournament" />],
+  ["/music", <SoundTest key="music" eventBus={galleryBus} />],
   ["/select-team", <TeamSelect key="select" mode="play" />],
   ["/online/host", <OnlineLobby key="host" mode="host" />],
   ["/online/join", <OnlineLobby key="join" mode="join" />],
@@ -81,7 +86,7 @@ interface Place {
 export function GalleryRoutes({ path, own }: Place) {
   const [pathname = path] = path.split("?");
   return (
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter initialEntries={["/", path]} initialIndex={1}>
       <Routes>
         {own && <Route path={pathname} element={own} />}
         {PAGES.filter(([known]) => !own || known !== pathname).map(

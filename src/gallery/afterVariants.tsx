@@ -119,10 +119,13 @@ const RESULTS = rows(
     },
     {
       id: "results-mvp",
-      title: "A league game: the MVP rolled",
+      title: "A league game: both MVPs rolled, ready to confirm",
       fixture: { phase: GamePhase.GAME_OVER, progression: true },
       drive: finished(() => {
         click("button", "Roll MVP D6");
+        later(400, () => {
+          click("button:not([disabled])", "Roll MVP D6");
+        });
       }),
     },
   ]

@@ -4,6 +4,7 @@ import pitch from "./pitch.jpg";
 import { setupMatch } from "./fixtures";
 import { Frame } from "./Frame";
 import { type FrameSize } from "./frames";
+import { standInForScene } from "./sceneStandIn";
 import { SizeSwitch } from "./SizeSwitch";
 import type { Variant } from "./variant";
 
@@ -14,6 +15,7 @@ export function Stage({ variant }: { variant: Variant }) {
     variant.prepare?.();
     return setupMatch(variant.fixture);
   });
+  useEffect(() => standInForScene(fx), [fx]);
   useEffect(() => variant.drive?.(fx), [variant, fx]);
   if (variant.stage === "sheet")
     return <div data-sheet="">{variant.view(fx)}</div>;

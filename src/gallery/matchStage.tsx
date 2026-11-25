@@ -14,6 +14,10 @@ export type Opener = (fx: MatchFixture) => void;
 export const SCRIMMAGE = { scenario: "basic-scrimmage" };
 export const BLOCK_SCENE = { scenario: "block-injury-test" };
 export const PASS_SCENE = { scenario: "throw-pickup-and-pass" };
+export const OPENING_SCENE = {
+  phase: GamePhase.SETUP,
+  subPhase: SubPhase.INTRO,
+};
 export const SETUP_SCENE = { phase: GamePhase.SETUP };
 export const KICKOFF_SCENE = { phase: GamePhase.KICKOFF };
 

@@ -28,6 +28,11 @@ const CHAT: ChatMessage[] = [
 
 function onlineChat(fx: MatchFixture) {
   const listeners = new Set<(message: ChatMessage) => void>();
+  const tell = (message: Omit<ChatMessage, "ts">) => {
+    listeners.forEach((listener) => {
+      listener({ ...message, ts: Date.now() });
+    });
+  };
   setActiveOnlineMatch(
     onlineMatch(fx, {
       chatHistory: () => CHAT,
@@ -35,17 +40,13 @@ function onlineChat(fx: MatchFixture) {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
+      sendChat: (text: string) => {
+        tell({ text, senderName: "Joe", fromSelf: true });
+      },
     })
   );
   return (text: string) => {
-    listeners.forEach((listener) => {
-      listener({
-        text,
-        senderName: "Grimgutz",
-        fromSelf: false,
-        ts: Date.now(),
-      });
-    });
+    tell({ text, senderName: "Grimgutz", fromSelf: false });
   };
 }
 

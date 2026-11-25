@@ -169,7 +169,21 @@ const TABLE = rows(
     view: hud,
   },
   [
-    { id: "kickoff-table", title: "Before the roll", drive: soon(tableReady) },
+    {
+      id: "kickoff-table",
+      title: "Before the roll",
+      drive: (fx) => {
+        const answer = ({ id }: { id: string }) => {
+          if (id === "gallery-ready") rollTable(fx);
+        };
+        fx.bus.on(GameEventNames.UI_PresentationAcknowledged, answer);
+        const stop = soon(tableReady)(fx);
+        return () => {
+          stop();
+          fx.bus.off(GameEventNames.UI_PresentationAcknowledged, answer);
+        };
+      },
+    },
     {
       id: "kickoff-table-rolled",
       title: "Rolling, then the result (replays)",

@@ -486,7 +486,12 @@ const WHOLE_HUD = rows({ group: "In play", section: "Whole HUD", view: hud }, [
           <KickoffPlaygroundPanel
             config={readPlayground(new URLSearchParams())}
             onChange={() => undefined}
-            onRestart={() => undefined}
+            onRestart={() => {
+              fx.bus.emit(
+                GameEventNames.UI_Notification,
+                "The game restarts the kick-off on the pitch here."
+              );
+            }}
           />
         ),
       }),
