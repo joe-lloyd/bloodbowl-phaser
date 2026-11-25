@@ -62,7 +62,7 @@ describe("repeatable Sevens policy lab", () => {
 
   it("balances each policy's roster, physical side and first receipt in eight-game blocks", () => {
     const jobs = policySchedule(variants, false, 30_000_000, true);
-    expect(jobs).toHaveLength(5312);
+    expect(jobs).toHaveLength(5376);
     const blocks = new Map<string, typeof jobs>();
     for (const job of jobs)
       blocks.set(job.pair, [...(blocks.get(job.pair) ?? []), job]);
