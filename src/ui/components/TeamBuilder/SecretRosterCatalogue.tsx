@@ -27,8 +27,9 @@ export default function SecretRosterCatalogue({
   return (
     <div className="space-y-3">
       <p className="text-hud-sm text-hud-dim">
-        Teams with players shown are ready to build. The rest are previews of
-        community rosters from FUMBBL.
+        The teams at the top are ready to build. The rest are previews of
+        community rosters from FUMBBL, shown with the closest players we have
+        and a mannequin where a model is still missing.
       </p>
       <div className="max-w-sm">
         <Field label="Find a Secret League team">
@@ -61,7 +62,11 @@ export default function SecretRosterCatalogue({
       )}
       <div className="grid items-start gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((roster) => (
-          <RosterCatalogueCard key={roster.name} roster={roster} />
+          <RosterCatalogueCard
+            key={roster.name}
+            roster={roster}
+            lineup={`/assets/roster-picker/secret/${encodeURIComponent(roster.name)}.png`}
+          />
         ))}
       </div>
     </div>

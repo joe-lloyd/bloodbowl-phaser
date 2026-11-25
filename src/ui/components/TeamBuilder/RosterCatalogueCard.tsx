@@ -1,4 +1,5 @@
 import { formatGold } from "../TeamManagement/TeamStatsOverview";
+import "./rosterPicker.css";
 
 interface CataloguePosition {
   readonly name: string;
@@ -17,11 +18,13 @@ export interface CatalogueRoster {
 
 export function RosterCatalogueCard({
   roster,
+  lineup,
 }: {
   readonly roster: CatalogueRoster;
+  readonly lineup?: string;
 }) {
   return (
-    <details className="rounded-hud border border-white/10 bg-black/25 px-3 py-2">
+    <details className="roster-picker-card rounded-hud border border-white/10 bg-black/25 px-3 py-2">
       <summary className="cursor-pointer font-hud-label text-hud-lg font-bold text-hud-bone">
         {roster.name}
         {roster.tier !== null && (
@@ -30,6 +33,18 @@ export function RosterCatalogueCard({
         {roster.experimental && (
           <span className="ml-2 font-hud-body text-hud-sm font-normal text-hud-gold">
             Experimental
+          </span>
+        )}
+        {lineup !== undefined && (
+          <span aria-hidden="true" className="roster-picker-lineup">
+            <img
+              src={lineup}
+              alt=""
+              width={1760}
+              height={126}
+              loading="lazy"
+              decoding="async"
+            />
           </span>
         )}
       </summary>
