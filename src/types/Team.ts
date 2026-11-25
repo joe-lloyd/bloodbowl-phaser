@@ -137,6 +137,7 @@ export const RosterName = {
   TOMB_KINGS: "Tomb Kings",
   UNDERWORLD_DENIZENS: "Underworld Denizens",
   VAMPIRE: "Vampire",
+  WITCH_ELF: "Witch Elf",
   WOOD_ELF: "Wood Elf",
 } as const;
 export type RosterName = (typeof RosterName)[keyof typeof RosterName];

@@ -23,6 +23,7 @@ describe("Sevens roster tiers (MP4)", () => {
       Norse: 1,
       "Old World Alliance": 1,
       Skaven: 1,
+      "Witch Elf": 1,
       "Wood Elf": 1,
       Bretonian: 2,
       Dwarf: 2,

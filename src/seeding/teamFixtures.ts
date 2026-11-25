@@ -75,6 +75,7 @@ const SEED_TEAM_COLORS: Record<string, TeamColors> = {
     secondary: 0x9370db,
   },
   [RosterName.VAMPIRE]: { primary: 0x8b0000, secondary: 0x000000 },
+  [RosterName.WITCH_ELF]: { primary: 0x8a1a3a, secondary: 0xc8a04a },
   [RosterName.WOOD_ELF]: { primary: 0x228b22, secondary: 0x8b4513 },
 };
 

@@ -50,6 +50,12 @@ const SEVENS_COMPOSITIONS: Partial<
     { position: "Night Goblin Lineman", count: 4 },
   ],
 
+  [RosterName.WITCH_ELF]: [
+    { position: "Witch Elf Priestess", count: 1 },
+    { position: "Witch Elf", count: 1 },
+    { position: "Witch Elf Novice", count: 5 },
+  ],
+
   [RosterName.DARK_ELF]: [
     { position: "Assassin", count: 2 },
     { position: "Dark Elf Lineman", count: 5 },

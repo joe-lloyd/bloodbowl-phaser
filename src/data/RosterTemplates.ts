@@ -2954,6 +2954,55 @@ const VAMPIRE_ROSTER: TeamRoster = {
     },
   ],
 };
+const WITCH_ELF_ROSTER: TeamRoster = {
+  rosterName: RosterName.WITCH_ELF,
+  rerollCost: 50_000,
+  leagues: [League.ELVEN_KINGDOMS_LEAGUE],
+  specialRules: [],
+  tier: 1,
+  apothecary: true,
+  playerTemplates: [
+    {
+      positionName: "Witch Elf Novice",
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.ELF],
+      cost: 70_000,
+      stats: { MA: 7, ST: 3, AG: 2, PA: 4, AV: 7 },
+      skills: [getSkill(SkillType.DODGE)],
+      maxAllowed: 16,
+      primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
+      secondary: [SkillCategory.DEVIOUS, SkillCategory.STRENGTH],
+    },
+    {
+      positionName: "Witch Elf",
+      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.ELF],
+      cost: 110_000,
+      stats: { MA: 7, ST: 3, AG: 2, PA: 4, AV: 8 },
+      skills: [
+        getSkill(SkillType.DODGE),
+        getSkill(SkillType.FRENZY),
+        getSkill(SkillType.JUMP_UP),
+      ],
+      maxAllowed: 4,
+      primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
+      secondary: [SkillCategory.DEVIOUS, SkillCategory.STRENGTH],
+    },
+    {
+      positionName: "Witch Elf Priestess",
+      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.ELF],
+      cost: 140_000,
+      stats: { MA: 7, ST: 3, AG: 2, PA: 4, AV: 9 },
+      skills: [
+        getSkill(SkillType.BLOCK),
+        getSkill(SkillType.FRENZY),
+        getSkill(SkillType.JUMP_UP),
+      ],
+      maxAllowed: 2,
+      primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
+      secondary: [SkillCategory.DEVIOUS, SkillCategory.STRENGTH],
+    },
+  ],
+};
+
 const WOOD_ELF_ROSTER: TeamRoster = {
   rosterName: RosterName.WOOD_ELF,
   rerollCost: 50_000,
@@ -3104,6 +3153,8 @@ export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
       return UNDERWORLD_DENIZENS_ROSTER;
     case RosterName.VAMPIRE:
       return VAMPIRE_ROSTER;
+    case RosterName.WITCH_ELF:
+      return WITCH_ELF_ROSTER;
     case RosterName.WOOD_ELF:
       return WOOD_ELF_ROSTER;
     default:
@@ -3143,6 +3194,7 @@ export function getAvailableRosterNames(): RosterName[] {
     RosterName.TOMB_KINGS,
     RosterName.UNDERWORLD_DENIZENS,
     RosterName.VAMPIRE,
+    RosterName.WITCH_ELF,
     RosterName.WOOD_ELF,
   ];
 }
