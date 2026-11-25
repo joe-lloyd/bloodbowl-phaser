@@ -28,18 +28,28 @@ def drawn_keys(source):
     return set(re.findall(r'\bL(?:\.get\(|\[)"([a-z]\w*)"', source))
 
 
+def drawn_by_get(source):
+    return set(re.findall(r'\bL\.get\("([a-z]\w*)"', source))
+
+
 def optional_keys(source):
     """Keys the code asks for without a default, so None turns them off. The others need a value."""
     return set(re.findall(r'\bL\.get\("([a-z]\w*)"\)', source))
 
 
+def team_source():
+    files = glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "teams", "*.py"))
+    return "\n".join(open(path, encoding="utf-8").read() for path in sorted(files))
+
+
 GENERIC = drawn_keys(generic_source())
 OPTIONAL = optional_keys(generic_source())
+TEAM_NEEDS = set(re.findall(r'\bL\["([a-z]\w*)"\]', team_source())) - drawn_by_get(team_source()) - GENERIC
 
 
 def can_be_off(key):
-    """Whether a layout key may be None; keys a team's own parts read always may."""
-    return key in OPTIONAL or key not in GENERIC
+    """Whether a layout key may be None; a key only a team's own parts read may, unless they never check it."""
+    return key in OPTIONAL or (key not in GENERIC and key not in TEAM_NEEDS)
 
 
 def tupled(value):

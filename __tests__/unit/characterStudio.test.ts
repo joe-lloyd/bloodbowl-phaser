@@ -108,6 +108,11 @@ describe("character studio catalogue", () => {
     expect(catalog.models.some((entry) => entry.key === "marsh_raider")).toBe(true);
   });
 
+  it("offers none only for parts the drawing code can leave out", () => {
+    const optional = new Map(catalogWith().fields.map((field) => [field.key, field.optional]));
+    expect([optional.get("tank"), optional.get("breast"), optional.get("helm")]).toEqual([false, true, true]);
+  });
+
   it("will not replace a Python model", () => {
     expect(Object.keys(catalogWith({ ...RAIDER, key: "thrall" }).errors)).toEqual(["0.json"]);
   });
