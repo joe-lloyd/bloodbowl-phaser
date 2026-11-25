@@ -140,13 +140,16 @@ class Biped(Model):
         sw = k("shoulders") * (0.87 if fem else 1.0)
         waist = 0.85 if fem else 1.0
         tk, belly = k("torso"), k("belly")
+        shaped = belly <= 1 or (fem and self.race == "ogre")
+        if fem and shaped:
+            belly = min(belly, 1.12)
         P["sh_h"] *= tl
         P["neck_h"] = P["sh_h"] + 0.085
         P["head_h"] = P["neck_h"] + 0.245 * (0.6 + 0.4 * k("head"))
         P["sh_w"] *= sw * (0.5 + 0.5 * tk)
         P["torso"] = [(h * tl, rx * tk * (sw if h > 0.2 else waist * belly if h > 0 else belly),
                        ry * tk * ((1 + (sw - 1) * 0.5) if h > 0.2 else waist * belly), b) for h, rx, ry, b in P["torso"]]
-        if belly <= 1:               # athletes: a narrow waist under a full chest, and curved hips
+        if shaped:                   # athletes: a narrow waist under a full chest, and curved hips
             P["torso"] = [(h, rx * shape[0], ry * shape[1], b + shape[2])
                           for (h, rx, ry, b), shape in zip(P["torso"], ATHLETE["f" if fem else "m"])]
         P["bust"] = fem and self.race not in ("halfling", "gnome")
