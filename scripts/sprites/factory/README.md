@@ -20,6 +20,8 @@ to within one pixel per frame.
         preview/<model>.png                                        fast previews
         manifest.json                                              merged, in the game's format
         cache/                                                     resumable work files; safe to delete
+      characters/         models made in the character studio, one JSON file each
+      catalog.py          what the studio can build from, as JSON; needs no Blender
       run.sh              runs the driver in Blender and filters its log (BLENDER sets the binary)
 
 Run `python3 make_reference.py` once before the first render.
@@ -68,6 +70,31 @@ a golden frame to `__tests__/fixtures/layered/` for the compositor's unit test.
 `teams/small_folk_squig.py`. Materials are named after palette keys and limbs turn about their object origins.
 The file has no other copy, so save edits back to `art/` and render the model again. Copy `art/` to the render
 machine with `lib/` and `teams/`.
+
+## Characters from the studio
+
+    https://sprites.home.arpa        # on the house network
+    pnpm studio                      # the same page on this checkout, http://localhost:3200
+
+The character studio (`studio/`, see its README) makes a new model from an existing biped, without Python. It saves
+`characters/<key>.json`, which every render loads after the team files (`lib/characters.py`).
+
+- **Preview** renders eight poses of the unsaved character in both kits.
+- **Export to the game** renders the saved character layered on Jellybingus, runs `install_layered.py`
+  and points the positions under "Plays as" at it. On sprites.home.arpa it then pushes the art to the
+  `studio/art` branch and opens its pull request. With `pnpm studio` you commit the changed files.
+- "Keep the base model's options" locks the parts those options control. "Set my own" unlocks them.
+- A look option adds parts to a base figure. It cannot change the body, such as the head or hunch. An
+  export stops before installing when a choice hides a base part or draws nothing, such as a hair colour
+  in another option than its hair. Hair under a helmet is the usual case:
+  make the hair a choice in the same option.
+- "Parts made for this base" are the parts its Python class draws itself, such as a goblin's nose.
+- Previews and exports run one at a time, over SSH in `bloodbowl-studio` in the home folder of the
+  render machine. `STUDIO_BLENDER_HOST` names another Windows machine. `BLENDER` runs a local Blender.
+
+`catalog.py` tells the studio which races, materials, parts and models exist. It reads the team files
+with Blender's modules stood in for, so the editor opens while the render machine is off. A layout key a
+team file reads from its layout shows up in the editor on its own.
 
 ## The acceptance checklist (every model)
 

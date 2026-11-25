@@ -829,7 +829,7 @@ def breastplate(J, P, L, tag):
         ball_at(tag + "embc", p, 0.04, trim)
 
 def gorget(J, P, L, tag, mat=None):
-    mat = mat or L.get("breast", "metal")
+    mat = mat or L.get("breast") or "metal"
     tband(tag + "gorget", J, P, [P["sh_h"] - 0.01, P["sh_h"] + 0.07, P["sh_h"] + 0.13], mat, k=1.0, add=0.04,
           solid=0.03)
 

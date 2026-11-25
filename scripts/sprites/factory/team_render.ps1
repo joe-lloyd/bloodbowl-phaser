@@ -7,10 +7,14 @@ param(
   [Parameter(Mandatory)][string]$Models,
   [string]$Out = "out-layered",
   [int]$Parallel = 14,
+  [string]$Characters = "",
   [string]$Blender = "C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"
 )
 Set-Location $PSScriptRoot
 $common = @("--layers", "--dither", "0", "--density", "2", "--frames", "run=12", "--out", $Out)
+$loadCharacters = @()
+if ($Characters) { $loadCharacters = @("--characters", $Characters) }
+$common += $loadCharacters
 $stash = "stash-$Out"
 $logs = "logs-$Out"
 New-Item -ItemType Directory -Force $logs, $stash | Out-Null
@@ -29,7 +33,7 @@ function Wait-Slot($Procs) {
 $jobs = @()
 $bodiesOf = @{}
 foreach ($model in $Models.Split(",")) {
-  $bodies = (& $Blender -b --factory-startup --python lib/render.py -- --bodies-of $model 2>$null | Select-String "^BODIES " | ForEach-Object { $_.Line.Split(" ")[1..99] })
+  $bodies = (& $Blender -b --factory-startup --python lib/render.py -- --bodies-of $model @loadCharacters 2>$null | Select-String "^BODIES " | ForEach-Object { $_.Line.Split(" ")[1..99] })
   $bodiesOf[$model] = @($bodies)
   foreach ($bodyName in $bodies) {
     foreach ($anim in $anims) {
@@ -41,8 +45,11 @@ foreach ($model in $Models.Split(",")) {
 }
 "$($jobs.Count) chunks to render" | Out-File "$logs/plan.txt"
 $running = @()
+$started = 0
 foreach ($job in $jobs) {
   Wait-Slot $running
+  $started++
+  Write-Host "Chunk $started of $($jobs.Count): $($job[0])"
   $running += Start-Blender -Opts $job[1] -Log "$logs/$($job[0])"
 }
 $running | Wait-Process
@@ -69,5 +76,9 @@ foreach ($model in $packed) {
     $failed += "$model pack failed, see $log"
   }
 }
-if ($failed.Count -gt 0) { ("FAILED`n" + ($failed -join "`n")) | Out-File "$logs/all.done" }
+if ($failed.Count -gt 0) {
+  ("FAILED`n" + ($failed -join "`n")) | Out-File "$logs/all.done"
+  $failed | ForEach-Object { Write-Host "FAILED $_" }
+  exit 1
+}
 else { "ALL DONE" | Out-File "$logs/all.done" }
