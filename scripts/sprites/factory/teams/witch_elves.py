@@ -22,7 +22,6 @@ class Novice(looks.Fine, Biped):
     stance = dict(lean=10, nod=-8, twist=8, legs={"l": (22, 16, 30), "r": (-16, 16, 24)}, feet={"r": 22},
                   arms={"l": (34, 40, 50, 6), "r": (-22, 44, 40, 0)}, hands="relaxed")
     stride, arm_swing, run_lean, jump = 50, 42, 24, 0.42
-    lineless = ("chin", "neck", "head")      # skin on skin: a line here reads as a beard
     target_px = 92
 
     def idle(self, ph, p, w):       # bouncing on her toes, weight swapping side to side, arms out like a tumbler
