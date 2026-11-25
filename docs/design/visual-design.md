@@ -7,7 +7,9 @@ The UI uses a dark stadium-broadcast palette. Shared tokens live in
 
 ## HUD components
 
-Run `pnpm gallery` to inspect component states outside a match.
+Run `pnpm gallery` to see every component and state on one page, at desktop and
+phone size, with a Drift section that measures where they disagree.
+`scripts/hud-shots/check-gallery.mjs` checks that each one renders.
 
 - Use `hud-*` colours and `text-hud-*` type sizes.
 - Use the display, label and body font tokens from the shared theme.

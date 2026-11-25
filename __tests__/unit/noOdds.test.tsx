@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { setupMatch } from "../../src/gallery/fixtures";
 import { VARIANTS } from "../../src/gallery/variants";
 import { PAGE_VARIANTS } from "../../src/gallery/pageVariants";
@@ -17,6 +17,13 @@ import { runMatch } from "../../src/simulation/runMatch";
 import { plannerCoach } from "../../src/simulation/ai/planner";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { RosterName } from "../../src/types/Team";
+
+vi.mock("../../src/ui/dice/diceScene", () => ({
+  coinFaceImage: () => "data:,",
+  playRoll: () => {
+    throw new Error("jsdom has no WebGL");
+  },
+}));
 
 const ODDS = /%|\bchances?\b|\bodds\b|\bprobab/i;
 

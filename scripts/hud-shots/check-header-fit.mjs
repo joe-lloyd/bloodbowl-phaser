@@ -19,9 +19,7 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 await page.goto(base);
-const ids = await page.$$eval("iframe[src^='?v=']", (frames) =>
-  frames.map((f) => f.getAttribute("src").slice(3))
-);
+const ids = (await page.getAttribute("[data-variants]", "data-variants")).split(" ");
 
 let failures = 0;
 let checked = 0;

@@ -1,17 +1,7 @@
-import React from "react";
-import { MemoryRouter } from "react-router-dom";
 import { GameEventNames } from "../types/events";
-import { GamePhase, SubPhase } from "../types/GameState";
-import type { SetupTeamStatus } from "../types/SetupTypes";
 import type { OnlineMatch } from "../network/OnlineMatch";
-import type { LobbyDoc } from "../firebase/lobby";
-import {
-  FormationManager,
-  type FormationEntry,
-} from "../game/managers/FormationManager";
+import { DEFAULT_SETTINGS, type LobbyDoc } from "../firebase/lobby";
 import { type MatchFixture } from "./fixtures";
-import { ScoreBoard } from "../ui/components/hud/ScoreBoard";
-import { TurnIndicator } from "../ui/components/hud/TurnIndicator";
 
 export const later = (ms: number, fn: () => void) => {
   const t = setTimeout(fn, ms);
@@ -41,60 +31,7 @@ export const click = (selector: string, text?: string) => {
   target?.click();
 };
 
-
-function presets(isTeam1: boolean): FormationEntry[] {
-  return new FormationManager().listAllFormations("gallery", isTeam1);
-}
-
-function withSaved(): FormationEntry[] {
-  return [
-    ...presets(true),
-    { name: "My cage", builtIn: false, use: "any", positions: new FormationManager().getDefaultFormation(true) },
-  ];
-}
-
-export function showSetup(
-  fx: MatchFixture,
-  {
-    subPhase,
-    activeTeam,
-    status,
-    formations = presets(activeTeam.id === fx.team1.id),
-  }: {
-    subPhase: SubPhase;
-    activeTeam: { id: string; name: string };
-    status: Partial<SetupTeamStatus>;
-    formations?: FormationEntry[];
-  }
-) {
-  fx.bus.emit(GameEventNames.UI_ShowSetupControls, {
-    subPhase,
-    activeTeam,
-    status: {
-      teamId: activeTeam.id,
-      placedPlayerCount: 0,
-      requiredPlayerCount: 7,
-      availablePlayerCount: 7,
-      restrictions: [],
-      canConfirm: false,
-      concessionDecision: "not-offered",
-      ...status,
-    },
-  });
-  fx.bus.emit(GameEventNames.UI_FormationsUpdated, {
-    formations,
-    isTeam1: activeTeam.id === fx.team1.id,
-  });
-}
-
-export function showPlacing(fx: MatchFixture) {
-  showSetup(fx, {
-    subPhase: SubPhase.SETUP_KICKING,
-    activeTeam: { id: fx.team1.id, name: fx.team1.name },
-    status: { placedPlayerCount: 4 },
-    formations: withSaved(),
-  });
-}
+export const GALLERY_FORMATIONS = "gallery";
 
 export const LONG = {
   team1Name: "The Altdorf Sorcerer-Kings of Middenheim",
@@ -112,13 +49,6 @@ export function setScore(
   state.score[fx.team2.id] = b;
   state.turn.isHalf2 = half2;
 }
-
-export const score = (fx: MatchFixture) => (
-  <div className="absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center">
-    <ScoreBoard eventBus={fx.bus} />
-    <TurnIndicator turnNumber={3} phase={GamePhase.PLAY} />
-  </div>
-);
 
 const LOG_ROWS: [
   string,
@@ -214,14 +144,6 @@ export function fillLog(fx: MatchFixture, rounds: number) {
   }
 }
 
-export const BLOCK_FACES = {
-  skull: { type: "skull" as const, icon: "", label: "Attacker Down" },
-  bothDown: { type: "both-down" as const, icon: "", label: "Both Down" },
-  push: { type: "push" as const, icon: "", label: "Push" },
-  dodge: { type: "pow-dodge" as const, icon: "", label: "POW!/Dodge" },
-  pow: { type: "pow" as const, icon: "", label: "POW!" },
-};
-
 export function onlineMatch(
   fx: MatchFixture,
   overrides: Record<string, unknown> = {}
@@ -234,9 +156,14 @@ export function onlineMatch(
     mayAct: () => true,
     decidingTeamId: () => null,
     pendingDecision: () => null,
-    setClockPaused: () => {},
+    waitingLabel: () => "Grimgutz's turn (Gouged Eye)…",
+    chatHistory: () => [],
+    onChatMessage: () => () => undefined,
+    onFatalError: () => () => undefined,
+    sendChat: () => undefined,
+    setClockPaused: () => undefined,
     coachName: () => "Grimgutz",
-    run: async () => {},
+    run: () => Promise.resolve(),
     ...overrides,
   } as unknown as OnlineMatch;
 }
@@ -247,8 +174,8 @@ export function lobby(fx: MatchFixture, patch: Partial<LobbyDoc>): LobbyDoc {
     code: "BLOOD",
     hostUid: "them",
     guestUid: "me",
-    status: "playing",
-    settings: { turnSeconds: 120, progressionEnabled: false },
+    status: "active",
+    settings: DEFAULT_SETTINGS,
     players: {},
     createdAt: null,
     timer: {
@@ -259,9 +186,5 @@ export function lobby(fx: MatchFixture, patch: Partial<LobbyDoc>): LobbyDoc {
       banks: { me: 120_000 },
     },
     ...patch,
-  } as LobbyDoc;
+  };
 }
-
-export const routed = (node: React.ReactNode) => (
-  <MemoryRouter>{node}</MemoryRouter>
-);

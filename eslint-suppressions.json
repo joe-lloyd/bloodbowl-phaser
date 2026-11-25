@@ -3378,99 +3378,13 @@
       "count": 1
     }
   },
-  "src/gallery/GalleryIndex.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/gallery/PagesReview.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "react-refresh/only-export-components": {
-      "count": 1
-    }
-  },
-  "src/gallery/dialogVariants.tsx": {
-    "@typescript-eslint/no-empty-function": {
-      "count": 1
-    }
-  },
-  "src/gallery/diceVariants.tsx": {
-    "@typescript-eslint/no-empty-function": {
-      "count": 1
-    }
-  },
   "src/gallery/fixtures.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "src/gallery/hudVariants.tsx": {
-    "@typescript-eslint/no-empty-function": {
-      "count": 1
-    },
-    "sonarjs/no-duplicate-string": {
-      "count": 1
-    }
-  },
-  "src/gallery/main.tsx": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "react-refresh/only-export-components": {
-      "count": 1
-    }
-  },
-  "src/gallery/matchFlowVariants.tsx": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    },
-    "@typescript-eslint/no-empty-function": {
-      "count": 3
-    },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "sonarjs/no-duplicate-string": {
-      "count": 1
-    }
-  },
-  "src/gallery/pageVariants.tsx": {
-    "@typescript-eslint/no-empty-function": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "max-params": {
-      "count": 1
-    },
-    "react-refresh/only-export-components": {
-      "count": 2
-    }
-  },
-  "src/gallery/playerVariants.tsx": {
-    "@typescript-eslint/no-empty-function": {
-      "count": 1
-    },
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    }
-  },
-  "src/gallery/screenVariants.tsx": {
-    "@typescript-eslint/no-empty-function": {
-      "count": 1
-    },
-    "sonarjs/no-duplicate-string": {
-      "count": 1
-    }
-  },
   "src/gallery/variantHelpers.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 3
-    },
-    "@typescript-eslint/no-empty-function": {
       "count": 2
     },
     "@typescript-eslint/no-unnecessary-condition": {
@@ -3480,14 +3394,6 @@
       "count": 1
     },
     "max-params": {
-      "count": 1
-    }
-  },
-  "src/gallery/variants.tsx": {
-    "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "@typescript-eslint/no-invalid-void-type": {
       "count": 1
     }
   },

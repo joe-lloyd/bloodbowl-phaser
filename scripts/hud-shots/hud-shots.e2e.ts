@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../../e2e/support/pages/game";
 
-const DIR = process.env["SHOTS"] ?? "gallery/public/shots/after";
+const DIR = process.env["SHOTS"] ?? "e2e-results/hud-shots";
 
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: `${DIR}/${name}.png` });
