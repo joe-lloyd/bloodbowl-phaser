@@ -45,6 +45,30 @@ A panel in the right-hand column has a `PanelHeader`, or a docked `DialogShell`
 when a coach must answer. The title is `text-hud-lg` in bone, over a gold line.
 Text sits in 12 pixels of padding, 8 on a phone.
 
+### Opening steps
+
+Inducements, weather, the coin toss and the kick-off table share
+[`OpeningPanel`](../../src/ui/components/hud/OpeningPanel.tsx). Long contents
+scroll inside it. The main button stays in view.
+
+### Dialogs
+
+- A docked dialog fills its column. A centred one is 440 pixels wide and blocks
+  the page. There is no third kind.
+- Both have the same header and padding.
+- `DialogActions` fills the row. Buttons that do not fit take a row each.
+
+### Banners, notices and waiting
+
+[`HudBanner.tsx`](../../src/ui/components/componentWarehouse/HudBanner.tsx) has
+all three.
+
+- `BroadcastBanner` announces a result across the top. The turnover is a
+  deliberate exception: huge, tilted and in the middle of the screen.
+- `PitchNotice` is a short message over the pitch. Its edge is red when
+  something is wrong.
+- `WaitingLine` says who the coach is waiting for, inside a panel.
+
 ### Step lists
 
 Use `StepRow` from

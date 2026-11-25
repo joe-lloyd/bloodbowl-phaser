@@ -429,7 +429,7 @@ function describeSelection(team: Team, result: SkillSelectionResult): string {
 }
 
 const ENTRY =
-  "mt-3 rounded-hud border border-white/10 bg-black/30 p-3 font-hud-body text-hud-sm text-[#ddd5c6]";
+  "mt-3 rounded-hud border border-white/10 bg-black/30 p-3 font-hud-body text-hud-sm text-hud-bone";
 const SELECT = "hud-field w-auto max-w-full disabled:opacity-40";
 
 function SkillSelectionEntry({

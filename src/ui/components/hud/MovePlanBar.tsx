@@ -1,3 +1,4 @@
+import { PitchNotice } from "../componentWarehouse/HudBanner";
 import { kickoffTurnOf } from "../../../game/kickoff/kickRecord";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { type IEventBus } from "../../../services/EventBus";
@@ -97,13 +98,9 @@ export function PhoneNotice({ eventBus }: { eventBus: IEventBus }) {
   });
   if (!text) return null;
   return (
-    <div
-      role="status"
-      data-testid="phone-notice"
-      className="max-w-[60vw] rounded-hud border border-hud-gold/50 bg-hud-ink/95 px-3 py-1.5 text-center font-hud-label text-hud-sm font-bold text-hud-bone shadow-hud animate-hud-in"
-    >
+    <PitchNotice role="status" tone="gold" data-testid="phone-notice">
       {text}
-    </div>
+    </PitchNotice>
   );
 }
 

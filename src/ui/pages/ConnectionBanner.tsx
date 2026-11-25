@@ -2,7 +2,7 @@ import type { ConnectionState } from "../../firebase/lobby";
 import type { IEventBus } from "../../services/EventBus";
 import type { OnlineMatch } from "../../network/OnlineMatch";
 import { WaitingBanner } from "./WaitingBanner";
-import { Panel } from "../components/componentWarehouse/HudKit";
+import { PitchNotice } from "../components/componentWarehouse/HudBanner";
 
 export function MatchBanner({
   match,
@@ -57,17 +57,15 @@ export function ConnectionBanner({
   }
   return (
     <div className="absolute inset-x-0 top-[11.5rem] z-[93] flex justify-center pointer-events-none">
-      <Panel
-        accent="bad"
+      <PitchNotice
+        tone="bad"
         data-testid="connection-banner"
         role="status"
-        className="pointer-events-auto px-5 py-3 text-center animate-hud-in"
+        detail={detail}
+        className="pointer-events-auto"
       >
-        <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.05em] text-hud-bad-soft">
-          ⚠ {headline}
-        </p>
-        <p className="mt-1 font-hud-body text-hud-sm text-hud-dim">{detail}</p>
-      </Panel>
+        ⚠ {headline}
+      </PitchNotice>
     </div>
   );
 }

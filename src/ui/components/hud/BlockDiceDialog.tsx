@@ -255,7 +255,6 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       testId="block-dice-dialog"
       tone="blood"
       title="BLOCK!"
-      width="w-[480px]"
       actions={
         !rollData &&
         canAct && (

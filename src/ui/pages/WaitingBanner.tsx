@@ -5,6 +5,7 @@ import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
 import { useEventBus } from "../hooks/useEventBus";
 import { type OnlineMatch } from "../../network/OnlineMatch";
+import { PitchNotice } from "../components/componentWarehouse/HudBanner";
 import { DiceWatch } from "../../game/presentation/diceWatch";
 
 const NO_TURN = new Set<GamePhase>([
@@ -47,14 +48,10 @@ export function WaitingBanner({
   if (!label || moment) return null;
 
   return (
-    <div
-      data-testid="waiting-banner"
-      className="hud-slab absolute top-[11.5rem] left-1/2 -translate-x-1/2 z-[90]
-        pointer-events-none border-l-[3px] border-l-hud-gold px-5 py-2
-        font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em]
-        text-hud-gold"
-    >
-      ⏳ {label}
+    <div className="pointer-events-none absolute inset-x-0 top-[11.5rem] z-[90] flex justify-center">
+      <PitchNotice tone="gold" data-testid="waiting-banner">
+        ⏳ {label}
+      </PitchNotice>
     </div>
   );
 }

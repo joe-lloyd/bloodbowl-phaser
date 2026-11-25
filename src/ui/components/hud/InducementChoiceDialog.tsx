@@ -84,7 +84,6 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
         placement="dock"
         eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
         title={spell ? SPELLS[spell].aim : TITLES[request.kind]}
-        width="w-[520px]"
         actions={
           spell ? (
             <HudButton
@@ -176,7 +175,6 @@ function InducementChoiceDialogView({
       placement="dock"
       eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
       title={titleOf(request)}
-      width="w-[520px]"
       backdrop="heavy"
       className="max-h-[80vh] overflow-y-auto hud-scroll"
       actions={

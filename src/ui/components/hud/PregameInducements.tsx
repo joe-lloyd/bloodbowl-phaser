@@ -5,7 +5,9 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { affordsInducement } from "../../../game/inducements/rules";
 import { shoppingTeamId } from "../../../game/inducements/pregame";
-import { DialogShell, HudButton, Notice } from "../componentWarehouse/HudKit";
+import { WaitingLine } from "../componentWarehouse/HudBanner";
+import { HudButton, Notice } from "../componentWarehouse/HudKit";
+import { OpeningPanel } from "./OpeningPanel";
 import { InducementSelectionPanel } from "./InducementSelectionPanel";
 
 export function PregameInducements({ eventBus }: { eventBus: EventBus }) {
@@ -36,26 +38,20 @@ export function PregameInducements({ eventBus }: { eventBus: EventBus }) {
   const buyer = shopper ? service.getTeam(shopper) : undefined;
   return (
     <PregameDialog>
-      <p role="status" className="text-hud-dim">
+      <WaitingLine>
         {buyer
           ? `Waiting for ${buyer.name}…`
           : "Waiting for both coaches to ready up…"}
-      </p>
+      </WaitingLine>
     </PregameDialog>
   );
 }
 
 function PregameDialog({ children }: { children: ReactNode }) {
   return (
-    <DialogShell
-      zClass="z-[100]"
-      title="PRE-MATCH"
-      placement="center"
-      backdrop="heavy"
-      width="w-[520px]"
-    >
+    <OpeningPanel zClass="z-[100]" title="PRE-MATCH">
       {children}
-    </DialogShell>
+    </OpeningPanel>
   );
 }
 
@@ -81,7 +77,7 @@ function SkippedInducements({
       <Notice tone="bad" role="alert" className="mb-3">
         {error}
       </Notice>
-      <HudButton block onClick={skip}>
+      <HudButton variant="primary" size="lg" block onClick={skip}>
         Continue
       </HudButton>
     </PregameDialog>

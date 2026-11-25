@@ -55,7 +55,6 @@ function ApothecaryView({ request, answer, playerName }: ApothecaryViewProps) {
       eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
       testId="apothecary-dialog"
       title="Use the Apothecary?"
-      width="w-[460px]"
       actions={<ApothecaryActions answer={answer} />}
     >
       <p className="font-hud-label text-hud-lg font-bold text-hud-bone">

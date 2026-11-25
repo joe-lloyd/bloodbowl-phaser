@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { useEventBus } from "../../hooks/useEventBus";
+import { BroadcastBanner } from "../componentWarehouse/HudBanner";
 import { RollPresentation, type RollBannerText } from "./rollBannerState";
 export function RollBanner({
   eventBus,
@@ -18,7 +19,7 @@ export function RollBanner({
   useEventBus(eventBus, GameEventNames.UI_PresentMoment, presentation.onMoment);
   useEventBus(eventBus, GameEventNames.PhaseChanged, presentation.onPhase);
   if (!banner) return null;
-  return phone ? <PhoneBanner {...banner} /> : <BroadcastBanner {...banner} />;
+  return phone ? <PhoneBanner {...banner} /> : <DesktopBanner {...banner} />;
 }
 
 function PhoneBanner({ headline, subtitle, result }: RollBannerText) {
@@ -44,37 +45,18 @@ function PhoneBanner({ headline, subtitle, result }: RollBannerText) {
   );
 }
 
-function BroadcastBanner({ headline, subtitle, result }: RollBannerText) {
+function DesktopBanner({ headline, subtitle, result }: RollBannerText) {
   return (
     <div
       data-testid="roll-banner"
       data-result={result ? "" : undefined}
       className="pointer-events-none absolute inset-x-0 top-[18%] z-[210] flex select-none justify-center animate-hud-in"
     >
-      <div className="flex flex-col items-center">
-        <div
-          className={`max-w-[calc(100vw-48px)] -skew-x-12 border-y-2 px-10 py-2 shadow-hud ${
-            result
-              ? "border-hud-gold bg-hud-ink/95"
-              : "border-white/30 bg-hud-ink/85"
-          }`}
-        >
-          <span
-            className={`block skew-x-12 text-center font-hud-display text-hud-3xl uppercase tracking-[0.04em] [text-shadow:0_3px_0_theme(colors.hud.ink)] ${
-              result ? "text-hud-bone" : "text-hud-dim"
-            }`}
-          >
-            {headline}
-          </span>
-        </div>
-        {subtitle && (
-          <div className="max-w-[min(900px,calc(100vw-48px))] -mt-px -skew-x-12 bg-hud-blood px-6 py-1">
-            <span className="block skew-x-12 text-center font-hud-label text-hud-lg font-bold tracking-[0.04em] text-white">
-              {subtitle}
-            </span>
-          </div>
-        )}
-      </div>
+      <BroadcastBanner
+        headline={headline}
+        subtitle={subtitle}
+        tone={result ? "strong" : "quiet"}
+      />
     </div>
   );
 }

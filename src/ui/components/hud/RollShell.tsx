@@ -1,7 +1,7 @@
 import type { ReactNode, RefObject } from "react";
-import { PHONE_QUERY } from "../../../game/presentation/phoneLayout";
-import { useMediaQuery } from "../../hooks/useMediaQuery";
-import { HudButton, Panel, PanelHeader } from "../componentWarehouse/HudKit";
+import { WaitingLine } from "../componentWarehouse/HudBanner";
+import { HudButton } from "../componentWarehouse/HudKit";
+import { OpeningPanel } from "./OpeningPanel";
 
 interface RollShellProps {
   testId: string;
@@ -18,41 +18,29 @@ interface RollShellProps {
 }
 
 export function RollShell(props: RollShellProps) {
-  const phone = useMediaQuery(PHONE_QUERY);
   return (
-    <div
-      className={`pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4 phone:pointer-events-auto phone:inset-0 phone:items-center phone:bg-black/40 phone:px-2 ${props.zClass}`}
-      data-testid={props.testId}
-      data-hotkey-scope=""
-      data-hud-frame={phone ? undefined : "bottom"}
+    <OpeningPanel
+      testId={props.testId}
+      title={props.title}
+      zClass={props.zClass}
     >
-      <Panel
-        as="section"
-        accent="gold"
-        aria-label={props.title}
-        className="pointer-events-auto w-[min(640px,calc(100vw-39rem))] min-w-[min(560px,100%)] animate-hud-in phone:max-h-[calc(100dvh-1rem)] phone:w-[640px] phone:min-w-0 phone:max-w-full phone:overflow-y-auto"
-      >
-        <PanelHeader title={props.title} as="h2" />
-        <div className="p-3 phone:p-2">
-          {props.header}
-          <div className="flex gap-4 phone:gap-3 phone:portrait:flex-col">
-            <RollStage {...props} />
-            <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 phone:gap-1">
-              <div className="min-h-[96px] font-hud-body text-hud-base phone:text-hud-sm [overflow-wrap:anywhere]">
-                {props.children}
-              </div>
-              <div
-                className="flex min-h-[52px] flex-col justify-center"
-                data-testid="roll-action"
-              >
-                {props.action}
-              </div>
-            </div>
+      {props.header}
+      <div className="flex gap-4 phone:gap-3 phone:portrait:flex-col">
+        <RollStage {...props} />
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 phone:gap-1">
+          <div className="min-h-[96px] font-hud-body text-hud-base phone:text-hud-sm [overflow-wrap:anywhere]">
+            {props.children}
           </div>
-          {props.table}
+          <div
+            className="flex min-h-[52px] flex-col justify-center"
+            data-testid="roll-action"
+          >
+            {props.action}
+          </div>
         </div>
-      </Panel>
-    </div>
+      </div>
+      {props.table}
+    </OpeningPanel>
   );
 }
 
@@ -85,9 +73,5 @@ export function RollBusy({ children }: { children: ReactNode }) {
 }
 
 export function RollWait({ name }: { name: string }) {
-  return (
-    <p className="line-clamp-2 font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
-      Waiting for {name} to ready up…
-    </p>
-  );
+  return <WaitingLine>Waiting for {name} to ready up…</WaitingLine>;
 }

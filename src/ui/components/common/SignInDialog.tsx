@@ -72,7 +72,6 @@ export function SignInDialog({
       placement="center"
       backdrop="heavy"
       title={mode === "create" ? "Create account" : "Sign in"}
-      width="w-[420px]"
     >
       <div className="flex flex-col gap-4">
         <HudButton

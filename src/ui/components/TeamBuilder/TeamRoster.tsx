@@ -159,7 +159,7 @@ export function TeamRoster({
                   </div>
                 </td>
                 <td>
-                  <span className="flex items-center gap-2 text-hud-sm text-[#ddd5c6]">
+                  <span className="flex items-center gap-2 text-hud-sm text-hud-bone">
                     <PlayerPortrait
                       rosterName={team.rosterName}
                       positionName={player.positionName}

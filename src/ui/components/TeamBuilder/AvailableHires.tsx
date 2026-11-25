@@ -140,7 +140,7 @@ export function SkillList({ skills }: { skills: Skill[] }) {
     return <span className="text-hud-mute">None</span>;
   }
   return (
-    <div className="flex flex-wrap gap-x-1 gap-y-0.5 text-hud-sm text-[#ddd5c6]">
+    <div className="flex flex-wrap gap-x-1 gap-y-0.5 text-hud-sm text-hud-bone">
       {skills.map((skill, index) => (
         <span key={`${skill.type}-${String(index)}`}>
           <Tooltip content={SKILL_DEFINITIONS[skill.type].description}>
