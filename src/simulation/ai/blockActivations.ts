@@ -198,7 +198,7 @@ interface BlitzReachArgs {
   route: Route | null;
 }
 
-function blitzReach({ board, player, route }: BlitzReachArgs): number {
+export function blitzReach({ board, player, route }: BlitzReachArgs): number {
   const [normal, rushes] = movesLeft(board, player);
   const steps = route?.path.length ?? 0;
   if (steps >= normal + rushes) return 0;

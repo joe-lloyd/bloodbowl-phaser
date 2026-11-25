@@ -3,9 +3,10 @@ import type { Activation } from "./activations";
 import {
   blitzActivations,
   blockActivations,
+  blitzReach,
   blockFrom,
 } from "./blockActivations";
-import { type FieldPlayer as Player, distance, key } from "./board";
+import { type FieldPlayer as Player, canCarry, distance, key } from "./board";
 import { gatePriced } from "./gateActivations";
 import {
   type KickoffGround,
@@ -35,10 +36,10 @@ function pricedHit(ground: KickoffGround, plan: Activation): Activation {
   const { intent, player } = plan;
   if (intent.kind !== "blitz" && intent.kind !== "block") return plan;
   if (!kicking || !nearTheKick(ground, intent.target)) return plan;
-  const from =
-    intent.kind === "blitz" && intent.route
-      ? intent.route.to
-      : player.gridPosition;
+  const route = intent.kind === "blitz" ? intent.route : null;
+  const from = route ? route.to : player.gridPosition;
+  const reach =
+    intent.kind === "blitz" ? blitzReach({ board: c.board, player, route }) : 1;
   const { knockdown } = blockFrom({
     c,
     attacker: player,
@@ -46,14 +47,14 @@ function pricedHit(ground: KickoffGround, plan: Activation): Activation {
     from,
     blitz: intent.kind === "blitz",
   });
-  return { ...plan, value: plan.value + knockdown * c.w.cageBreak };
+  return { ...plan, value: plan.value + reach * knockdown * c.w.cageBreak };
 }
 
 function rawPlans({ ground, player, actions, squares }: PlanArgs) {
   const { c, landing } = ground;
   const out: Activation[] = [];
   const underTheBall = landing && key(player.gridPosition) === key(landing);
-  if (underTheBall && actions.has("move")) return out;
+  if (underTheBall && actions.has("move") && canCarry(player)) return out;
   if (actions.has("move"))
     out.push(
       ...repositionActivation(c, player, [

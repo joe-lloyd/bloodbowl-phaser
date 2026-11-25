@@ -182,6 +182,21 @@ describe("the computer coach plays its kick-off moves", () => {
     expect((await coachPlays(game)).commands).toContain("block");
   });
 
+  it("Charge!: a No Ball player walks on past the landing square", async () => {
+    const { game, home, away } = await rehearse(KickoffEvent.CHARGE, {
+      players: 1,
+      scenario: lineUp([[12, 5]], [[19, 5]]),
+    });
+    home(0).skills = [getSkill(SkillType.NO_BALL)];
+    away(0).stats.ST = 2;
+    const playerId = home(0).id;
+    await choose(game, [playerId]);
+    await game.execute({ type: "declare-action", playerId, action: "move" });
+    home(0).gridPosition = { ...LANDING };
+    await coachPlays(game);
+    expect(home(0).gridPosition).not.toEqual(LANDING);
+  });
+
   it("Quick Attack: team-mates who cannot act do not put it off a block", async () => {
     const { game, home, away } = await rehearse(KickoffEvent.QUICK_ATTACK, {
       scenario: lineUp(
