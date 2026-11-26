@@ -65,7 +65,6 @@ export function startKickoff(parts: GameParts): void {
   ) {
     parts.flowManager.add(new OfferYouDopeOperation());
   }
-  // A kicking team with nobody on the pitch picks no kicker: Touchback.
   const kicking = [parts.team1, parts.team2].find(
     (team) => team.id === state.setup?.kickingTeamId
   );
@@ -78,7 +77,6 @@ export function startKickoff(parts: GameParts): void {
   }
 }
 
-/** The drive's kick-off when the kicking team has nobody to kick. */
 class AutomaticTouchbackOperation extends GameOperation {
   public readonly name = "AutomaticTouchback";
   private readonly touchback: () => Promise<void>;

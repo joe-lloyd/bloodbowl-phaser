@@ -1,11 +1,3 @@
-/**
- * How each roster defends. Replays saved games and, for every team turn
- * that starts with an opposing standing carrier, records whether the turn
- * won the ball back or knocked it loose, whom its blocks hit, and how the
- * carrier is covered when the turn ends. A turn that leaves the carrier in
- * their hands is conceded if the carrier's team scores in its next turn.
- * It also counts every block either team throws by its dice.
- */
 import { readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
@@ -19,27 +11,18 @@ import { isEntry, replaySteps } from "./lab";
 const otherSide = (side: 0 | 1): 0 | 1 => (side === 0 ? 1 : 0);
 
 export interface DefenceTally {
-  /** Turns that started with an opposing standing carrier. */
   turns: number;
-  /** Of those, turns that ended with our standing carrier, or that we scored in. */
   won: number;
-  /** Turns that ended with the ball on the ground. */
   loose: number;
-  /** Squares the opposing carrier had to go at the start of each turn. */
   toGo: number;
-  /** Blocks on the carrier, on a player beside it, and on anyone else. */
   carrierHits: number;
   wallHits: number;
   otherHits: number;
-  /** Turns that left the carrier in their hands: marked, and our players goalside. */
   markedEnd: number;
   screenEnd: number;
-  /** Of those, the carrier within its Movement plus two rushes of our end zone. */
   within: number;
-  /** Of those, their team scored next turn; `concededFar` from beyond its Movement. */
   conceded: number;
   concededFar: number;
-  /** Every block thrown, by dice: negative when the defender chooses. */
   blocks: number;
   dice: Record<string, number>;
 }
@@ -67,7 +50,6 @@ type At = { x: number; y: number };
 const near = (a: At, b: At) =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
-/** A re-roll re-announces the dice of a block already counted. */
 const isReroll = (command: unknown) =>
   typeof command === "object" &&
   command !== null &&
@@ -75,10 +57,6 @@ const isReroll = (command: unknown) =>
   typeof command.type === "string" &&
   command.type.endsWith("-reroll-block");
 
-/**
- * Tallies defence as the game plays. Call `before` with each command
- * before executing it, so a block re-roll is not counted as a new block.
- */
 export function watchDefence(
   game: HeadlessGame,
   tallies: [DefenceTally, DefenceTally]
@@ -158,7 +136,6 @@ export function watchDefence(
       tallies[watching.side].conceded++;
       if (watching.far) tallies[watching.side].concededFar++;
     }
-    // A defending turn that scores ends the drive without a TurnEnded.
     if (open !== null && scorer === open) tallies[open].won++;
     open = null;
     watching = null;

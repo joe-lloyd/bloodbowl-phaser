@@ -10,7 +10,6 @@ import {
   type DefenceTally,
 } from "../../scripts/coach/policy-lab/defence";
 
-/** Team 1's player at (10,5) blocks team 2's at (11,5); the ball is loose. */
 function blockGame(
   attacker: Partial<PlayerPlacement>,
   defender: Partial<PlayerPlacement>,
@@ -53,7 +52,6 @@ function blockGame(
 
 describe("policy-lab defence", () => {
   it("counts Frenzy's second block on the same target as a second block", async () => {
-    // Seed 1 rolls a Push, then a Skull on the second Block.
     const { tallies, run, attackerId, defenderId } = blockGame(
       { skills: [SkillType.FRENZY] },
       { skills: [SkillType.STAND_FIRM] },

@@ -334,9 +334,6 @@ describe("blocks that open the way for our carrier", () => {
 });
 
 describe("keeping the cage after the carrier moves", () => {
-  // Our carrier at (8,5) has acted. A free ST4 team-mate at (6,8) can
-  // step to a corner of its square, or blitz an opponent at (4,9) who is
-  // nowhere near the ball.
   async function firstDeclared(coach: Coach) {
     const subject = game({
       turn: 3,
@@ -422,8 +419,6 @@ describe("cage walk", () => {
 });
 
 describe("carrier pace", () => {
-  // A loose ball at (6,5) between a slow player with Sure Hands at (5,5)
-  // and a quick one at (7,5). The defence stands far off.
   function looseBall(slowSkills: SkillType[] = []) {
     return game({
       turn: 2,
@@ -461,8 +456,6 @@ describe("carrier pace", () => {
   });
 
   it("prices a pick-up by a prone player with nobody else standing", () => {
-    // Pace against an empty team was unbounded, and a zero-chance route
-    // made the plan's value NaN.
     const subject = game({
       turn: 2,
       ballPosition: { x: 6, y: 5 },
@@ -488,8 +481,6 @@ describe("carrier pace", () => {
   });
 
   it("measures a picker only against team-mates who can carry", () => {
-    // A quick No Ball team-mate cannot take the ball, so the slow picker
-    // is the quickest carrier and pays no pace.
     const subject = game({
       turn: 2,
       ballPosition: { x: 6, y: 5 },
@@ -573,7 +564,6 @@ describe("carrier pace", () => {
   });
 
   it("hands the ball from a slow carrier to a quick team-mate when pace counts", async () => {
-    // A slow carrier at (5,5) beside a quick team-mate at (5,6).
     const handed = async (w: Partial<Weights>) => {
       const subject = game({
         turn: 2,
