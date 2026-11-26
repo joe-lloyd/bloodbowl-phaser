@@ -76,11 +76,7 @@ for (const viewport of [
           .getByRole("button")
       ).toHaveCount(0);
     for (let coach = 0; coach < 3; coach++) {
-      await page
-        .getByText(/^Asst. Coaches/)
-        .locator("..")
-        .getByRole("button", { name: "+", exact: true })
-        .click();
+      await page.getByLabel("Add one Asst. Coaches").click();
     }
     await page.locator('[data-testid="roster-row-1"] td').nth(2).click();
     await expect(page).toHaveURL(
