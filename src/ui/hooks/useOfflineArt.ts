@@ -43,7 +43,7 @@ export function useKeepOfflineArt(library: readonly Team[]): void {
   const art = useOfflineArt();
   const own = runsInstalled ? library.map((team) => team.rosterName) : [];
   const key = [...new Set([...own, ...art.rosters])]
-    .toSorted((a, b) => a.localeCompare(b))
+    .sort((a, b) => a.localeCompare(b))
     .join("|");
   useEffect(() => {
     wantModels(key ? key.split("|").flatMap((roster) => rosterModels(roster)) : []);

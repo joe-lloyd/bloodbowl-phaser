@@ -96,7 +96,7 @@ export function keepRosters(rosters: readonly string[]): void {
 }
 
 export function wantModels(models: readonly string[]): void {
-  store.wanted = [...new Set(models)].toSorted((a, b) => a.localeCompare(b)).join(",");
+  store.wanted = [...new Set(models)].sort((a, b) => a.localeCompare(b)).join(",");
   if (store.wanted !== store.sent) send();
 }
 
