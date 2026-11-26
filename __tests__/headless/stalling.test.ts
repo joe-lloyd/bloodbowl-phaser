@@ -46,9 +46,12 @@ const crowdRolls = (events: { name: string; data?: unknown }[]): string[] =>
 
 async function declareAndEnd(game: HeadlessGame, action: ActionType) {
   const id = fixtureValue(game.ctx.team1.players[0]).id;
-  expect(
-    (await game.execute({ type: "declare-action", playerId: id, action })).ok
-  ).toBe(true);
+  const declared = await game.execute({
+    type: "declare-action",
+    playerId: id,
+    action,
+  });
+  expect(declared.ok).toBe(true);
   return game.execute({ type: "end-activation", playerId: id });
 }
 

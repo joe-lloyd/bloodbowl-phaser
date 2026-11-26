@@ -190,15 +190,12 @@ describe("the Sports-Wizard", () => {
       const target = game.ctx.team2.players[0];
       await endTurn(game);
       forceDice(game.ctx.rng, [6]);
-      expect(
-        (
-          await game.execute({
-            type: "choose-inducement",
-            spell: "zap",
-            playerId: fixtureValue(target).id,
-          })
-        ).ok
-      ).toBe(true);
+      const spellCast = await game.execute({
+        type: "choose-inducement",
+        spell: "zap",
+        playerId: fixtureValue(target).id,
+      });
+      expect(spellCast.ok).toBe(true);
       await settle();
       expect(fixtureValue(target).conditions?.map((c) => c.type)).toContain(
         "Frog"

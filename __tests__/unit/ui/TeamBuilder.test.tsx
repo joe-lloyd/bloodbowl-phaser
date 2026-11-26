@@ -17,6 +17,27 @@ import { queueExpensiveMistakes } from "../../../src/game/rules/expensiveMistake
 import { PlayerPage } from "../../../src/ui/components/pages/PlayerPage";
 import { RNGService } from "../../../src/services/rng/RNGService";
 
+function PlayerRouteProbe() {
+  const { playerId } = useParams();
+  return <div data-testid="player-page">{playerId}</div>;
+}
+
+function dragEvent(type: string, data: Map<string, string>) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "dataTransfer", {
+    value: {
+      setData: (format: string, value: string) => data.set(format, value),
+      getData: (format: string) => data.get(format) ?? "",
+      setDragImage: () => {},
+      effectAllowed: "",
+      dropEffect: "",
+    },
+  });
+  return event;
+}
+
+const ignoreAccept = () => undefined;
+
 describe("post-match team management", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -130,7 +151,7 @@ describe("post-match team management", () => {
         row.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         await Promise.resolve();
       });
-    let accept: () => void = () => undefined;
+    let accept: () => void = ignoreAccept;
     const pending = new Promise<void>((resolve) => {
       accept = resolve;
     });
@@ -318,10 +339,6 @@ describe("TeamBuilder opening a player", () => {
     localStorage.clear();
   });
 
-  function PlayerRouteProbe() {
-    const { playerId } = useParams();
-    return <div data-testid="player-page">{playerId}</div>;
-  }
 
   async function renderSavedTeam() {
     const team = new TeamTestBuilder()
@@ -345,19 +362,6 @@ describe("TeamBuilder opening a player", () => {
     return team;
   }
 
-  function dragEvent(type: string, data: Map<string, string>) {
-    const event = new Event(type, { bubbles: true, cancelable: true });
-    Object.defineProperty(event, "dataTransfer", {
-      value: {
-        setData: (format: string, value: string) => data.set(format, value),
-        getData: (format: string) => data.get(format) ?? "",
-        setDragImage: () => {},
-        effectAllowed: "",
-        dropEffect: "",
-      },
-    });
-    return event;
-  }
 
   async function clickRow(slot: number) {
     const cell = container.querySelectorAll(
@@ -487,6 +491,11 @@ describe("TeamBuilder opening a player", () => {
     expect(container.querySelector('[data-testid="player-page"]')).toBeTruthy();
   });
 
+  const modeButtons = () =>
+    [...container.querySelectorAll<HTMLButtonElement>(
+        ':scope [aria-label="Advancement Mode"] button'
+      )];
+
   it("leaves a chosen mode changeable when the save before opening fails", async () => {
     const team = new TeamTestBuilder()
       .withId("mode-team")
@@ -504,10 +513,6 @@ describe("TeamBuilder opening a player", () => {
         </MemoryRouter>
       );
     });
-    const modeButtons = () =>
-      [...container.querySelectorAll<HTMLButtonElement>(
-          ':scope [aria-label="Advancement Mode"] button'
-        )];
     expect(modeButtons().length).toBeGreaterThan(0);
     expect(modeButtons().every((button) => !button.disabled)).toBe(true);
 

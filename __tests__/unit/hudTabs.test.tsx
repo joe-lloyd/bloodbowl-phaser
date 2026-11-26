@@ -6,6 +6,13 @@ import { HudTabs } from "../../src/ui/components/componentWarehouse/HudKit";
 
 type Id = "dice" | "chat";
 
+const press = (key: string) =>
+  act(async () => {
+    fixtureValue(document.activeElement).dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true })
+    );
+  });
+
 function Switch() {
   const [value, setValue] = useState<Id>("dice");
   return (
@@ -51,13 +58,6 @@ describe("HudTabs", () => {
     fixtureValue([...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
       (t) => t.textContent === name
     ));
-  const press = (key: string) =>
-    act(async () => {
-      fixtureValue(document.activeElement).dispatchEvent(
-        new KeyboardEvent("keydown", { key, bubbles: true })
-      );
-    });
-
   it("ties each tab to the panel and keeps only the selected tab in the tab order", () => {
     expect(tab("Dice").getAttribute("aria-controls")).toBe("log-panel");
     expect(tab("Chat").getAttribute("aria-controls")).toBe("log-panel");

@@ -212,7 +212,7 @@ describe("Charge! Blitz block from the block dialog", () => {
     );
     handler.enter();
     const rolls: BlockRollData[] = [];
-    eventBus.on(GameEventNames.BlockDiceRolled, (roll) => rolls.push(roll));
+    eventBus.on(GameEventNames.BlockDiceRolled, (roll) => { rolls.push(roll); });
 
     eventBus.emit(GameEventNames.UI_RollBlockDice, {
       attackerId: fixtureValue(attacker).id,

@@ -24,18 +24,121 @@ async function firstActivation(subject: HeadlessGame) {
   return { commands, note: notes[0] };
 }
 
+const proneSubject = () =>
+  game({
+    turn: 3,
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5, status: PlayerStatus.PRONE },
+    ],
+    team2Placements: [{ playerIndex: 0, x: 3, y: 5, hasBall: true }],
+  });
+
+const noBallSubject = () =>
+  game({
+    turn: 3,
+    ballPosition: { x: 6, y: 5 },
+    team1Placements: [
+      { playerIndex: 0, x: 5, y: 5, skills: [SkillType.NO_BALL] },
+      { playerIndex: 1, x: 3, y: 5 },
+    ],
+    team2Placements: [{ playerIndex: 0, x: 15, y: 1 }],
+  });
+
+async function chaseNotes() {
+  const subject = game({
+    turn: 3,
+    team1Placements: [
+      { playerIndex: 0, x: 10, y: 5, hasBall: true },
+      { playerIndex: 1, x: 2, y: 5, stats: { MA: 5 } },
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 17, y: 1 },
+      { playerIndex: 1, x: 17, y: 9 },
+    ],
+  });
+  const chaser = fieldPlayer(subject.ctx.team1.players[1]);
+  const coach = createPlannerCoach({
+    weights: { ...DEFAULT_WEIGHTS, safeMove: 0.82 },
+  });
+  const notes: string[] = [];
+  for (
+    let i = 0;
+    i < 30 && subject.ctx.gameService.getState().turn.teamId === "team1";
+    i++
+  ) {
+    const { command, note } = await step(subject, coach);
+    if (
+      command.type === "declare-action" &&
+      command.playerId === chaser.id &&
+      note
+    )
+      notes.push(note);
+  }
+  return notes;
+}
+
+async function blitzValue(
+  target: { x: number; y: number },
+  skills: SkillType[]
+) {
+  const subject = game({
+    turn: 3,
+    team1Placements: [
+      { playerIndex: 0, x: 8, y: 5, stats: { ST: 5 }, skills },
+    ],
+    team2Placements: [
+      { playerIndex: 0, ...target },
+      { playerIndex: 1, x: 18, y: 1, hasBall: true },
+    ],
+  });
+  const point = await enumerateDecision(subject, null);
+  const blitz = activations({
+    board: readBoard(subject, "team1"),
+    w: DEFAULT_WEIGHTS,
+    available: availableActions(point.candidates),
+  }).find((a) => a.action === "blitz");
+  return blitz?.value ?? NaN;
+}
+
+async function plans(helperSkills: SkillType[]) {
+  const subject = game({
+    turn: 3,
+    team1Placements: [
+      {
+        playerIndex: 0,
+        x: 8,
+        y: 5,
+        stats: { ST: 5 },
+        skills: [SkillType.REALLY_STUPID],
+      },
+      { playerIndex: 1, x: 5, y: 5, stats: { MA: 2 }, skills: helperSkills },
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 9, y: 5 },
+      { playerIndex: 1, x: 18, y: 1, hasBall: true },
+    ],
+  });
+  const point = await enumerateDecision(subject, null);
+  const all = activations({
+    board: readBoard(subject, "team1"),
+    w: DEFAULT_WEIGHTS,
+    available: availableActions(point.candidates),
+  });
+  const big = fieldPlayer(subject.ctx.team1.players[0]);
+  const steady =
+    all.find(
+      (a) => a.intent.kind === "reposition" && a.intent.role === "steady"
+    )?.value ?? NaN;
+  const waiting = Math.max(
+    ...all.filter((a) => a.player.id === big.id).map((a) => a.value)
+  );
+  return { steady, waiting };
+}
+
 describe("a prone player beside the carrier, three squares from scoring", () => {
-  const subject = () =>
-    game({
-      turn: 3,
-      team1Placements: [
-        { playerIndex: 0, x: 4, y: 5, status: PlayerStatus.PRONE },
-      ],
-      team2Placements: [{ playerIndex: 0, x: 3, y: 5, hasBall: true }],
-    });
 
   it("stands up and blocks the carrier", async () => {
-    expect(await firstActivation(subject())).toEqual({
+    expect(await firstActivation(proneSubject())).toEqual({
       commands: ["declare-action", "stand-up", "block"],
       note: "blitzes",
     });
@@ -43,19 +146,9 @@ describe("a prone player beside the carrier, three squares from scoring", () => 
 });
 
 describe("a No Ball player beside a loose ball, a team-mate three squares away", () => {
-  const subject = () =>
-    game({
-      turn: 3,
-      ballPosition: { x: 6, y: 5 },
-      team1Placements: [
-        { playerIndex: 0, x: 5, y: 5, skills: [SkillType.NO_BALL] },
-        { playerIndex: 1, x: 3, y: 5 },
-      ],
-      team2Placements: [{ playerIndex: 0, x: 15, y: 1 }],
-    });
 
   it("leaves the pick-up to a team-mate", async () => {
-    const s = subject();
+    const s = noBallSubject();
     const picker = fieldPlayer(s.ctx.team1.players[1]);
     const { command, note } = await step(s, createPlannerCoach());
     expect({ command, note }).toEqual({
@@ -70,38 +163,6 @@ describe("a No Ball player beside a loose ball, a team-mate three squares away",
 });
 
 describe("a team-mate eight squares behind our carrier, with 82% moves allowed", () => {
-  async function chaseNotes() {
-    const subject = game({
-      turn: 3,
-      team1Placements: [
-        { playerIndex: 0, x: 10, y: 5, hasBall: true },
-        { playerIndex: 1, x: 2, y: 5, stats: { MA: 5 } },
-      ],
-      team2Placements: [
-        { playerIndex: 0, x: 17, y: 1 },
-        { playerIndex: 1, x: 17, y: 9 },
-      ],
-    });
-    const chaser = fieldPlayer(subject.ctx.team1.players[1]);
-    const coach = createPlannerCoach({
-      weights: { ...DEFAULT_WEIGHTS, safeMove: 0.82 },
-    });
-    const notes: string[] = [];
-    for (
-      let i = 0;
-      i < 30 && subject.ctx.gameService.getState().turn.teamId === "team1";
-      i++
-    ) {
-      const { command, note } = await step(subject, coach);
-      if (
-        command.type === "declare-action" &&
-        command.playerId === chaser.id &&
-        note
-      )
-        notes.push(note);
-    }
-    return notes;
-  }
 
   it("does not risk a turnover to close in", async () => {
     expect(await chaseNotes()).toEqual(["moves to chase"]);
@@ -338,28 +399,6 @@ describe("a carrier one Dodge from scoring beside a marker a team-mate can hit",
 });
 
 describe("a Take Root player's Blitz", () => {
-  async function blitzValue(
-    target: { x: number; y: number },
-    skills: SkillType[]
-  ) {
-    const subject = game({
-      turn: 3,
-      team1Placements: [
-        { playerIndex: 0, x: 8, y: 5, stats: { ST: 5 }, skills },
-      ],
-      team2Placements: [
-        { playerIndex: 0, ...target },
-        { playerIndex: 1, x: 18, y: 1, hasBall: true },
-      ],
-    });
-    const point = await enumerateDecision(subject, null);
-    const blitz = activations({
-      board: readBoard(subject, "team1"),
-      w: DEFAULT_WEIGHTS,
-      available: availableActions(point.candidates),
-    }).find((a) => a.action === "blitz");
-    return blitz?.value ?? NaN;
-  }
 
   it("keeps full value against an opponent it already stands beside", async () => {
     const beside = { x: 9, y: 5 };
@@ -379,46 +418,11 @@ describe("a Take Root player's Blitz", () => {
 });
 
 describe("a helper who can steady a Really Stupid team-mate", () => {
-  async function plans(helperSkills: SkillType[]) {
-    const subject = game({
-      turn: 3,
-      team1Placements: [
-        {
-          playerIndex: 0,
-          x: 8,
-          y: 5,
-          stats: { ST: 5 },
-          skills: [SkillType.REALLY_STUPID],
-        },
-        { playerIndex: 1, x: 5, y: 5, stats: { MA: 2 }, skills: helperSkills },
-      ],
-      team2Placements: [
-        { playerIndex: 0, x: 9, y: 5 },
-        { playerIndex: 1, x: 18, y: 1, hasBall: true },
-      ],
-    });
-    const point = await enumerateDecision(subject, null);
-    const all = activations({
-      board: readBoard(subject, "team1"),
-      w: DEFAULT_WEIGHTS,
-      available: availableActions(point.candidates),
-    });
-    const big = fieldPlayer(subject.ctx.team1.players[0]);
-    const steady =
-      all.find(
-        (a) => a.intent.kind === "reposition" && a.intent.role === "steady"
-      )?.value ?? NaN;
-    const waiting = Math.max(
-      ...all.filter((a) => a.player.id === big.id).map((a) => a.value)
-    );
-    return { steady, waiting };
-  }
 
   it("prices the move by the helper's own Take Root roll", async () => {
-    expect((await plans([SkillType.TAKE_ROOT])).steady).toBeCloseTo(
-      ((await plans([])).steady * 5) / 6,
-      9
-    );
+    const rooted = await plans([SkillType.TAKE_ROOT]);
+    const plain = await plans([]);
+    expect(rooted.steady).toBeCloseTo((plain.steady * 5) / 6, 9);
   });
 
   it("makes the Big Guy wait only for the help the move is worth", async () => {

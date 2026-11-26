@@ -28,6 +28,12 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
+const press = (button: HTMLButtonElement) =>
+  act(async () => {
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+  });
+
 describe("MatchResultsScreen", () => {
   const h = resultsHarness();
 
@@ -85,11 +91,6 @@ describe("MatchResultsScreen", () => {
       [...h.container.querySelectorAll("button")].filter((b) =>
         b.textContent.includes(label)
       );
-    const press = (button: HTMLButtonElement) =>
-      act(async () => {
-        button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        await Promise.resolve();
-      });
     for (const button of click("Roll MVP D6")) await press(button);
     await press(fixtureValue(click("Confirm and assign SPP")[0]));
 
@@ -170,9 +171,10 @@ describe("MatchResultsScreen", () => {
         </MemoryRouter>
       );
     });
-    for (const button of [...h.container.querySelectorAll("button")].filter(
+    const rollButtons = [...h.container.querySelectorAll("button")].filter(
       (b) => b.textContent?.includes("Roll MVP D6")
-    ))
+    );
+    for (const button of rollButtons)
       await act(async () => {
         button.click();
       });

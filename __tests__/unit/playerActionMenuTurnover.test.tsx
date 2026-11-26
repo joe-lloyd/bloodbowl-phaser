@@ -18,6 +18,9 @@ let root: Root;
 let bus: EventBus;
 let game: HeadlessGame;
 
+const menu = () =>
+  container.querySelector('[data-testid="player-action-menu"]');
+
 beforeEach(() => {
   game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
@@ -59,8 +62,6 @@ it("closes the action panel when a turnover happens", async () => {
   await act(async () => {
     bus.emit(GameEventNames.PlayerSelected, { player });
   });
-  const menu = () =>
-    container.querySelector('[data-testid="player-action-menu"]');
   expect(menu()).not.toBeNull();
 
   await act(async () => {
@@ -95,8 +96,6 @@ it("hides the action panel while an online match cannot take commands", async ()
   await act(async () => {
     bus.emit(GameEventNames.PlayerSelected, { player });
   });
-  const menu = () =>
-    container.querySelector('[data-testid="player-action-menu"]');
   expect(menu()).toBeNull();
 
   mayAct = true;

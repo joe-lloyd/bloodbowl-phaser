@@ -16,6 +16,58 @@ import { commitTeam } from "../../../src/ui/components/hud/commitPlayerChange";
 import { type Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
+function savedHumans(): Team {
+  return new TeamTestBuilder()
+    .withId("cloud-humans")
+    .withName("Cloud Humans")
+    .withPlayers(4)
+    .build();
+}
+
+function cloudLibrary(teams: Team[]) {
+  const library = { teams, saves: new Array<Team[]>() };
+  const repository: TeamRepository = {
+    loadTeams: () => library.teams,
+    saveTeams: (next) => {
+      library.teams = [...next];
+      library.saves.push([...next]);
+    },
+    deleteTeam: () => {},
+  };
+  return { library, repository };
+}
+
+const Library = () =>
+  useTeamLibrary()[0]
+    .map(({ name }) => name)
+    .join(',');
+
+const ignoreAccept = () => undefined;
+
+async function duringRejectedSave(open: () => Promise<void>) {
+  const accepted = savedHumans();
+  const { library, repository } = cloudLibrary([
+    { ...accepted, name: "Rejected Humans" },
+  ]);
+  setTeamRepository(repository);
+  let reject: () => void = ignoreAccept;
+  const saving = holdTeamSave(
+    () =>
+      new Promise((_, fail) => {
+        reject = () => {
+          library.teams = [accepted];
+          fail(new Error("refused"));
+        };
+      })
+  );
+  await open();
+  return () =>
+    act(async () => {
+      reject();
+      await saving.catch(() => undefined);
+    });
+}
+
 describe("TeamBuilder loading a team from its route", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -37,26 +89,7 @@ describe("TeamBuilder loading a team from its route", () => {
     localStorage.clear();
   });
 
-  function savedHumans(): Team {
-    return new TeamTestBuilder()
-      .withId("cloud-humans")
-      .withName("Cloud Humans")
-      .withPlayers(4)
-      .build();
-  }
 
-  function cloudLibrary(teams: Team[]) {
-    const library = { teams, saves: new Array<Team[]>() };
-    const repository: TeamRepository = {
-      loadTeams: () => library.teams,
-      saveTeams: (next) => {
-        library.teams = [...next];
-        library.saves.push([...next]);
-      },
-      deleteTeam: () => {},
-    };
-    return { library, repository };
-  }
 
   async function renderRoute(path: string) {
     await act(async () => {
@@ -190,29 +223,6 @@ describe("TeamBuilder loading a team from its route", () => {
     expect(container.textContent).toContain("CHOOSE YOUR TEAM");
   });
 
-  async function duringRejectedSave(open: () => Promise<void>) {
-    const accepted = savedHumans();
-    const { library, repository } = cloudLibrary([
-      { ...accepted, name: "Rejected Humans" },
-    ]);
-    setTeamRepository(repository);
-    let reject: () => void = () => undefined;
-    const saving = holdTeamSave(
-      () =>
-        new Promise((_, fail) => {
-          reject = () => {
-            library.teams = [accepted];
-            fail(new Error("refused"));
-          };
-        })
-    );
-    await open();
-    return () =>
-      act(async () => {
-        reject();
-        await saving.catch(() => undefined);
-      });
-  }
 
   it("opens the accepted team once a save that is rejected has settled", async () => {
     const settle = await duringRejectedSave(() =>
@@ -224,10 +234,6 @@ describe("TeamBuilder loading a team from its route", () => {
   });
 
   it("drops a rejected save from a library opened while it was pending", async () => {
-    const Library = () =>
-      useTeamLibrary()[0]
-        .map(({ name }) => name)
-        .join(',');
     const settle = await duringRejectedSave(() => {
       act(() => {
         root.render(<Library />);

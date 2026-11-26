@@ -29,6 +29,24 @@ function draft(rosterName: RosterName, positions: string[]) {
 const skillsOf = (player: { skills: { type: SkillType }[] }) =>
   player.skills.map((skill) => skill.type);
 
+function loadFlagged(team: ReturnType<typeof draft>, flagged: number[]) {
+  const stored = dehydrateTeam(team);
+  for (const index of flagged) (fixtureValue(stored.players[index]).teamCaptain = true);
+  return readStoredTeam(structuredClone(stored)).team;
+}
+
+function activeLeagueTeam() {
+  const team = draft(RosterName.HUMAN, [
+    "Human Blitzer",
+    "Human Lineman",
+    "Ogre",
+  ]);
+  team.advancementMode = "sevens-skill-selection";
+  chooseTeamCaptain(team, fixtureValue(team.players[0]).id);
+  stampFirstCompletedMatch(team);
+  return team;
+}
+
 describe("naming the Team Captain", () => {
   it("gives a Human Blitzer Pro without changing their value", () => {
     const team = draft(RosterName.HUMAN, ["Human Blitzer", "Human Lineman"]);
@@ -98,12 +116,6 @@ describe("naming the Team Captain", () => {
 });
 
 describe("loading a stored Team Captain", () => {
-  function loadFlagged(team: ReturnType<typeof draft>, flagged: number[]) {
-    const stored = dehydrateTeam(team);
-    for (const index of flagged) (fixtureValue(stored.players[index]).teamCaptain = true);
-    return readStoredTeam(structuredClone(stored)).team;
-  }
-
   it("drops the title from a Big Guy, with no Pro", () => {
     const loaded = loadFlagged(
       draft(RosterName.ORC, ["Untrained Troll", "Orc Lineman"]),
@@ -147,17 +159,6 @@ describe("loading a stored Team Captain", () => {
 });
 
 describe("replacing the Team Captain (errata p.155)", () => {
-  function activeLeagueTeam() {
-    const team = draft(RosterName.HUMAN, [
-      "Human Blitzer",
-      "Human Lineman",
-      "Ogre",
-    ]);
-    team.advancementMode = "sevens-skill-selection";
-    chooseTeamCaptain(team, fixtureValue(team.players[0]).id);
-    stampFirstCompletedMatch(team);
-    return team;
-  }
 
   it("offers nobody while the Captain is on the roster", () => {
     expect(captainVacancyCandidates(activeLeagueTeam())).toEqual([]);

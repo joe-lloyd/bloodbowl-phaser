@@ -95,7 +95,9 @@ describe("dice tray when the 3D dice cannot be drawn", () => {
   it("lets the coach pick a block die from the flat dice", async () => {
     const { bus, tray, unmount } = await mount();
     const picks: number[] = [];
-    bus.on(GameEventNames.UI_BlockDieClicked, ({ index }) => picks.push(index));
+    bus.on(GameEventNames.UI_BlockDieClicked, ({ index }) => {
+      picks.push(index);
+    });
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
@@ -125,7 +127,9 @@ describe("dice tray when the 3D dice cannot be drawn", () => {
   it("shows flat dice to pick from when the block dice never land", async () => {
     const { bus, tray, unmount } = await mount("hang");
     const picks: number[] = [];
-    bus.on(GameEventNames.UI_BlockDieClicked, ({ index }) => picks.push(index));
+    bus.on(GameEventNames.UI_BlockDieClicked, ({ index }) => {
+      picks.push(index);
+    });
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",

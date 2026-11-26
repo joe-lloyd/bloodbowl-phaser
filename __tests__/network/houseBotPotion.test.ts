@@ -71,7 +71,7 @@ describe("a coach against the house bot with a Magic Potion", () => {
     const away = streetBowlGame();
     const [a, b] = createInMemoryTransportPair();
     const desyncs: string[] = [];
-    const onDesync = (detail: string) => desyncs.push(detail);
+    const onDesync = (detail: string) => { desyncs.push(detail); };
     const host = new LockstepSession({
       game: home,
       transport: a,
@@ -107,27 +107,22 @@ describe("a coach against the house bot with a Magic Potion", () => {
         () => !!home.snapshot().weatherReady?.includes("team2"),
         "the bot to ready up for the weather"
       );
-      expect(
-        (await host.run({ type: "ready-weather", teamId: "team1" })).ok
-      ).toBe(true);
+      const readied = await host.run({ type: "ready-weather", teamId: "team1" });
+      expect(readied.ok).toBe(true);
       await until(
         both,
         () => !!home.snapshot().pregameInducements?.offer?.confirmed["team2"],
         "the bot to confirm its inducements"
       );
-      expect(
-        (
-          await host.run({
-            type: "select-inducement",
-            teamId: "team1",
-            inducement: Inducement.MAGIC_POTION,
-            quantity: 1,
-          })
-        ).ok
-      ).toBe(true);
-      expect(
-        (await host.run({ type: "confirm-inducements", teamId: "team1" })).ok
-      ).toBe(true);
+      const selected = await host.run({
+        type: "select-inducement",
+        teamId: "team1",
+        inducement: Inducement.MAGIC_POTION,
+        quantity: 1,
+      });
+      expect(selected.ok).toBe(true);
+      const confirmed = await host.run({ type: "confirm-inducements", teamId: "team1" });
+      expect(confirmed.ok).toBe(true);
       await until(
         both,
         () => home.pendingDecision()?.type === "inducement-choice",
@@ -139,9 +134,8 @@ describe("a coach against the house bot with a Magic Potion", () => {
       expect(pending.chooserTeamId).toBe("team1");
       const [first, second] = pending.playerIds;
       if (!first || !second) throw new Error("no players to drink");
-      expect(
-        (await host.run({ type: "choose-inducement", playerId: first })).ok
-      ).toBe(true);
+      const chosenFirst = await host.run({ type: "choose-inducement", playerId: first });
+      expect(chosenFirst.ok).toBe(true);
       await until(
         both,
         () => {
@@ -153,9 +147,8 @@ describe("a coach against the house bot with a Magic Potion", () => {
         },
         `the free Street Bowl potion, got ${JSON.stringify(describeState(home))}`
       );
-      expect(
-        (await host.run({ type: "choose-inducement", playerId: second })).ok
-      ).toBe(true);
+      const chosenSecond = await host.run({ type: "choose-inducement", playerId: second });
+      expect(chosenSecond.ok).toBe(true);
       await until(
         both,
         () => {

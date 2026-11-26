@@ -27,8 +27,8 @@ function scenario(skill: SkillType | null): Scenario {
   };
 }
 
-async function leapEast(skill: SkillType | null, seed: number) {
-  const game = new HeadlessGame({ scenario: scenario(skill), seed });
+async function leapEast(skill: SkillType | null) {
+  const game = new HeadlessGame({ scenario: scenario(skill), seed: 1 });
   const jumper = fixtureValue(
     fixtureValue(game.snapshot().teams[0]).players[0]
   ).id;
@@ -67,7 +67,7 @@ function canJump(game: HeadlessGame): boolean {
 
 describe("a Jump over an empty square", () => {
   it("is open to a Leap player", async () => {
-    const { game, response, dice } = await leapEast(SkillType.LEAP, 1);
+    const { game, response, dice } = await leapEast(SkillType.LEAP);
 
     expect(response.ok).toBe(true);
     expect(dice).toEqual(["Jump (Human Lineman #1): 4, needs 3+"]);
@@ -81,7 +81,7 @@ describe("a Jump over an empty square", () => {
   });
 
   it("is open to a Pogo player", async () => {
-    const { game, response } = await leapEast(SkillType.POGO, 1);
+    const { game, response } = await leapEast(SkillType.POGO);
 
     expect(response.ok).toBe(true);
     expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
@@ -91,7 +91,7 @@ describe("a Jump over an empty square", () => {
   });
 
   it("is still refused without Leap or Pogo", async () => {
-    const { game, response, dice } = await leapEast(null, 1);
+    const { game, response, dice } = await leapEast(null);
 
     expect(response.ok).toBe(false);
     expect(dice).toEqual([]);

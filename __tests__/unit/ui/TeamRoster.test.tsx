@@ -16,6 +16,31 @@ import {
 import { InjuryType } from "../../../src/types/Player";
 import { calculateTeamValue } from "../../../src/types/Team";
 
+function PlayerRouteProbe() {
+  const { playerId } = useParams();
+  return <div data-testid="player-page">{playerId}</div>;
+}
+
+function click(element: Element) {
+  act(() => {
+    element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+}
+
+function dragEvent(type: string, data: Map<string, string>) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "dataTransfer", {
+    value: {
+      setData: (format: string, value: string) => data.set(format, value),
+      getData: (format: string) => data.get(format) ?? "",
+      setDragImage: () => {},
+      effectAllowed: "",
+      dropEffect: "",
+    },
+  });
+  return event;
+}
+
 describe("TeamRoster readability", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -334,30 +359,8 @@ describe("TeamRoster row click and drag handle", () => {
     return team;
   }
 
-  function PlayerRouteProbe() {
-    const { playerId } = useParams();
-    return <div data-testid="player-page">{playerId}</div>;
-  }
 
-  function click(element: Element) {
-    act(() => {
-      element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-  }
 
-  function dragEvent(type: string, data: Map<string, string>) {
-    const event = new Event(type, { bubbles: true, cancelable: true });
-    Object.defineProperty(event, "dataTransfer", {
-      value: {
-        setData: (format: string, value: string) => data.set(format, value),
-        getData: (format: string) => data.get(format) ?? "",
-        setDragImage: () => {},
-        effectAllowed: "",
-        dropEffect: "",
-      },
-    });
-    return event;
-  }
 
   it("does not make the whole row draggable, only the ≡ handle", async () => {
     await renderRoster();
@@ -380,7 +383,7 @@ describe("TeamRoster row click and drag handle", () => {
 
   it("does not open the player when the handle or Fire button is clicked", async () => {
     const fired: string[] = [];
-    const team = await renderRoster({ onFirePlayer: (id) => fired.push(id) });
+    const team = await renderRoster({ onFirePlayer: (id) => { fired.push(id); } });
     const row = fixtureValue(container.querySelector('[data-testid="roster-row-1"]'));
     click(fixtureValue(row.querySelector('[data-testid="drag-handle"]')));
     click(fixtureValue(row.querySelector('button[title="Fire Player"]')));
@@ -391,7 +394,9 @@ describe("TeamRoster row click and drag handle", () => {
   it("reorders when the handle is dragged onto another row, including an empty slot", async () => {
     const moves: [number, number][] = [];
     await renderRoster({
-      onReorderPlayers: (source, target) => moves.push([source, target]),
+      onReorderPlayers: (source, target) => {
+        moves.push([source, target]);
+      },
     });
     const data = new Map<string, string>();
     const handle = fixtureValue(container.querySelector(

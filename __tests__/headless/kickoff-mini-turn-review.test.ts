@@ -22,7 +22,8 @@ const paced = () =>
 
 async function kickedCharge() {
   for (let seed = 1; seed < 400; seed++) {
-    if ((await kick(seed)).result.event !== KickoffEvent.CHARGE) continue;
+    const kicked = await kick(seed);
+    if (kicked.result.event !== KickoffEvent.CHARGE) continue;
     const game = new HeadlessGame({ scenario: kickoffScenario, seed, delay: paced });
     await game.execute({
       type: "kick-ball",
@@ -95,9 +96,9 @@ async function resumedCharge(options: { picks?: number } = {}) {
   const save = matchSaveSchema.parse(structuredClone(game.matchSave()));
   const resumed = new HeadlessGame({ matchSave: save, delay: paced });
   const landings: unknown[] = [];
-  resumed.ctx.eventBus.on(GameEventNames.KickoffBallLanding, (landing) =>
-    landings.push(landing)
-  );
+  resumed.ctx.eventBus.on(GameEventNames.KickoffBallLanding, (landing) => {
+    landings.push(landing);
+  });
   return { game: resumed, landings, ids: picks.map(({ id }) => id) };
 }
 
@@ -124,7 +125,8 @@ describe("a kick resumed from a save", () => {
     const ended = await game.execute({ type: "end-turn" });
     expect(ended.ok).toBe(true);
     expectOneLanding(game, landings);
-    expect((await anotherKick(game)).ok).toBe(false);
+    const kickedAgain = await anotherKick(game);
+    expect(kickedAgain.ok).toBe(false);
     await settle();
     expectOneLanding(game, landings);
   });
@@ -142,7 +144,8 @@ describe("a kick resumed from a save", () => {
         gateContextOf(game, "team1")
       ).allowed
     ).toBe(false);
-    expect((await anotherKick(game)).ok).toBe(false);
+    const kickedAgain = await anotherKick(game);
+    expect(kickedAgain.ok).toBe(false);
     await game.ctx.gameService.kickBall({
       isTeam1Kicking: true,
       playerId: "team1-player-1",
@@ -158,7 +161,8 @@ describe("a kick resumed from a save", () => {
     await game.execute({ type: "kickoff-reselect" });
     await settle();
     expect(game.pendingDecision()?.type).toBe("kickoff-event");
-    expect((await game.execute({ type: "kickoff-skip" })).ok).toBe(true);
+    const skipped = await game.execute({ type: "kickoff-skip" });
+    expect(skipped.ok).toBe(true);
     expectOneLanding(game, landings);
   });
 
@@ -202,36 +206,39 @@ describe("a reconnect while a resumed Charge is choosing again", () => {
     const save = matchSaveSchema.parse(structuredClone(game.matchSave()));
     const rejoined = new HeadlessGame({ matchSave: save, delay: paced });
     rejoined.adoptPending(game.pendingDecision());
-    expect((await rejoined.execute({ type: "kickoff-confirm" })).ok).toBe(true);
+    const confirmed = await rejoined.execute({ type: "kickoff-confirm" });
+    expect(confirmed.ok).toBe(true);
     expect(rejoined.ctx.gameService.canActivate(fixtureValue(ids[0]))).toBe(true);
     const ended = await rejoined.execute({ type: "end-turn" });
     expect(ended.snapshot.phase).toBe(GamePhase.PLAY);
   });
 });
 
-describe("an autosave around a kick", () => {
-  const saved = (game: HeadlessGame) => {
-    const writes: unknown[] = [];
-    const autosave = new MatchAutosave(
-      game.ctx.eventBus,
-      game.ctx.gameService,
-      () => game.matchSave(),
-      {
-        repository: {
-          read: () => null,
-          write: (save) => writes.push(save),
-          clear: () => undefined,
-          describe: () => null,
+const saved = (game: HeadlessGame) => {
+  const writes: unknown[] = [];
+  const autosave = new MatchAutosave(
+    game.ctx.eventBus,
+    game.ctx.gameService,
+    () => game.matchSave(),
+    {
+      repository: {
+        read: () => null,
+        write: (save) => {
+          writes.push(save);
         },
-        debounceMs: 60_000,
-      }
-    );
-    return autosave.flushNow().then((wrote) => {
-      autosave.dispose();
-      return { wrote, writes: writes.length };
-    });
-  };
+        clear: () => undefined,
+        describe: () => null,
+      },
+      debounceMs: 60_000,
+    }
+  );
+  return autosave.flushNow().then((wrote) => {
+    autosave.dispose();
+    return { wrote, writes: writes.length };
+  });
+};
 
+describe("an autosave around a kick", () => {
   it("waits while the ball lands, and saves the choosing and the turn", async () => {
     const game = await kickedCharge();
     expect(await saved(game)).toEqual({ wrote: true, writes: 1 });
@@ -317,10 +324,11 @@ const PLAY: Scenario = {
 
 describe("a save taken after a Blitz's Block", () => {
   it.each(["a Charge", "a normal turn"])("has no second Block in %s", async (where) => {
-    const game =
+    const charged =
       where === "a Charge"
-        ? (await rehearse(KickoffEvent.CHARGE, { players: 2 })).game
-        : new HeadlessGame({ scenario: PLAY, seed: 1 });
+        ? await rehearse(KickoffEvent.CHARGE, { players: 2 })
+        : null;
+    const game = charged?.game ?? new HeadlessGame({ scenario: PLAY, seed: 1 });
     const attackerId = fixtureValue(game.ctx.team1.players[1]).id;
     const defenderId = fixtureValue(game.ctx.team2.players[1]).id;
     if (where === "a Charge")

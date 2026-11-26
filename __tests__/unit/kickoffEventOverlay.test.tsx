@@ -29,6 +29,15 @@ describe("the kick-off turn in the HUD", () => {
     vi.restoreAllMocks();
   });
 
+  const todo = () =>
+    [...container.querySelectorAll("li")].map(({ textContent }) => textContent);
+  const current = () =>
+    container.querySelector('[aria-current="step"]')?.textContent;
+  const buttons = () =>
+    [...container.querySelectorAll("button")].map(
+      ({ textContent }) => textContent?.trim() ?? ""
+    );
+
   async function show(event: KickoffEvent, players: number) {
     const run = await rehearse(event, { players });
     const { gs, game } = run;
@@ -76,14 +85,6 @@ describe("the kick-off turn in the HUD", () => {
           player: gs.getPlayerById(playerId) ?? null,
         });
       });
-    const todo = () =>
-      [...container.querySelectorAll("li")].map(({ textContent }) => textContent);
-    const current = () =>
-      container.querySelector('[aria-current="step"]')?.textContent;
-    const buttons = () =>
-      [...container.querySelectorAll("button")].map(
-        ({ textContent }) => textContent?.trim() ?? ""
-      );
     await render();
     return { ...run, render, select, buttons, todo, current };
   }
@@ -127,6 +128,8 @@ describe("the kick-off turn in the HUD", () => {
     expect(buttons().join(" | ")).not.toContain("MOVE");
   });
 
+  const blitz = () => container.querySelector('[data-testid="action-blitz"]');
+
   it("offers a Blitz until the turn has used it", async () => {
     const { game, gs, home, away, render, select } = await show(
       KickoffEvent.CHARGE,
@@ -136,7 +139,6 @@ describe("the kick-off turn in the HUD", () => {
     away(1).gridPosition = { x: 8, y: 4 };
     await render();
     await select(home(1).id);
-    const blitz = () => container.querySelector('[data-testid="action-blitz"]');
     expect(blitz()).not.toBeNull();
     gs.getState().turn.hasBlitzed = true;
     await render();

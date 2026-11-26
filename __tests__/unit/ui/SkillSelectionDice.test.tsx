@@ -47,6 +47,8 @@ function readyForD3(named: readonly SkillType[] = NAMED): Team {
   return team;
 }
 
+const ignoreAccept = () => undefined;
+
 describe("rolling a Skill Selection D3", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -171,7 +173,7 @@ describe("rolling a Skill Selection D3", () => {
       matchId: "m",
       createdAt: 1,
     });
-    let accept: () => void = () => undefined;
+    let accept: () => void = ignoreAccept;
     setTeamRepository({
       loadTeams: () => [...library],
       saveTeams: (teams) => {

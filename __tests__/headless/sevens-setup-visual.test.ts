@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderSetupBaseline } from "./setupVisualBaseline";
 
@@ -9,7 +9,7 @@ describe("fixed-viewport Sevens setup visual baselines", () => {
     [false, "team2-valid-setup.svg"],
   ])("matches the valid final setup for team side %s", (isTeam1, file) => {
     const expected = readFileSync(
-      resolve(process.cwd(), "__tests__", "headless", "screenshots", file),
+      path.resolve(process.cwd(), "__tests__", "headless", "screenshots", file),
       "utf8"
     )
       .replaceAll('\r\n', "\n")

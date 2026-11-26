@@ -81,8 +81,8 @@ describe("PlayerPage after another window spends the roll", () => {
       container.querySelectorAll('[data-testid="random-candidate"]').length
     ).toBeGreaterThan(0);
 
-    const other = fixtureValue(loadTeams().find((t) => t.id === team.id));
     if (roll.kind !== "random-primary") throw new Error("unexpected roll");
+    const other = fixtureValue(loadTeams().find((t) => t.id === team.id));
     applyAdvancement(fixtureValue(other.players.find((p) => p.id === player.id)), {
       kind: "random-primary",
       skill: roll.candidates[0].skill,

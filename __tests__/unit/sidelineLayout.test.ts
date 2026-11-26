@@ -43,7 +43,8 @@ describe("staff terrace space", () => {
         }
       }
       for (let i = 0; i < slots.length; i++) {
-        for (const other of slots.slice(i + 1)) {
+        const laterSlots = slots.slice(i + 1);
+        for (const other of laterSlots) {
           expect(
             Math.hypot(fixtureValue(slots[i]).x - other.x, fixtureValue(slots[i]).y - other.y)
           ).toBeGreaterThan(0.8);

@@ -26,9 +26,13 @@ describe("whenEngineQuiet", () => {
   it("waits through a chain of delays", async () => {
     const steps: number[] = [];
     void realTimeDelay(30)
-      .then(() => steps.push(1))
+      .then(() => {
+        steps.push(1);
+      })
       .then(() => realTimeDelay(30))
-      .then(() => steps.push(2));
+      .then(() => {
+        steps.push(2);
+      });
     await whenEngineQuiet();
     expect(steps).toEqual([1, 2]);
   });

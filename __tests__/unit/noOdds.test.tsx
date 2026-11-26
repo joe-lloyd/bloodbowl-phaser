@@ -133,9 +133,9 @@ describe("no odds on a coach's screen", () => {
       rosters: [RosterName.HUMAN, RosterName.SKAVEN],
       coaches: [plannerCoach, heuristicCoach],
     });
-    const notes = recording.steps.flatMap((step) =>
-      step.note ? [step.note] : []
-    );
+    const notes = recording.steps
+      .map((step) => step.note)
+      .filter((note): note is string => Boolean(note));
     expect(notes.length).toBeGreaterThan(50);
     expect(
       notes.filter((note) => ODDS.test(note) || /\d\.\d/.test(note))

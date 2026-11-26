@@ -25,9 +25,9 @@ describe("follow-up onto a loose ball", () => {
     const attacker = game.ctx.team1.players[0];
 
     const pickups: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.BallPickup, (data) =>
-      pickups.push(data)
-    );
+    game.ctx.eventBus.on(GameEventNames.BallPickup, (data) => {
+      pickups.push(data);
+    });
 
     await game.ctx.gameService.followUpPush(fixtureValue(attacker).id, {
       x: 11,
@@ -46,9 +46,9 @@ describe("follow-up onto a loose ball", () => {
     const attacker = game.ctx.team1.players[0];
 
     const pickups: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.BallPickup, (data) =>
-      pickups.push(data)
-    );
+    game.ctx.eventBus.on(GameEventNames.BallPickup, (data) => {
+      pickups.push(data);
+    });
 
     await game.ctx.gameService.followUpPush(fixtureValue(attacker).id, {
       x: 11,

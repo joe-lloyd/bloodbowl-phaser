@@ -49,8 +49,7 @@ describe("action plan review fixes", () => {
     game.ctx.team1.rerolls = 0;
     forceDice(game.ctx.rng, [1, 1, 1, 1, 1]);
     const squig = act(0, "move");
-    const pressed: Promise<void>[] = [];
-    pressed.push(controller.onSquareClicked(13, 5));
+    const pressed: Promise<void>[] = [controller.onSquareClicked(13, 5)];
     game.ctx.eventBus.emit(GameEventNames.UI_GoMovePlan, undefined);
     await vi.waitFor(() => {
       expect(game.pendingDecision()?.type).toBe("bite-target");
@@ -175,7 +174,7 @@ describe("action plan review fixes", () => {
       [{ playerIndex: 0, x: 11, y: 5 }]
     );
     const rolled: AllEvents[typeof GameEventNames.UI_RollBlockDice][] = [];
-    game.ctx.eventBus.on(GameEventNames.UI_RollBlockDice, (data) => rolled.push(data));
+    game.ctx.eventBus.on(GameEventNames.UI_RollBlockDice, (data) => { rolled.push(data); });
     act(0, "blitz");
     const defender = fixtureValue(game.ctx.team2.players[0]);
 
@@ -195,7 +194,7 @@ describe("action plan review fixes", () => {
       [{ playerIndex: 0, x: 11, y: 5 }]
     );
     const rolled: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.UI_RollBlockDice, (data) => rolled.push(data));
+    game.ctx.eventBus.on(GameEventNames.UI_RollBlockDice, (data) => { rolled.push(data); });
     act(0, "blitz");
 
     await controller.onSquareClicked(11, 5);

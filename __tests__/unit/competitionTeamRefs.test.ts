@@ -75,16 +75,17 @@ beforeEach(() => {
   viewer.uid = null;
 });
 
-describe("another coach's entrant that names one of your team ids", () => {
-  const copied = () =>
-    localEntrant({ id: "coach:mallory:home", ownerUid: "mallory", name: "Mallory's entry" });
+const copied = () =>
+  localEntrant({ id: "coach:mallory:home", ownerUid: "mallory", name: "Mallory's entry" });
 
+describe("another coach's entrant that names one of your team ids", () => {
   it("never loads or relabels your own team for it", async () => {
     viewer.uid = "amy";
     await saveTeams([team("home", { name: "Amy's Team" })]);
     otherCoachTeams.push({ ownerUid: "mallory", team: team("home", { name: "Mallory's Team" }) });
 
-    expect((await fetchEntrantTeam(copied()))?.name).toBe("Mallory's Team");
+    const fetched = await fetchEntrantTeam(copied());
+    expect(fetched?.name).toBe("Mallory's Team");
     const competition = {
       id: "c1",
       type: "league" as const,

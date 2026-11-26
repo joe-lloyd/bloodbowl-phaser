@@ -147,8 +147,10 @@ const game = (uid: string, code: string) => doc(dbFor(uid), "games", code);
 const denied = (write: Promise<unknown>) =>
   expect(write).rejects.toMatchObject({ code: "permission-denied" });
 
-const stored = async (code: string) =>
-  (await getDoc(game(ADMIN, code))).data() as LobbyDoc;
+const stored = async (code: string) => {
+  const snapshot = await getDoc(game(ADMIN, code));
+  return snapshot.data() as LobbyDoc;
+};
 
 const team = (id: string) => ({ id, name: id, players: [] }) as unknown as Team;
 
@@ -172,9 +174,9 @@ async function seededLobby(): Promise<string> {
   return code;
 }
 
-async function markQuiet(code: string, uid: string, ms: number): Promise<void> {
+async function markQuiet(code: string, ms: number): Promise<void> {
   await updateDoc(game(ADMIN, code), {
-    [`players.${uid}.lastSeen`]: Date.now() - ms,
+    [`players.${HOST}.lastSeen`]: Date.now() - ms,
   });
 }
 
@@ -198,6 +200,45 @@ async function activeMatch(): Promise<string> {
   return code;
 }
 
+const entrants = (): CompetitionEntrant[] =>
+  seedEntrants(
+    [GUEST, HOST, THIRD, ORGANIZER].map((uid) => ({
+      id: `e-${uid}`,
+      teamId: `team-${uid}`,
+      ownerUid: uid,
+      coachUid: uid,
+      name: uid,
+      rosterName: "Human",
+    }))
+  );
+const context = (comp: LeagueDoc | TournamentDoc, fixtureId: string) => ({
+  competitionType: comp.type,
+  competitionId: comp.id,
+  fixtureId,
+});
+
+const leagueRef = (uid: string, id: string) =>
+  doc(dbFor(uid), "leagues", id);
+
+const storedLeague = async (id: string) => {
+  const snapshot = await getDoc(leagueRef(ADMIN, id));
+  return snapshot.data() as LeagueDoc;
+};
+
+const guestsFixture = (comp: LeagueDoc) => {
+  const fixture = fixtureValue(
+    comp.fixtures.find((f) =>
+      [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+    )
+  );
+  const rival = fixtureValue(
+    [fixture.homeEntrantId, fixture.awayEntrantId].find(
+      (id) => id !== `e-${GUEST}`
+    )
+  ).replace("e-", "");
+  return { fixture, rival };
+};
+
 describe.skipIf(!EMULATOR)("firestore.rules", () => {
   beforeAll(async () => {
     const response = await fetch(
@@ -215,8 +256,8 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
   });
 
   afterAll(async () => {
-    await Promise.all([...dbs.values()].map(terminate));
-    await Promise.all(apps.map(deleteApp));
+    await Promise.all([...dbs.values()].map((db) => terminate(db)));
+    await Promise.all(apps.map((app) => deleteApp(app)));
   });
 
   beforeEach(() => {
@@ -229,14 +270,16 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       const {code} = await as(BOT, () => createLobby(BOT, "House Bot"));
       await as(GUEST, () => joinLobby(code, GUEST, "Guest"));
       await as(BOT, () => closeHostedLobby(code, BOT));
-      expect((await getDoc(game(ADMIN, code))).exists()).toBe(false);
+      const lobbySnapshot = await getDoc(game(ADMIN, code));
+      expect(lobbySnapshot.exists()).toBe(false);
     });
 
     it("keeps its pointer when an invite moved it first", async () => {
       const {code} = await as(BOT, () => createLobby(BOT, "House Bot"));
       await setDoc(doc(dbFor(BOT), "users", BOT), { activeMatchCode: "NEWER1" }, { merge: true });
       await as(BOT, () => closeHostedLobby(code, BOT));
-      expect((await getDoc(doc(dbFor(ADMIN), "users", BOT))).data()?.["activeMatchCode"]).toBe("NEWER1");
+      const botUser = await getDoc(doc(dbFor(ADMIN), "users", BOT));
+      expect(botUser.data()?.["activeMatchCode"]).toBe("NEWER1");
     });
 
     it("keeps the old lobby announcement writable only by the bot's account", async () => {
@@ -296,12 +339,13 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       await as(GUEST, () => requestEndMatch(code, GUEST));
       await as(HOST, () => finishMatch(code, "finished"));
 
-      expect((await stored(code)).status).toBe("finished");
+      const finishedMatch = await stored(code);
+      expect(finishedMatch.status).toBe("finished");
     });
 
     it("lets a coach abandon once the other has gone, and it stays over", async () => {
       const code = await activeMatch();
-      await markQuiet(code, HOST, 25_000);
+      await markQuiet(code, 25_000);
       await as(GUEST, () => finishMatch(code, "abandoned"));
       await denied(updateDoc(game(HOST, code), { status: "active" }));
     });
@@ -310,7 +354,8 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
   describe("a stranger", () => {
     it("can fetch a lobby by code but cannot list games", async () => {
       const code = await openLobby();
-      expect((await getDoc(game(STRANGER, code))).exists()).toBe(true);
+      const strangerView = await getDoc(game(STRANGER, code));
+      expect(strangerView.exists()).toBe(true);
       await denied(getDocs(collection(dbFor(STRANGER), "games")));
     });
 
@@ -322,7 +367,8 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
           hostUid: STRANGER,
         })
       );
-      expect((await stored(code)).hostUid).toBe(HOST);
+      const seatedMatch = await stored(code);
+      expect(seatedMatch.hostUid).toBe(HOST);
     });
 
     it("cannot change anything else while taking the seat", async () => {
@@ -390,7 +436,8 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       await denied(updateDoc(game(HOST, code), { guestUid: HOST }));
       await denied(deleteDoc(game(GUEST, code)));
       await denied(deleteDoc(game(HOST, code)));
-      expect((await stored(code)).status).toBe("active");
+      const storedMatch = await stored(code);
+      expect(storedMatch.status).toBe("active");
     });
 
     it("cannot edit the other coach's player entry", async () => {
@@ -410,7 +457,7 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       await denied(as(GUEST, () => finishMatch(code, "abandoned")));
       await as(HOST, () => heartbeat(code, HOST));
       await denied(as(GUEST, () => finishMatch(code, "abandoned")));
-      await markQuiet(code, HOST, 10_000);
+      await markQuiet(code, 10_000);
       await denied(as(GUEST, () => finishMatch(code, "abandoned")));
     });
 
@@ -614,17 +661,7 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       }
     );
 
-    const entrants = (): CompetitionEntrant[] =>
-      seedEntrants(
-        [GUEST, HOST, THIRD, ORGANIZER].map((uid) => ({
-          id: `e-${uid}`,
-          teamId: `team-${uid}`,
-          ownerUid: uid,
-          coachUid: uid,
-          name: uid,
-          rosterName: "Human",
-        }))
-      );
+
     let nextId = 0;
 
     async function league(ruleset?: SevensRuleset): Promise<LeagueDoc> {
@@ -677,27 +714,7 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       return doc_;
     }
 
-    const context = (comp: LeagueDoc | TournamentDoc, fixtureId: string) => ({
-      competitionType: comp.type,
-      competitionId: comp.id,
-      fixtureId,
-    });
-    const leagueRef = (uid: string, id: string) =>
-      doc(dbFor(uid), "leagues", id);
 
-    const guestsFixture = (comp: LeagueDoc) => {
-      const fixture = fixtureValue(
-        comp.fixtures.find((f) =>
-          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
-        )
-      );
-      const rival = fixtureValue(
-        [fixture.homeEntrantId, fixture.awayEntrantId].find(
-          (id) => id !== `e-${GUEST}`
-        )
-      ).replace("e-", "");
-      return { fixture, rival };
-    };
 
     it.each([undefined, "gw-2025", "naf-sevens-2026-09-26"] as const)(
       "can report a league result and withdraw their own team with ruleset %s",
@@ -724,7 +741,8 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
         expect(
           after.entrants.find((e) => e.id === `e-${GUEST}`)?.withdrawn
         ).toBe(true);
-        const stored = (await getDoc(leagueRef(ADMIN, comp.id))).data();
+        const leagueSnapshot = await getDoc(leagueRef(ADMIN, comp.id));
+        const stored = leagueSnapshot.data();
         expect(fixtureValue(stored)?.["ruleset"]).toBe(ruleset);
         await denied(
           updateDoc(leagueRef(GUEST, comp.id), {
@@ -737,8 +755,6 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       }
     );
 
-    const storedLeague = async (id: string) =>
-      (await getDoc(leagueRef(ADMIN, id))).data() as LeagueDoc;
 
     it("closes a withdrawn team's games as walkovers", async () => {
       const comp = await league();
@@ -748,7 +764,8 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
           `e-${GUEST}`
         )
       );
-      const games = (await storedLeague(comp.id)).fixtures.filter((f) =>
+      const leagueDoc = await storedLeague(comp.id);
+      const games = leagueDoc.fixtures.filter((f) =>
         [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
       );
       expect(games).toHaveLength(3);
@@ -797,8 +814,9 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
         )
       );
 
+      const bigLeague = await storedLeague(big.id);
       expect(
-        (await storedLeague(big.id)).fixtures.filter((f) => f.result?.walkover)
+        bigLeague.fixtures.filter((f) => f.result?.walkover)
       ).toHaveLength(10);
     });
 
@@ -984,9 +1002,10 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
           `e-${GUEST}`
         )
       );
-      const stored = (
-        await getDoc(doc(dbFor(ADMIN), "tournaments", comp.id))
-      ).data() as TournamentDoc;
+      const tournamentSnapshot = await getDoc(
+        doc(dbFor(ADMIN), "tournaments", comp.id)
+      );
+      const stored = tournamentSnapshot.data() as TournamentDoc;
       const final = fixtureValue(
         stored.fixtures.find((f) => f.id === first.nextFixtureId)
       );
@@ -1027,9 +1046,10 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
           awayScore: 1,
         })
       );
-      const stored = (
-        await getDoc(doc(dbFor(ADMIN), "tournaments", comp.id))
-      ).data() as TournamentDoc;
+      const tournamentSnapshot = await getDoc(
+        doc(dbFor(ADMIN), "tournaments", comp.id)
+      );
+      const stored = tournamentSnapshot.data() as TournamentDoc;
       const final = fixtureValue(
         stored.fixtures.find((f) => f.id === semi.nextFixtureId)
       );
@@ -1086,9 +1106,8 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
           mine.awayEntrantId
         );
         const ref = doc(dbFor(GUEST), "tournaments", comp.id);
-        expect(fixtureValue((await getDoc(ref)).data())?.["ruleset"]).toBe(
-          ruleset
-        );
+        const refSnapshot = await getDoc(ref);
+        expect(fixtureValue(refSnapshot.data())?.["ruleset"]).toBe(ruleset);
         await denied(
           updateDoc(ref, {
             ruleset:
@@ -1416,15 +1435,13 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       };
       const report = (
         fixtures: EditableFixture[],
-        winnerEntrantId: string | null,
-        homeScore = 2,
-        awayScore = 1
+        winnerEntrantId: string | null
       ) => {
         const target = fixtureValue(fixtures.find((f) => f.id === mine.id));
         target.status = "complete";
         target.result = {
-          homeScore,
-          awayScore,
+          homeScore: 2,
+          awayScore: 1,
           winnerEntrantId,
           completedAt: 1,
         };
@@ -1511,9 +1528,8 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
           awayScore: 1,
         })
       );
-      const current_ = (
-        await getDoc(leagueRef(ADMIN, comp.id))
-      ).data() as LeagueDoc;
+      const currentSnapshot = await getDoc(leagueRef(ADMIN, comp.id));
+      const current_ = currentSnapshot.data() as LeagueDoc;
       const fixtures = structuredClone(current_.fixtures);
       fixtureValue(
         fixtureValue(fixtures.find((f) => f.id === fixture.id)).result

@@ -21,6 +21,17 @@ import {
   createController,
 } from "./GameplayInteractionController.setup";
 
+const restoreHandler = () =>
+  fixtureValue(eventBusSpies.on.mock.calls.find(
+    ([event]) => event === GameEventNames.GameStateRestored
+  ))[1];
+
+const restored = () => {
+  for (const [event, h] of eventBusSpies.on.mock.calls) {
+    if (event === GameEventNames.GameStateRestored) h();
+  }
+};
+
 describe("GameplayInteractionController", () => {
   let controller: GameplayInteractionController;
 
@@ -29,11 +40,6 @@ describe("GameplayInteractionController", () => {
   });
 
   describe("after a reload or resync", () => {
-    const restoreHandler = () =>
-      fixtureValue(eventBusSpies.on.mock.calls.find(
-        ([event]) => event === GameEventNames.GameStateRestored
-      ))[1];
-
     it("selects this coach's player the engine has mid-move, so the coach can carry on moving", async () => {
       mockGameService.getState.mockReturnValue(stateWith({
         activeTeamId: team1Id,
@@ -89,11 +95,6 @@ describe("GameplayInteractionController", () => {
 
   describe("a Bloodlust bite with a choice of Thralls", () => {
     const handler = eventHandler;
-    const restored = () => {
-      for (const [event, h] of eventBusSpies.on.mock.calls) {
-        if (event === GameEventNames.GameStateRestored) h();
-      }
-    };
     const thralls: Record<string, { x: number; y: number }> = {
       t1: { x: 6, y: 5 },
       t2: { x: 5, y: 6 },
@@ -115,7 +116,7 @@ describe("GameplayInteractionController", () => {
       }));
       mockGameService.getAvailableMovements.mockReturnValue([]);
       mockGameService.getPlayerById.mockImplementation((id: string) =>
-        { if (thralls[id]) { return playerWith({ id, teamId: team1Id, gridPosition: thralls[id] }); } if (id === "p1") { return player1; } return player2; }
+        { if (thralls[id] !== undefined) { return playerWith({ id, teamId: team1Id, gridPosition: thralls[id] }); } if (id === "p1") { return player1; } return player2; }
       );
       mockPitch.highlightSquare.mockImplementation(function () {
         const marker = {

@@ -29,8 +29,8 @@ function scenario(weather: Weather): Scenario {
   };
 }
 
-async function passTo(weather: Weather, x: number, seed: number) {
-  const game = new HeadlessGame({ scenario: scenario(weather), seed });
+async function passTo(weather: Weather, x: number) {
+  const game = new HeadlessGame({ scenario: scenario(weather), seed: 5 });
   const passer = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({
     type: "declare-action",
@@ -48,7 +48,7 @@ async function passTo(weather: Weather, x: number, seed: number) {
 
 describe("passing in a Blizzard", () => {
   it("refuses a Long Pass and keeps the ball with the passer", async () => {
-    const { res, dice } = await passTo("Blizzard", 13, 5);
+    const { res, dice } = await passTo("Blizzard", 13);
 
     expect(res.ok).toBe(false);
     expect(res.reason).toBe(
@@ -59,7 +59,7 @@ describe("passing in a Blizzard", () => {
   });
 
   it("still allows a Short Pass", async () => {
-    const { res, dice } = await passTo("Blizzard", 10, 5);
+    const { res, dice } = await passTo("Blizzard", 10);
 
     expect(res.ok).toBe(true);
     expect(dice).toEqual([
@@ -77,18 +77,19 @@ describe("passing in a Blizzard", () => {
       action: "pass",
     });
     const { candidates } = await enumerateDecision(game, null);
-    const ranges = candidates.flatMap(({ commands: [command] }) =>
-      command.type === "pass"
+    const ranges = candidates.flatMap((candidate) => {
+      const [command] = candidate.commands;
+      return command.type === "pass"
         ? PassController.rangeValue({ x: 4, y: 5 }, command)
-        : []
-    );
+        : [];
+    });
 
     expect(ranges.length).toBeGreaterThan(0);
     expect(new Set(ranges)).toEqual(new Set([0, 1]));
   });
 
   it("allows a Long Pass in Perfect Conditions", async () => {
-    const { res, dice } = await passTo("Nice", 13, 5);
+    const { res, dice } = await passTo("Nice", 13);
 
     expect(res.ok).toBe(true);
     expect(dice[0]).toBe("Pass (Human Lineman #1): 5, needs 6+");

@@ -11,7 +11,7 @@ describe("FormationManager", () => {
   beforeEach(() => {
     mockLocalStorage = {};
 
-    globalThis.localStorage = {
+    vi.stubGlobal("localStorage", {
       getItem: vi.fn((key: string) => mockLocalStorage[key] || null),
       setItem: vi.fn((key: string, value: string) => {
         mockLocalStorage[key] = value;
@@ -24,7 +24,7 @@ describe("FormationManager", () => {
       }),
       length: 0,
       key: vi.fn(),
-    };
+    });
 
     manager = new FormationManager();
   });

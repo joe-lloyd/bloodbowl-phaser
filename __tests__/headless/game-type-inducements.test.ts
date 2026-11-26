@@ -15,8 +15,8 @@ const STREET: MatchFormat = { gameType: "street-bowl", venue: "street" };
 const BEACH: MatchFormat = { gameType: "beach-bowl", venue: "beach" };
 const GUTTER: MatchFormat = { gameType: "gutter-bowl", venue: "gutter-street" };
 
-function newGame(format: MatchFormat, seed = 1): HeadlessGame {
-  return new HeadlessGame({ seed, startingPhase: GamePhase.SETUP, format });
+function newGame(format: MatchFormat): HeadlessGame {
+  return new HeadlessGame({ seed: 1, startingPhase: GamePhase.SETUP, format });
 }
 
 async function settle(game: HeadlessGame): Promise<void> {
@@ -53,9 +53,8 @@ async function declineAll(game: HeadlessGame): Promise<void> {
 
 async function catalogOf(format: MatchFormat): Promise<string[]> {
   const game = newGame(format);
-  const offer = fixtureValue(
-    (await game.execute({ type: "offer-inducements" })).inducementOffer
-  );
+  const result = await game.execute({ type: "offer-inducements" });
+  const offer = fixtureValue(result.inducementOffer);
   return fixtureValue(offer.catalogs[game.ctx.team1.id]).map(
     (entry) =>
       `${entry.inducement} ${String(entry.price)} x${String(entry.maxCount)}`

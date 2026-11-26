@@ -61,9 +61,9 @@ describe("measureHudRects", () => {
     box(canvas, 0, 0, 1280, 720);
     box(tray, 430, 486, 420, 218);
     const measured: ReturnType<typeof measureHudRects>[] = [];
-    const watcher = watchHudPanels(() =>
-      measured.push(measureHudRects(canvas, { width: 1280, height: 720 }))
-    );
+    const watcher = watchHudPanels(() => {
+      measured.push(measureHudRects(canvas, { width: 1280, height: 720 }));
+    });
     watcher.watch();
     tray.setAttribute("aria-hidden", "true");
     await Promise.resolve();

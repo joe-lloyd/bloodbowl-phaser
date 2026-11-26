@@ -19,6 +19,15 @@ async function settle(...sessions: LockstepSession[]) {
   }
 }
 
+async function runWithGuestFallback(
+  host: LockstepSession,
+  guest: LockstepSession,
+  command: HeadlessCommand
+) {
+  const hostResult = await host.run(command);
+  return hostResult.ok ? { ok: true } : guest.run(command);
+}
+
 describe("a page reloaded mid-move", () => {
   it("lets the coach take the player's next step after the hello catches it up", async () => {
     const seed = 5150;
@@ -66,9 +75,7 @@ describe("a page reloaded mid-move", () => {
       const following = recording.steps[index + 1]?.command;
       const mine = isGuestMove(step.command);
       const response = await (mine || step.command.type !== "move"
-        ? (await host.run(step.command)).ok
-          ? Promise.resolve({ ok: true })
-          : guest.run(step.command)
+        ? runWithGuestFallback(host, guest, step.command)
         : host.run(step.command));
       response;
       await settle(host, guest);

@@ -91,10 +91,12 @@ describe("the computer's Punt", () => {
 
   it("offers no second Punt in a turn", async () => {
     const game = lastTurn({ x: 14, y: 5 }, ENDZONE);
-    const declared = async () =>
-      (await enumerateDecision(game, null)).candidates
+    const declared = async () => {
+      const decision = await enumerateDecision(game, null);
+      return decision.candidates
         .map((c) => c.commands[0])
         .filter((c) => c.type === "declare-action" && c.action === "punt");
+    };
     expect(await declared()).toHaveLength(1);
     game.ctx.gameService.getState().turn.hasPunted = true;
     expect(await declared()).toHaveLength(0);

@@ -2,7 +2,7 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { tacticalGame } from "../../scripts/coach/policy-lab/fixtures";
 import { annotateTrace } from "../../scripts/coach/policy-lab/outcomes";
@@ -39,8 +39,8 @@ async function replayScore(
       point,
       rng: createCoachRng(1),
     });
-    for (const command of fixtureValue(point.candidates[choice.index])
-      .commands) {
+    const chosen = fixtureValue(point.candidates[choice.index]);
+    for (const command of chosen.commands) {
       const response = await game.execute(command);
       expect(response.ok).toBe(true);
       steps.push({
@@ -69,9 +69,9 @@ async function replayScore(
     },
     findings: [],
   };
-  const out = mkdtempSync(join(tmpdir(), "bb7-outcome-"));
+  const out = mkdtempSync(path.join(tmpdir(), "bb7-outcome-"));
   try {
-    const file = join(out, "trace.json.gz");
+    const file = path.join(out, "trace.json.gz");
     writeFileSync(file, gzipSync(JSON.stringify({ initial, recording })));
     return await annotateTrace(file);
   } finally {

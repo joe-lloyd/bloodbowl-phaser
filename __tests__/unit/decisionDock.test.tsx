@@ -126,8 +126,8 @@ describe("decision dock", () => {
     ).toBe("Needed 3+, rolled 2.");
 
     const needs = [
-      ...container.querySelectorAll('[data-testid^="reroll-need-"]'),
-    ].map((line) => [line.getAttribute("data-testid"), line.textContent]);
+      ...container.querySelectorAll<HTMLElement>('[data-testid^="reroll-need-"]'),
+    ].map((line) => [line.dataset["testid"], line.textContent]);
     expect(needs).toEqual([
       ["reroll-need-skill", "Needs 3+."],
       [

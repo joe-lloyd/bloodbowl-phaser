@@ -9,18 +9,18 @@ import { RosterName } from "../../src/types/Team";
 describe("the kicking team in a match save", () => {
   it("is the coming drive's at every set-up and kick-off", async () => {
     const planner = createPlannerCoach();
-    const seen: { saved: string; setUp: string | null }[] = [];
+    const seen: { saved: string; setupTeamId: string | null }[] = [];
     const watching: Coach = {
       name: "watching",
       async choose(context) {
         const { game, point } = context;
-        const setUp = game.ctx.gameService.getState().setup?.kickingTeamId;
+        const setupTeamId = game.ctx.gameService.getState().setup?.kickingTeamId;
         if (
           (point.phase === GamePhase.SETUP ||
             point.phase === GamePhase.KICKOFF) &&
-          setUp
+          setupTeamId
         )
-          seen.push({ saved: game.matchSave().drive.kickingTeamId, setUp });
+          seen.push({ saved: game.matchSave().drive.kickingTeamId, setupTeamId });
         return planner.choose(context);
       },
     };
@@ -30,8 +30,8 @@ describe("the kicking team in a match save", () => {
       coaches: [watching, watching],
     });
 
-    expect(new Set(seen.map((s) => s.setUp)).size).toBe(2);
-    expect(seen.filter((s) => s.saved !== s.setUp)).toEqual([]);
+    expect(new Set(seen.map((s) => s.setupTeamId)).size).toBe(2);
+    expect(seen.filter((s) => s.saved !== s.setupTeamId)).toEqual([]);
   });
 
   it("keeps a kicker the game was given before any drive began", () => {

@@ -188,6 +188,39 @@ describe("creating a competition with computer teams", () => {
   });
 });
 
+async function cachedMatchedPlayLeague() {
+  const library: { cache: Team[]; rejectSaves: boolean } = {
+    cache: [],
+    rejectSaves: false,
+  };
+  setTeamRepository({
+    loadTeams: () => [...library.cache],
+    saveTeams: (next) => {
+      library.cache = [...next];
+      if (library.rejectSaves) throw new Error("the cloud refused the write");
+    },
+    deleteTeam: () => undefined,
+  });
+  const [orcs, dwarfs] = [
+    computerTeam(RosterName.ORC, "Cached Orcs", "matched-play"),
+    computerTeam(RosterName.DWARF, "Cached Dwarfs", "matched-play"),
+  ];
+  const league = await createCompetition({
+    type: "league",
+    name: "Cached Season",
+    organizerUid: null,
+    entrants: [orcs, dwarfs].map((team) => ({ team, ownerUid: null })),
+  });
+  const fixtureId = fixtureValue(simulatableFixtures(league)[0]).id;
+  return { library, league, fixtureId };
+}
+
+function cachedInjuries(): string[] {
+  return loadTeams().flatMap((team) =>
+    team.players.flatMap((player) => player.injuries)
+  );
+}
+
 describe("simulating a game between two computer teams", () => {
   it("records a played result and carries what happened onto both teams", async () => {
     const [orcs, dwarfs] = [
@@ -258,39 +291,6 @@ describe("simulating a game between two computer teams", () => {
     expect(kept + advanced.length).toBeGreaterThan(0);
   }, 60_000);
 
-  async function cachedMatchedPlayLeague() {
-    const library: { cache: Team[]; rejectSaves: boolean } = {
-      cache: [],
-      rejectSaves: false,
-    };
-    setTeamRepository({
-      loadTeams: () => [...library.cache],
-      saveTeams: (next) => {
-        library.cache = [...next];
-        if (library.rejectSaves) throw new Error("the cloud refused the write");
-      },
-      deleteTeam: () => undefined,
-    });
-    const [orcs, dwarfs] = [
-      computerTeam(RosterName.ORC, "Cached Orcs", "matched-play"),
-      computerTeam(RosterName.DWARF, "Cached Dwarfs", "matched-play"),
-    ];
-    const league = await createCompetition({
-      type: "league",
-      name: "Cached Season",
-      organizerUid: null,
-      entrants: [orcs, dwarfs].map((team) => ({ team, ownerUid: null })),
-    });
-    const fixtureId = fixtureValue(simulatableFixtures(league)[0]).id;
-    return { library, league, fixtureId };
-  }
-
-  function cachedInjuries(): string[] {
-    return loadTeams().flatMap((team) =>
-      team.players.flatMap((player) => player.injuries)
-    );
-  }
-
   it("keeps a Matched Play team's injury record out of a cached library", async () => {
     const { league, fixtureId } = await cachedMatchedPlayLeague();
     const outcome = await simulateFixture(league, fixtureId, { seed: 3 });
@@ -342,7 +342,8 @@ describe("simulating a game between two computer teams", () => {
     });
     let seed = 1;
     for (let next = simulatableFixtures(cup)[0]; next; ) {
-      cup = (await simulateFixture(cup, next.id, { seed: seed++ })).competition;
+      const outcome = await simulateFixture(cup, next.id, { seed: seed++ });
+      cup = outcome.competition;
       next = simulatableFixtures(cup)[0];
     }
 

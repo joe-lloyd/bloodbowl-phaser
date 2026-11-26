@@ -28,12 +28,10 @@ function scenario(passerSkills: SkillType[]): Scenario {
 async function passTo({
   skills,
   x,
-  y,
   hailMary,
 }: {
   skills: SkillType[];
   x: number;
-  y: number;
   hailMary?: boolean;
 }) {
   const game = new HeadlessGame({ scenario: scenario(skills), seed: 1 });
@@ -47,14 +45,14 @@ async function passTo({
     type: "pass",
     playerId: passerId,
     x,
-    y,
+    y: 5,
     ...(hailMary !== undefined && { hailMary }),
   });
 }
 
 describe("a pass target beyond the Range Ruler", () => {
   it("is refused for an ordinary pass", async () => {
-    const response = await passTo({ skills: [], x: 18, y: 5 });
+    const response = await passTo({ skills: [], x: 18 });
 
     expect(response.ok).toBe(false);
     expect(response.reason).toBe(
@@ -67,7 +65,6 @@ describe("a pass target beyond the Range Ruler", () => {
     const response = await passTo({
       skills: [SkillType.HAIL_MARY_PASS],
       x: 18,
-      y: 5,
     });
 
     expect(response.ok).toBe(false);
@@ -80,7 +77,6 @@ describe("a pass target beyond the Range Ruler", () => {
     const response = await passTo({
       skills: [SkillType.HAIL_MARY_PASS],
       x: 18,
-      y: 5,
       hailMary: true,
     });
 
@@ -95,7 +91,6 @@ describe("a pass target beyond the Range Ruler", () => {
     const response = await passTo({
       skills: [SkillType.HAIL_MARY_PASS],
       x: 20,
-      y: 5,
       hailMary: true,
     });
 

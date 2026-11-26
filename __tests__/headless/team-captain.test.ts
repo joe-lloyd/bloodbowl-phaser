@@ -141,31 +141,31 @@ function eightManHumans(stableId: string): Team {
   return team;
 }
 
-function preset(isTeam1: boolean) {
+function preset() {
   return fixtureValue(
     new FormationManager()
-      .getBuiltInFormations(isTeam1)
+      .getBuiltInFormations(true)
       .find((formation) => formation.name === "Balanced")
   ).positions;
 }
 
-describe("fielding the Team Captain", () => {
-  async function settingUp() {
-    const team1 = eightManHumans("team1");
-    chooseTeamCaptain(team1, fixtureValue(team1.players[7]).id);
-    const game = new HeadlessGame({
-      seed: 3,
-      team1,
-      team2: eightManHumans("team2"),
-      startingPhase: GamePhase.SETUP,
-    });
-    await game.execute({ type: "start-setup", kickingTeamId: "team1" });
-    return game;
-  }
+async function settingUp() {
+  const team1 = eightManHumans("team1");
+  chooseTeamCaptain(team1, fixtureValue(team1.players[7]).id);
+  const game = new HeadlessGame({
+    seed: 3,
+    team1,
+    team2: eightManHumans("team2"),
+    startingPhase: GamePhase.SETUP,
+  });
+  await game.execute({ type: "start-setup", kickingTeamId: "team1" });
+  return game;
+}
 
+describe("fielding the Team Captain", () => {
   it("refuses a set-up that leaves an available Captain out", async () => {
     const game = await settingUp();
-    const positions = preset(true);
+    const positions = preset();
     for (const [index, position] of positions.entries()) {
       await game.execute({
         type: "place-player",
@@ -191,13 +191,15 @@ describe("fielding the Team Captain", () => {
     await game.execute({
       type: "apply-formation",
       teamId: "team1",
-      formation: preset(true),
+      formation: preset(),
     });
 
     expect(fixtureValue(game.ctx.team1.players[7]).gridPosition).toBeDefined();
-    expect(
-      (await game.execute({ type: "confirm-setup", teamId: "team1" })).ok
-    ).toBe(true);
+    const confirmed = await game.execute({
+      type: "confirm-setup",
+      teamId: "team1",
+    });
+    expect(confirmed.ok).toBe(true);
   });
 
   it("allows a set-up without a Captain who cannot play", async () => {
@@ -206,31 +208,33 @@ describe("fielding the Team Captain", () => {
     await game.execute({
       type: "apply-formation",
       teamId: "team1",
-      formation: preset(true),
+      formation: preset(),
     });
 
-    expect(
-      (await game.execute({ type: "confirm-setup", teamId: "team1" })).ok
-    ).toBe(true);
+    const confirmed = await game.execute({
+      type: "confirm-setup",
+      teamId: "team1",
+    });
+    expect(confirmed.ok).toBe(true);
   });
 });
 
+function leagueHumans(stableId: string): Team {
+  const team = stabilizeIds(
+    TeamFactory.createTestTeam(RosterName.HUMAN, stableId, 0xcc0000),
+    stableId
+  );
+  team.advancementMode = "sevens-skill-selection";
+  stampFirstCompletedMatch(team);
+  return team;
+}
+
+async function confirmBoth(game: HeadlessGame) {
+  await game.execute({ type: "confirm-inducements", teamId: "team1" });
+  return game.execute({ type: "confirm-inducements", teamId: "team2" });
+}
+
 describe("appointing a new Team Captain before a League Fixture", () => {
-  function leagueHumans(stableId: string): Team {
-    const team = stabilizeIds(
-      TeamFactory.createTestTeam(RosterName.HUMAN, stableId, 0xcc0000),
-      stableId
-    );
-    team.advancementMode = "sevens-skill-selection";
-    stampFirstCompletedMatch(team);
-    return team;
-  }
-
-  async function confirmBoth(game: HeadlessGame) {
-    await game.execute({ type: "confirm-inducements", teamId: "team1" });
-    return game.execute({ type: "confirm-inducements", teamId: "team2" });
-  }
-
   it("asks a team without a Captain to appoint one", async () => {
     const game = new HeadlessGame({
       seed: 5,
@@ -271,6 +275,7 @@ describe("appointing a new Team Captain before a League Fixture", () => {
       startingPhase: GamePhase.SETUP,
     });
 
-    expect((await confirmBoth(game)).pendingDecision).toBeNull();
+    const bothConfirmed = await confirmBoth(game);
+    expect(bothConfirmed.pendingDecision).toBeNull();
   });
 });

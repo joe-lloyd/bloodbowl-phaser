@@ -196,6 +196,83 @@ function unresolvedHit(trail: string[], proneAtStart: string[]): string | null {
   return owed.size > 0 ? fixtureValue([...owed][0]) : pushedDown;
 }
 
+async function lurchToScore(
+  seed: number,
+  team2Placements: PlayerPlacement[],
+  team2Roster?: RosterName
+) {
+  const game = new HeadlessGame({
+    seed,
+    scenario: {
+      id: "ball-and-chain-score",
+      name: "Ball & Chain knocks the ball into the End Zone",
+      description: "",
+      setup: {
+        ...config.setup,
+        team1Placements: [
+          { playerIndex: FANATIC, x: 17, y: 5 },
+          { playerIndex: 0, x: 19, y: 4 },
+          { playerIndex: 1, x: 19, y: 5 },
+          { playerIndex: 2, x: 19, y: 6 },
+        ],
+        ...(team2Roster !== undefined && { team2Roster: team2Roster }),
+        team2Placements,
+        ballPosition: { x: 18, y: 5 },
+      },
+    },
+  });
+  const fanatic = game.ctx.team1.players[FANATIC];
+  await game.execute({
+    type: "declare-action",
+    playerId: fixtureValue(fanatic).id,
+    action: "ballAndChain",
+  });
+  const before = game.snapshot();
+  const responses = await lurchAll(game, fixtureValue(fanatic).id);
+  const response = {
+    ...responses.at(-1),
+    events: responses.flatMap((r) => r.events),
+  };
+  const scoredAt = response.events.findIndex(
+    (e) => e.name === GameEventNames.Touchdown
+  );
+  if (scoredAt === -1) return null;
+
+  expect(
+    fixtureValue(fanatic).gridPosition,
+    `seed ${String(seed)}`
+  ).toBeUndefined();
+  expect(
+    checkInvariants(
+      before,
+      game.snapshot(),
+      response.pendingDecision !== null
+    ),
+    `seed ${String(seed)}`
+  ).toEqual([]);
+
+  const afterwards = response.events.slice(scoredAt + 1);
+  expect(
+    afterwards.some(
+      (e) =>
+        (e.name === GameEventNames.PlayerMoved &&
+          z.object({ playerId: z.string() }).parse(e.data).playerId ===
+            fixtureValue(fanatic).id) ||
+        (e.name === GameEventNames.DiceRoll &&
+          z
+            .object({ description: z.string() })
+            .parse(e.data)
+            .description.startsWith("Ball & Chain Deviation"))
+    ),
+    `seed ${String(seed)}`
+  ).toBe(false);
+  return {
+    events: response.events,
+    scoredAt,
+    fanatic: fixtureValue(fanatic).playerName,
+  };
+}
+
 describe("a Ball & Chain lurch through a pile of players", () => {
   it("rolls each Prone player's Armour before the Fanatic moves on", async () => {
     let hitTwice = 0;
@@ -219,7 +296,8 @@ describe("a Ball & Chain lurch through a pile of players", () => {
   it("chain-pushes a boxed-in Prone player, then rolls their Armour", async () => {
     let boxedIn = 0;
     for (let seed = 1; seed <= 150 && boxedIn < 3; seed++) {
-      const [first, ...rest] = (await lurch(seed, PlayerStatus.PRONE)).trail;
+      const outcome = await lurch(seed, PlayerStatus.PRONE);
+      const [first, ...rest] = outcome.trail;
       if (first !== "lurch 3" && first !== "lurch 4") continue;
       boxedIn++;
 
@@ -261,83 +339,6 @@ describe("a Ball & Chain lurch through a pile of players", () => {
     expect(hitTwice).toBeGreaterThanOrEqual(2);
     expect(fellAfterHitting).toBeGreaterThanOrEqual(2);
   });
-
-  async function lurchToScore(
-    seed: number,
-    team2Placements: PlayerPlacement[],
-    team2Roster?: RosterName
-  ) {
-    const game = new HeadlessGame({
-      seed,
-      scenario: {
-        id: "ball-and-chain-score",
-        name: "Ball & Chain knocks the ball into the End Zone",
-        description: "",
-        setup: {
-          ...config.setup,
-          team1Placements: [
-            { playerIndex: FANATIC, x: 17, y: 5 },
-            { playerIndex: 0, x: 19, y: 4 },
-            { playerIndex: 1, x: 19, y: 5 },
-            { playerIndex: 2, x: 19, y: 6 },
-          ],
-          ...(team2Roster !== undefined && { team2Roster: team2Roster }),
-          team2Placements,
-          ballPosition: { x: 18, y: 5 },
-        },
-      },
-    });
-    const fanatic = game.ctx.team1.players[FANATIC];
-    await game.execute({
-      type: "declare-action",
-      playerId: fixtureValue(fanatic).id,
-      action: "ballAndChain",
-    });
-    const before = game.snapshot();
-    const responses = await lurchAll(game, fixtureValue(fanatic).id);
-    const response = {
-      ...responses.at(-1),
-      events: responses.flatMap((r) => r.events),
-    };
-    const scoredAt = response.events.findIndex(
-      (e) => e.name === GameEventNames.Touchdown
-    );
-    if (scoredAt === -1) return null;
-
-    expect(
-      fixtureValue(fanatic).gridPosition,
-      `seed ${String(seed)}`
-    ).toBeUndefined();
-    expect(
-      checkInvariants(
-        before,
-        game.snapshot(),
-        response.pendingDecision !== null
-      ),
-      `seed ${String(seed)}`
-    ).toEqual([]);
-
-    const afterwards = response.events.slice(scoredAt + 1);
-    expect(
-      afterwards.some(
-        (e) =>
-          (e.name === GameEventNames.PlayerMoved &&
-            z.object({ playerId: z.string() }).parse(e.data).playerId ===
-              fixtureValue(fanatic).id) ||
-          (e.name === GameEventNames.DiceRoll &&
-            z
-              .object({ description: z.string() })
-              .parse(e.data)
-              .description.startsWith("Ball & Chain Deviation"))
-      ),
-      `seed ${String(seed)}`
-    ).toBe(false);
-    return {
-      events: response.events,
-      scoredAt,
-      fanatic: fixtureValue(fanatic).playerName,
-    };
-  }
 
   it("stops when a loose ball it lurches onto is caught for a touchdown", async () => {
     let scored = 0;

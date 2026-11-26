@@ -130,7 +130,8 @@ describe("random skill rolls repeat until the player can take the skill", () => 
 
   it("rolls no dice and saves nothing when no skill in the table can be taken", () => {
     const { player } = blitzerWith();
-    for (const skill of SKILL_ROLL_TABLE[SkillCategory.GENERAL]) {
+    const generalSkills = SKILL_ROLL_TABLE[SkillCategory.GENERAL];
+    for (const skill of generalSkills) {
       if (!owned(player).includes(skill)) player.skills.push(getSkill(skill));
     }
     const dice = scriptedDice(4, 1);

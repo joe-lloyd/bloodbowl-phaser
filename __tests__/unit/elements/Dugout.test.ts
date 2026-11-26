@@ -124,7 +124,9 @@ const exits = vi.hoisted(() => ({
 vi.mock("../../../src/game/elements/pitchExits", () => ({
   playPitchExit: ({ signal }: { signal: AbortSignal }) => {
     exits.signals.push(signal);
-    return new Promise<void>((resolve) => exits.finish.push(resolve));
+    return new Promise<void>((resolve) => {
+      exits.finish.push(resolve);
+    });
   },
 }));
 
@@ -201,6 +203,8 @@ async function build(players: unknown[]) {
   );
   return { scene, dugout, sprites: dugout.getSprites() };
 }
+
+const noop = () => {};
 
 describe("Dugout", () => {
   it("stands each player on a square of their box", async () => {
@@ -352,7 +356,7 @@ describe("a player's cheer", () => {
       motion: Promise<void>;
       playCelebrateAnimation(): Promise<void>;
     };
-    let arrive = () => {};
+    let arrive = noop;
     sprite.motion = new Promise<void>((resolve) => (arrive = resolve));
 
     void sprite.playCelebrateAnimation();
@@ -373,7 +377,7 @@ describe("a player's cheer", () => {
       player: { status: PlayerStatus };
       playCelebrateAnimation(): Promise<void>;
     };
-    let arrive = () => {};
+    let arrive = noop;
     sprite.motion = new Promise<void>((resolve) => (arrive = resolve));
 
     void sprite.playCelebrateAnimation();

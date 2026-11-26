@@ -27,6 +27,41 @@ const shot = (page: Page, n: string) =>
   page.screenshot({ path: `${OUT}/${n}.png` });
 const rec = { log, shot };
 
+async function developSkills(page: Page, team: string): Promise<void> {
+  for (let k = 0; k < 15; k++) {
+    const recipient = page.getByLabel("Skill Selection recipient");
+    const named = page.getByTestId("skill-option");
+    if (await visible(recipient)) {
+      const opts = await recipient
+        .first()
+        .locator("option")
+        .allTextContents();
+      await recipient.first().selectOption({ index: 1 });
+      await page
+        .getByLabel("Skill Selection category")
+        .first()
+        .selectOption({ index: 1 });
+      log(`  ${team} recipient ${String(opts[1])}`);
+      await page
+        .getByRole("button", { name: "Take a Primary skill" })
+        .first()
+        .click();
+    } else if (await visible(named)) {
+      log(`  named ${await named.first().innerText()}`);
+      await named.first().click();
+      await page.getByRole("button", { name: "Name skill" }).first().click();
+    } else if (await clickIf(page, /^Roll D3$/)) {
+      await page.getByText(/ learned /).waitFor({ timeout: 15_000 });
+      const learned = await page.getByText(/ learned /).first().innerText();
+      log(`  D3: ${learned.replaceAll(/\s+/g, " ").slice(0, 300)}`);
+    } else if (await clickIf(page, /^(Pay|Keep|Release)/)) {
+      log(`  drafted-player offer answered`);
+    } else return;
+    await page.waitForTimeout(500);
+    await shot(page, `develop-${team}-${String(k)}`);
+  }
+}
+
 test("a full Sevens match, built and played through the UI", async ({
   page,
 }) => {
@@ -264,39 +299,7 @@ test("a full Sevens match, built and played through the UI", async ({
     await page.waitForTimeout(800);
     await shot(page, `manage-${team}`);
     log(`manage ${team} buttons=${JSON.stringify(await visibleButtons(page))}`);
-    for (let k = 0; k < 15; k++) {
-      const recipient = page.getByLabel("Skill Selection recipient");
-      const named = page.getByTestId("skill-option");
-      if (await visible(recipient)) {
-        const opts = await recipient
-          .first()
-          .locator("option")
-          .allTextContents();
-        await recipient.first().selectOption({ index: 1 });
-        await page
-          .getByLabel("Skill Selection category")
-          .first()
-          .selectOption({ index: 1 });
-        log(`  ${team} recipient ${String(opts[1])}`);
-        await page
-          .getByRole("button", { name: "Take a Primary skill" })
-          .first()
-          .click();
-      } else if (await visible(named)) {
-        log(`  named ${await named.first().innerText()}`);
-        await named.first().click();
-        await page.getByRole("button", { name: "Name skill" }).first().click();
-      } else if (await clickIf(page, /^Roll D3$/)) {
-        await page.getByText(/ learned /).waitFor({ timeout: 15_000 });
-        log(
-          `  D3: ${(await page.getByText(/ learned /).first().innerText()).replaceAll(/\s+/g, " ").slice(0, 300)}`
-        );
-      } else if (await clickIf(page, /^(Pay|Keep|Release)/)) {
-        log(`  drafted-player offer answered`);
-      } else break;
-      await page.waitForTimeout(500);
-      await shot(page, `develop-${team}-${String(k)}`);
-    }
+    await developSkills(page, team);
   }
   await page.goto("/build-team");
   await page.waitForTimeout(1000);

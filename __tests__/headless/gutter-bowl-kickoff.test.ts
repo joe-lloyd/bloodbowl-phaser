@@ -22,8 +22,8 @@ import {
   variantKick,
 } from "./variantKickoffs";
 
-const street = (dice: number[], extra: Partial<Parameters<typeof variantKick>[0]> = {}) =>
-  variantKick({ format: GUTTER_STREET, setup: GUTTER_SETUP, dice, ...extra });
+const street = (dice: number[]) =>
+  variantKick({ format: GUTTER_STREET, setup: GUTTER_SETUP, dice });
 const sewer = (dice: number[], extra: Partial<Parameters<typeof variantKick>[0]> = {}) =>
   variantKick({ format: GUTTER_SEWER, setup: GUTTER_SETUP, dice, ...extra });
 
@@ -66,10 +66,14 @@ describe("Gutter Bowl street kick-off table", () => {
     const blocker = playerOf(game, "team1", 0).id;
 
     expect(response.pendingDecision).toMatchObject({ type: "kickoff-event", event: KickoffEvent.QUICK_ATTACK, chooserTeamId: "team1", selectionLimit: 1 });
-    expect((await game.execute({ type: "kickoff-select-player", playerId: blocker })).ok).toBe(true);
-    expect((await game.execute({ type: "kickoff-confirm" })).ok).toBe(true);
-    expect((await game.execute({ type: "declare-action", playerId: blocker, action: "move" })).ok).toBe(false);
-    expect((await game.execute({ type: "declare-action", playerId: blocker, action: "block" })).ok).toBe(true);
+    const selected = await game.execute({ type: "kickoff-select-player", playerId: blocker });
+    expect(selected.ok).toBe(true);
+    const confirmed = await game.execute({ type: "kickoff-confirm" });
+    expect(confirmed.ok).toBe(true);
+    const moved = await game.execute({ type: "declare-action", playerId: blocker, action: "move" });
+    expect(moved.ok).toBe(false);
+    const blocked = await game.execute({ type: "declare-action", playerId: blocker, action: "block" });
+    expect(blocked.ok).toBe(true);
   });
 
   it("GB-KS5 Rogue Washing Line keeps a random player per team from acting next turn", async () => {

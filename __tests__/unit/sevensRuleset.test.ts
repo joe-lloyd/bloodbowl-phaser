@@ -82,9 +82,8 @@ describe("GW baseline and dated NAF Sevens rulings", () => {
         ...input,
         ruleset: NAF_SEVENS_RULESET,
       });
-      expect((await getCompetition(type, competition.id))?.ruleset).toBe(
-        "naf-sevens-2026-09-26"
-      );
+      const saved = await getCompetition(type, competition.id);
+      expect(saved?.ruleset).toBe("naf-sevens-2026-09-26");
       expect(team.activeCompetitionId).toBe(competition.id);
     }
   );
@@ -170,9 +169,8 @@ describe("GW baseline and dated NAF Sevens rulings", () => {
         return latest;
       })
     ).rejects.toThrow("cannot change");
-    expect((await getCompetition("league", competition.id))?.ruleset).toBe(
-      "naf-sevens-2026-09-26"
-    );
+    const saved = await getCompetition("league", competition.id);
+    expect(saved?.ruleset).toBe("naf-sevens-2026-09-26");
   });
 
   it("refuses an unknown profile rather than silently adopting different rules", () => {

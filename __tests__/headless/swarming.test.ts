@@ -42,14 +42,11 @@ function snotlings(linemen = 7): Team {
 }
 
 async function setUp(game: HeadlessGame) {
-  expect(
-    (
-      await game.execute({
-        type: "start-setup",
-        kickingTeamId: game.ctx.team1.id,
-      })
-    ).ok
-  ).toBe(true);
+  const started = await game.execute({
+    type: "start-setup",
+    kickingTeamId: game.ctx.team1.id,
+  });
+  expect(started.ok).toBe(true);
   for (const [team, isTeam1] of [
     [game.ctx.team1, true],
     [game.ctx.team2, false],
@@ -57,18 +54,17 @@ async function setUp(game: HeadlessGame) {
     const formation = fixtureValue(
       new FormationManager().getBuiltInFormations(isTeam1)[0]
     ).positions;
-    expect(
-      (
-        await game.execute({
-          type: "apply-formation",
-          teamId: team.id,
-          formation,
-        })
-      ).ok
-    ).toBe(true);
-    expect(
-      (await game.execute({ type: "confirm-setup", teamId: team.id })).ok
-    ).toBe(true);
+    const applied = await game.execute({
+      type: "apply-formation",
+      teamId: team.id,
+      formation,
+    });
+    expect(applied.ok).toBe(true);
+    const confirmed = await game.execute({
+      type: "confirm-setup",
+      teamId: team.id,
+    });
+    expect(confirmed.ok).toBe(true);
   }
 }
 
@@ -119,10 +115,8 @@ describe("2025 Swarming through the match protocol", () => {
     const game = gameWith(snotlings());
     await setUp(game);
     expect(game.snapshot().phase).toBe(GamePhase.SETUP);
-    const legal = fixtureValue(
-      fixtureValue((await game.execute({ type: "legal-actions" })).legalActions)
-        .setup
-    );
+    const legalResponse = await game.execute({ type: "legal-actions" });
+    const legal = fixtureValue(fixtureValue(legalResponse.legalActions).setup);
     expect(legal.status.swarming).toEqual({
       roll: 3,
       maximumAdditionalPlayers: 3,
@@ -140,24 +134,22 @@ describe("2025 Swarming through the match protocol", () => {
     expect(neutral.ok).toBe(false);
     expect(neutral.reason).toContain("between the Lines");
     for (const [index, y] of [2, 3, 7].entries()) {
-      expect(
-        (
-          await game.execute({
-            type: "place-player",
-            playerId: fixtureValue(game.ctx.team1.players[7 + index]).id,
-            x: 6,
-            y,
-          })
-        ).ok
-      ).toBe(true);
+      const placed = await game.execute({
+        type: "place-player",
+        playerId: fixtureValue(game.ctx.team1.players[7 + index]).id,
+        x: 6,
+        y,
+      });
+      expect(placed.ok).toBe(true);
     }
     expect(
       game.ctx.team1.players.filter((player) => player.gridPosition)
     ).toHaveLength(10);
-    expect(
-      (await game.execute({ type: "confirm-setup", teamId: game.ctx.team1.id }))
-        .ok
-    ).toBe(true);
+    const team1Confirmed = await game.execute({
+      type: "confirm-setup",
+      teamId: game.ctx.team1.id,
+    });
+    expect(team1Confirmed.ok).toBe(true);
     expect(game.snapshot().phase).toBe(GamePhase.KICKOFF);
     expect(game.snapshot().activeTeamId).toBe(game.ctx.team2.id);
   });
@@ -167,66 +159,51 @@ describe("2025 Swarming through the match protocol", () => {
     await setUp(game);
     const base = game.ctx.team1.players[0];
     const position = { ...fixtureValue(fixtureValue(base).gridPosition) };
-    expect(
-      (
-        await game.execute({
-          type: "place-player",
-          playerId: fixtureValue(base).id,
-          x: 1,
-          y: 2,
-        })
-      ).ok
-    ).toBe(false);
+    const basePlaced = await game.execute({
+      type: "place-player",
+      playerId: fixtureValue(base).id,
+      x: 1,
+      y: 2,
+    });
+    expect(basePlaced.ok).toBe(false);
     await game.execute({
       type: "remove-player",
       playerId: fixtureValue(base).id,
     });
     expect(fixtureValue(base).gridPosition).toEqual(position);
-    expect(
-      (
-        await game.execute({
-          type: "place-player",
-          playerId: fixtureValue(game.ctx.team1.players[10]).id,
-          x: 1,
-          y: 2,
-        })
-      ).ok
-    ).toBe(false);
-    expect(
-      (
-        await game.execute({
-          type: "swap-players",
-          player1Id: fixtureValue(base).id,
-          player2Id: fixtureValue(game.ctx.team1.players[7]).id,
-        })
-      ).ok
-    ).toBe(false);
+    const eighthPlaced = await game.execute({
+      type: "place-player",
+      playerId: fixtureValue(game.ctx.team1.players[10]).id,
+      x: 1,
+      y: 2,
+    });
+    expect(eighthPlaced.ok).toBe(false);
+    const swapped = await game.execute({
+      type: "swap-players",
+      player1Id: fixtureValue(base).id,
+      player2Id: fixtureValue(game.ctx.team1.players[7]).id,
+    });
+    expect(swapped.ok).toBe(false);
   });
 
   it("caps additions at the D3 result and allows declining them", async () => {
     const game = gameWith(snotlings());
     game.rollDieSpy.mockReturnValue(1);
     await setUp(game);
-    expect(
-      (
-        await game.execute({
-          type: "place-player",
-          playerId: fixtureValue(game.ctx.team1.players[7]).id,
-          x: 5,
-          y: 4,
-        })
-      ).ok
-    ).toBe(true);
-    expect(
-      (
-        await game.execute({
-          type: "place-player",
-          playerId: fixtureValue(game.ctx.team1.players[8]).id,
-          x: 5,
-          y: 5,
-        })
-      ).ok
-    ).toBe(false);
+    const firstAddition = await game.execute({
+      type: "place-player",
+      playerId: fixtureValue(game.ctx.team1.players[7]).id,
+      x: 5,
+      y: 4,
+    });
+    expect(firstAddition.ok).toBe(true);
+    const secondAddition = await game.execute({
+      type: "place-player",
+      playerId: fixtureValue(game.ctx.team1.players[8]).id,
+      x: 5,
+      y: 5,
+    });
+    expect(secondAddition.ok).toBe(false);
     const declined = gameWith(snotlings());
     await setUp(declined);
     await declined.execute({
@@ -294,8 +271,10 @@ describe("2025 Swarming through the match protocol", () => {
       expect(game.snapshot().activeTeamId).toBe(team.id);
       const choice = await enumerateDecision(game, game.ctx.team1.id);
       expect(fixtureValue(choice.candidates[0]).label).toContain("Swarming");
-      for (const command of fixtureValue(choice.candidates[0]).commands) {
-        expect((await game.execute(command)).ok).toBe(true);
+      const commands = fixtureValue(choice.candidates[0]).commands;
+      for (const command of commands) {
+        const commandResult = await game.execute(command);
+        expect(commandResult.ok).toBe(true);
       }
       expect(team.players.filter((player) => player.gridPosition)).toHaveLength(
         10

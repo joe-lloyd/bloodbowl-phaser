@@ -37,24 +37,26 @@ interface Counter {
   stopped: boolean;
 }
 
+class Shape {
+  y = 0;
+  setStrokeStyle() {}
+  setScale() {}
+  setAlpha() {}
+  setDepth() {
+    return this;
+  }
+  lineStyle() {}
+  lineBetween() {}
+  clear() {}
+  fillStyle() {}
+  fillCircle() {}
+  strokeEllipse() {}
+  add() {}
+}
+const shape = () => new Shape();
+
 function fakeScene() {
   const counters: Counter[] = [];
-  const shape = () => ({
-    setStrokeStyle() {},
-    setScale() {},
-    setAlpha() {},
-    setDepth() {
-      return this;
-    },
-    lineStyle() {},
-    lineBetween() {},
-    clear() {},
-    fillStyle() {},
-    fillCircle() {},
-    strokeEllipse() {},
-    add() {},
-    y: 0,
-  });
   const scene = {
     events: new EventEmitter(),
     time: { now: 0 },

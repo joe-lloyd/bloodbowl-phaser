@@ -51,14 +51,15 @@ describe("two pages that say hello at once", () => {
         myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
         peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
         hostTeamId: game.ctx.team1.id,
-        onDesync: (detail) => desyncs.push(`${side}: ${detail}`),
+        onDesync: (detail) => { desyncs.push(`${side}: ${detail}`); },
       });
     const host = session(hostGame, hostEnd, "host");
     const guest = session(guestGame, guestEnd, "guest");
 
     await Promise.all([host.sendHello(), guest.sendHello()]);
     for (const step of recording.steps.slice(0, 40)) {
-      if (!(await host.run(step.command)).ok) await guest.run(step.command);
+      const hostResult = await host.run(step.command);
+      if (!hostResult.ok) await guest.run(step.command);
       await settle(host, guest);
     }
 

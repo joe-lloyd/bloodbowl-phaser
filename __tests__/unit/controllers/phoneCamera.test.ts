@@ -8,9 +8,14 @@ const LANDSCAPE = { width: 844, height: 390 };
 const PORTRAIT = { width: 390, height: 844 };
 const SMALLEST_TILE_PX = 20;
 const TILE_PX = 70 * Math.SQRT1_2;
+const ignore = () => undefined;
+const at = (x: number, y: number) => {
+  const p = gridPointToPixel(x, y);
+  return { x: 2000 + p.x, y: 1000 + p.y };
+};
 
 function setup(size: { width: number; height: number }, phone = true) {
-  let resized = () => undefined;
+  let resized = ignore;
   const zooms: number[] = [];
   const camera = {
     zoom: 0.35,
@@ -26,31 +31,31 @@ function setup(size: { width: number; height: number }, phone = true) {
     setBounds: () => undefined,
     getBounds: () => ({ x: 0, y: 0, right: 5000, bottom: 3500 }),
     setZoom(zoom = 1) {
-      this.zoom = zoom;
+      camera.zoom = zoom;
       zooms.push(zoom);
     },
     centerOn(x: number, y: number) {
-      this.scrollX = x - this.width / 2;
-      this.scrollY = y - this.height / 2;
+      camera.scrollX = x - camera.width / 2;
+      camera.scrollY = y - camera.height / 2;
     },
     pan(x: number, y: number) {
-      this.centerOn(x, y);
+      camera.centerOn(x, y);
     },
     zoomTo(zoom: number) {
-      this.setZoom(zoom);
+      camera.setZoom(zoom);
     },
     once: () => undefined,
     off: () => undefined,
     setFollowOffset(x = 0, y = 0) {
-      this.offset = { x, y };
+      camera.offset = { x, y };
     },
     following: false,
     offset: { x: 0, y: 0 },
     startFollow() {
-      this.following = true;
+      camera.following = true;
     },
     stopFollow() {
-      this.following = false;
+      camera.following = false;
     },
     shake: () => undefined,
     panEffect: { isRunning: false, reset: () => undefined },
@@ -67,10 +72,6 @@ function setup(size: { width: number; height: number }, phone = true) {
     off: () => undefined,
   };
   const hud: ScreenRect[] = [{ left: 0, top: 0, right: size.width, bottom: 84 }];
-  const at = (x: number, y: number) => {
-    const p = gridPointToPixel(x, y);
-    return { x: 2000 + p.x, y: 1000 + p.y };
-  };
   const controller = new CameraController({
     scene: {
       events: { on: () => undefined, off: () => undefined },
@@ -105,6 +106,13 @@ function setup(size: { width: number; height: number }, phone = true) {
 }
 
 const ball = { x: 2400, y: 1300 };
+
+const kick = () => {
+  const rig = setup(LANDSCAPE);
+  rig.controller.overview();
+  rig.controller.follow(ball);
+  return rig;
+};
 
 const diceBox = (size: { width: number; height: number }): ScreenRect => ({
   left: 0,
@@ -201,13 +209,6 @@ describe("the camera on a phone, through a run of rolls", () => {
   });
 
   describe("following a kicked ball", () => {
-    const kick = (size = LANDSCAPE) => {
-      const rig = setup(size);
-      rig.controller.overview();
-      rig.controller.follow(ball);
-      return rig;
-    };
-
     it("keeps on it while the HUD changes", () => {
       const { controller, camera, hud } = kick();
       hud.push({ left: 0, top: 290, right: 844, bottom: 390 });

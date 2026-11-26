@@ -14,6 +14,41 @@ const scrimmage = fixtureValue(
   SCENARIOS.find((s) => s.id === "basic-scrimmage")
 );
 
+const play = (restoreViaSnapshot: boolean): boolean[] => {
+  const original = createHeadlessGame({ scenario: scrimmage, seed: 77 });
+
+  let game = original;
+  if (restoreViaSnapshot) {
+    const snapshot = parseJson(
+      JSON.stringify(
+        serializeGameState(original.gameService.getState(), [
+          original.team1,
+          original.team2,
+        ])
+      ),
+      gameSnapshotSchema
+    );
+    const restoredState = deserializeGameState(snapshot);
+    game = createHeadlessGame({
+      scenario: scrimmage,
+      seed: 77,
+      initialState: restoredState,
+    });
+    applySnapshotToTeams(snapshot, [game.team1, game.team2]);
+  }
+
+  const results: boolean[] = [];
+  for (let i = 0; i < 5; i++) {
+    const player = game.team1.players[0];
+    const ball = fixtureValue(game.gameService.getState().ballPosition);
+    results.push(
+      game.gameService.attemptPickup(fixtureValue(player), ball)
+    );
+    game.gameService.setBallPosition(ball.x, ball.y);
+  }
+  return results;
+};
+
 describe("game state serialization", () => {
   it("survives a JSON round-trip with no Set/Map artifacts", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 11 });
@@ -89,40 +124,6 @@ describe("game state serialization", () => {
   });
 
   it("restores a mid-turn game that continues playing identically", () => {
-    const play = (restoreViaSnapshot: boolean): boolean[] => {
-      const original = createHeadlessGame({ scenario: scrimmage, seed: 77 });
-
-      let game = original;
-      if (restoreViaSnapshot) {
-        const snapshot = parseJson(
-          JSON.stringify(
-            serializeGameState(original.gameService.getState(), [
-              original.team1,
-              original.team2,
-            ])
-          ),
-          gameSnapshotSchema
-        );
-        const restoredState = deserializeGameState(snapshot);
-        game = createHeadlessGame({
-          scenario: scrimmage,
-          seed: 77,
-          initialState: restoredState,
-        });
-        applySnapshotToTeams(snapshot, [game.team1, game.team2]);
-      }
-
-      const results: boolean[] = [];
-      for (let i = 0; i < 5; i++) {
-        const player = game.team1.players[0];
-        const ball = fixtureValue(game.gameService.getState().ballPosition);
-        results.push(
-          game.gameService.attemptPickup(fixtureValue(player), ball)
-        );
-        game.gameService.setBallPosition(ball.x, ball.y);
-      }
-      return results;
-    };
 
     expect(play(true)).toEqual(play(false));
   });

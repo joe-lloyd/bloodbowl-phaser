@@ -2,22 +2,23 @@ import { describe, it, expect } from "vitest";
 import { FoulValidator } from "@/game/validators/FoulValidator";
 import { type Player, PlayerStatus } from "@/types/Player";
 
+const mockPlayer = (
+  id: string,
+  teamId: string,
+  x: number,
+  y: number
+): Player =>
+  ({
+    id,
+    teamId,
+    gridPosition: { x, y },
+    status: PlayerStatus.ACTIVE,
+    skills: [],
+  }) as any;
+
 describe("FoulValidator", () => {
   const validator = new FoulValidator();
 
-  const mockPlayer = (
-    id: string,
-    teamId: string,
-    x: number,
-    y: number
-  ): Player =>
-    ({
-      id,
-      teamId,
-      gridPosition: { x, y },
-      status: PlayerStatus.ACTIVE,
-      skills: [],
-    }) as any;
 
   it("should calculate positive modifier for offensive assists", () => {
     const fouler = mockPlayer("fouler", "T1", 5, 5);

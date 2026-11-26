@@ -253,9 +253,9 @@ describe("decision dialogs wait for the die to land", () => {
     });
     expect(shown("block-die-0")?.textContent).toBe("POW");
     const selections: unknown[] = [];
-    bus.on(GameEventNames.UI_BlockResultSelected, (selection) =>
-      selections.push(selection)
-    );
+    bus.on(GameEventNames.UI_BlockResultSelected, (selection) => {
+      selections.push(selection);
+    });
     await act(async () => {
       bus.emit(GameEventNames.UI_BlockDieClicked, { index: 0 });
     });

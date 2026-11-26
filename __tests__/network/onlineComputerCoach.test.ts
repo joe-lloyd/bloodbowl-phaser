@@ -31,6 +31,7 @@ vi.mock("../../src/firebase/lobby", async (load) => ({
 }));
 
 const matches: OnlineMatch[] = [];
+const releaseNoop = () => {};
 afterEach(() => {
   for (const match of matches.splice(0)) {
     match.close();
@@ -197,14 +198,11 @@ describe("the online computer coach", () => {
           ).toBe(true);
         });
       const humanReady = async () => {
-        expect(
-          (
-            await human.match.run({
-              type: "ready-weather",
-              teamId: human.match.myTeamId,
-            })
-          ).ok
-        ).toBe(true);
+        const result = await human.match.run({
+          type: "ready-weather",
+          teamId: human.match.myTeamId,
+        });
+        expect(result.ok).toBe(true);
       };
 
       if (side === "guest") {
@@ -294,7 +292,7 @@ describe("the online computer coach", () => {
       const lobby = matchPosition();
       connect(lobby, "guest", guestEnd);
       const bot = connect(lobby, "host", hostEnd, true);
-      let release = () => {};
+      let release = releaseNoop;
       const drawing = new Promise<void>((resolve) => {
         release = resolve;
       });

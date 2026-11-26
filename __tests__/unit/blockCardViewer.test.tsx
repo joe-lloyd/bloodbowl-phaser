@@ -68,7 +68,7 @@ async function showBlock(
   });
   return [
     ...container.querySelectorAll(
-      '[data-testid="block-roll-analysis"] > p, [data-testid="block-roll-analysis"] > div > div'
+      ':scope [data-testid="block-roll-analysis"] > p, :scope [data-testid="block-roll-analysis"] > div > div'
     ),
   ].map((line) => line.textContent);
 }

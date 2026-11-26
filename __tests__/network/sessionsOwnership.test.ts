@@ -101,16 +101,13 @@ describe("networked sessions", () => {
     });
     const [first, second] = match.game.ctx.team2.players;
 
-    expect(
-      (
-        await match.guest.sendCommand({
-          type: "place-player",
-          playerId: fixtureValue(first).id,
-          x: 14,
-          y: 0,
-        })
-      ).ok
-    ).toBe(true);
+    const firstPlacement = await match.guest.sendCommand({
+      type: "place-player",
+      playerId: fixtureValue(first).id,
+      x: 14,
+      y: 0,
+    });
+    expect(firstPlacement.ok).toBe(true);
     const response = await match.guest.sendCommand({
       type: "place-player",
       playerId: fixtureValue(second).id,

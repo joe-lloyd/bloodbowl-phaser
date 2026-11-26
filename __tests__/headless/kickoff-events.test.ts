@@ -44,7 +44,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
 
   it("reproduces and applies every result through the headless protocol", async () => {
     const found = await findEveryEvent();
-    expect([...found.keys()].sort()).toHaveLength(11);
+    expect([...found.keys()].sort((a, b) => a.localeCompare(b))).toHaveLength(11);
 
     for (const [event, run] of found) {
       expect(run.result.meaning).toBe(KICKOFF_EVENT_MEANING[event]);
@@ -52,8 +52,8 @@ describe("Sevens kickoff events (seeded headless)", () => {
       expect(Object.keys(run.result.outcome.perTeam).length).toBeGreaterThan(0);
     }
 
-    const getRef = fixtureValue(found.get(KickoffEvent.GET_THE_REF));
-    expect(getRef.game.snapshot().bribes).toEqual({ team1: 1, team2: 1 });
+    const theRef = fixtureValue(found.get(KickoffEvent.GET_THE_REF));
+    expect(theRef.game.snapshot().bribes).toEqual({ team1: 1, team2: 1 });
 
     const timeout = fixtureValue(found.get(KickoffEvent.TIME_OUT));
     expect(timeout.game.ctx.gameService.getTurnNumber("team1")).toBe(3);
@@ -320,14 +320,11 @@ describe("Sevens kickoff events (seeded headless)", () => {
             player.gridPosition.y !== landing.y)
       )
     );
-    expect(
-      (
-        await high.game.execute({
-          type: "kickoff-select-player",
-          playerId: receiver.id,
-        })
-      ).ok
-    ).toBe(true);
+    const selected = await high.game.execute({
+      type: "kickoff-select-player",
+      playerId: receiver.id,
+    });
+    expect(selected.ok).toBe(true);
     const placed = await high.game.execute({
       type: "kickoff-place-player",
       playerId: receiver.id,

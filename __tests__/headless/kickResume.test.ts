@@ -76,7 +76,8 @@ function freshGame(table: KickoffTableId, seed: number, watch: { onDelay: Watch 
     }
     SetupManager.sanitizeTeam(team);
     team.rerolls = 0;
-    for (const [at, square] of line(index === 0).entries()) {
+    const lineEntries = line(index === 0).entries();
+    for (const [at, square] of lineEntries) {
       const player = fixtureValue(team.players[at]);
       player.gridPosition = { ...square };
       player.status = PlayerStatus.ACTIVE;
@@ -237,7 +238,8 @@ function nextDrive(game: HeadlessGame): void {
         status === PlayerStatus.STUNNED
     );
     for (const player of team.players) delete player.gridPosition;
-    for (const [at, square] of line(index === 0).entries()) {
+    const lineEntries = line(index === 0).entries();
+    for (const [at, square] of lineEntries) {
       const player = fit[at];
       if (!player) continue;
       player.gridPosition = { ...square };
@@ -299,7 +301,9 @@ async function uninterrupted(table: KickoffTableId, seed: number, corner: boolea
   const final = await play(game, {
     script,
     corner,
-    atRest: (label) => moments.push(momentOf(game, label, script)),
+    atRest: (label) => {
+      moments.push(momentOf(game, label, script));
+    },
   });
   watch.onDelay = () => undefined;
   return { moments, final };
@@ -342,8 +346,8 @@ async function seedFor(table: KickoffTableId, event: KickoffEvent): Promise<numb
     });
     await quiet(game);
     const { kick } = game.ctx.gameService.getState();
-    const step = game.pendingDecision()?.type === "kickoff-event";
     if (kick?.resolution?.event !== event) continue;
+    const step = game.pendingDecision()?.type === "kickoff-event";
     if (event === KickoffEvent.HIGH_KICK && !step) continue;
     return seed;
   }
@@ -375,21 +379,21 @@ async function sweep(table: KickoffTableId, seed: number, corner: boolean) {
   return { failures, labels: moments.map(({ label }) => label) };
 }
 
-describe("a kick-off restored at every stage", () => {
-  const expectedStops = (event: KickoffEvent) => {
-    if (event === KickoffEvent.HIGH_KICK)
-      return ["high-kick before kickoff-select-player", "high-kick before kickoff-place-player"];
-    return kickoffTurnPlay(event)
-      ? [
-          ...(event === KickoffEvent.GET_READY_LADS
-            ? []
-            : ["coach before kickoff-select-player"]),
-          "coach before kickoff-confirm",
-          "coach before kickoff-reselect",
-        ]
-      : [];
-  };
+const expectedStops = (event: KickoffEvent) => {
+  if (event === KickoffEvent.HIGH_KICK)
+    return ["high-kick before kickoff-select-player", "high-kick before kickoff-place-player"];
+  return kickoffTurnPlay(event)
+    ? [
+        ...(event === KickoffEvent.GET_READY_LADS
+          ? []
+          : ["coach before kickoff-select-player"]),
+        "coach before kickoff-confirm",
+        "coach before kickoff-reselect",
+      ]
+    : [];
+};
 
+describe("a kick-off restored at every stage", () => {
   it.each(EVENTS)(
     "$event on the $table table finishes as if it had never stopped",
     async ({ table, event }) => {

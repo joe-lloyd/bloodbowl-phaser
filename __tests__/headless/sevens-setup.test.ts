@@ -10,19 +10,19 @@ import {
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 
-async function begin(game: HeadlessGame, kickingTeamId = game.ctx.team1.id) {
+async function begin(game: HeadlessGame) {
   const response = await game.execute({
     type: "start-setup",
-    kickingTeamId,
+    kickingTeamId: game.ctx.team1.id,
   });
   expect(response.ok).toBe(true);
 }
 
-function preset(isTeam1: boolean, name = "Balanced") {
+function preset(isTeam1: boolean) {
   return fixtureValue(
     new FormationManager()
       .getBuiltInFormations(isTeam1)
-      .find((formation) => formation.name === name)
+      .find((formation) => formation.name === "Balanced")
   ).positions;
 }
 
@@ -58,15 +58,12 @@ describe("Sevens setup through the headless protocol", () => {
       ],
     });
 
-    expect(
-      (
-        await game.execute({
-          type: "apply-formation",
-          teamId: game.ctx.team1.id,
-          formation: preset(true),
-        })
-      ).ok
-    ).toBe(true);
+    const applied = await game.execute({
+      type: "apply-formation",
+      teamId: game.ctx.team1.id,
+      formation: preset(true),
+    });
+    expect(applied.ok).toBe(true);
     const confirmed = await game.execute({
       type: "confirm-setup",
       teamId: game.ctx.team1.id,
@@ -100,16 +97,13 @@ describe("Sevens setup through the headless protocol", () => {
     expect(neutral.ok).toBe(false);
     expect(neutral.reason).toContain("between the Lines of Scrimmage");
 
-    expect(
-      (
-        await game.execute({
-          type: "place-player",
-          playerId: fixtureValue(first).id,
-          x: 5,
-          y: 0,
-        })
-      ).ok
-    ).toBe(true);
+    const firstPlaced = await game.execute({
+      type: "place-player",
+      playerId: fixtureValue(first).id,
+      x: 5,
+      y: 0,
+    });
+    expect(firstPlaced.ok).toBe(true);
     const wide = await game.execute({
       type: "place-player",
       playerId: fixtureValue(second).id,
@@ -171,26 +165,20 @@ describe("Sevens setup through the headless protocol", () => {
       canPlace: false,
       canChooseConcession: true,
     });
-    expect(
-      (
-        await game.execute({
-          type: "place-player",
-          playerId: fixtureValue(game.ctx.team1.players[0]).id,
-          x: 6,
-          y: 4,
-        })
-      ).reason
-    ).toContain("Choose whether to concede");
+    const placement = await game.execute({
+      type: "place-player",
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      x: 6,
+      y: 4,
+    });
+    expect(placement.reason).toContain("Choose whether to concede");
 
-    expect(
-      (
-        await game.execute({
-          type: "setup-concession",
-          teamId: game.ctx.team1.id,
-          concede: false,
-        })
-      ).ok
-    ).toBe(true);
+    const conceded = await game.execute({
+      type: "setup-concession",
+      teamId: game.ctx.team1.id,
+      concede: false,
+    });
+    expect(conceded.ok).toBe(true);
     const applied = await game.execute({
       type: "apply-formation",
       teamId: game.ctx.team1.id,
@@ -212,18 +200,17 @@ describe("Sevens setup through the headless protocol", () => {
     ;
     await begin(game);
     const [team1, team2] = [game.ctx.team1.id, game.ctx.team2.id];
-    expect(
-      (
-        await game.execute({
-          type: "setup-concession",
-          teamId: team1,
-          concede: false,
-        })
-      ).ok
-    ).toBe(true);
-    expect(
-      (await game.execute({ type: "confirm-setup", teamId: team1 })).ok
-    ).toBe(true);
+    const conceded = await game.execute({
+      type: "setup-concession",
+      teamId: team1,
+      concede: false,
+    });
+    expect(conceded.ok).toBe(true);
+    const team1Confirmed = await game.execute({
+      type: "confirm-setup",
+      teamId: team1,
+    });
+    expect(team1Confirmed.ok).toBe(true);
     await game.execute({
       type: "apply-formation",
       teamId: team2,

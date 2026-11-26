@@ -43,6 +43,9 @@ const held: Pick<OnlineMatch, "mayAct" | "waitingLabel"> = {
   waitingLabel: () => "Reconnecting to Coach-KWAZ…",
 };
 
+const button = () =>
+  container.querySelector<HTMLButtonElement>('[data-testid="end-turn"]');
+
 const banners = () =>
   [...container.querySelectorAll('[data-testid$="-banner"]')].map(
     (banner) => banner.textContent
@@ -98,8 +101,6 @@ it("disables End Turn while input is held", async () => {
       />
     );
   });
-  const button = () =>
-    container.querySelector<HTMLButtonElement>('[data-testid="end-turn"]');
   expect(button()?.disabled).toBe(false);
   mayAct = false;
   await act(async () => vi.advanceTimersByTime(500));

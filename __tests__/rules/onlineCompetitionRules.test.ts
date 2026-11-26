@@ -94,9 +94,8 @@ describe.skipIf(!EMULATOR)("online competitions", () => {
     const organizer = uniqueUid("organizer");
     const amy = uniqueUid("amy");
     const league = await openLeague(organizer);
-    expect(
-      (await as(amy, () => listOpenCompetitions("league"))).map((found) => found.id)
-    ).toContain(league.id);
+    const amyOpen = await as(amy, () => listOpenCompetitions("league"));
+    expect(amyOpen.map((found) => found.id)).toContain(league.id);
 
     await as(amy, () => enterCompetition({ competition: league, team: coachTeam(), uid: amy }));
     const entered = await stored(league, amy);
@@ -113,7 +112,8 @@ describe.skipIf(!EMULATOR)("online competitions", () => {
     );
 
     await as(amy, () => leaveCompetition({ competition: entered, uid: amy }));
-    expect((await stored(league, amy)).entrants).toEqual([]);
+    const amyAfterLeave = await stored(league, amy);
+    expect(amyAfterLeave.entrants).toEqual([]);
   });
 
   it("refuse a team entered in another coach's name, past the last place, or after the start", async () => {
@@ -132,9 +132,8 @@ describe.skipIf(!EMULATOR)("online competitions", () => {
       )
     );
     await as(bob, () => enterCompetition({ competition: league, team: coachTeam(), uid: bob }));
-    expect(
-      (await as(mallory, () => listOpenCompetitions("league"))).map((found) => found.id)
-    ).not.toContain(league.id);
+    const mallorySees = await as(mallory, () => listOpenCompetitions("league"));
+    expect(mallorySees.map((found) => found.id)).not.toContain(league.id);
     await denied(
       as(mallory, () =>
         updateCompetition("league", league.id, (latest) => ({
@@ -194,9 +193,10 @@ describe.skipIf(!EMULATOR)("online competitions", () => {
         })
       )
     );
-    expect((await stored(league, amy)).entrants).toHaveLength(2);
+    const amyEntered = await stored(league, amy);
+    expect(amyEntered.entrants).toHaveLength(2);
 
-    const amyEntrant = (await stored(league, amy)).entrants.find((entrant) => entrant.ownerUid === amy);
+    const amyEntrant = amyEntered.entrants.find((entrant) => entrant.ownerUid === amy);
     await denied(
       as(mallory, () =>
         updateCompetition("league", league.id, (latest) => ({
@@ -247,7 +247,8 @@ describe.skipIf(!EMULATOR)("online competitions", () => {
     expect(started.status).toBe("active");
     expect(started.entrants.filter((entrant) => entrant.computerCoached)).toHaveLength(3);
     expect(started.fixtures).toHaveLength(6);
-    expect((await stored(league, amy)).online?.startedAt).toBeTypeOf("number");
+    const amyStarted = await stored(league, amy);
+    expect(amyStarted.online?.startedAt).toBeTypeOf("number");
     const late = uniqueUid("late");
     await expect(
       as(late, () => enterCompetition({ competition: started, team: coachTeam(), uid: late }))

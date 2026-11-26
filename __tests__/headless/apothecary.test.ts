@@ -37,6 +37,56 @@ async function answer(game: HeadlessGame, accept: boolean) {
   return response;
 }
 
+const run = async () => {
+  const game = newGame(77);
+  game.ctx.team1.apothecary = true;
+  const player = game.ctx.team1.players[0];
+  vi.spyOn(
+    game.ctx.gameService.getDiceController(),
+    "roll2D6"
+  ).mockReturnValue(10);
+  await runUntilSettledOrDecision(
+    game,
+    new InjuryOperation(fixtureValue(player).id)
+  );
+  const response = await answer(game, true);
+  return JSON.stringify(response.snapshot);
+};
+
+async function blockByPlagueRidden(game: HeadlessGame) {
+  game.ctx.team1.apothecary = true;
+  const victim = game.ctx.team1.players[0];
+  const killer = game.ctx.team2.players[0];
+  fixtureValue(killer).skills.push(getSkill(SkillType.PLAGUE_RIDDEN));
+  await runUntilSettledOrDecision(
+    game,
+    new InjuryOperation(fixtureValue(victim).id, {
+      causedById: fixtureValue(killer).id,
+      cause: "block",
+    })
+  );
+  return { victim, killer };
+}
+
+const kills = (events: { name: string; data?: unknown }[]) =>
+  events
+    .filter((e) => e.name === GameEventNames.PlayerKilled)
+    .map((e) => e.data);
+
+async function casualty(dice: number[]) {
+  const game = new HeadlessGame({
+    scenario: scrimmage,
+    seed: 1,
+    competition: true,
+  });
+  game.ctx.team1.advancementMode = "advanced-league";
+  game.ctx.team1.apothecary = true;
+  forceDice(game.ctx.rng, dice);
+  const player = fixtureValue(game.ctx.team1.players[0]);
+  await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+  return { game, player };
+}
+
 describe("Sevens Apothecary decision", () => {
   it("offers no decision when the team has no Apothecary", async () => {
     const game = newGame();
@@ -243,21 +293,6 @@ describe("Sevens Apothecary decision", () => {
   });
 
   it("determinism: identical seed + answer produce identical outcomes", async () => {
-    const run = async () => {
-      const game = newGame(77);
-      game.ctx.team1.apothecary = true;
-      const player = game.ctx.team1.players[0];
-      vi.spyOn(
-        game.ctx.gameService.getDiceController(),
-        "roll2D6"
-      ).mockReturnValue(10);
-      await runUntilSettledOrDecision(
-        game,
-        new InjuryOperation(fixtureValue(player).id)
-      );
-      const response = await answer(game, true);
-      return JSON.stringify(response.snapshot);
-    };
     const a = await run();
     const b = await run();
     expect(a).toBe(b);
@@ -324,26 +359,6 @@ describe("Sevens Apothecary decision — save and resume", () => {
 });
 
 describe("Sevens Apothecary decision — what a patch-up undoes", () => {
-  async function blockByPlagueRidden(game: HeadlessGame) {
-    game.ctx.team1.apothecary = true;
-    const victim = game.ctx.team1.players[0];
-    const killer = game.ctx.team2.players[0];
-    fixtureValue(killer).skills.push(getSkill(SkillType.PLAGUE_RIDDEN));
-    await runUntilSettledOrDecision(
-      game,
-      new InjuryOperation(fixtureValue(victim).id, {
-        causedById: fixtureValue(killer).id,
-        cause: "block",
-      })
-    );
-    return { victim, killer };
-  }
-
-  const kills = (events: { name: string; data?: unknown }[]) =>
-    events
-      .filter((e) => e.name === GameEventNames.PlayerKilled)
-      .map((e) => e.data);
-
   it("a patched-up Seriously Hurt player carries no Miss Next Game", async () => {
     const game = newGame();
     game.ctx.team1.apothecary = true;
@@ -427,20 +442,6 @@ describe("Sevens Apothecary decision — what a patch-up undoes", () => {
 });
 
 describe("Advanced League Apothecary: the rulebook second Casualty roll", () => {
-  async function casualty(dice: number[]) {
-    const game = new HeadlessGame({
-      scenario: scrimmage,
-      seed: 1,
-      competition: true,
-    });
-    game.ctx.team1.advancementMode = "advanced-league";
-    game.ctx.team1.apothecary = true;
-    forceDice(game.ctx.rng, dice);
-    const player = fixtureValue(game.ctx.team1.players[0]);
-    await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
-    return { game, player };
-  }
-
   it("offers the Apothecary with the Casualty roll's grade", async () => {
     const { game } = await casualty([5, 5, 14, 3]);
     expect(

@@ -205,170 +205,192 @@ export async function perform(
   next: Next,
   rec: Recorder
 ) {
-  const { log, shot } = rec;
   for (const command of commands) {
-    const t = command["type"] as string;
-    switch (t) {
-      case "coin-flip":
-        await clickIf(page, /^ROLL WEATHER$/);
-        await clickIf(page, /^ON TO THE COIN TOSS$/);
-        await clickIf(page, /^FLIP COIN$/);
-        break;
-      case "choose-kick-or-receive":
-      case "kick-or-receive":
-        await clickIf(page, /^RECEIVE$/);
-        break;
-      case "apply-formation":
-      case "place-player":
-      case "auto-setup":
-      case "confirm-setup":
-      case "setup":
-        await pickFormation(page, /balanced/i);
-        await page.waitForTimeout(600);
-        await clickIf(page, /CONFIRM SETUP/);
-        await page.waitForTimeout(1200);
-        return;
-      case "kick-ball":
-        await app.pitch.clickPlayer(command["playerId"] as string);
+    if (await performCommand({ page, app, next, rec }, command)) return;
+    await page.waitForTimeout(150);
+  }
+}
+
+interface Step {
+  page: Page;
+  app: GameApp;
+  next: Next;
+  rec: Recorder;
+}
+
+async function performCommand(
+  { page, app, next, rec }: Step,
+  command: Record<string, unknown>
+): Promise<boolean> {
+  const { log, shot } = rec;
+  const t = command["type"] as string;
+  switch (t) {
+    case "coin-flip":
+      await clickIf(page, /^ROLL WEATHER$/);
+      await clickIf(page, /^ON TO THE COIN TOSS$/);
+      await clickIf(page, /^FLIP COIN$/);
+      return false;
+    case "choose-kick-or-receive":
+    case "kick-or-receive":
+      await clickIf(page, /^RECEIVE$/);
+      return false;
+    case "apply-formation":
+    case "place-player":
+    case "auto-setup":
+    case "confirm-setup":
+    case "setup":
+      await pickFormation(page, /balanced/i);
+      await page.waitForTimeout(600);
+      await clickIf(page, /CONFIRM SETUP/);
+      await page.waitForTimeout(1200);
+      return true;
+    case "kick-ball":
+      await app.pitch.clickPlayer(command["playerId"] as string);
+      await page.waitForTimeout(300);
+      await app.pitch.clickSquare({
+        x: command["x"] as number,
+        y: command["y"] as number,
+      });
+      await page.waitForTimeout(300);
+      await clickIf(page, /KICK|CONFIRM/i);
+      await app.rollKickoff();
+      await brainCall(page, "noteKicker", next.teamId);
+      await page.waitForTimeout(2500);
+      return false;
+    case "declare-action":
+      await app.hud.declareAction(
+        command["playerId"] as string,
+        command["action"] as string
+      );
+      return false;
+    case "move": {
+      const to = fixtureValue((command["path"] as Square[]).at(-1));
+      await app.pitch.clickSquare(to);
+      await page.waitForTimeout(150);
+      await app.pitch.clickSquare(to);
+      const mover = async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.teams
+          .flatMap((t) => t.players)
+          .find((p) => p.id === command["playerId"]);
+      };
+      const until = Date.now() + 30_000;
+      let m: Awaited<ReturnType<typeof mover>>;
+      while (Date.now() < until) {
+        if (await riskyMoveConfirm(page, rec)) continue;
+        if (await answerDialog(page, app, -1, rec)) continue;
         await page.waitForTimeout(300);
+        m = await mover();
+        const there = m?.position?.x === to.x && m?.position?.y === to.y;
+        const stopped = m?.status !== "Active" || !m?.position;
+        if (there || stopped) break;
+      }
+
+      await page.waitForTimeout(900);
+      m = await mover();
+      if (m?.position?.x !== to.x || m?.position?.y !== to.y)
+        log(
+          `  MOVE STOPPED SHORT: wanted ${String(to.x)},${String(to.y)} got ${JSON.stringify(m?.position)} status=${String(m?.status)}`
+        );
+      return false;
+    }
+    case "jump":
+      await app.hud.selectActionStep("jump");
+      for (let click = 0; click < 2; click++)
         await app.pitch.clickSquare({
           x: command["x"] as number,
           y: command["y"] as number,
         });
+      return false;
+    case "stand-up":
+      await app.hud.standUp(command["playerId"] as string);
+      return false;
+    case "block":
+      await app.pitch.clickPlayer(command["defenderId"] as string);
+      await page.waitForTimeout(500);
+      return false;
+    case "pass":
+    case "handoff":
+    case "foul":
+      if (
+        t === "pass" &&
+        (await visible(page.getByTestId("action-step-pass")))
+      )
+        await app.hud.selectActionStep("pass").catch(() => {});
+      await app.pitch.clickSquare({
+        x: command["x"] as number,
+        y: command["y"] as number,
+      });
+      await page.waitForTimeout(900);
+      return false;
+    case "end-activation": {
+      const b = page.getByRole("button", { name: "End Activation" });
+      if (await visible(b)) await b.click();
+      else {
+        const snapshot = await app.bridge.snapshot();
+        const active: {
+          id?: string;
+          playerId?: string;
+        } | null = snapshot.activePlayer;
+        const id = active?.playerId ?? active?.id;
+        if (id) await app.pitch.clickPlayer(id);
         await page.waitForTimeout(300);
-        await clickIf(page, /KICK|CONFIRM/i);
-        await app.rollKickoff();
-        await brainCall(page, "noteKicker", next.teamId);
-        await page.waitForTimeout(2500);
-        break;
-      case "declare-action":
-        await app.hud.declareAction(
-          command["playerId"] as string,
-          command["action"] as string
-        );
-        break;
-      case "move": {
-        const to = fixtureValue((command["path"] as Square[]).at(-1));
-        await app.pitch.clickSquare(to);
-        await page.waitForTimeout(150);
-        await app.pitch.clickSquare(to);
-        const mover = async () =>
-          (await app.bridge.snapshot()).teams
-            .flatMap((t) => t.players)
-            .find((p) => p.id === command["playerId"]);
-        const until = Date.now() + 30_000;
-        let m: Awaited<ReturnType<typeof mover>>;
-        while (Date.now() < until) {
-          if (await riskyMoveConfirm(page, rec)) continue;
-          if (await answerDialog(page, app, -1, rec)) continue;
-          await page.waitForTimeout(300);
-          m = await mover();
-          const there = m?.position?.x === to.x && m?.position?.y === to.y;
-          const stopped = m?.status !== "Active" || !m?.position;
-          if (there || stopped) break;
-        }
-
-        await page.waitForTimeout(900);
-        m = await mover();
-        if (m?.position?.x !== to.x || m?.position?.y !== to.y)
+        if (await visible(b)) await b.click();
+        else
           log(
-            `  MOVE STOPPED SHORT: wanted ${String(to.x)},${String(to.y)} got ${JSON.stringify(m?.position)} status=${String(m?.status)}`
+            `  end-activation not offered; buttons=${JSON.stringify(await visibleButtons(page))}`
           );
-        break;
       }
-      case "jump":
-        await app.hud.selectActionStep("jump");
-        for (let click = 0; click < 2; click++)
-          await app.pitch.clickSquare({
+      return false;
+    }
+    case "end-turn": {
+      await shot(page, `turn-${String(++turnShots).padStart(2, "0")}`);
+      const eventsBefore = await app.bridge.events();
+      const before = eventsBefore.length;
+
+      await page.waitForTimeout(700);
+      const phase = await app.bridge.phase();
+      if (phase.activeTeamId !== next.teamId) {
+        log("   turn already ended by itself");
+        return false;
+      }
+      await app.hud.endTurn().click();
+      await page.waitForTimeout(1200);
+      if (process.env["DEBUG_COACH"]) {
+        const events = await app.bridge.events(before);
+        log(
+          `   end-turn events: ${events
+            .map((e) => e.name)
+            .join(", ")
+            .slice(0, 1500)}`
+        );
+      }
+      return false;
+    }
+    case "choose-push-direction":
+    case "touchback":
+      await (t === "touchback"
+        ? app.pitch.clickPlayer(command["playerId"] as string)
+        : app.pitch.clickSquare({
             x: command["x"] as number,
             y: command["y"] as number,
-          });
-        break;
-      case "stand-up":
-        await app.hud.standUp(command["playerId"] as string);
-        break;
-      case "block":
-        await app.pitch.clickPlayer(command["defenderId"] as string);
-        await page.waitForTimeout(500);
-        break;
-      case "pass":
-      case "handoff":
-      case "foul":
-        if (
-          t === "pass" &&
-          (await visible(page.getByTestId("action-step-pass")))
-        )
-          await app.hud.selectActionStep("pass").catch(() => {});
-        await app.pitch.clickSquare({
-          x: command["x"] as number,
-          y: command["y"] as number,
-        });
-        await page.waitForTimeout(900);
-        break;
-      case "end-activation": {
-        const b = page.getByRole("button", { name: "End Activation" });
-        if (await visible(b)) await b.click();
-        else {
-          const active: {
-            id?: string;
-            playerId?: string;
-          } | null = (await app.bridge.snapshot()).activePlayer;
-          const id = active?.playerId ?? active?.id;
-          if (id) await app.pitch.clickPlayer(id);
-          await page.waitForTimeout(300);
-          if (await visible(b)) await b.click();
-          else
-            log(
-              `  end-activation not offered; buttons=${JSON.stringify(await visibleButtons(page))}`
-            );
-        }
-        break;
-      }
-      case "end-turn": {
-        await shot(page, `turn-${String(++turnShots).padStart(2, "0")}`);
-        const before = (await app.bridge.events()).length;
+          }));
+      return false;
+    case "kickoff-confirm":
+      if (!(await clickIf(page, /CONFIRM|DONE|CHARGE!|CONTINUE/i)))
+        await clickIf(page, /SKIP/i);
+      return false;
+    case "kickoff-skip":
+      if (!(await clickIf(page, /SKIP/i)))
+        await clickIf(page, /CONFIRM|DONE|CHARGE!|CONTINUE/i);
+      return false;
+    default:
+      log(
+        `  no UI mapping for ${t}: buttons=${JSON.stringify(await visibleButtons(page))}`
+      );
+      await shot(page, `unmapped-${t}`);
 
-        await page.waitForTimeout(700);
-        if ((await app.bridge.phase()).activeTeamId !== next.teamId) {
-          log("   turn already ended by itself");
-          break;
-        }
-        await app.hud.endTurn().click();
-        await page.waitForTimeout(1200);
-        if (process.env["DEBUG_COACH"])
-          log(
-            `   end-turn events: ${(await app.bridge.events(before))
-              .map((e) => e.name)
-              .join(", ")
-              .slice(0, 1500)}`
-          );
-        break;
-      }
-      case "choose-push-direction":
-      case "touchback":
-        await (t === "touchback"
-          ? app.pitch.clickPlayer(command["playerId"] as string)
-          : app.pitch.clickSquare({
-              x: command["x"] as number,
-              y: command["y"] as number,
-            }));
-        break;
-      case "kickoff-confirm":
-        if (!(await clickIf(page, /CONFIRM|DONE|CHARGE!|CONTINUE/i)))
-          await clickIf(page, /SKIP/i);
-        break;
-      case "kickoff-skip":
-        if (!(await clickIf(page, /SKIP/i)))
-          await clickIf(page, /CONFIRM|DONE|CHARGE!|CONTINUE/i);
-        break;
-      default:
-        log(
-          `  no UI mapping for ${t}: buttons=${JSON.stringify(await visibleButtons(page))}`
-        );
-        await shot(page, `unmapped-${t}`);
-
-        await clickIf(page, /^(YES|USE|CONFIRM|OK|CONTINUE)/i);
-    }
-    await page.waitForTimeout(150);
+      await clickIf(page, /^(YES|USE|CONFIRM|OK|CONTINUE)/i);
+      return false;
   }
 }

@@ -201,7 +201,7 @@ describe("lockstep sessions", () => {
       peerTeamId: hostGame.ctx.team2.id,
     };
     const desyncs: string[] = [];
-    const onDesync = (detail: string) => desyncs.push(detail);
+    const onDesync = (detail: string) => { desyncs.push(detail); };
     const host = new LockstepSession({
       ...ids,
       transport: hostEnd,
@@ -221,7 +221,7 @@ describe("lockstep sessions", () => {
     const rolls: string[] = [];
     hostGame.ctx.eventBus.on(
       GameEventNames.DiceRoll,
-      (roll: { rollType: string }) => rolls.push(roll.rollType)
+      (roll: { rollType: string }) => { rolls.push(roll.rollType); }
     );
 
     const [hostEarly, guestReady] = await Promise.all([
@@ -303,7 +303,7 @@ describe("lockstep sessions send before they animate", () => {
     const releases: (() => void)[] = [];
     hostGame.execute = async (command: unknown) => {
       if (stalling)
-        await new Promise<void>((resolve) => releases.push(resolve));
+        await new Promise<void>((resolve) => { releases.push(resolve); });
       return realExecute(command);
     };
 
@@ -380,7 +380,7 @@ describe("lockstep sessions send before they animate", () => {
         await hostGame.execute({ type: "end-turn" });
         await guestGame.execute({ type: "end-turn" });
         const before = stateChecksum(guestGame);
-        guestEnd.subscribe((envelope) => sent.push(envelope.kind));
+        guestEnd.subscribe((envelope) => { sent.push(envelope.kind); });
         finish();
         await playing;
         late = await click;

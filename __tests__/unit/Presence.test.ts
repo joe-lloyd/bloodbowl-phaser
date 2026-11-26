@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { isPlayerOnline, type LobbyDoc } from "../../src/firebase/lobby";
 
-describe("isPlayerOnline", () => {
-  const lobbyWith = (lastSeen: number | undefined): LobbyDoc =>
-    ({
-      players: { p1: { uid: "p1", lastSeen } },
-    }) as unknown as LobbyDoc;
+const lobbyWith = (lastSeen: number | undefined): LobbyDoc =>
+  ({
+    players: { p1: { uid: "p1", lastSeen } },
+  }) as unknown as LobbyDoc;
 
+describe("isPlayerOnline", () => {
   const NOW = 100_000;
   const THRESHOLD = 15_000;
 

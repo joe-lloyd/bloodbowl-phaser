@@ -21,12 +21,16 @@ function setup(
   const seen: string[] = [];
   let doubleTapUsed = true;
   const handlers: GestureHandlers = {
-    tap: (at) => seen.push(`tap ${String(at.x)},${String(at.y)}`),
+    tap: (at) => {
+      seen.push(`tap ${String(at.x)},${String(at.y)}`);
+    },
     doubleTap: (at) => {
       seen.push(`double ${String(at.x)},${String(at.y)}`);
       return doubleTapUsed;
     },
-    longPress: (at) => seen.push(`hold ${String(at.x)},${String(at.y)}`),
+    longPress: (at) => {
+      seen.push(`hold ${String(at.x)},${String(at.y)}`);
+    },
     dragStart: (from) => {
       const route = routeFrom(from);
       seen.push(
@@ -34,13 +38,20 @@ function setup(
       );
       return route;
     },
-    routeTo: (at) => seen.push(`route ${String(at.x)},${String(at.y)}`),
-    routeEnd: () => seen.push("route end"),
-    pan: (dx, dy) => seen.push(`pan ${String(dx)},${String(dy)}`),
-    pinch: ({ centre, factor, dx, dy }) =>
+    routeTo: (at) => {
+      seen.push(`route ${String(at.x)},${String(at.y)}`);
+    },
+    routeEnd: () => {
+      seen.push("route end");
+    },
+    pan: (dx, dy) => {
+      seen.push(`pan ${String(dx)},${String(dy)}`);
+    },
+    pinch: ({ centre, factor, dx, dy }) => {
       seen.push(
         `pinch ${String(centre.x)},${String(centre.y)} x${String(factor)} ${String(dx)},${String(dy)}`
-      ),
+      );
+    },
   };
   const gestures = new TouchGestures(handlers, clock);
   const wait = (ms: number) => {

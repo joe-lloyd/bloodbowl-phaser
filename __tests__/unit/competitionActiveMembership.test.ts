@@ -41,7 +41,7 @@ function team(id: string, activeCompetitionId?: string): Team {
   } as unknown as Team;
 }
 
-function buildLeague(id: string, teams: Team[]): LeagueDoc {
+function buildLeague(teams: Team[]): LeagueDoc {
   const entrants: CompetitionEntrant[] = teams.map((candidate, index) => ({
     id: `local:${candidate.id}`,
     teamId: candidate.id,
@@ -53,7 +53,7 @@ function buildLeague(id: string, teams: Team[]): LeagueDoc {
   }));
   const fixtures = generateRoundRobin(entrants);
   return {
-    id,
+    id: "season",
     type: "league",
     name: "Season",
     organizerUid: null,
@@ -95,7 +95,7 @@ describe("completing a competition frees its entrants", () => {
   it("clears activeCompetitionId once the season finishes", async () => {
     const teams = [team("home", "season"), team("away", "season")];
     saveTeams(teams);
-    const league = buildLeague("season", teams);
+    const league = buildLeague(teams);
     await saveCompetition(league);
 
     const context = {
@@ -124,7 +124,7 @@ describe("withdrawing frees the team", () => {
       team("third", "season"),
     ];
     saveTeams(teams);
-    const league = buildLeague("season", teams);
+    const league = buildLeague(teams);
     await saveCompetition(league);
 
     const entrant = fixtureValue(league.entrants.find((e) => e.teamId === "home"));

@@ -3,7 +3,7 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { runInNewContext } from "node:vm";
 import {
@@ -117,7 +117,7 @@ describe("catalogue study", () => {
   });
 
   it("records actual reroll banks and replays a catalogue game exactly", async () => {
-    const out = mkdtempSync(join(tmpdir(), "bb7-study-"));
+    const out = mkdtempSync(path.join(tmpdir(), "bb7-study-"));
     try {
       const job = fixtureValue(
         studySchedule().find((j) => j.cohort === "calibration")
@@ -125,7 +125,7 @@ describe("catalogue study", () => {
       const result = await playStudyGame(job, out);
       expect(result.completed).toBe(true);
       expect(result.findings).toEqual([]);
-      const file = join(out, "traces", `${job.id}.json.gz`);
+      const file = path.join(out, "traces", `${job.id}.json.gz`);
       const trace = parseMatchTrace(gunzipSync(readFileSync(file)).toString());
       expect(trace.initial.teams[0].computerTemplateId).toBe(job.templates[0]);
       expect(trace.initial.teams[0].rerolls).toBe(
@@ -133,7 +133,8 @@ describe("catalogue study", () => {
           catalogueInventory().teams.find((t) => t.id === job.templates[0])
         ).rerolls
       );
-      expect((await replayStudyTrace(file)).commands).toBe(result.commands);
+      const replayed = await replayStudyTrace(file);
+      expect(replayed.commands).toBe(result.commands);
       expect(
         Object.values(result.selected).reduce((a, b) => a + b, 0)
       ).toBeGreaterThan(0);

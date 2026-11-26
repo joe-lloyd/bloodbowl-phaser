@@ -21,6 +21,8 @@ const LETTER: Record<SkillCategory, string> = {
   [SkillCategory.DEVIOUS]: "D",
 };
 
+const letters = (cats: SkillCategory[]) => cats.map((c) => LETTER[c]).join("");
+
 function profileLine(t: PlayerTemplate): string {
   const s = t.stats;
   const skills = t.skills
@@ -28,10 +30,8 @@ function profileLine(t: PlayerTemplate): string {
       k.parameter === undefined ? k.type : `${k.type} (${String(k.parameter)})`
     )
     .join(", ");
-  const letters = (cats: SkillCategory[]) =>
-    cats.map((c) => LETTER[c]).join("");
   return (
-    `0-${String(t.maxAllowed)} ${t.positionName} (${[...t.keywords].sort().join(", ")}) ` +
+    `0-${String(t.maxAllowed)} ${t.positionName} (${[...t.keywords].sort((a, b) => a.localeCompare(b)).join(", ")}) ` +
     `${t.cost.toLocaleString("en-GB")} | MA${String(s.MA)} ST${String(s.ST)} AG${String(s.AG)}+ PA${String(s.PA)}+ AV${String(s.AV)}+ | ` +
     `${skills} | P ${letters(t.primary)} | S ${letters(t.secondary)}`
   );

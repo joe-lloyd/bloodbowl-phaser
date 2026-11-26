@@ -12,11 +12,10 @@ import {
 
 function blockGame(
   attacker: Partial<PlayerPlacement>,
-  defender: Partial<PlayerPlacement>,
-  seed: number
+  defender: Partial<PlayerPlacement>
 ) {
   const game = new HeadlessGame({
-    seed,
+    seed: 1,
     scenario: {
       id: "policy-defence",
       name: "Count blocks",
@@ -54,8 +53,7 @@ describe("policy-lab defence", () => {
   it("counts Frenzy's second block on the same target as a second block", async () => {
     const { tallies, run, attackerId, defenderId } = blockGame(
       { skills: [SkillType.FRENZY] },
-      { skills: [SkillType.STAND_FIRM] },
-      1
+      { skills: [SkillType.STAND_FIRM] }
     );
     await run({
       type: "declare-action",
@@ -71,7 +69,7 @@ describe("policy-lab defence", () => {
   });
 
   it("counts a block once when a Team Re-roll rolls its dice again", async () => {
-    const { game, tallies, run, attackerId, defenderId } = blockGame({}, {}, 1);
+    const { game, tallies, run, attackerId, defenderId } = blockGame({}, {});
     game.ctx.team1.rerolls = 3;
     await run({
       type: "declare-action",

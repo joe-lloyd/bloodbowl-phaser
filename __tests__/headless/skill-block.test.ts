@@ -22,12 +22,13 @@ const scenario: Scenario = {
   },
 };
 
-const giveBlock = (player: { skills: unknown[] }) =>
+const giveBlock = (player: { skills: unknown[] }) => {
   player.skills.push({
     type: SkillType.BLOCK,
     category: SkillCategory.GENERAL,
     description: "",
   });
+};
 
 const bothDown = { type: "both-down" as const, icon: "", label: "Both Down" };
 
@@ -59,9 +60,9 @@ describe("Block skill â€” Both Down immunity", () => {
     expect(hasSkill(fixtureValue(attacker).skills, SkillType.BLOCK)).toBe(true);
 
     const triggers: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.SkillTriggered, (d) =>
-      triggers.push(d)
-    );
+    game.ctx.eventBus.on(GameEventNames.SkillTriggered, (d) => {
+      triggers.push(d);
+    });
 
     await game.ctx.gameService.resolveBlock(
       fixtureValue(attacker).id,

@@ -12,6 +12,13 @@ import { jumpTargets } from "../../src/game/rules/jump";
 
 const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < 20 && y < 11;
 
+const prone = (id: string, x: number) =>
+  createTestPlayer({
+    id,
+    gridPosition: { x, y: 4 },
+    status: PlayerStatus.PRONE,
+  });
+
 describe("Foul resolves as a Foul, never a Block", () => {
   it("rolls armour against the downed victim and rolls no block dice", async () => {
     const scenario: Scenario = {
@@ -67,15 +74,9 @@ describe("Foul resolves as a Foul, never a Block", () => {
 describe("Jump offers every adjacent jumpable player", () => {
   it("enumerates all three adjacent Prone players, not just the first", () => {
     const from = { x: 5, y: 5 };
-    const prone = (id: string, x: number, y: number) =>
-      createTestPlayer({
-        id,
-        gridPosition: { x, y },
-        status: PlayerStatus.PRONE,
-      });
     const targets = jumpTargets(
       from,
-      [prone("a", 5, 4), prone("b", 4, 4), prone("c", 6, 4)],
+      [prone("a", 5), prone("b", 4), prone("c", 6)],
       false,
       inBounds
     );

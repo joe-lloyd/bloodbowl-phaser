@@ -2,17 +2,18 @@ import { markerWith } from "../controllers/controllerFixtures";
 import { describe, expect, it, vi } from "vitest";
 import { HighlightManager } from "../../../src/game/managers/HighlightManager";
 
+function setup() {
+  const square = markerWith();
+  const pitch = {
+    highlightSquare: vi.fn(() => square),
+    clearHighlights: vi.fn(),
+    clearPath: vi.fn(),
+    clearHover: vi.fn(),
+  };
+  return { manager: new HighlightManager(pitch), pitch, square };
+}
+
 describe("HighlightManager push highlights", () => {
-  function setup() {
-    const square = markerWith();
-    const pitch = {
-      highlightSquare: vi.fn(() => square),
-      clearHighlights: vi.fn(),
-      clearPath: vi.fn(),
-      clearHover: vi.fn(),
-    };
-    return { manager: new HighlightManager(pitch), pitch, square };
-  }
 
   it("lets a push square be drawn in the crowd ring off the pitch", () => {
     const { manager, pitch } = setup();

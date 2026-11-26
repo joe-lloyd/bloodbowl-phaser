@@ -37,7 +37,8 @@ describe("the game's compositor matches the sprite factory", () => {
       const art = layeredArt(model);
       expect(art).toBeDefined();
       if (!art) return;
-      for (const [body, expected] of Object.entries(parseJson(readFileSync(path, "utf8"), goldens))) {
+      const bodies = Object.entries(parseJson(readFileSync(path, "utf8"), goldens));
+      for (const [body, expected] of bodies) {
         const layers = expected.layers.map((name) => readLayer(model, body, name));
         const shades = expected.layers.slice(1).filter((name) => art.layered.bodies[body]?.includes(`${name}~shade`))
           .map((name) => readLayer(model, body, `${name}~shade`));
@@ -115,7 +116,9 @@ describe("buildLookAtlas", () => {
   it("packs a figure into one 4096 wide page with a rect for every frame", () => {
     const { atlas, names } = fullAtlas("thrall");
     expect(atlas.pages.map((page) => page.width)).toEqual([4096]);
-    expect(Object.keys(atlas.frames).sort()).toEqual([...names].sort());
+    expect(Object.keys(atlas.frames).sort((a, b) => a.localeCompare(b))).toEqual(
+      [...names].sort((a, b) => a.localeCompare(b))
+    );
     expect(outsideTheirPage(atlas)).toEqual([]);
   });
 
@@ -123,7 +126,9 @@ describe("buildLookAtlas", () => {
     const { atlas, names } = fullAtlas("treeman");
     expect(atlas.pages.length).toBe(2);
     expect(atlas.pages.every((page) => page.width === 4096 && page.height <= 4096)).toBe(true);
-    expect(Object.keys(atlas.frames).sort()).toEqual([...names].sort());
+    expect(Object.keys(atlas.frames).sort((a, b) => a.localeCompare(b))).toEqual(
+      [...names].sort((a, b) => a.localeCompare(b))
+    );
     expect(outsideTheirPage(atlas)).toEqual([]);
   });
 });
@@ -141,7 +146,7 @@ function portraitMismatches(model: string): string[] {
       const small = `${base}/portrait/${name}`;
       if (!existsSync(`${small}.json`) || !existsSync(`${small}.bin`)) return `${small} is missing`;
       const full = readIndex(`${base}/${name}`).frames;
-      const wanted = Object.keys(full).filter((frame) => frame.startsWith("idle/se/")).sort();
+      const wanted = Object.keys(full).filter((frame) => frame.startsWith("idle/se/")).sort((a, b) => a.localeCompare(b));
       const got = readIndex(small).frames;
       const same = wanted.every((frame) => got[frame]?.slice(0, 4).join(',') === full[frame]?.slice(0, 4).join(','));
       return same && Object.keys(got).length === wanted.length ? [] : `${small} does not hold the idle/se frames`;

@@ -13,8 +13,8 @@ const scrimmage = fixtureValue(
   SCENARIOS.find((s) => s.id === "basic-scrimmage")
 );
 
-function newGame(seed = 1): HeadlessGame {
-  return new HeadlessGame({ scenario: scrimmage, seed });
+function newGame(): HeadlessGame {
+  return new HeadlessGame({ scenario: scrimmage, seed: 1 });
 }
 
 describe("headless pregame inducement commands", () => {
@@ -58,9 +58,8 @@ describe("headless pregame inducement commands", () => {
     });
     expect(response.ok).toBe(true);
 
-    const offer = fixtureValue(
-      (await game.execute({ type: "offer-inducements" })).inducementOffer
-    );
+    const listed = await game.execute({ type: "offer-inducements" });
+    const offer = fixtureValue(listed.inducementOffer);
     expect(offer.selections[game.ctx.team1.id]).toEqual([
       { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 1 },
     ]);
@@ -122,9 +121,8 @@ describe("headless pregame inducement commands", () => {
     expect(removed.ok).toBe(true);
     const offer = removed.inducementOffer;
     expect(offer).toBeUndefined();
-    const check = fixtureValue(
-      (await game.execute({ type: "offer-inducements" })).inducementOffer
-    );
+    const listed = await game.execute({ type: "offer-inducements" });
+    const check = fixtureValue(listed.inducementOffer);
     expect(check.selections[game.ctx.team1.id]).toEqual([]);
   });
 
@@ -204,16 +202,16 @@ describe("headless pregame inducement commands", () => {
   });
 });
 
-describe("Matched Play inducements (MP2)", () => {
-  function matchedPlayTeam(id: string) {
-    const team = stabilizeIds(
-      TeamFactory.createTestTeam(RosterName.HUMAN, id, 0xcc0000),
-      id
-    );
-    team.advancementMode = "matched-play";
-    return team;
-  }
+function matchedPlayTeam(id: string) {
+  const team = stabilizeIds(
+    TeamFactory.createTestTeam(RosterName.HUMAN, id, 0xcc0000),
+    id
+  );
+  team.advancementMode = "matched-play";
+  return team;
+}
 
+describe("Matched Play inducements (MP2)", () => {
   it("brings the draft list's inducements into the match with no pregame step", () => {
     const team1 = matchedPlayTeam("team1");
     team1.draftInducements = [{ inducement: Inducement.BRIBE, quantity: 2 }];

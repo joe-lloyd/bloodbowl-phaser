@@ -29,9 +29,9 @@ describe("generated rule cases", () => {
           (candidate) => candidate.id === ruleCaseId(config.id)
         ));
         expect(
-          scenarioCase.variants.map((v) => v.id).sort(),
+          scenarioCase.variants.map((v) => v.id).sort((a, b) => a.localeCompare(b)),
           config.id
-        ).toEqual(config.outcomes.map((o) => o.id).sort());
+        ).toEqual(config.outcomes.map((o) => o.id).sort((a, b) => a.localeCompare(b)));
         for (const variant of scenarioCase.variants) {
           expect(
             Number.isSafeInteger(variant.seed),
@@ -55,20 +55,21 @@ describe("generated rule cases", () => {
   });
 });
 
+function configsTouching(predicate: (source: string) => boolean): string[] {
+  return RULE_SCENARIOS.flatMap((entry) =>
+    entry.configs
+      .filter((config) => {
+        const source =
+          JSON.stringify(config.script ?? []) +
+          JSON.stringify(config.decisionPolicy ?? {}) +
+          (config.decisionPolicy?.custom?.toString() ?? "");
+        return predicate(source);
+      })
+      .map((config) => config.id)
+  );
+}
+
 describe("decision paths are exercised", () => {
-  function configsTouching(predicate: (source: string) => boolean): string[] {
-    return RULE_SCENARIOS.flatMap((entry) =>
-      entry.configs
-        .filter((config) => {
-          const source =
-            JSON.stringify(config.script ?? []) +
-            JSON.stringify(config.decisionPolicy ?? {}) +
-            (config.decisionPolicy?.custom?.toString() ?? "");
-          return predicate(source);
-        })
-        .map((config) => config.id)
-    );
-  }
 
   it("covers accepting and declining a re-roll", () => {
     const declines = RULE_SCENARIOS.flatMap((entry) =>

@@ -35,11 +35,13 @@ export async function confirmComputerPregame(
     expect(Object.values(pregame().ready).filter(Boolean)).toHaveLength(2);
   });
 
-  if (shoppingTeamId(pregame(), [team1.id, team2.id]) === match.myTeamId)
-    expect(
-      (await match.run({ type: "confirm-inducements", teamId: match.myTeamId }))
-        .ok
-    ).toBe(true);
+  if (shoppingTeamId(pregame(), [team1.id, team2.id]) === match.myTeamId) {
+    const confirmed = await match.run({
+      type: "confirm-inducements",
+      teamId: match.myTeamId,
+    });
+    expect(confirmed.ok).toBe(true);
+  }
   await vi.waitFor(
     () => {
       expect(pregame().complete).toBe(true);

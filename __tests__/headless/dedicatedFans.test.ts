@@ -62,40 +62,41 @@ describe("Dedicated Fans after a league game", () => {
   });
 });
 
+function leagueTeamsAtFullTime(
+  fixture: { paysWinnings?: boolean; knockout?: boolean },
+  dice: number[]
+) {
+  const game = new HeadlessGame({ seed: 1, ...fixture });
+  const { team1, team2, gameService, eventBus, rng } = game.ctx;
+  team1.advancementMode = "sevens-skill-selection";
+  team2.advancementMode = "advanced-league";
+  team1.dedicatedFans = 2;
+  team2.dedicatedFans = 3;
+  gameService.getState().score[team1.id] = 1;
+  gameService.getState().score[team2.id] = 0;
+  forceDice(rng, dice);
+  eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
+  const fanFactorRolls = game
+    .events()
+    .filter(
+      (event) =>
+        event.name === GameEventNames.DiceRoll &&
+        String(
+          z.object({ rollType: z.string().exactOptional() }).parse(event.data)
+            .rollType
+        ).startsWith("Fan Factor")
+    );
+  return {
+    fans: [team1.dedicatedFans, team2.dedicatedFans],
+    fanFactors: (({ fanFactors }) =>
+      fanFactors && [fanFactors[team1.id], fanFactors[team2.id]])(
+      gameService.getState()
+    ),
+    fanFactorRolls: fanFactorRolls.length,
+  };
+}
+
 describe("Fan Factors at full time", () => {
-  function leagueTeamsAtFullTime(
-    fixture: { paysWinnings?: boolean; knockout?: boolean },
-    dice: number[]
-  ) {
-    const game = new HeadlessGame({ seed: 1, ...fixture });
-    const { team1, team2, gameService, eventBus, rng } = game.ctx;
-    team1.advancementMode = "sevens-skill-selection";
-    team2.advancementMode = "advanced-league";
-    team1.dedicatedFans = 2;
-    team2.dedicatedFans = 3;
-    gameService.getState().score[team1.id] = 1;
-    gameService.getState().score[team2.id] = 0;
-    forceDice(rng, dice);
-    eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
-    const fanFactorRolls = game
-      .events()
-      .filter(
-        (event) =>
-          event.name === GameEventNames.DiceRoll &&
-          String(
-            z.object({ rollType: z.string().exactOptional() }).parse(event.data)
-              .rollType
-          ).startsWith("Fan Factor")
-      );
-    return {
-      fans: [team1.dedicatedFans, team2.dedicatedFans],
-      fanFactors: (({ fanFactors }) =>
-        fanFactors && [fanFactors[team1.id], fanFactors[team2.id]])(
-        gameService.getState()
-      ),
-      fanFactorRolls: fanFactorRolls.length,
-    };
-  }
 
   it("a tournament fixture of league teams rolls none, and its Dedicated Fans use the same dice", () => {
     expect(leagueTeamsAtFullTime({ knockout: true }, [2, 2])).toEqual({

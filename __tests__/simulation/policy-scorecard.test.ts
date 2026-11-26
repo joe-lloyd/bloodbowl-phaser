@@ -37,6 +37,66 @@ const plays = (n: number, scored = 0) => ({
   turnovers: 0,
 });
 
+const legs = ({ a, b }: { a: string; b: string }): FitGame[] => [
+  { roster: a, opponent: b, policy: "candidate", points: 0.75 },
+  { roster: b, opponent: a, policy: "frozen", points: 0.25 },
+  { roster: a, opponent: b, policy: "frozen", points: 0.75 },
+  { roster: b, opponent: a, policy: "candidate", points: 0.25 },
+];
+
+const block = ({
+  a,
+  b,
+  points,
+  id,
+}: {
+  a: string;
+  b: string;
+  points: number;
+  id: string;
+}) =>
+  (["candidate", "frozen"] as const).flatMap((policy) => {
+    const other: FitGame["policy"] =
+      policy === "candidate" ? "frozen" : "candidate";
+    return [
+      { roster: a, opponent: b, policy, points, block: id },
+      {
+        roster: b,
+        opponent: a,
+        policy: other,
+        points: 1 - points,
+        block: id,
+      },
+    ];
+  });
+
+const blockLegs = ({
+  a,
+  points,
+  block: id,
+}: {
+  a: string;
+  points: number;
+  block: string;
+}) => [
+  { roster: a, opponent: "Skaven", policy: "candidate" as const, points, block: id },
+  {
+    roster: "Skaven",
+    opponent: a,
+    policy: "frozen" as const,
+    points: 1 - points,
+    block: id,
+  },
+  { roster: a, opponent: "Skaven", policy: "frozen" as const, points, block: id },
+  {
+    roster: "Skaven",
+    opponent: a,
+    policy: "candidate" as const,
+    points: 1 - points,
+    block: id,
+  },
+];
+
 describe("policy-lab team scorecard", () => {
   const games = [
     row({
@@ -167,23 +227,9 @@ describe("policy-lab team scorecard", () => {
   });
 
   it("judges a roster against an average opponent, not its schedule", () => {
-    const legs = ({
-      a,
-      b,
-      points,
-    }: {
-      a: string;
-      b: string;
-      points: number;
-    }): FitGame[] => [
-      { roster: a, opponent: b, policy: "candidate", points },
-      { roster: b, opponent: a, policy: "frozen", points: 1 - points },
-      { roster: a, opponent: b, policy: "frozen", points },
-      { roster: b, opponent: a, policy: "candidate", points: 1 - points },
-    ];
     const fit = strengths([
-      ...legs({ a: "A", b: "B", points: 0.75 }),
-      ...legs({ a: "B", b: "C", points: 0.75 }),
+      ...legs({ a: "A", b: "B" }),
+      ...legs({ a: "B", b: "C" }),
     ]);
     expect(
       [...fixtureValue(fit).strength].map(([r, s]) => [r, Number(s.toFixed(3))])
@@ -215,31 +261,6 @@ describe("policy-lab team scorecard", () => {
   });
 
   it("widens a roster's interval for its opponents' uncertainty", () => {
-    const block = ({
-      a,
-      b,
-      points,
-      id,
-    }: {
-      a: string;
-      b: string;
-      points: number;
-      id: string;
-    }) =>
-      (["candidate", "frozen"] as const).flatMap((policy) => {
-        const other: FitGame["policy"] =
-          policy === "candidate" ? "frozen" : "candidate";
-        return [
-          { roster: a, opponent: b, policy, points, block: id },
-          {
-            roster: b,
-            opponent: a,
-            policy: other,
-            points: 1 - points,
-            block: id,
-          },
-        ];
-      });
     const games = [
       ...Array.from({ length: 64 }, (_, i) =>
         block({ a: "Dwarf", b: "Skaven", points: 0.5, id: `d${String(i)}` })
@@ -256,39 +277,11 @@ describe("policy-lab team scorecard", () => {
   });
 
   it("publishes no interval when resampling often drops a roster", () => {
-    const legs = ({
-      a,
-      b,
-      points,
-      block,
-    }: {
-      a: string;
-      b: string;
-      points: number;
-      block: string;
-    }) => [
-      { roster: a, opponent: b, policy: "candidate" as const, points, block },
-      {
-        roster: b,
-        opponent: a,
-        policy: "frozen" as const,
-        points: 1 - points,
-        block,
-      },
-      { roster: a, opponent: b, policy: "frozen" as const, points, block },
-      {
-        roster: b,
-        opponent: a,
-        policy: "candidate" as const,
-        points: 1 - points,
-        block,
-      },
-    ];
     const games = [
       ...Array.from({ length: 39 }, (_, i) =>
-        legs({ a: "Dwarf", b: "Skaven", points: i % 2, block: `d${String(i)}` })
+        blockLegs({ a: "Dwarf", points: i % 2, block: `d${String(i)}` })
       ).flat(),
-      ...legs({ a: "Halfling", b: "Skaven", points: 0.5, block: "h" }),
+      ...blockLegs({ a: "Halfling", points: 0.5, block: "h" }),
     ];
     expect(strengths(games)).not.toBeNull();
     expect(strengthIntervals(games, 200)).toBeNull();

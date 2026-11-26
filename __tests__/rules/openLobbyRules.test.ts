@@ -132,20 +132,16 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
     ).toContain(code);
 
     await as(stranger, () => joinLobby(code, stranger, "Stranger"));
-    expect(
-      (await openLobbiesSeenBy(uniqueUid("late"))).map((lobby) => lobby.code)
-    ).not.toContain(code);
+    const lateLobbies = await openLobbiesSeenBy(uniqueUid("late"));
+    expect(lateLobbies.map((lobby) => lobby.code)).not.toContain(code);
   });
 
   it("stay private until the host lists them", async () => {
     const host = uniqueUid("host");
     const { code } = await as(host, () => createLobby(host, "Host"));
 
-    expect(
-      (await openLobbiesSeenBy(uniqueUid("stranger"))).map(
-        (lobby) => lobby.code
-      )
-    ).not.toContain(code);
+    const strangerLobbies = await openLobbiesSeenBy(uniqueUid("stranger"));
+    expect(strangerLobbies.map((lobby) => lobby.code)).not.toContain(code);
     await denied(getDocs(collection(dbFor(uniqueUid("stranger")), "games")));
     await denied(
       getDocs(
@@ -211,7 +207,8 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
     await denied(updateDoc(ref, { listed: false, status: "abandoned" }));
     await denied(updateDoc(ref, { listed: true }));
     await updateDoc(ref, { listed: false });
-    expect((await getDoc(doc(dbFor(ADMIN), "games", code))).get("listed")).toBe(false);
+    const listedGame = await getDoc(doc(dbFor(ADMIN), "games", code));
+    expect(listedGame.get("listed")).toBe(false);
 
     const started = `S${String(Date.now()).slice(-5)}`;
     await listedLobby({ code: started, host, lastSeen: Date.now() - GONE });
@@ -256,7 +253,8 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
     await as(guest, () => joinLobby(code, guest, "Guest"));
     await updateDoc(doc(dbFor(ADMIN), "games", code), { status: "active" });
     expect(await as(guest, () => leaveGuestSeat(code, guest))).toBe("active");
-    expect((await as(host, () => fetchLobby(code)))?.guestUid).toBe(guest);
+    const hostLobby = await as(host, () => fetchLobby(code));
+    expect(hostLobby?.guestUid).toBe(guest);
     await denied(updateDoc(ref(guest), { guestUid: null, [`players.${guest}`]: deleteField() }));
   });
 
@@ -268,7 +266,8 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
     await as(host, () => commitSeed(code, host));
     await as(guest, () => commitSeed(code, guest));
     await as(host, () => revealSeed(code, host));
-    const first = (await as(host, () => fetchLobby(code)))?.seedCommits?.[host];
+    const firstLobby = await as(host, () => fetchLobby(code));
+    const first = firstLobby?.seedCommits?.[host];
 
     await denied(
       updateDoc(doc(dbFor(guest), "games", code), { guestUid: null, [`players.${guest}`]: deleteField() })
@@ -278,7 +277,8 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
     expect([left?.seedCommits ?? {}, left?.seedReveals ?? {}]).toEqual([{}, {}]);
 
     await as(host, () => commitSeed(code, host));
-    const second = (await as(host, () => fetchLobby(code)))?.seedCommits?.[host];
+    const secondLobby = await as(host, () => fetchLobby(code));
+    const second = secondLobby?.seedCommits?.[host];
     expect(second).toBeDefined();
     expect(second).not.toBe(first);
   });

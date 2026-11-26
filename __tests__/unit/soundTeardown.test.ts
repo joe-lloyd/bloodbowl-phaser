@@ -33,8 +33,10 @@ class FakeAudioParam {
   });
 }
 
+const passThrough = (target: unknown) => target;
+
 class FakeAudioNode {
-  connect = vi.fn((target: unknown) => target);
+  connect = vi.fn(passThrough);
   disconnect = vi.fn();
 }
 
@@ -79,23 +81,30 @@ class FakeBufferSourceNode extends FakeScheduledSourceNode {
   loop = false;
 }
 
+const newGainNode = () => new FakeGainNode();
+const newOscillatorNode = () => new FakeOscillatorNode();
+const newBufferSourceNode = () => new FakeBufferSourceNode();
+const newBiquadFilterNode = () => new FakeBiquadFilterNode();
+const fakeDecodedBuffer = (_channels: number, length: number) => ({
+  getChannelData: () => new Float32Array(length),
+});
+const decodeFakeAudio = async (data: ArrayBuffer) => ({
+  url: new TextDecoder().decode(data),
+  duration: 0.4,
+});
+
 class FakeAudioContext {
   state: "running" | "suspended" | "closed" = "running";
   currentTime = 0;
   sampleRate = 44_100;
   destination = new FakeAudioNode();
-  createGain = vi.fn(() => new FakeGainNode());
-  createOscillator = vi.fn(() => new FakeOscillatorNode());
-  createBufferSource = vi.fn(() => new FakeBufferSourceNode());
-  createBiquadFilter = vi.fn(() => new FakeBiquadFilterNode());
-  createBuffer = vi.fn((_channels: number, length: number) => ({
-    getChannelData: () => new Float32Array(length),
-  }));
+  createGain = vi.fn(newGainNode);
+  createOscillator = vi.fn(newOscillatorNode);
+  createBufferSource = vi.fn(newBufferSourceNode);
+  createBiquadFilter = vi.fn(newBiquadFilterNode);
+  createBuffer = vi.fn(fakeDecodedBuffer);
 
-  decodeAudioData = vi.fn(async (data: ArrayBuffer) => ({
-    url: new TextDecoder().decode(data),
-    duration: 0.4,
-  }));
+  decodeAudioData = vi.fn(decodeFakeAudio);
   resume = vi.fn(async () => {
     this.state = "running";
   });
@@ -183,12 +192,12 @@ describe("SoundManager", () => {
     const ctx = new FakeAudioContext();
     const manager = new SoundManager(() => ctx as never);
 
-    const addSpy = vi.spyOn(document, "addEventListener");
-    const removeSpy = vi.spyOn(document, "removeEventListener");
+    const documentAddSpy = vi.spyOn(document, "addEventListener");
+    const documentRemoveSpy = vi.spyOn(document, "removeEventListener");
 
     await manager.init();
-    const addedTypes = addSpy.mock.calls
-      .filter(([, , opts]) => (opts as AddEventListenerOptions)?.once)
+    const addedTypes = documentAddSpy.mock.calls
+      .filter((call) => (call[2] as AddEventListenerOptions)?.once)
       .map(([type]) => type);
     expect(addedTypes).toEqual(
       expect.arrayContaining(["pointerdown", "keydown"])
@@ -196,13 +205,13 @@ describe("SoundManager", () => {
 
     manager.dispose();
 
-    const removedTypes = removeSpy.mock.calls.map(([type]) => type);
+    const removedTypes = documentRemoveSpy.mock.calls.map(([type]) => type);
     expect(removedTypes).toEqual(
       expect.arrayContaining(["pointerdown", "keydown"])
     );
 
-    addSpy.mockRestore();
-    removeSpy.mockRestore();
+    documentAddSpy.mockRestore();
+    documentRemoveSpy.mockRestore();
   });
 
   it("play() never schedules anything before init() — dropped silently, not queued", async () => {
@@ -326,22 +335,24 @@ describe("SoundManager: concurrent triggers cannot strand or replace each other"
   });
 });
 
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const playedBuffers = (ctx: FakeAudioContext) =>
+  ctx.createBufferSource.mock.results
+    .map((result) => result.value.buffer)
+    .filter(
+      (buffer): buffer is { url: string; duration: number } =>
+        typeof buffer?.url === "string"
+    );
+
+const serveAll = async (url: string) => new Response(url);
+
 describe("SoundSuite plays recorded samples", () => {
   const fakeEventBus: IEventBus = {
     on: vi.fn(),
     off: vi.fn(),
     emit: vi.fn(),
   } as any;
-
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-  const playedBuffers = (ctx: FakeAudioContext) =>
-    ctx.createBufferSource.mock.results
-      .map((result) => result.value.buffer)
-      .filter(
-        (buffer): buffer is { url: string; duration: number } =>
-          typeof buffer?.url === "string"
-      );
 
   async function setup(fetchImpl: (url: string) => Promise<Response>) {
     vi.resetModules();
@@ -362,8 +373,6 @@ describe("SoundSuite plays recorded samples", () => {
       suite: new SoundSuite(fakeEventBus, manager),
     };
   }
-
-  const serveAll = async (url: string) => new Response(url);
 
   afterEach(() => {
     vi.restoreAllMocks();

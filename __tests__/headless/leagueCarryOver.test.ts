@@ -203,9 +203,10 @@ describe("Dead", () => {
   });
 });
 
+const journeymen = (t: Team) =>
+  t.players.filter((p) => p.playerKind === "journeyman");
+
 describe("Journeymen (L2)", () => {
-  const journeymen = (t: Team) =>
-    t.players.filter((p) => p.playerKind === "journeyman");
 
   it("brings a team that cannot field 7 up to exactly 7, with Loner (5+)", () => {
     const home = team("home", 7);

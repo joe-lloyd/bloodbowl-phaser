@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import {
   advancedInventory,
@@ -30,10 +30,10 @@ import { RosterName } from "../../src/types/Team";
 describe("advanced skill study", () => {
   const variants = advancedInventory();
   it("resumes through report edits but rejects changes to acquisition inputs", () => {
-    const root = mkdtempSync(join(tmpdir(), "bb7-fingerprint-"));
+    const root = mkdtempSync(path.join(tmpdir(), "bb7-fingerprint-"));
     const put = (name: string, content = "initial") => {
-      const file = join(root, name);
-      mkdirSync(dirname(file), { recursive: true });
+      const file = path.join(root, name);
+      mkdirSync(path.dirname(file), { recursive: true });
       writeFileSync(file, content);
     };
     try {
@@ -82,7 +82,10 @@ describe("advanced skill study", () => {
         (d) => d.kind === "skill" && !covered.has(d.type)
       )
     ).toEqual([]);
-    for (const focused of variants.filter((v) => v.arm === "focused")) {
+    for (const focused of variants) {
+      if (focused.arm !== "focused") {
+        continue;
+      }
       const control = fixtureValue(
         variants.find(
           (v) =>
@@ -138,9 +141,8 @@ describe("advanced skill study", () => {
     expect(withoutSkill.triggers).toBe(0);
     expect(withSkill.rejected).toBe(0);
     expect(withoutSkill.rejected).toBe(0);
-    expect((await probeRun(config, SkillType.HORNS, 1, false)).triggers).toBe(
-      withSkill.triggers
-    );
+    const probe = await probeRun(config, SkillType.HORNS, 1, false);
+    expect(probe.triggers).toBe(withSkill.triggers);
   });
   it("distinguishes an ordinary Blitz from a special Blitz in opening diagnostics", async () => {
     const { config } = fixtureValue(findRuleConfig("projectile-vomit-blitz"));
@@ -169,7 +171,7 @@ describe("advanced skill study", () => {
     });
   });
   it("preserves advanced players and prices in the actual saved replay", async () => {
-    const out = mkdtempSync(join(tmpdir(), "bb7-advanced-"));
+    const out = mkdtempSync(path.join(tmpdir(), "bb7-advanced-"));
     try {
       const job = advancedSchedule(variants)[0];
       const sides = fixtureValue(job).variantIds.map((id) =>
@@ -181,7 +183,7 @@ describe("advanced skill study", () => {
       ]);
       expect(result.completed).toBe(true);
       expect(result.findings).toEqual([]);
-      const file = join(out, "traces", fixtureValue(job).id + ".json.gz");
+      const file = path.join(out, "traces", fixtureValue(job).id + ".json.gz");
       const trace = parseMatchTrace(gunzipSync(readFileSync(file)).toString());
       expect(
         trace.initial.teams[0].players.reduce(
@@ -190,7 +192,8 @@ describe("advanced skill study", () => {
           0
         )
       ).toBe(6);
-      expect((await replayStudyTrace(file)).commands).toBe(result.commands);
+      const replayed = await replayStudyTrace(file);
+      expect(replayed.commands).toBe(result.commands);
     } finally {
       rmSync(out, { recursive: true, force: true });
     }

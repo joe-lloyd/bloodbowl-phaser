@@ -61,7 +61,7 @@ async function declineRerolls(
   return r;
 }
 
-async function passTo(seed: number, x: number, y: number) {
+async function passTo(seed: number) {
   const game = new HeadlessGame({ scenario: passScenario, seed });
   const passerId = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({
@@ -71,7 +71,7 @@ async function passTo(seed: number, x: number, y: number) {
   });
   return declineRerolls(
     game,
-    await game.execute({ type: "pass", playerId: passerId, x, y })
+    await game.execute({ type: "pass", playerId: passerId, x: 8, y: 5 })
   );
 }
 
@@ -105,7 +105,7 @@ function holderAt(response: CommandResponse): string | undefined {
 
 describe("a pass that ends outside the active team's hands", () => {
   it("is a turnover when an opponent catches it", async () => {
-    const response = await passTo(OPPONENT_CATCHES_SEED, 8, 5);
+    const response = await passTo(OPPONENT_CATCHES_SEED);
 
     expect(response.snapshot.ballPosition).toEqual({ x: 8, y: 5 });
     expect(holderAt(response)).toBe("team2-player-1");
@@ -113,7 +113,7 @@ describe("a pass that ends outside the active team's hands", () => {
   });
 
   it("is a turnover when an opponent drops it to the ground", async () => {
-    const response = await passTo(OPPONENT_DROPS_SEED, 8, 5);
+    const response = await passTo(OPPONENT_DROPS_SEED);
 
     expect(response.snapshot.ballPosition).toEqual({ x: 9, y: 5 });
     expect(holderAt(response)).toBeUndefined();

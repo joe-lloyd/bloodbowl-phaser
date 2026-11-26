@@ -2,7 +2,7 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -89,9 +89,9 @@ describe("policy-lab play usage", () => {
     await play(1, { type: "choose-push-direction", x: 19, y: 5 });
     expect(game.snapshot().score).toEqual({ team1: 1, team2: 0 });
 
-    const dir = mkdtempSync(join(tmpdir(), "bb7-usage-"));
+    const dir = mkdtempSync(path.join(tmpdir(), "bb7-usage-"));
     try {
-      const file = join(dir, "trace.json.gz");
+      const file = path.join(dir, "trace.json.gz");
       writeFileSync(
         file,
         gzipSync(

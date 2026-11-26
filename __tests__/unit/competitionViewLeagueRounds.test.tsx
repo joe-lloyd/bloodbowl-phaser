@@ -253,9 +253,8 @@ describe("a league's rounds", () => {
     expect(fixtureValue(roundOne).getAttribute("aria-expanded")).toBe("false");
     expect(panelOf(fixtureValue(roundOne)).hidden).toBe(true);
 
-    expect(
-      (await getCompetition("league", "season"))?.fixtures[1]?.status
-    ).toBe("complete");
+    const season = await getCompetition("league", "season");
+    expect(season?.fixtures[1]?.status).toBe("complete");
     await reload();
     expect(nextRound()).toBe("Round 2");
     expect(completedToggles().map((toggle) => toggle.textContent)).toEqual([

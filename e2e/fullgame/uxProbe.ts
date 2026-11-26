@@ -160,11 +160,10 @@ function inspect(): UxFinding[] {
 
       const dialogUp = onPitch.some((p) => {
         const pt = bridge.squareToCanvas(fixtureValue(p.position).x, fixtureValue(p.position).y);
-        return pt
-          ? insideModal(
-              document.elementFromPoint(box.left + pt.x, box.top + pt.y)
-            )
-          : false;
+        return (
+          pt &&
+          insideModal(document.elementFromPoint(box.left + pt.x, box.top + pt.y))
+        );
       });
       if (!dialogUp && onPitch.length > 0 && hidden.length * 2 >= onPitch.length) {
         findings.push({

@@ -80,7 +80,9 @@ beforeEach(async () => {
   guestEnd = guest;
   fromHost = [];
   guestSeq = 0;
-  guestEnd.subscribe((envelope) => fromHost.push(envelope));
+  guestEnd.subscribe((envelope) => {
+    fromHost.push(envelope);
+  });
   bus = new EventBus();
   match = createOnlineMatch({
     lobby,

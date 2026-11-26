@@ -8,6 +8,19 @@ const scrimmage = fixtureValue(
   SCENARIOS.find((s) => s.id === "basic-scrimmage")
 );
 
+const runPickups = (): boolean[] => {
+  const game = createHeadlessGame({ scenario: scrimmage, seed: 999 });
+  const results: boolean[] = [];
+  for (let i = 0; i < 10; i++) {
+    const player = game.team1.players[0];
+    const ball = fixtureValue(game.gameService.getState().ballPosition);
+    results.push(game.gameService.attemptPickup(fixtureValue(player), ball));
+
+    game.gameService.setBallPosition(ball.x, ball.y);
+  }
+  return results;
+};
+
 describe("createHeadlessGame", () => {
   it("creates a game in Node without Phaser or DOM", () => {
     const game = createHeadlessGame({ seed: 1 });
@@ -62,22 +75,7 @@ describe("createHeadlessGame", () => {
   });
 
   it("produces identical engine results for identical seeds and commands", () => {
-    const runPickups = (seed: number): boolean[] => {
-      const game = createHeadlessGame({ scenario: scrimmage, seed });
-      const results: boolean[] = [];
-      for (let i = 0; i < 10; i++) {
-        const player = game.team1.players[0];
-        const ball = fixtureValue(game.gameService.getState().ballPosition);
-        results.push(
-          game.gameService.attemptPickup(fixtureValue(player), ball)
-        );
-
-        game.gameService.setBallPosition(ball.x, ball.y);
-      }
-      return results;
-    };
-
-    expect(runPickups(999)).toEqual(runPickups(999));
+    expect(runPickups()).toEqual(runPickups());
   });
 
   it("uses the scenario seed when no explicit seed is given", () => {

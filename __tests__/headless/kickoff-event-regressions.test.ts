@@ -131,6 +131,17 @@ describe("Kickoff table resolves exactly once per drive (regression: reroll afte
   });
 });
 
+function rushRolls(response: CommandResponse) {
+  return response.events.filter(
+    (event) =>
+      event.name === GameEventNames.DiceRoll &&
+      z
+        .object({ rollType: z.string().exactOptional() })
+        .parse(event.data)
+        .rollType?.includes("Rush")
+  );
+}
+
 describe("Dodgy Snack MA modifier applies before Rushes (regression)", () => {
   const maRushScenario: Scenario = {
     id: "dodgy-snack-ma-rush",
@@ -159,17 +170,6 @@ describe("Dodgy Snack MA modifier applies before Rushes (regression)", () => {
       ],
     },
   };
-
-  function rushRolls(response: CommandResponse) {
-    return response.events.filter(
-      (event) =>
-        event.name === GameEventNames.DiceRoll &&
-        z
-          .object({ rollType: z.string().exactOptional() })
-          .parse(event.data)
-          .rollType?.includes("Rush")
-    );
-  }
 
   it("an afflicted MA 6 player reaches 7 squares as 5 + 2 Rushes", async () => {
     const game = new HeadlessGame({ scenario: maRushScenario, seed: 2 });

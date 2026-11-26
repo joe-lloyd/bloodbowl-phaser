@@ -50,16 +50,16 @@ describe("the Sent-off card", () => {
       root.render(<SentOffCard eventBus={bus} />);
     });
     const text = () => container.textContent ?? "";
-    const tray = (thrown: number, landedThrough: number) => {
+    const tray = (landedThrough: number) => {
       bus.emit(GameEventNames.UI_DiceInAir, {
-        count: thrown - landedThrough,
-        thrown,
+        count: 1 - landedThrough,
+        thrown: 1,
         landedThrough,
       });
     };
 
     await act(async () => {
-      tray(1, 0);
+      tray(0);
       bus.emit(GameEventNames.RefereeCall, { ...call, step: "called" });
       bus.emit(GameEventNames.RefereeCall, {
         ...call,
@@ -85,7 +85,7 @@ describe("the Sent-off card", () => {
     expect(text()).toBe("");
 
     await act(async () => {
-      tray(1, 1);
+      tray(1);
     });
     await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
 

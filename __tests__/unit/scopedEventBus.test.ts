@@ -14,8 +14,8 @@ describe("a scoped event bus", () => {
     const bus = new EventBus();
     const scoped = scopeEventBus(bus);
     const heard: string[] = [];
-    bus.on(GameEventNames.UI_Notification, () => heard.push("page"));
-    scoped.on(GameEventNames.UI_Notification, () => heard.push("match"));
+    bus.on(GameEventNames.UI_Notification, () => { heard.push("page"); });
+    scoped.on(GameEventNames.UI_Notification, () => { heard.push("match"); });
 
     scoped.emit(GameEventNames.UI_Notification, "one");
     expect(heard).toEqual(["page", "match"]);
@@ -30,12 +30,12 @@ describe("a scoped event bus", () => {
     const bus = new EventBus();
     const scoped = scopeEventBus(bus);
     const heard: string[] = [];
-    bus.on(GameEventNames.UI_Notification, () => heard.push("page"));
+    bus.on(GameEventNames.UI_Notification, () => { heard.push("page"); });
     scoped.dispose();
 
     scoped.emit(GameEventNames.UI_Notification, "late");
-    scoped.on(GameEventNames.UI_Notification, () => heard.push("late on"));
-    scoped.once(GameEventNames.UI_Notification, () => heard.push("late once"));
+    scoped.on(GameEventNames.UI_Notification, () => { heard.push("late on"); });
+    scoped.once(GameEventNames.UI_Notification, () => { heard.push("late once"); });
     expect(heard).toEqual([]);
 
     bus.emit(GameEventNames.UI_Notification, "next match");
@@ -46,12 +46,12 @@ describe("a scoped event bus", () => {
     const bus = new EventBus();
     const scoped = scopeEventBus(bus);
     const heard: string[] = [];
-    bus.on(GameEventNames.PhaseChanged, () => heard.push("page"));
-    scoped.on(GameEventNames.PhaseChanged, () => heard.push("match"));
-    scoped.once(GameEventNames.PhaseChanged, () => heard.push("match once"));
+    bus.on(GameEventNames.PhaseChanged, () => { heard.push("page"); });
+    scoped.on(GameEventNames.PhaseChanged, () => { heard.push("match"); });
+    scoped.once(GameEventNames.PhaseChanged, () => { heard.push("match once"); });
     scoped.emit(GameEventNames.PhaseChanged, { phase: GamePhase.PLAY });
     heard.length = 0;
-    scoped.once(GameEventNames.PhaseChanged, () => heard.push("still waiting"));
+    scoped.once(GameEventNames.PhaseChanged, () => { heard.push("still waiting"); });
 
     scoped.detach();
     scoped.emit(GameEventNames.PhaseChanged, { phase: GamePhase.SETUP });
@@ -71,7 +71,7 @@ describe("a scoped event bus", () => {
     const bus = new EventBus();
     const scoped = scopeEventBus(bus);
     const heard: string[] = [];
-    scoped.on(GameEventNames.UI_Notification, () => heard.push("match"));
+    scoped.on(GameEventNames.UI_Notification, () => { heard.push("match"); });
     scoped.once(GameEventNames.UI_Notification, () => {
       heard.push("once");
       scoped.emit(GameEventNames.UI_Notification, "again");
@@ -91,7 +91,7 @@ describe("a scoped event bus", () => {
     const heard: string[] = [];
     scoped.once(GameEventNames.UI_Notification, () => {
       heard.push("first");
-      scoped.once(GameEventNames.UI_Notification, () => heard.push("second"));
+      scoped.once(GameEventNames.UI_Notification, () => { heard.push("second"); });
     });
 
     scoped.emit(GameEventNames.UI_Notification, "one");

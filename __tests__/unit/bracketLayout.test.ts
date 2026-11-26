@@ -48,9 +48,11 @@ const playedTies = (fixtures: CompetitionFixture[]) =>
   fixtures.filter((tie) => tie.status === "complete" && !tie.result?.bye);
 
 const loserOf = (tie: CompetitionFixture) =>
-  fixtureValue(tie.result).winnerEntrantId === tie.homeEntrantId
-    ? fixtureValue(tie.awayEntrantId)
-    : fixtureValue(tie.homeEntrantId);
+  fixtureValue(
+    fixtureValue(tie.result).winnerEntrantId === tie.homeEntrantId
+      ? tie.awayEntrantId
+      : tie.homeEntrantId
+  );
 
 function expectWinnersAdvanced(fixtures: CompetitionFixture[]): void {
   for (const tie of fixtures) {
@@ -127,7 +129,7 @@ describe("layoutBracket", () => {
     );
 
     const semis = layout.nodes.filter((n) => n.fixture.round === 2);
-    expect(semis.map((n) => n.column).sort()).toEqual([1, 3]);
+    expect(semis.map((n) => n.column).sort((a, b) => a - b)).toEqual([1, 3]);
   });
 
   it("centres a parent on the midpoint of the fixtures feeding it", () => {
@@ -184,7 +186,8 @@ describe("layoutBracket", () => {
     const layout = layoutBracket(fixtures);
     const finalId = fixtureValue(layout.nodes.find((n) => n.side === "final")).fixture.id;
 
-    for (const opening of fixtures.filter((f) => f.round === 1)) {
+    for (const opening of fixtures) {
+      if (opening.round !== 1) continue;
       let current = opening.id;
       let hops = 0;
       while (current !== finalId && hops < 10) {
@@ -307,37 +310,37 @@ describe("repairBracketLinkage", () => {
   });
 });
 
+const tournamentOf = (count: number): TournamentDoc => {
+  const entered = entrants(count);
+  return {
+    id: "t1",
+    type: "tournament" as const,
+    name: "Cup",
+    organizerUid: null,
+    participantUids: [],
+    status: "active" as const,
+    format: "single-elimination" as const,
+    entrants: entered,
+    fixtures: generateSingleElimination(entered),
+    standings: [],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+};
+
+const playAll = (start: TournamentDoc) => {
+  let current = start;
+  for (let guard = 0; guard < 40; guard++) {
+    const ready = current.fixtures.find(
+      (f) => f.status === "ready" && f.homeEntrantId && f.awayEntrantId
+    );
+    if (!ready) break;
+    current = recordTournamentResult({ tournament: current,fixtureId: ready.id,homeScore: 2,awayScore: 1 });
+  }
+  return current;
+};
+
 describe("a tournament played through to a champion", () => {
-  const tournamentOf = (count: number): TournamentDoc => {
-    const entered = entrants(count);
-    return {
-      id: "t1",
-      type: "tournament" as const,
-      name: "Cup",
-      organizerUid: null,
-      participantUids: [],
-      status: "active" as const,
-      format: "single-elimination" as const,
-      entrants: entered,
-      fixtures: generateSingleElimination(entered),
-      standings: [],
-      createdAt: 0,
-      updatedAt: 0,
-    };
-  };
-
-  const playAll = (start: TournamentDoc) => {
-    let current = start;
-    for (let guard = 0; guard < 40; guard++) {
-      const ready = current.fixtures.find(
-        (f) => f.status === "ready" && f.homeEntrantId && f.awayEntrantId
-      );
-      if (!ready) break;
-      current = recordTournamentResult({ tournament: current,fixtureId: ready.id,homeScore: 2,awayScore: 1 });
-    }
-    return current;
-  };
-
   it("tracks eliminations and advancement at every round", () => {
     let current = tournamentOf(8);
     const seen = new Set<string>();

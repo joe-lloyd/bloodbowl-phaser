@@ -23,6 +23,22 @@ import {
   weightBounds,
 } from "../../src/simulation/ai/weights";
 
+const stats = (casualties: number): TeamPlayStats => ({
+  turns: 12,
+  turnovers: 0,
+  dodges: 0,
+  failedDodges: 0,
+  rushes: 0,
+  failedRushes: 0,
+  casualties,
+  completions: 0,
+  blocks: 10,
+  actions: { block: 6, blitz: 4 },
+});
+
+const puzzle = (id: string) => fixtureValue(PUZZLES.find((p) => p.id === id));
+const game = (score: [number, number]) => ({ score });
+
 describe("coach benchmark", () => {
   it("plays every seed twice with the same rosters and the sides swapped", () => {
     const rosters: [RosterName, RosterName] = [
@@ -71,18 +87,6 @@ describe("roster standards", () => {
   });
 
   it("lets a Brawlin' Brutes team meet its standard with casualties", () => {
-    const stats = (casualties: number): TeamPlayStats => ({
-      turns: 12,
-      turnovers: 0,
-      dodges: 0,
-      failedDodges: 0,
-      rushes: 0,
-      failedRushes: 0,
-      casualties,
-      completions: 0,
-      blocks: 10,
-      actions: { block: 6, blitz: 4 },
-    });
     const game = (roster: RosterName): BenchGame => ({
       seed: 1,
       rosters: [roster, RosterName.ELVEN_UNION],
@@ -115,7 +119,6 @@ describe("roster standards", () => {
 });
 
 describe("coaching puzzles", () => {
-  const puzzle = (id: string) => fixtureValue(PUZZLES.find((p) => p.id === id));
 
   it("counts a walk-in touchdown as solving score-this-turn", async () => {
     const result = await playPuzzle(
@@ -152,10 +155,11 @@ describe("the weight tuner", () => {
     let weights: Weights = DEFAULT_WEIGHTS;
     for (let i = 0; i < 200; i++) {
       weights = mutate(weights, rng);
-      for (const name of Object.keys(DEFAULT_WEIGHTS).filter(
+      const boundedNames = Object.keys(DEFAULT_WEIGHTS).filter(
         (name): name is keyof Weights =>
           Object.getOwnPropertyDescriptor(DEFAULT_WEIGHTS, name) !== undefined
-      )) {
+      );
+      for (const name of boundedNames) {
         const [low, high] = weightBounds(name);
         expect(weights[name]).toBeGreaterThanOrEqual(low);
         expect(weights[name]).toBeLessThanOrEqual(high);
@@ -166,7 +170,6 @@ describe("the weight tuner", () => {
   });
 
   it("counts a win as a point and a draw as half", () => {
-    const game = (score: [number, number]) => ({ score });
     expect(pointShare([game([2, 0]), game([1, 1]), game([0, 1])])).toBe(0.5);
     expect(pointShare([game([2, 0]), game([1, 1])])).toBe(0.75);
   });

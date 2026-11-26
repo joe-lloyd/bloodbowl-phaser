@@ -24,8 +24,8 @@ function draftTeam(
   );
 }
 
-function activeTeam(rosterName: RosterName = RosterName.HUMAN) {
-  const team = draftTeam(rosterName, "advanced-league");
+function activeTeam() {
+  const team = draftTeam(RosterName.HUMAN, "advanced-league");
   stampFirstCompletedMatch(team, 1);
   return team;
 }

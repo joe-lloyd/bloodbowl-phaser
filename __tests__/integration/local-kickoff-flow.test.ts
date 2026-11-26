@@ -130,9 +130,9 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
 
   it("starts the receiving team's turn after the kick", async () => {
     const turnsStarted: string[] = [];
-    eventBus.on(GameEventNames.TurnStarted, (turn: any) =>
-      turnsStarted.push(turn.teamId)
-    );
+    eventBus.on(GameEventNames.TurnStarted, (turn: any) => {
+      turnsStarted.push(turn.teamId);
+    });
 
     eventBus.emit(GameEventNames.UI_CoinFlipComplete, {
       kickingTeam: team1,

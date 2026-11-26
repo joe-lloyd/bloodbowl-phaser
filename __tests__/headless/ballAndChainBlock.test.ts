@@ -238,8 +238,9 @@ describe("a Ball & Chain collision is a normal Block", () => {
     });
 
     expect(
-      response.pendingDecision?.type === "block-dice" &&
-        response.pendingDecision.options.length
+      response.pendingDecision?.type === "block-dice"
+        ? response.pendingDecision.options.length
+        : 0
     ).toBe(2);
   });
 

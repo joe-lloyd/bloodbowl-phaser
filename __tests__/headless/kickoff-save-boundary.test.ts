@@ -32,9 +32,9 @@ class KickoffWrites implements MatchSaveRepository {
 }
 
 const gatesWaitForAnAnswer: DelayProvider = (ms) =>
-  ms >= 10_000
-    ? new Promise(() => undefined)
-    : new Promise((resolve) => setTimeout(resolve, ms));
+  new Promise((resolve) => {
+    if (ms < 10_000) setTimeout(resolve, ms);
+  });
 
 const presentation = (
   game: HeadlessGame,

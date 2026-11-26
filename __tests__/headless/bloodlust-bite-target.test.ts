@@ -17,7 +17,9 @@ import { defaultAnswer } from "../../src/network/decisionTimeouts";
 
 const BLOODLUST_FAILS_SEED = 7;
 
-function scenario(ball: { x: number; y: number } = { x: 1, y: 1 }): Scenario {
+const DEFAULT_BALL = { x: 1, y: 1 };
+
+function scenario(ball: { x: number; y: number } = DEFAULT_BALL): Scenario {
   return {
     id: "bloodlust-bite-target",
     name: "Bloodlust fails with two Thrall Linemen in reach",
@@ -168,30 +170,31 @@ describe("Bloodlust with two or more Thrall Linemen in reach", () => {
   });
 });
 
-describe("the computer coach picks a bite target by rule", () => {
-  async function pick(coach: Coach, ball?: { x: number; y: number }) {
-    const r = await failBloodlust(ball);
-    await r.game.execute({
-      type: "end-activation",
-      playerId: fixtureValue(r.vampire).id,
-    });
-    const picks = new Set<string | undefined>();
+async function pick(coach: Coach, ball?: { x: number; y: number }) {
+  const r = await failBloodlust(ball);
+  await r.game.execute({
+    type: "end-activation",
+    playerId: fixtureValue(r.vampire).id,
+  });
+  const picks = new Set<string | undefined>();
 
-    for (let seed = 1; seed <= 20; seed++) {
-      const point = await enumerateDecision(r.game, null);
-      const { index } = await coach.choose({
-        game: r.game,
-        snapshot: r.game.snapshot(),
-        point,
-        rng: createCoachRng(seed),
-      });
-      const command = fixtureValue(point.candidates[index]).commands[0];
-      picks.add(
-        command.type === "choose-bite-target" ? command.playerId : "other"
-      );
-    }
-    return { r, picks: [...picks] };
+  for (let seed = 1; seed <= 20; seed++) {
+    const point = await enumerateDecision(r.game, null);
+    const { index } = await coach.choose({
+      game: r.game,
+      snapshot: r.game.snapshot(),
+      point,
+      rng: createCoachRng(seed),
+    });
+    const command = fixtureValue(point.candidates[index]).commands[0];
+    picks.add(
+      command.type === "choose-bite-target" ? command.playerId : "other"
+    );
   }
+  return { r, picks: [...picks] };
+}
+
+describe("the computer coach picks a bite target by rule", () => {
 
   for (const coach of [plannerCoach, heuristicCoach]) {
     it(`${coach.name}: always bites, the first Thrall in board order`, async () => {

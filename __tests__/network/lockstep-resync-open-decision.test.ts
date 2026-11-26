@@ -81,17 +81,19 @@ describe.each([
     const [hostEnd, guestEnd] = createInMemoryTransportPair();
     const desyncs: string[] = [];
     const session = (game: SimGame, end: Transport, side: Side) =>
-      sideSession(game, end, side, (detail) =>
-        desyncs.push(`${side}: ${detail}`)
-      );
+      sideSession(game, end, side, (detail) => {
+        desyncs.push(`${side}: ${detail}`);
+      });
     const host = session(hostGame, hostEnd, "host");
     const guest = session(guestGame, guestEnd, "guest");
     const play = async (command: HeadlessCommand) => {
-      if (!(await host.run(command)).ok) await guest.run(command);
+      const hostResult = await host.run(command);
+      if (!hostResult.ok) await guest.run(command);
       await settle(host, guest);
     };
 
-    for (const step of recording.steps.slice(0, stop + 1)) {
+    const prefix = recording.steps.slice(0, stop + 1);
+    for (const step of prefix) {
       await play(step.command);
     }
     expect(hostGame.pendingDecision()?.type).toBe(decision);
@@ -114,7 +116,8 @@ describe.each([
       expect(guest.appliedCommands()).toBe(host.appliedCommands());
     }
 
-    for (const step of recording.steps.slice(stop + 1, stop + 25)) {
+    const suffix = recording.steps.slice(stop + 1, stop + 25);
+    for (const step of suffix) {
       await play(step.command);
     }
     expect(guest.appliedCommands()).toBe(host.appliedCommands());
@@ -167,8 +170,10 @@ describe("a full resync onto a page with nothing paused", () => {
     const host = sideSession(hostGame, hostEnd, "host");
     const guest = sideSession(guestGame, guestEnd, "guest");
     const steps = recording.steps;
-    for (const step of steps.slice(0, stop + 1)) {
-      if (!(await host.run(step.command)).ok) await guest.run(step.command);
+    const prefix = steps.slice(0, stop + 1);
+    for (const step of prefix) {
+      const hostResult = await host.run(step.command);
+      if (!hostResult.ok) await guest.run(step.command);
       await settle(host, guest);
     }
     const decision = hostGame.pendingDecision();
@@ -207,9 +212,9 @@ describe("a hello from a page on another protocol version", () => {
       myTeamId: game.ctx.team1.id,
       peerTeamId: game.ctx.team2.id,
       hostTeamId: game.ctx.team1.id,
-      onHello: (payload) => heard.push(String(payload.protocolVersion)),
+      onHello: (payload) => { heard.push(String(payload.protocolVersion)); },
     });
-    theirs.subscribe((envelope) => answers.push(envelope.kind));
+    theirs.subscribe((envelope) => { answers.push(envelope.kind); });
     const before = stateChecksum(game);
 
     await theirs.send({

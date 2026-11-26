@@ -10,12 +10,13 @@ import { type Scenario } from "../../src/types/Scenario";
 import { SkillRegistry, type SkillRule } from "../../src/game/skills";
 import { GameOperation } from "../../src/game/core/GameOperation";
 
-const give = (player: { skills: unknown[] }, type: SkillType) =>
+const give = (player: { skills: unknown[] }, type: SkillType) => {
   player.skills.push({
     type,
     category: SkillCategory.GENERAL,
     description: "",
   });
+};
 
 const scenario: Scenario = {
   id: "skill-triggers",
@@ -36,6 +37,29 @@ const STUB_SKILL = SkillType.PREHENSILE_TAIL;
 afterEach(() => {
   SkillRegistry.unregister(STUB_SKILL);
 });
+
+const run = async (withInertSkill: boolean) => {
+  const game = new HeadlessGame({ scenario, seed: 3 });
+  const dodger = game.ctx.team1.players[0];
+  if (withInertSkill) {
+    give(fixtureValue(game.ctx.team2.players[0]), SkillType.DIVING_TACKLE);
+  }
+  await game.execute({
+    type: "declare-action",
+    playerId: fixtureValue(dodger).id,
+    action: "move",
+  });
+  const moved = await game.execute({
+    type: "move",
+    playerId: fixtureValue(dodger).id,
+    path: [{ x: 9, y: 4 }],
+  });
+
+  return JSON.stringify({
+    dice: moved.events.filter((e) => e.name === GameEventNames.DiceRoll),
+    dodger: fixtureValue(moved.snapshot.teams[0]).players[0],
+  });
+};
 
 describe("reactive triggers — all-participant gather (3.1)", () => {
   it("an adjacent opponent's rule modifies the acting player's dodge roll", async () => {
@@ -93,28 +117,6 @@ describe("reactive triggers — all-participant gather (3.1)", () => {
   });
 
   it("a reactive-category skill with no rule is transparent", async () => {
-    const run = async (withInertSkill: boolean) => {
-      const game = new HeadlessGame({ scenario, seed: 3 });
-      const dodger = game.ctx.team1.players[0];
-      if (withInertSkill) {
-        give(fixtureValue(game.ctx.team2.players[0]), SkillType.DIVING_TACKLE);
-      }
-      await game.execute({
-        type: "declare-action",
-        playerId: fixtureValue(dodger).id,
-        action: "move",
-      });
-      const moved = await game.execute({
-        type: "move",
-        playerId: fixtureValue(dodger).id,
-        path: [{ x: 9, y: 4 }],
-      });
-
-      return JSON.stringify({
-        dice: moved.events.filter((e) => e.name === GameEventNames.DiceRoll),
-        dodger: fixtureValue(moved.snapshot.teams[0]).players[0],
-      });
-    };
     expect(await run(true)).toBe(await run(false));
   });
 });
@@ -147,13 +149,13 @@ describe("flow-altering effects via the operation queue (3.3)", () => {
     give(fixtureValue(attacker), STUB_SKILL);
 
     const notifications: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.UI_Notification, (d) =>
-      notifications.push(d)
-    );
+    game.ctx.eventBus.on(GameEventNames.UI_Notification, (d) => {
+      notifications.push(d);
+    });
     const skillEvents: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.SkillTriggered, (d) =>
-      skillEvents.push(d)
-    );
+    game.ctx.eventBus.on(GameEventNames.SkillTriggered, (d) => {
+      skillEvents.push(d);
+    });
 
     await game.ctx.gameService.resolveBlock(
       fixtureValue(attacker).id,
@@ -202,7 +204,9 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
       if (d.rollType.includes("Armour")) armour.push(d);
     });
     const turnovers: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.Turnover, (d) => turnovers.push(d));
+    game.ctx.eventBus.on(GameEventNames.Turnover, (d) => {
+      turnovers.push(d);
+    });
 
     const reply = await game.execute({ type: "use-reaction", accept: true });
     expect(reply.ok).toBe(true);

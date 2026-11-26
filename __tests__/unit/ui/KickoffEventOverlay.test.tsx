@@ -14,6 +14,43 @@ import {
 } from "../../../src/network/OnlineMatch";
 import { TeamBuilder } from "../../utils/test-builders";
 
+function setup() {
+  const team1 = new TeamBuilder()
+    .withId("team-1")
+    .withName("Reikland Reavers")
+    .withPlayers(2)
+    .build();
+  const team2 = new TeamBuilder()
+    .withId("team-2")
+    .withName("Bad Badgers")
+    .withPlayers(2)
+    .build();
+  const eventBus = new EventBus();
+  const services = ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2 });
+
+  const step: KickoffEventStepState = {
+    event: KickoffEvent.ALERT_DEFENCE,
+    teamId: team1.id,
+    selectionLimit: 2,
+    selectedPlayerIds: [],
+    movedPlayerIds: [],
+    awaitingPlacement: [],
+    stage: "choose",
+    canReselect: false,
+  };
+
+  services.gameService.getKickoffEventStep = () => step;
+
+  return { eventBus, team1, team2 };
+}
+
+function fakeMatch(myTeamId: string, mayAct: boolean): OnlineMatch {
+  return {
+    myTeamId,
+    mayAct: () => mayAct,
+  } as unknown as OnlineMatch;
+}
+
 describe("KickoffEventOverlay", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -33,42 +70,7 @@ describe("KickoffEventOverlay", () => {
     ServiceContainer.reset();
   });
 
-  function setup() {
-    const team1 = new TeamBuilder()
-      .withId("team-1")
-      .withName("Reikland Reavers")
-      .withPlayers(2)
-      .build();
-    const team2 = new TeamBuilder()
-      .withId("team-2")
-      .withName("Bad Badgers")
-      .withPlayers(2)
-      .build();
-    const eventBus = new EventBus();
-    const services = ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2 });
 
-    const step: KickoffEventStepState = {
-      event: KickoffEvent.ALERT_DEFENCE,
-      teamId: team1.id,
-      selectionLimit: 2,
-      selectedPlayerIds: [],
-      movedPlayerIds: [],
-      awaitingPlacement: [],
-      stage: "choose",
-      canReselect: false,
-    };
-
-    services.gameService.getKickoffEventStep = () => step;
-
-    return { eventBus, team1, team2 };
-  }
-
-  function fakeMatch(myTeamId: string, mayAct: boolean): OnlineMatch {
-    return {
-      myTeamId,
-      mayAct: () => mayAct,
-    } as unknown as OnlineMatch;
-  }
 
   async function render(eventBus: EventBus) {
     await act(async () => {

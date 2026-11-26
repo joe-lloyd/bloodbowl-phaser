@@ -242,6 +242,9 @@ async function placeTeam({
   }
 }
 
+const scoresInOrder = (snap: GameSnapshot) =>
+  snap.teams.map((t) => snap.score[t.id]);
+
 describe("full headless match", () => {
   it("plays a complete seeded match to GAME_OVER", async () => {
     const { finalSnapshot, commandCount, sawHalftime } =
@@ -268,8 +271,6 @@ describe("full headless match", () => {
     const a = await playFullMatch(31_337);
     const b = await playFullMatch(31_337);
 
-    const scoresInOrder = (snap: GameSnapshot) =>
-      snap.teams.map((t) => snap.score[t.id]);
     expect(scoresInOrder(a.finalSnapshot)).toEqual(
       scoresInOrder(b.finalSnapshot)
     );

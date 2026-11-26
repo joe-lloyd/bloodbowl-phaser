@@ -104,13 +104,17 @@ describe.each([
 ])("dice on the %s", (_name, size) => {
   it("stay in the picture all the way through a 2D6", async () => {
     let edge = 0;
-    for (let roll = 0; roll < 3; roll++)
-      edge = Math.max(edge, (await rollOn(size)).edge);
+    for (let roll = 0; roll < 3; roll++) {
+      const result = await rollOn(size);
+      edge = Math.max(edge, result.edge);
+    }
     expect(edge).toBeLessThanOrEqual(1.05);
   }, 40_000);
 
   it("land large enough to read", async () => {
-    expect((await rollOn(size, [5])).share).toBeGreaterThan(0.55);
-    expect((await rollOn(size)).share).toBeGreaterThan(0.45);
+    const lit = await rollOn(size, [5]);
+    expect(lit.share).toBeGreaterThan(0.55);
+    const plain = await rollOn(size);
+    expect(plain.share).toBeGreaterThan(0.45);
   }, 40_000);
 });

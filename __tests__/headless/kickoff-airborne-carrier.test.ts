@@ -49,7 +49,9 @@ async function charge(
     GameEventNames.BallThrownIn,
     GameEventNames.BallPickup,
   ] as const) {
-    game.ctx.eventBus.on(name, () => ballEvents.push(name));
+    game.ctx.eventBus.on(name, () => {
+      ballEvents.push(name);
+    });
   }
   return { game, gs: game.ctx.gameService, attacker, defender, ballEvents };
 }

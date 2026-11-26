@@ -46,9 +46,9 @@ function start() {
   game.ctx.eventBus.on(GameEventNames.PlayerKnockedDown, ({ playerId }) => {
     if (playerId === fixtureValue(thrall).id) heard.push("thrall knocked down");
   });
-  game.ctx.eventBus.on(GameEventNames.TurnEnded, () =>
-    heard.push("turn ended")
-  );
+  game.ctx.eventBus.on(GameEventNames.TurnEnded, () => {
+    heard.push("turn ended");
+  });
   return { game, vampire, thrall, heard };
 }
 

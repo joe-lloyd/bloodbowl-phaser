@@ -222,29 +222,30 @@ describe("fixture audit", () => {
   });
 });
 
-describe("production catalogs are fixture-authentic", () => {
-  function auditEverything(): FixtureIssue[] {
-    const issues: FixtureIssue[] = [];
-    for (const entry of RULE_SCENARIOS) {
-      for (const config of entry.configs) {
-        issues.push(
-          ...auditSetupFixtures(
-            config.id,
-            config.setup,
-            (config.skillProvenance ?? []).map((provenance) => ({
-              player: provenance.playerRef,
-              skill: provenance.skill,
-              reason: provenance.reason,
-            }))
-          ).issues
-        );
-      }
+function auditEverything(): FixtureIssue[] {
+  const issues: FixtureIssue[] = [];
+  for (const entry of RULE_SCENARIOS) {
+    for (const config of entry.configs) {
+      issues.push(
+        ...auditSetupFixtures(
+          config.id,
+          config.setup,
+          (config.skillProvenance ?? []).map((provenance) => ({
+            player: provenance.playerRef,
+            skill: provenance.skill,
+            reason: provenance.reason,
+          }))
+        ).issues
+      );
     }
-    for (const scenario of SCENARIOS) {
-      issues.push(...auditSetupFixtures(scenario.id, scenario.setup).issues);
-    }
-    return issues;
   }
+  for (const scenario of SCENARIOS) {
+    issues.push(...auditSetupFixtures(scenario.id, scenario.setup).issues);
+  }
+  return issues;
+}
+
+describe("production catalogs are fixture-authentic", () => {
 
   it("no rule config or sandbox scenario fields an impossible player", () => {
     const issues = auditEverything();
@@ -298,7 +299,8 @@ describe("production catalogs are fixture-authentic", () => {
   it("every declared skill provenance names a real roster position", () => {
     for (const entry of RULE_SCENARIOS) {
       for (const config of entry.configs) {
-        for (const provenance of config.skillProvenance ?? []) {
+        const provenances = config.skillProvenance ?? [];
+        for (const provenance of provenances) {
           const positions = positionByPlayerIndex(provenance.roster);
           expect(
             positions.includes(provenance.positionName) ||

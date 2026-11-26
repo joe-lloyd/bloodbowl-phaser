@@ -76,18 +76,17 @@ describe("roster-authentic block-replacement scenario catalog", () => {
           );
           expect(hasSkill(fixtureValue(player).skills, skill)).toBe(true);
 
-          if (provenance.source === "roster-default") {
-            const placement = fixtureValue(
-              fixture.setup.team1Placements.find(
-                (candidate) => candidate.playerIndex === playerIndex
-              )
-            );
-            expect(
-              placement.skills?.some((granted) =>
-                (typeof granted === "string" ? granted : granted.type) === skill
-              ) ?? false
-            ).toBe(false);
-          }
+          if (provenance.source !== "roster-default") continue;
+          const placement = fixtureValue(
+            fixture.setup.team1Placements.find(
+              (candidate) => candidate.playerIndex === playerIndex
+            )
+          );
+          expect(
+            placement.skills?.some((granted) =>
+              (typeof granted === "string" ? granted : granted.type) === skill
+            ) ?? false
+          ).toBe(false);
         }
       }
     }

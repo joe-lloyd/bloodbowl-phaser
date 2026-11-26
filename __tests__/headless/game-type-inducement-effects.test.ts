@@ -68,23 +68,31 @@ function induce(
 const player = (game: HeadlessGame, index: number) =>
   fixtureValue(game.ctx.team1.players[index]);
 
-describe("Beach Bowl souvenirs (BB-S1 to BB-S8)", () => {
-  async function carry(roll: number) {
-    const game = new HeadlessGame({
-      seed: 1,
-      startingPhase: GamePhase.SETUP,
-      format: BEACH,
-    });
-    forceDice(game.ctx.rng, [roll]);
-    induce(game, [[Inducement.SOUVENIR, 1]]);
-    await settle(game);
-    const pending = game.pendingDecision();
-    const carrier = player(game, 0);
-    await game.execute({ type: "choose-inducement", playerId: carrier.id });
-    await settle(game);
-    return { game, carrier, pending };
-  }
+async function carry(roll: number) {
+  const game = new HeadlessGame({
+    seed: 1,
+    startingPhase: GamePhase.SETUP,
+    format: BEACH,
+  });
+  forceDice(game.ctx.rng, [roll]);
+  induce(game, [[Inducement.SOUVENIR, 1]]);
+  await settle(game);
+  const pending = game.pendingDecision();
+  const carrier = player(game, 0);
+  await game.execute({ type: "choose-inducement", playerId: carrier.id });
+  await settle(game);
+  return { game, carrier, pending };
+}
 
+function gutterGame() {
+  return new HeadlessGame({
+    seed: 1,
+    startingPhase: GamePhase.SETUP,
+    format: GUTTER,
+  });
+}
+
+describe("Beach Bowl souvenirs (BB-S1 to BB-S8)", () => {
   it("rolls the souvenir and asks who carries it", async () => {
     const { pending } = await carry(6);
     expect(pending).toMatchObject({
@@ -168,14 +176,6 @@ describe("Street Bowl potion effects in play", () => {
 });
 
 describe("Gutter Bowl inducements (GB-I1 to GB-I5)", () => {
-  function gutterGame() {
-    return new HeadlessGame({
-      seed: 1,
-      startingPhase: GamePhase.SETUP,
-      format: GUTTER,
-    });
-  }
-
   it("a Superior potion recovers a KO'd player with ST +1 and Stand Firm (GB-I2)", async () => {
     const game = gutterGame();
     induce(game, [[Inducement.SUPERIOR_MAGIC_POTION, 1]]);
@@ -198,7 +198,9 @@ describe("Gutter Bowl inducements (GB-I1 to GB-I5)", () => {
     const game = gutterGame();
     induce(game, [[Inducement.SUPERIOR_MAGIC_POTION, 1]]);
     const lines: string[] = [];
-    game.ctx.eventBus.on(GameEventNames.UI_GameLog, (line) => lines.push(line));
+    game.ctx.eventBus.on(GameEventNames.UI_GameLog, (line) => {
+      lines.push(line);
+    });
     await settle(game);
     await game.execute({ type: "choose-inducement" });
     expect(lines).toContain(

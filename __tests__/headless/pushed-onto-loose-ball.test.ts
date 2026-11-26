@@ -52,9 +52,9 @@ describe("a player pushed onto a loose ball", () => {
       );
       if (push === -1) continue;
       const events: string[] = [];
-      game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) =>
-        events.push(d.rollType)
-      );
+      game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) => {
+        events.push(d.rollType);
+      });
       await game.execute({
         type: "choose-block-result",
         index: push,
@@ -122,9 +122,9 @@ describe("a player pushed onto a loose ball", () => {
       );
       if (push === -1) continue;
       const events: string[] = [];
-      game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) =>
-        events.push(d.rollType)
-      );
+      game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) => {
+        events.push(d.rollType);
+      });
       await game.execute({ type: "choose-block-result", index: push });
       await game.execute({ type: "choose-push-direction", x: 9, y: 5 });
       expect(events).toContain("Bounce Direction");
@@ -134,72 +134,73 @@ describe("a player pushed onto a loose ball", () => {
   });
 });
 
-describe("a push onto a loose ball, further cases", () => {
-  async function pushDefender({
-    defenderAt,
-    ball,
-    result,
-    skills = [],
-  }: {
-    defenderAt: { x: number; y: number };
-    ball: { x: number; y: number };
-    result: "push" | "pow";
-    skills?: SkillType[];
-  }) {
-    for (let seed = 1; seed < 200; seed++) {
-      const game = new HeadlessGame({
-        scenario: {
-          id: "pushed-onto-ball-case",
-          name: "Pushed onto the ball",
-          description: "",
-          setup: {
-            team1Placements: [
-              {
-                playerIndex: 0,
-                x: defenderAt.x + 1,
-                y: defenderAt.y,
-                stats: { ST: 4 },
-              },
-              { playerIndex: 1, x: 18, y: 9 },
-            ],
-            team2Placements: [
-              { playerIndex: 0, ...defenderAt, stats: { ST: 2 }, skills },
-            ],
-            ballPosition: ball,
-            activeTeam: "team1",
-            phase: GamePhase.PLAY,
-            subPhase: SubPhase.TURN_RECEIVING,
-          },
+async function pushDefender({
+  defenderAt,
+  ball,
+  result,
+  skills = [],
+}: {
+  defenderAt: { x: number; y: number };
+  ball: { x: number; y: number };
+  result: "push" | "pow";
+  skills?: SkillType[];
+}) {
+  for (let seed = 1; seed < 200; seed++) {
+    const game = new HeadlessGame({
+      scenario: {
+        id: "pushed-onto-ball-case",
+        name: "Pushed onto the ball",
+        description: "",
+        setup: {
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: defenderAt.x + 1,
+              y: defenderAt.y,
+              stats: { ST: 4 },
+            },
+            { playerIndex: 1, x: 18, y: 9 },
+          ],
+          team2Placements: [
+            { playerIndex: 0, ...defenderAt, stats: { ST: 2 }, skills },
+          ],
+          ballPosition: ball,
+          activeTeam: "team1",
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
         },
-        seed,
-      });
-      const attacker = game.ctx.team1.players[0];
-      await game.execute({
-        type: "declare-action",
-        playerId: fixtureValue(attacker).id,
-        action: "block",
-      });
-      const rolled = await game.execute({
-        type: "block",
-        attackerId: fixtureValue(attacker).id,
-        defenderId: fixtureValue(game.ctx.team2.players[0]).id,
-      });
-      if (rolled.pendingDecision?.type !== "block-dice") continue;
-      const index = rolled.pendingDecision.options.findIndex(
-        (o) => o.type === result
-      );
-      if (index === -1) continue;
-      const events: string[] = [];
-      game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) =>
-        events.push(d.rollType)
-      );
-      if (result === "pow") forceDice(game.ctx.rng, [6]);
-      await game.execute({ type: "choose-block-result", index });
-      await game.execute({ type: "choose-push-direction", ...ball });
-      return { game, events };
-    }
-    throw new Error(`no seed rolled ${result}`);
+      },
+      seed,
+    });
+    const attacker = game.ctx.team1.players[0];
+    await game.execute({
+      type: "declare-action",
+      playerId: fixtureValue(attacker).id,
+      action: "block",
+    });
+    const rolled = await game.execute({
+      type: "block",
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+    });
+    if (rolled.pendingDecision?.type !== "block-dice") continue;
+    const index = rolled.pendingDecision.options.findIndex(
+      (o) => o.type === result
+    );
+    if (index === -1) continue;
+    const events: string[] = [];
+    game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) => {
+      events.push(d.rollType);
+    });
+    if (result === "pow") forceDice(game.ctx.rng, [6]);
+    await game.execute({ type: "choose-block-result", index });
+    await game.execute({ type: "choose-push-direction", ...ball });
+    return { game, events };
   }
+  throw new Error(`no seed rolled ${result}`);
+}
+
+describe("a push onto a loose ball, further cases", () => {
 
   it("bounces it when Steady Footing keeps a POW defender standing", async () => {
     const { events, game } = await pushDefender({

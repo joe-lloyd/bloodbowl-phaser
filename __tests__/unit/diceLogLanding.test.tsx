@@ -32,10 +32,10 @@ const dodge = {
   total: 1,
 };
 
-const tray = (thrown: number, landedThrough: number) => {
+const tray = (landedThrough: number) => {
   bus.emit(GameEventNames.UI_DiceInAir, {
-    count: thrown - landedThrough,
-    thrown,
+    count: 1 - landedThrough,
+    thrown: 1,
     landedThrough,
   });
 };
@@ -43,7 +43,7 @@ const tray = (thrown: number, landedThrough: number) => {
 it("holds a roll's row until the tray says that roll has landed", async () => {
   await act(async () => {
     bus.emit(GameEventNames.DiceRoll, dodge);
-    tray(1, 0);
+    tray(0);
     bus.emit(GameEventNames.UI_LogEntry, {
       category: "action",
       headline: "Turnover",
@@ -53,7 +53,7 @@ it("holds a roll's row until the tray says that roll has landed", async () => {
   expect(host.textContent).not.toContain("Turnover");
 
   await act(async () => {
-    tray(1, 1);
+    tray(1);
   });
   expect(host.textContent).toContain("Dodge failed: rolled 1");
   const text = host.textContent ?? "";
@@ -62,12 +62,12 @@ it("holds a roll's row until the tray says that roll has landed", async () => {
 
 it("logs at once when the tray reports first", async () => {
   await act(async () => {
-    tray(1, 0);
+    tray(0);
     bus.emit(GameEventNames.DiceRoll, dodge);
   });
   expect(host.textContent).not.toContain("Dodge failed");
   await act(async () => {
-    tray(1, 1);
+    tray(1);
   });
   expect(host.textContent).toContain("Dodge failed: rolled 1");
 });

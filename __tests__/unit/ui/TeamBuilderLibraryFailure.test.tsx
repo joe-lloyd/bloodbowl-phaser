@@ -73,6 +73,17 @@ function humans(name: string, players: number): Team {
     .build();
 }
 
+async function failSignedInLoad() {
+  getLocalRepository().saveTeams([humans("Stale Local Humans", 2)]);
+  connectTeamPersistenceToAuth(() => false);
+  fixtureValue(auth.listener)({ uid: "coach-1" });
+  await act(async () => {
+    fixtureValue(fetches[0]).reject(new Error("offline"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  return localStorage.getItem("bloodbowl_teams");
+}
+
 describe("Edit Team when the signed-in library fails to load", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -96,16 +107,6 @@ describe("Edit Team when the signed-in library fails to load", () => {
     localStorage.clear();
   });
 
-  async function failSignedInLoad() {
-    getLocalRepository().saveTeams([humans("Stale Local Humans", 2)]);
-    connectTeamPersistenceToAuth(() => false);
-    fixtureValue(auth.listener)({ uid: "coach-1" });
-    await act(async () => {
-      fixtureValue(fetches[0]).reject(new Error("offline"));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-    return localStorage.getItem("bloodbowl_teams");
-  }
 
   async function render(path: string) {
     await act(async () => {

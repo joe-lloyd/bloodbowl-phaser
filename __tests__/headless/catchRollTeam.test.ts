@@ -10,9 +10,9 @@ it("rolls a catch for the catcher's team, not the active team", async () => {
   service.getState().activeTeamId = game.ctx.team1.id;
   const catcher = game.ctx.team2.players[0];
   const teams: (string | undefined)[] = [];
-  game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ teamId }) =>
-    teams.push(teamId)
-  );
+  game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ teamId }) => {
+    teams.push(teamId);
+  });
 
   await new AgilityTestOperation(
     fixtureValue(catcher).id,

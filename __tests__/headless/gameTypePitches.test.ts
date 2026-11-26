@@ -22,6 +22,99 @@ import {
   pitchGame,
 } from "../utils/pitchGame";
 
+const wallStreet = () =>
+  pitchGame({
+    format: STREET,
+    team1: [{ playerIndex: 0, x: 10, y: 1 }],
+    team2: [{ playerIndex: 0, x: 10, y: 0 }],
+  });
+
+const sewerPitch = () =>
+  pitchGame({
+    format: SEWER,
+    team1: [{ playerIndex: 0, x: 11, y: 4 }],
+    team2: [{ playerIndex: 0, x: 10, y: 4 }],
+  });
+
+const throwInOf = async (format: MatchFormat, dice: number[]) => {
+  const { game, rolls } = pitchGame({ format });
+  forceDice(game.ctx.rng, dice);
+  game.ctx.gameService.throwInBall({ x: 0, y: 3 }, { x: -1, y: 3 });
+  await game.ctx.gameService.getFlowContext().flowManager.whenIdle();
+  return { at: game.ctx.gameService.getState().ballPosition, rolls };
+};
+
+const kick = (
+  format: MatchFormat,
+  target: { x: number; y: number },
+  dice: number[]
+) => {
+  const { game } = pitchGame({ format });
+  forceDice(game.ctx.rng, dice);
+  const dice$ = game.ctx.gameService.getDiceController();
+  const controller = new KickoffController({
+    movementController: new BallMovementController(dice$),
+    diceController: dice$,
+  });
+  return controller.calculateKickDestination({
+    targetX: target.x,
+    targetY: target.y,
+    isTeam1Kicking: true,
+  });
+};
+
+const modifier = (format: MatchFormat) =>
+  pitchGame({ format })
+    .game.ctx.gameService.getPassController()
+    .measureRange({ x: 1, y: 2 }, { x: 9, y: 2 }).modifier;
+
+const thrower = (x: number, y: number): PlayerPlacement => ({
+  playerIndex: 0,
+  x,
+  y,
+  skills: [SkillType.THROW_TEAM_MATE],
+});
+
+const mate = (x: number, y: number): PlayerPlacement => ({
+  playerIndex: 1,
+  x,
+  y,
+  skills: [SkillType.RIGHT_STUFF],
+});
+
+const passAt = async (
+  pitch: Pitch,
+  target: { x: number; y: number },
+  dice: number[]
+) => {
+  const { game, rolls, wallHits } = pitchGame(pitch);
+  forceDice(game.ctx.rng, dice);
+  const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+  await game.execute({
+    type: "declare-action",
+    playerId: passerId,
+    action: "pass",
+  });
+  let response = await game.execute({
+    type: "pass",
+    playerId: passerId,
+    ...target,
+  });
+  while (response.pendingDecision?.type === "reroll")
+    response = await game.execute({ type: "use-reroll", accept: false });
+  return { game, rolls, wallHits };
+};
+
+const ricochetStreet = (catcherAt: { x: number; y: number }): Pitch => ({
+  format: STREET,
+  team1: [
+    { playerIndex: 0, x: 5, y: 3 },
+    { playerIndex: 1, ...catcherAt },
+  ],
+  team2: [{ playerIndex: 0, x: 22, y: 5 }],
+  ball: { x: 5, y: 3 },
+});
+
 describe("GB-P4 obstacles block movement", () => {
   it("refuses a move into a market stall", async () => {
     const { game } = pitchGame({
@@ -46,15 +139,8 @@ describe("GB-P4 obstacles block movement", () => {
 });
 
 describe("SB-M8 pushed into a wall", () => {
-  const street = () =>
-    pitchGame({
-      format: STREET,
-      team1: [{ playerIndex: 0, x: 10, y: 1 }],
-      team2: [{ playerIndex: 0, x: 10, y: 0 }],
-    });
-
   it("offers the wall when there is no open square", async () => {
-    const { game } = street();
+    const { game } = wallStreet();
     forceDice(game.ctx.rng, [PUSH, 3]);
     const { offered, defender } = await blockAndPush(game, { x: 10, y: -1 });
 
@@ -63,7 +149,7 @@ describe("SB-M8 pushed into a wall", () => {
   });
 
   it("bounces off on 1-3 and stays standing", async () => {
-    const { game, rolls } = street();
+    const { game, rolls } = wallStreet();
     forceDice(game.ctx.rng, [PUSH, 3]);
     const { defender } = await blockAndPush(game, { x: 10, y: -1 });
 
@@ -73,7 +159,7 @@ describe("SB-M8 pushed into a wall", () => {
   });
 
   it("falls over in the square on 4+", async () => {
-    const { game, rolls } = street();
+    const { game, rolls } = wallStreet();
     forceDice(game.ctx.rng, [PUSH, 4, 1, 1]);
     const { defender } = await blockAndPush(game, { x: 10, y: -1 });
 
@@ -83,11 +169,11 @@ describe("SB-M8 pushed into a wall", () => {
   });
 
   it("is Knocked Down after a POW! with no wall roll and +1 Armour from the wall", async () => {
-    const { game, rolls } = street();
+    const { game, rolls } = wallStreet();
     const armour: boolean[] = [];
-    game.ctx.eventBus.on(GameEventNames.ArmorRolled, (roll) =>
-      armour.push(roll.broken)
-    );
+    game.ctx.eventBus.on(GameEventNames.ArmorRolled, (roll) => {
+      armour.push(roll.broken);
+    });
     forceDice(game.ctx.rng, [POW, 4, 4, 1, 1]);
     const { defender } = await blockAndPush(game, { x: 10, y: -1 });
 
@@ -98,11 +184,11 @@ describe("SB-M8 pushed into a wall", () => {
   });
 
   it("adds only the cobbles to Armour when the player only falls over", async () => {
-    const { game } = street();
+    const { game } = wallStreet();
     const armour: { roll: number; broken: boolean }[] = [];
-    game.ctx.eventBus.on(GameEventNames.ArmorRolled, ({ roll, broken }) =>
-      armour.push({ roll, broken })
-    );
+    game.ctx.eventBus.on(GameEventNames.ArmorRolled, ({ roll, broken }) => {
+      armour.push({ roll, broken });
+    });
     forceDice(game.ctx.rng, [PUSH, 4, 4, 3]);
     await blockAndPush(game, { x: 10, y: -1 });
 
@@ -127,15 +213,8 @@ describe("GB-M7 pushed into a market stall", () => {
 });
 
 describe("GB-M8 sewer pits", () => {
-  const sewer = () =>
-    pitchGame({
-      format: SEWER,
-      team1: [{ playerIndex: 0, x: 11, y: 4 }],
-      team2: [{ playerIndex: 0, x: 10, y: 4 }],
-    });
-
   it("swallows a player pushed into a pit", async () => {
-    const { game } = sewer();
+    const { game } = sewerPitch();
     forceDice(game.ctx.rng, [PUSH]);
     const { defender } = await blockAndPush(game, { x: 9, y: 4 });
 
@@ -144,7 +223,7 @@ describe("GB-M8 sewer pits", () => {
   });
 
   it("lets the player climb out standing on 4+ at the end of the turn", async () => {
-    const { game } = sewer();
+    const { game } = sewerPitch();
     forceDice(game.ctx.rng, [PUSH, 4]);
     const { defender } = await blockAndPush(game, { x: 9, y: 4 });
     await game.execute({ type: "choose-follow-up", followUp: false });
@@ -155,7 +234,7 @@ describe("GB-M8 sewer pits", () => {
   });
 
   it("makes a Casualty on a 1", async () => {
-    const { game, rolls } = sewer();
+    const { game, rolls } = sewerPitch();
     forceDice(game.ctx.rng, [PUSH, 1]);
     const { defender } = await blockAndPush(game, { x: 9, y: 4 });
     await game.execute({ type: "choose-follow-up", followUp: false });
@@ -230,26 +309,20 @@ describe("SB-M6 and GB-M4 the ball and the walls", () => {
 });
 
 describe("throw-in distance by game type", () => {
-  const throwIn = async (format: MatchFormat, dice: number[]) => {
-    const { game, rolls } = pitchGame({ format });
-    forceDice(game.ctx.rng, dice);
-    game.ctx.gameService.throwInBall({ x: 0, y: 3 }, { x: -1, y: 3 });
-    await game.ctx.gameService.getFlowContext().flowManager.whenIdle();
-    return { at: game.ctx.gameService.getState().ballPosition, rolls };
-  };
-
   it("is D6+2 in Sevens", async () => {
-    expect((await throwIn(SEVENS, [3, 4])).at).toEqual({ x: 5, y: 3 });
+    const { at } = await throwInOf(SEVENS, [3, 4]);
+    expect(at).toEqual({ x: 5, y: 3 });
   });
 
   it("is 2D6 on the Street", async () => {
-    const { at, rolls } = await throwIn(STREET, [3, 4, 3]);
+    const { at, rolls } = await throwInOf(STREET, [3, 4, 3]);
     expect(at).toEqual({ x: 6, y: 3 });
     expect(rolls).toEqual(["Throw-in Direction 3", "Throw-in Distance 4,3"]);
   });
 
   it("BB-M7 is D6 on the beach, counting the edge square as the first", async () => {
-    expect((await throwIn(BEACH, [3, 4])).at).toEqual({ x: 3, y: 3 });
+    const { at } = await throwInOf(BEACH, [3, 4]);
+    expect(at).toEqual({ x: 3, y: 3 });
   });
 });
 
@@ -268,25 +341,6 @@ describe("GB-M9 a ball on a stall or pit", () => {
 });
 
 describe("SB-M7 and GB-M3 kicks on walled pitches", () => {
-  const kick = (
-    format: MatchFormat,
-    target: { x: number; y: number },
-    dice: number[]
-  ) => {
-    const { game } = pitchGame({ format });
-    forceDice(game.ctx.rng, dice);
-    const dice$ = game.ctx.gameService.getDiceController();
-    const controller = new KickoffController({
-      movementController: new BallMovementController(dice$),
-      diceController: dice$,
-    });
-    return controller.calculateKickDestination({
-      targetX: target.x,
-      targetY: target.y,
-      isTeam1Kicking: true,
-    });
-  };
-
   it("bounces a kick off the sideline wall instead of a touchback", () => {
     expect(kick(STREET, { x: 20, y: 1 }, [2, 3, 3, 4])).toEqual({
       finalX: 20,
@@ -328,28 +382,11 @@ describe("SB-M7 and GB-M3 kicks on walled pitches", () => {
 
 describe("GB-M9 passing past a market stall", () => {
   it("takes -1 when the range ruler crosses a stall and not a pit", () => {
-    const modifier = (format: MatchFormat) =>
-      pitchGame({ format })
-        .game.ctx.gameService.getPassController()
-        .measureRange({ x: 1, y: 2 }, { x: 9, y: 2 }).modifier;
-
     expect(modifier(MARKET)).toBe(modifier(SEWER) - 1);
   });
 });
 
 describe("SB-M10 and GB-M8 throwing a team-mate at walls and pits", () => {
-  const thrower = (x: number, y: number): PlayerPlacement => ({
-    playerIndex: 0,
-    x,
-    y,
-    skills: [SkillType.THROW_TEAM_MATE],
-  });
-  const mate = (x: number, y: number): PlayerPlacement => ({
-    playerIndex: 1,
-    x,
-    y,
-    skills: [SkillType.RIGHT_STUFF],
-  });
   const throwAt = async (
     pitch: Pitch,
     aim: { x: number; y: number },
@@ -433,41 +470,9 @@ describe("SB-M10 and GB-M8 throwing a team-mate at walls and pits", () => {
 });
 
 describe("SB-M9 and GB-M10 ricochet passes", () => {
-  const passAt = async (
-    pitch: Pitch,
-    target: { x: number; y: number },
-    dice: number[]
-  ) => {
-    const { game, rolls, wallHits } = pitchGame(pitch);
-    forceDice(game.ctx.rng, dice);
-    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
-    await game.execute({
-      type: "declare-action",
-      playerId: passerId,
-      action: "pass",
-    });
-    let response = await game.execute({
-      type: "pass",
-      playerId: passerId,
-      ...target,
-    });
-    while (response.pendingDecision?.type === "reroll")
-      response = await game.execute({ type: "use-reroll", accept: false });
-    return { game, rolls, wallHits };
-  };
-  const street = (catcherAt: { x: number; y: number }): Pitch => ({
-    format: STREET,
-    team1: [
-      { playerIndex: 0, x: 5, y: 3 },
-      { playerIndex: 1, ...catcherAt },
-    ],
-    team2: [{ playerIndex: 0, x: 22, y: 5 }],
-    ball: { x: 5, y: 3 },
-  });
-
   it("bounces off the wall on the mirrored diagonal to a team-mate", async () => {
     const { game, rolls } = await passAt(
-      street({ x: 10, y: 1 }),
+      ricochetStreet({ x: 10, y: 1 }),
       { x: 8, y: -1 },
       [6, 3, 6]
     );
@@ -484,7 +489,7 @@ describe("SB-M9 and GB-M10 ricochet passes", () => {
 
   it("scatters once where it stops, then bounces as a dropped ball", async () => {
     const { game, rolls } = await passAt(
-      street({ x: 1, y: 6 }),
+      ricochetStreet({ x: 1, y: 6 }),
       { x: 8, y: -1 },
       [6, 2, 5, 5, 5]
     );
@@ -504,7 +509,7 @@ describe("SB-M9 and GB-M10 ricochet passes", () => {
 
   it("moves the target one wall square on a miss", async () => {
     const { rolls } = await passAt(
-      street({ x: 1, y: 6 }),
+      ricochetStreet({ x: 1, y: 6 }),
       { x: 8, y: -1 },
       [3, 1, 1, 5, 5, 5]
     );
@@ -515,7 +520,7 @@ describe("SB-M9 and GB-M10 ricochet passes", () => {
 
   it("refuses a pass at the sideline in Sevens", async () => {
     const { game, rolls } = await passAt(
-      { ...street({ x: 1, y: 6 }), format: SEVENS },
+      { ...ricochetStreet({ x: 1, y: 6 }), format: SEVENS },
       { x: 8, y: -1 },
       []
     );

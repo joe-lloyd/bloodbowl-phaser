@@ -2,14 +2,14 @@ import { describe, it, expect } from "vitest";
 import { BlockResolutionService } from "../../../src/services/BlockResolutionService";
 import { RNGService } from "../../../src/services/rng/RNGService";
 
+const nobodyThere = () => false;
+const occupiedAt =
+  (...squares: { x: number; y: number }[]) =>
+  (x: number, y: number) =>
+    squares.some((s) => s.x === x && s.y === y);
+
 describe("BlockResolutionService.getPushOptions", () => {
   const service = new BlockResolutionService(new RNGService(1));
-
-  const nobodyThere = () => false;
-  const occupiedAt =
-    (...squares: { x: number; y: number }[]) =>
-    (x: number, y: number) =>
-      squares.some((s) => s.x === x && s.y === y);
 
   it("offers all three squares behind the defender when open", () => {
     const { options, tier } = service.getPushOptions(

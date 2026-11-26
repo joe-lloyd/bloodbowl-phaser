@@ -22,6 +22,163 @@ import { createCoachRng } from "../../src/simulation/rng";
 import type { Coach } from "../../src/simulation/coach";
 import { sequenceChance } from "../../src/simulation/ai/chance";
 
+const coach = (w: Partial<Weights>) =>
+  createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
+
+async function hitOn(coach: Coach) {
+  const subject = game({
+    turn: 3,
+    team1Placements: [
+      { playerIndex: 0, x: 8, y: 5, hasBall: true },
+      { playerIndex: 1, x: 10, y: 4 },
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 9, y: 5 },
+      { playerIndex: 1, x: 11, y: 3 },
+    ],
+  });
+  const carrier = subject.ctx.team1.players[0];
+  await subject.execute({
+    type: "declare-action",
+    playerId: fixtureValue(carrier).id,
+    action: "move",
+  });
+  await subject.execute({
+    type: "end-activation",
+    playerId: fixtureValue(carrier).id,
+  });
+  for (let i = 0; i < 6; i++) {
+    const { command } = await step(subject, coach);
+    if (command.type === "block") return command.defenderId;
+  }
+  return null;
+}
+
+
+async function firstDeclared(coach: Coach) {
+  const subject = game({
+    turn: 3,
+    team1Placements: [
+      { playerIndex: 0, x: 8, y: 5, hasBall: true },
+      { playerIndex: 1, x: 6, y: 8, stats: { ST: 4 } },
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 19, y: 1 },
+      { playerIndex: 1, x: 4, y: 9 },
+    ],
+  });
+  const carrier = fixtureValue(subject.ctx.team1.players[0]);
+  await subject.execute({
+    type: "declare-action",
+    playerId: carrier.id,
+    action: "move",
+  });
+  await subject.execute({ type: "end-activation", playerId: carrier.id });
+  const { command, note } = await step(subject, coach);
+  return { command: command.type, note };
+}
+
+
+async function carrierEnd(
+  skills: SkillType[],
+  w: Partial<Weights>,
+  wall: SkillType[] = []
+) {
+  const subject = game({
+    turn: 2,
+    team1Placements: [
+      { playerIndex: 0, x: 8, y: 5, hasBall: true, skills, stats: { ST: 4 } },
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 11, y: 2, skills: wall },
+      { playerIndex: 1, x: 11, y: 5, skills: wall },
+      { playerIndex: 2, x: 11, y: 8, skills: wall },
+    ],
+  });
+  const coach = createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
+  for (let i = 0; i < 6; i++) {
+    const { command } = await step(subject, coach);
+    if (command.type === "end-activation" || command.type === "end-turn")
+      break;
+  }
+  return fixtureValue(fixtureValue(subject.ctx.team1.players[0]).gridPosition)
+    .x;
+}
+
+
+function looseBall(slowSkills: SkillType[] = []) {
+  return game({
+    turn: 2,
+    ballPosition: { x: 6, y: 5 },
+    team1Placements: [
+      {
+        playerIndex: 0,
+        x: 5,
+        y: 5,
+        stats: { MA: 3 },
+        skills: [SkillType.SURE_HANDS, ...slowSkills],
+      },
+      { playerIndex: 1, x: 7, y: 5, stats: { MA: 8 } },
+    ],
+    team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
+  });
+}
+
+
+const pricedAgainstQuick = (carrierPace: number) => {
+  const subject = game({
+    turn: 2,
+    ballPosition: { x: 6, y: 5 },
+    team1Placements: [
+      { playerIndex: 0, x: 5, y: 5, stats: { MA: 3 } },
+      { playerIndex: 1, x: 18, y: 9, stats: { MA: 8 } },
+    ],
+    team2Placements: [{ playerIndex: 0, x: 17, y: 1 }],
+  });
+  const picker = fieldPlayer(subject.ctx.team1.players[0]);
+  const quick = fieldPlayer(subject.ctx.team1.players[1]);
+  const c = context({
+    board: readBoard(subject, picker.teamId),
+    w: { ...DEFAULT_WEIGHTS, carrierPace },
+    available: new Map([
+      [picker.id, new Set(["move" as const])],
+      [quick.id, new Set(["move" as const])],
+    ]),
+  });
+  return fixtureValue(pickupActivation(c, picker)[0]).value;
+};
+
+
+const handed = async (w: Partial<Weights>) => {
+  const subject = game({
+    turn: 2,
+    team1Placements: [
+      { playerIndex: 0, x: 5, y: 5, hasBall: true, stats: { MA: 3 } },
+      { playerIndex: 1, x: 5, y: 6, stats: { MA: 8 } },
+    ],
+    team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
+  });
+  const { command } = await step(subject, coach(w));
+  return command.type === "declare-action" ? command.action : command.type;
+};
+
+
+const secure = (slowSkills: SkillType[]) => {
+  const subject = looseBall(slowSkills);
+  const slow = fieldPlayer(subject.ctx.team1.players[0]);
+  const quick = fieldPlayer(subject.ctx.team1.players[1]);
+  const c = context({
+    board: readBoard(subject, slow.teamId),
+    w: { ...DEFAULT_WEIGHTS, carrierPace: 4 },
+    available: new Map([
+      [slow.id, new Set(["move" as const, "secureBall" as const])],
+      [quick.id, new Set(["move" as const])],
+    ]),
+  });
+  return fixtureValue(secureBallActivations(c, slow)[0]);
+};
+
+
 describe("retained turn plans", () => {
   it("prices Pass and Catch rerolls and one shared team reroll literally", () => {
     const subject = game({
@@ -61,12 +218,14 @@ describe("retained turn plans", () => {
       ],
     });
     const coach = createPlannerCoach();
-    expect((await step(subject, coach)).command).toMatchObject({
+    const declared = await step(subject, coach);
+    expect(declared.command).toMatchObject({
       type: "declare-action",
       playerId: "team1-player-2",
       action: "move",
     });
-    expect((await step(subject, coach)).command).toMatchObject({
+    const moved = await step(subject, coach);
+    expect(moved.command).toMatchObject({
       type: "move",
       path: [{ x: 14 }],
     });
@@ -98,7 +257,8 @@ describe("retained turn plans", () => {
       ],
     });
     const coach = createPlannerCoach();
-    expect((await step(subject, coach)).command).toMatchObject({
+    const declared = await step(subject, coach);
+    expect(declared.command).toMatchObject({
       type: "declare-action",
       action: "pass",
     });
@@ -116,24 +276,18 @@ describe("retained turn plans", () => {
         { playerIndex: 1, x: 19, y: 5 },
       ],
     });
-    expect(
-      (
-        await subject.execute({
-          type: "declare-action",
-          playerId: "team1-player-1",
-          action: "pass",
-        })
-      ).ok
-    ).toBe(true);
-    expect(
-      (
-        await subject.execute({
-          type: "move",
-          playerId: "team1-player-1",
-          path: [{ x: 16, y: 5 }],
-        })
-      ).ok
-    ).toBe(true);
+    const declared = await subject.execute({
+      type: "declare-action",
+      playerId: "team1-player-1",
+      action: "pass",
+    });
+    expect(declared.ok).toBe(true);
+    const moved = await subject.execute({
+      type: "move",
+      playerId: "team1-player-1",
+      path: [{ x: 16, y: 5 }],
+    });
+    expect(moved.ok).toBe(true);
     const point = await enumerateDecision(subject, null);
     const pass = point.candidates.find((candidate) => {
       const command = candidate.commands[0];
@@ -167,7 +321,8 @@ describe("retained turn plans", () => {
         },
       ],
     });
-    expect((await step(subject, createPlannerCoach())).command).toMatchObject({
+    const stepped = await step(subject, createPlannerCoach());
+    expect(stepped.command).toMatchObject({
       type: "declare-action",
       playerId: "team1-player-1",
       action: "move",
@@ -288,37 +443,7 @@ describe("flank setup, under Standard's flank game plan", () => {
 });
 
 describe("blocks that open the way for our carrier", () => {
-  async function hitOn(coach: Coach) {
-    const subject = game({
-      turn: 3,
-      team1Placements: [
-        { playerIndex: 0, x: 8, y: 5, hasBall: true },
-        { playerIndex: 1, x: 10, y: 4 },
-      ],
-      team2Placements: [
-        { playerIndex: 0, x: 9, y: 5 },
-        { playerIndex: 1, x: 11, y: 3 },
-      ],
-    });
-    const carrier = subject.ctx.team1.players[0];
-    await subject.execute({
-      type: "declare-action",
-      playerId: fixtureValue(carrier).id,
-      action: "move",
-    });
-    await subject.execute({
-      type: "end-activation",
-      playerId: fixtureValue(carrier).id,
-    });
-    for (let i = 0; i < 6; i++) {
-      const { command } = await step(subject, coach);
-      if (command.type === "block") return command.defenderId;
-    }
-    return null;
-  }
   const [marker, inLane] = ["team2-player-1", "team2-player-2"];
-  const coach = (w: Partial<Weights>) =>
-    createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
 
   it("hits the defender marking the carrier by default", async () => {
     expect(await hitOn(createPlannerCoach())).toBe(marker);
@@ -334,28 +459,6 @@ describe("blocks that open the way for our carrier", () => {
 });
 
 describe("keeping the cage after the carrier moves", () => {
-  async function firstDeclared(coach: Coach) {
-    const subject = game({
-      turn: 3,
-      team1Placements: [
-        { playerIndex: 0, x: 8, y: 5, hasBall: true },
-        { playerIndex: 1, x: 6, y: 8, stats: { ST: 4 } },
-      ],
-      team2Placements: [
-        { playerIndex: 0, x: 19, y: 1 },
-        { playerIndex: 1, x: 4, y: 9 },
-      ],
-    });
-    const carrier = fixtureValue(subject.ctx.team1.players[0]);
-    await subject.execute({
-      type: "declare-action",
-      playerId: carrier.id,
-      action: "move",
-    });
-    await subject.execute({ type: "end-activation", playerId: carrier.id });
-    const { command, note } = await step(subject, coach);
-    return { command: command.type, note };
-  }
 
   it("fills a corner by default", async () => {
     expect(await firstDeclared(createPlannerCoach())).toEqual({
@@ -368,36 +471,12 @@ describe("keeping the cage after the carrier moves", () => {
     const coach = createPlannerCoach({
       weights: { ...DEFAULT_WEIGHTS, cageKeep: 0 },
     });
-    expect((await firstDeclared(coach)).note).toMatch(/^blitzes/);
+    const declared = await firstDeclared(coach);
+    expect(declared.note).toMatch(/^blitzes/);
   });
 });
 
 describe("cage walk", () => {
-  async function carrierEnd(
-    skills: SkillType[],
-    w: Partial<Weights>,
-    wall: SkillType[] = []
-  ) {
-    const subject = game({
-      turn: 2,
-      team1Placements: [
-        { playerIndex: 0, x: 8, y: 5, hasBall: true, skills, stats: { ST: 4 } },
-      ],
-      team2Placements: [
-        { playerIndex: 0, x: 11, y: 2, skills: wall },
-        { playerIndex: 1, x: 11, y: 5, skills: wall },
-        { playerIndex: 2, x: 11, y: 8, skills: wall },
-      ],
-    });
-    const coach = createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
-    for (let i = 0; i < 6; i++) {
-      const { command } = await step(subject, coach);
-      if (command.type === "end-activation" || command.type === "end-turn")
-        break;
-    }
-    return fixtureValue(fixtureValue(subject.ctx.team1.players[0]).gridPosition)
-      .x;
-  }
 
   it("steps a carrier with Block up to the wall, which a one-die hit rarely downs", async () => {
     expect(await carrierEnd([SkillType.BLOCK], { cageWalk: 1 })).toBe(10);
@@ -419,25 +498,6 @@ describe("cage walk", () => {
 });
 
 describe("carrier pace", () => {
-  function looseBall(slowSkills: SkillType[] = []) {
-    return game({
-      turn: 2,
-      ballPosition: { x: 6, y: 5 },
-      team1Placements: [
-        {
-          playerIndex: 0,
-          x: 5,
-          y: 5,
-          stats: { MA: 3 },
-          skills: [SkillType.SURE_HANDS, ...slowSkills],
-        },
-        { playerIndex: 1, x: 7, y: 5, stats: { MA: 8 } },
-      ],
-      team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
-    });
-  }
-  const coach = (w: Partial<Weights>) =>
-    createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
 
   it("leaves the safer pick-up to the slow player when pace counts nothing", async () => {
     const subject = looseBall();
@@ -516,46 +576,10 @@ describe("carrier pace", () => {
   });
 
   it("does not charge a picker for a quick team-mate who cannot reach the ball", () => {
-    const priced = (carrierPace: number) => {
-      const subject = game({
-        turn: 2,
-        ballPosition: { x: 6, y: 5 },
-        team1Placements: [
-          { playerIndex: 0, x: 5, y: 5, stats: { MA: 3 } },
-          { playerIndex: 1, x: 18, y: 9, stats: { MA: 8 } },
-        ],
-        team2Placements: [{ playerIndex: 0, x: 17, y: 1 }],
-      });
-      const picker = fieldPlayer(subject.ctx.team1.players[0]);
-      const quick = fieldPlayer(subject.ctx.team1.players[1]);
-      const c = context({
-        board: readBoard(subject, picker.teamId),
-        w: { ...DEFAULT_WEIGHTS, carrierPace },
-        available: new Map([
-          [picker.id, new Set(["move" as const])],
-          [quick.id, new Set(["move" as const])],
-        ]),
-      });
-      return fixtureValue(pickupActivation(c, picker)[0]).value;
-    };
-    expect(priced(4)).toBe(priced(0));
+    expect(pricedAgainstQuick(4)).toBe(pricedAgainstQuick(0));
   });
 
   it("charges a My Ball picker for every turn it will keep the ball", () => {
-    const secure = (slowSkills: SkillType[]) => {
-      const subject = looseBall(slowSkills);
-      const slow = fieldPlayer(subject.ctx.team1.players[0]);
-      const quick = fieldPlayer(subject.ctx.team1.players[1]);
-      const c = context({
-        board: readBoard(subject, slow.teamId),
-        w: { ...DEFAULT_WEIGHTS, carrierPace: 4 },
-        available: new Map([
-          [slow.id, new Set(["move" as const, "secureBall" as const])],
-          [quick.id, new Set(["move" as const])],
-        ]),
-      });
-      return fixtureValue(secureBallActivations(c, slow)[0]);
-    };
     const plain = secure([]);
     const myBall = secure([SkillType.MY_BALL]);
     const chance =
@@ -564,18 +588,6 @@ describe("carrier pace", () => {
   });
 
   it("hands the ball from a slow carrier to a quick team-mate when pace counts", async () => {
-    const handed = async (w: Partial<Weights>) => {
-      const subject = game({
-        turn: 2,
-        team1Placements: [
-          { playerIndex: 0, x: 5, y: 5, hasBall: true, stats: { MA: 3 } },
-          { playerIndex: 1, x: 5, y: 6, stats: { MA: 8 } },
-        ],
-        team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
-      });
-      const { command } = await step(subject, coach(w));
-      return command.type === "declare-action" ? command.action : command.type;
-    };
     expect(await handed({ carrierPace: 0 })).toBe("move");
     expect(await handed({ carrierPace: 4 })).toBe("handoff");
   });

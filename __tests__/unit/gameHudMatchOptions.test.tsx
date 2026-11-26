@@ -200,7 +200,9 @@ describe("GameHUD match options menu wiring", () => {
       throw new Error("history push failed");
     });
     const notified: string[] = [];
-    eventBus.on(GameEventNames.UI_Notification, (msg) => notified.push(msg));
+    eventBus.on(GameEventNames.UI_Notification, (msg) => {
+      notified.push(msg);
+    });
 
     await act(async () => {
       root.render(

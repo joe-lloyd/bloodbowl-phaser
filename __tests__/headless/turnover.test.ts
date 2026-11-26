@@ -84,14 +84,15 @@ describe("turnover resolution", () => {
       expect(moved.snapshot.activeTeamId).toBe(fixtureValue(team2).id);
 
       const turnStartIndex = names.indexOf(GameEventNames.TurnStarted);
-      const lastCatchFail = moved.events.reduce(
-        (last, e, i) =>
+      let lastCatchFail = -1;
+      for (const [i, e] of moved.events.entries()) {
+        if (
           e.name === GameEventNames.UI_Notification &&
           e.data === "Catch Failed!"
-            ? i
-            : last,
-        -1
-      );
+        ) {
+          lastCatchFail = i;
+        }
+      }
       expect(turnStartIndex).toBeGreaterThan(lastCatchFail);
 
       const moverAfter = fixtureValue(

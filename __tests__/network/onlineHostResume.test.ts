@@ -20,6 +20,17 @@ import { InjuryType, PlayerStatus } from "../../src/types/Player";
 import { CasualtyOperation } from "../../src/game/operations/CasualtyOperation";
 import { InjuryResult } from "../../src/game/controllers/InjuryController";
 
+const flushed = () => new Promise((resolve) => setTimeout(resolve, 200));
+
+const seat = (uid: string, team: Team) => ({
+  uid,
+  displayName: uid,
+  team,
+  ready: true,
+});
+
+const settled = () => new Promise((resolve) => setTimeout(resolve, 100));
+
 const saves = vi.hoisted(() => {
   const turns: number[] = [];
   const teams: ([Team, Team] | undefined)[] = [];
@@ -257,7 +268,6 @@ describe("online host resume", () => {
       seed: 5,
     });
     const gameService = ServiceContainer.getInstance().gameService;
-    const flushed = () => new Promise((resolve) => setTimeout(resolve, 200));
 
     saves.turns.length = 0;
 
@@ -279,12 +289,6 @@ describe("online host resume", () => {
     };
     const game = new HeadlessGame({ scenario, seed: 5 });
     const { team1, team2 } = game.ctx;
-    const seat = (uid: string, team: Team) => ({
-      uid,
-      displayName: uid,
-      team,
-      ready: true,
-    });
     const [hostEnd] = createInMemoryTransportPair();
     const options = {
       lobby: {
@@ -314,7 +318,6 @@ describe("online host resume", () => {
     const match = createOnlineMatch(options);
     const { gameService } = ServiceContainer.getInstance();
     const attackerId = fixtureValue(team1.players[0]).id;
-    const settled = () => new Promise((resolve) => setTimeout(resolve, 100));
     gameService.declareAction({ playerId: attackerId, action: "blitz" });
     await settled();
     await gameService.rollBlockDice({

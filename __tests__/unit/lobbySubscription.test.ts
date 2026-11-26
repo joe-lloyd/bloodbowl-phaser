@@ -46,14 +46,15 @@ function snapshot(data: object | undefined, fromCache: boolean): FakeSnapshot {
   };
 }
 
+const send = (data: object | undefined, fromCache: boolean) => {
+  listen.listener?.(snapshot(data, fromCache));
+};
+
 function subscribe() {
   const seen: string[] = [];
   subscribeLobby("GONE01", (lobby) => {
     seen.push(lobby === "closed" ? "closed" : lobby.code);
   });
-  const send = (data: object | undefined, fromCache: boolean) => {
-    listen.listener?.(snapshot(data, fromCache));
-  };
   return { seen, send };
 }
 

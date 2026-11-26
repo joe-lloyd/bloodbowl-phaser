@@ -35,6 +35,9 @@ describe("KickoffTableDialog", () => {
   let bus: EventBus;
   const dialog = () =>
     container.querySelector('[data-testid="kickoff-table-dialog"]');
+  const shown = (part: string) =>
+    container.querySelector(`[data-testid="kickoff-table-${part}"]`)
+      ?.textContent;
 
   beforeEach(async () => {
     tableResolving = false;
@@ -56,9 +59,9 @@ describe("KickoffTableDialog", () => {
 
   it("waits for Roll, then answers the engine's gate", async () => {
     const answers: string[] = [];
-    bus.on(GameEventNames.UI_PresentationAcknowledged, ({ id }) =>
-      answers.push(id)
-    );
+    bus.on(GameEventNames.UI_PresentationAcknowledged, ({ id }) => {
+      answers.push(id);
+    });
     await act(async () => {
       bus.emit(GameEventNames.KickoffTableReady, {
         presentationId: "kickoff-ready-1",
@@ -115,9 +118,6 @@ describe("KickoffTableDialog", () => {
       });
       await Promise.resolve();
     });
-    const shown = (part: string) =>
-      container.querySelector(`[data-testid="kickoff-table-${part}"]`)
-        ?.textContent;
     await act(async () => {
       fixtureValue(
         container.querySelector(':scope [data-testid="kickoff-table"] li > span')

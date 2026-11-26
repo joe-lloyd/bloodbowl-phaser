@@ -15,6 +15,22 @@ const config = fixtureValue(
   ).configs.find((c) => c.id === "dump-off-before-block")
 );
 
+async function settleDecisions(
+  game: HeadlessGame,
+  first: Awaited<ReturnType<HeadlessGame["execute"]>>
+) {
+  let response = first;
+  for (let guard = 0; response.pendingDecision && guard < 25; guard++) {
+    const reply = answerDecision(
+      response.pendingDecision,
+      game,
+      config.decisionPolicy ?? {}
+    );
+    if (!reply) return;
+    response = await game.execute(reply);
+  }
+}
+
 async function play(seed: number, paced: boolean) {
   const game = new HeadlessGame({
     scenario: {
@@ -44,17 +60,12 @@ async function play(seed: number, paced: boolean) {
     emit(name, data);
   };
 
-  for (const step of config.script ?? []) {
-    let response = await game.execute(resolveCommandReferences(game.ctx, step));
-    for (let guard = 0; response.pendingDecision && guard < 25; guard++) {
-      const reply = answerDecision(
-        response.pendingDecision,
-        game,
-        config.decisionPolicy ?? {}
-      );
-      if (!reply) break;
-      response = await game.execute(reply);
-    }
+  const steps = config.script ?? [];
+  for (const step of steps) {
+    await settleDecisions(
+      game,
+      await game.execute(resolveCommandReferences(game.ctx, step))
+    );
   }
   await game.ctx.gameService.getFlowContext().flowManager.whenIdle();
   await whenEngineQuiet();
