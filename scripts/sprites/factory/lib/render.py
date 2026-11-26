@@ -79,7 +79,7 @@ def frame_counts(spec):
 def today(key):
     """Today's frame size and idle height (px) for a model key, from the reference atlases."""
     key = base_key(key)
-    frame = ROSTERS["models"].get(key, {}).get("frame", 128)
+    frame = ROSTERS["models"].get(key, {}).get("frame", getattr(registry.MODELS.get(key), "ref_frame", 128))
     height = None
     p = os.path.join(REF, "today", key, "base.json")
     if os.path.exists(p):
