@@ -4,6 +4,9 @@
   "description": "Blood Bowl Sevens game built with Phaser 3",
   "type": "module",
   "packageManager": "pnpm@11.28.12",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -68,7 +71,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
+    "@eslint-community/eslint-plugin-eslint-comments": "^4.8.1",
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "1.62.0",
     "@types/node": "^20.10.5",
     "@types/react": "^19.2.7",
@@ -79,7 +83,8 @@
     "@vitest/coverage-v8": "^1.0.4",
     "@vitest/ui": "^1.0.4",
     "autoprefixer": "^10.4.22",
-    "eslint": "^9.39.5",
+    "eslint": "^10.15.0",
+    "eslint-plugin-n": "^18.5.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.8",
     "eslint-plugin-sonarjs": "^4.2.2",

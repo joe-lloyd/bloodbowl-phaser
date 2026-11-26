@@ -448,7 +448,6 @@ export class BallManager {
     const team = [this.team1, this.team2].find(
       (t) => t.id === this.state.activeTeamId
     );
-    // Nobody standing on the pitch can take it: the ball stays out of play.
     const taker = team?.players.some(
       (p) => p.gridPosition && p.status === PlayerStatus.ACTIVE
     );

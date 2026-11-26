@@ -91,7 +91,7 @@ describe("networked sessions", () => {
     const vampire = match.game.ctx.team2.players[0];
     const opponent = match.game.ctx.team1.players[0];
 
-    let response = await match.guest.sendCommand({
+    const response = await match.guest.sendCommand({
       type: "declare-action",
       playerId: fixtureValue(vampire).id,
       action: "handoff",
@@ -99,7 +99,7 @@ describe("networked sessions", () => {
     expect(response.ok).toBe(true);
 
     if (response.pendingDecision?.type === "reaction") {
-      response = await match.guest.sendCommand({
+      await match.guest.sendCommand({
         type: "use-reaction",
         accept: false,
       });

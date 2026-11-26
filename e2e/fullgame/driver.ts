@@ -259,7 +259,7 @@ export async function perform(
             .flatMap((t) => t.players)
             .find((p) => p.id === command["playerId"]);
         const until = Date.now() + 30_000;
-        let m = await mover();
+        let m: Awaited<ReturnType<typeof mover>>;
         while (Date.now() < until) {
           if (await riskyMoveConfirm(page, rec)) continue;
           if (await answerDialog(page, app, -1, rec)) continue;

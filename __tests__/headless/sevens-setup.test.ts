@@ -208,9 +208,6 @@ describe("Sevens setup through the headless protocol", () => {
   });
 
   it("gives the receivers a touchback when the kicking team has nobody on the pitch", async () => {
-    // Sweltering Heat can keep every player a team has left in the Reserves
-    // for a drive. The team may still play on: no kicker is picked, and the
-    // drive starts with a Touchback, without a kick or the Kick-off table.
     const game = new HeadlessGame({ seed: 77 });
     game.ctx.team1.players.forEach(
       (player) => (player.status = PlayerStatus.REMOVED)

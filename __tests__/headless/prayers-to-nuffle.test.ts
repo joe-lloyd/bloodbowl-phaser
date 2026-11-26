@@ -134,13 +134,13 @@ async function rushOnce(game: HeadlessGame) {
     playerId: fixtureValue(runner).id,
     action: "move",
   });
-  let response = await game.execute({
+  const response = await game.execute({
     type: "move",
     playerId: fixtureValue(runner).id,
     path,
   });
   if (response.pendingDecision?.type === "reroll") {
-    response = await game.execute({ type: "use-reroll", accept: false });
+    await game.execute({ type: "use-reroll", accept: false });
   }
   return runner;
 }

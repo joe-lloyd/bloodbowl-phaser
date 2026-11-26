@@ -50,7 +50,7 @@ export class PickupOperation extends GameOperation {
       opponents
     );
 
-    let roll = 1;
+    let roll: number;
     const securing = isSecuringBall(gameService.getState(), this.playerId);
     const weather = pickUpModifier(gameService.getState());
 

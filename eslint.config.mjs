@@ -1,4 +1,6 @@
+import comments from "@eslint-community/eslint-plugin-eslint-comments/configs";
 import js from "@eslint/js";
+import n from "eslint-plugin-n";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import sonarjs from "eslint-plugin-sonarjs";
@@ -7,7 +9,7 @@ import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
 const TOOL_DIRECTIVE =
-  /^\s*(eslint-disable(-next-line|-line)?\s.*\s--\s+\S|@ts-expect-error\s+\S|prettier-ignore|[cv]8 ignore|istanbul ignore|<reference\s)/;
+  /^\s*(eslint-disable-next-line\s.*\s--\s+\S|@ts-expect-error\s+\S|prettier-ignore|[cv]8 ignore|istanbul ignore|<reference\s)/;
 
 const noComments = {
   meta: {
@@ -45,6 +47,21 @@ const BANNED_PACKAGES = [
   { group: ["lodash", "lodash/*", "lodash-es", "underscore", "ramda"], message: "Use the built-in array and object methods." },
   { group: ["uuid", "nanoid"], message: "Use crypto.randomUUID()." },
   { group: ["classnames"], message: "Use clsx." },
+];
+
+const GUARDED_RULES = [
+  "max-lines", "max-lines-per-function", "complexity", "sonarjs/cognitive-complexity",
+  "max-depth", "max-nested-callbacks", "max-params", "max-statements", "no-nested-ternary",
+  "local/no-comments", "@typescript-eslint/ban-ts-comment",
+  "@typescript-eslint/consistent-type-assertions", "@typescript-eslint/no-non-null-assertion",
+  "@typescript-eslint/no-explicit-any", "no-restricted-syntax", "no-restricted-imports",
+  "sonarjs/no-identical-functions", "sonarjs/no-duplicated-branches",
+  "sonarjs/no-identical-expressions", "sonarjs/no-duplicate-string",
+  "@eslint-community/eslint-comments/*",
+];
+const NODE_FILES = [
+  "scripts/**/*.ts", "functions/**/*.ts", "e2e/**/*.ts", "src/headless/**/*.ts", "src/simulation/**/*.ts",
+  "studio/helper/**/*.ts", "*.config.ts", "playwright.*.ts",
 ];
 
 const config = defineConfig(
@@ -96,6 +113,28 @@ const config = defineConfig(
       "no-restricted-imports": ["error", { patterns: BANNED_PACKAGES }],
       "no-restricted-syntax": ["error", ...BOUNDARY_ONLY, ...UI_ONLY],
     },
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    extends: [comments.recommended],
+    rules: {
+      "@eslint-community/eslint-comments/require-description": ["error", { ignore: [] }],
+      "@eslint-community/eslint-comments/no-restricted-disable": ["error", ...GUARDED_RULES],
+      "@eslint-community/eslint-comments/no-use": ["error", { allow: ["eslint-disable-next-line"] }],
+    },
+  },
+  {
+    files: NODE_FILES,
+    extends: [n.configs["flat/recommended-module"]],
+    rules: {
+      "n/no-missing-import": "off",
+      "n/no-unpublished-import": "off",
+      "n/no-unsupported-features/node-builtins": ["error", { ignores: ["localStorage", "navigator", "Worker"] }],
+    },
+  },
+  {
+    files: ["scripts/**/*.ts", "src/headless/cli.ts", "src/simulation/cli.ts", "src/simulation/commands/**/*.ts"],
+    rules: { "n/no-process-exit": "off" },
   },
   { files: ["src/boundary/**", "studio/boundary/**"], rules: { "no-restricted-syntax": ["error", ...UI_ONLY] } },
   { files: ["src/ui/**"], rules: { "no-restricted-syntax": ["error", ...BOUNDARY_ONLY] } },

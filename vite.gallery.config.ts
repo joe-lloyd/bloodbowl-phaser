@@ -1,12 +1,13 @@
 import { cpSync, existsSync, readdirSync } from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import react from "@vitejs/plugin-react";
 import autoprefixer from "autoprefixer";
 import tailwindcss from "tailwindcss";
 import { defineConfig, type Plugin } from "vite";
 import { GALLERY_ROSTER_MODELS } from "./src/gallery/galleryModels";
 
-const here = (file: string) => path.resolve(import.meta.dirname, file);
+const here = (file: string) => path.resolve(path.dirname(fileURLToPath(import.meta.url)), file);
 const PUBLIC = here("public");
 const OUT = here("dist-gallery");
 const PUBLIC_PATH = /(["'`])\/(sprites|stadium|venues|assets)(?=[/"'`])/g;

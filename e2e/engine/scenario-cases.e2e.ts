@@ -54,7 +54,8 @@ for (const run of runsForLayer(SCENARIO_CASES, "engine")) {
             `  run was:  ${summariseRun(observed)}\n` +
             `  seed:     ${String(variant.seed)} (committed — refresh deliberately with 'pnpm e2e:seeds')\n` +
             `  replay:   pnpm e2e:replay ${scenarioCase.id} --variant ${variant.id}\n` +
-            `  bundle:   ${bundlePath}`
+            `  bundle:   ${bundlePath}`,
+          { cause: error }
         );
       }
     }

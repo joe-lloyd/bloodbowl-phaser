@@ -1,8 +1,9 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { studioEnvironment } from "../boundary/studio";
 
 const home = studioEnvironment().STUDIO_HOME;
-const here = path.resolve(import.meta.dirname, "../..");
+const here = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 export const PUBLISHES = home !== undefined;
 export const TREE = home === undefined ? here : path.join(home, "tree");

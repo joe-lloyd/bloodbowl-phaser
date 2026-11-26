@@ -25,9 +25,6 @@
   "__tests__/headless/sevens-setup.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
-    },
-    "local/no-comments": {
-      "count": 3
     }
   },
   "__tests__/integration/charge-click-to-move.test.ts": {
@@ -375,21 +372,6 @@
     },
     "max-params": {
       "count": 1
-    }
-  },
-  "__tests__/simulation/catalogue-study.test.ts": {
-    "local/no-comments": {
-      "count": 3
-    }
-  },
-  "__tests__/simulation/policy-defence.test.ts": {
-    "local/no-comments": {
-      "count": 2
-    }
-  },
-  "__tests__/simulation/turn-plans.test.ts": {
-    "local/no-comments": {
-      "count": 10
     }
   },
   "__tests__/unit/PlayerInfoPanel.test.tsx": {
@@ -2875,9 +2857,6 @@
     "@typescript-eslint/restrict-template-expressions": {
       "count": 2
     },
-    "local/no-comments": {
-      "count": 13
-    },
     "max-lines-per-function": {
       "count": 1
     }
@@ -3558,9 +3537,6 @@
       "count": 2
     },
     "complexity": {
-      "count": 1
-    },
-    "local/no-comments": {
       "count": 1
     },
     "max-params": {
@@ -4960,11 +4936,6 @@
   "src/services/gameService/decisionAnswers.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 1
-    }
-  },
-  "src/services/gameService/driveLifecycle.ts": {
-    "local/no-comments": {
-      "count": 2
     }
   },
   "src/services/gameService/parts.ts": {
