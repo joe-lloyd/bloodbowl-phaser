@@ -26,8 +26,8 @@ function Start-Blender([string[]]$Opts, [string]$Log) {
   Start-Process -FilePath $Blender -ArgumentList $argv -RedirectStandardOutput "$Log.log" -RedirectStandardError "$Log.err" -NoNewWindow -PassThru
 }
 
-function Wait-Slot($Procs) {
-  while (($Procs | Where-Object { -not $_.HasExited }).Count -ge $Parallel) { Start-Sleep -Seconds 3 }
+function Wait-Slot($Procs, [int]$Below = $Parallel) {
+  while (($Procs | Where-Object { -not $_.HasExited }).Count -ge $Below) { Start-Sleep -Seconds 3 }
 }
 
 $jobs = @()
@@ -52,7 +52,7 @@ foreach ($job in $jobs) {
   Write-Host "Chunk $started of $($jobs.Count): $($job[0])"
   $running += Start-Blender -Opts $job[1] -Log "$logs/$($job[0])"
 }
-$running | Wait-Process
+Wait-Slot $running 1
 $packs = @()
 $packed = @()
 $failed = @()
@@ -69,7 +69,7 @@ foreach ($model in $Models.Split(",")) {
   $packs += Start-Blender -Opts (@("--models", $model, "--pack", $stash, "--verify", "2") + $common) -Log "$logs/pack-$model"
   $packed += $model
 }
-$packs | Wait-Process
+Wait-Slot $packs 1
 foreach ($model in $packed) {
   $log = "$logs/pack-$model.log"
   if (-not ((Test-Path $log) -and (Select-String -Quiet -Path $log -Pattern "^DONE $model "))) {
