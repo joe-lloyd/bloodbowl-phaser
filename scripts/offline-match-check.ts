@@ -11,7 +11,8 @@ import { dehydrateTeam } from "../src/data/persistence/teamPersistence";
 
 const DIST = process.argv[2] ?? "dist";
 const PORT = Number(process.argv[3] ?? 5398);
-const ORIGIN = `http://localhost:${String(PORT)}`;
+const ORIGIN = `http://127.0.0.1:${String(PORT)}`;
+const ROOT = path.resolve(DIST);
 const SHOTS = process.argv[4] ?? ".";
 const OWN_ROSTER = "Orc";
 const OPPONENT_ROSTER = "Human";
@@ -30,8 +31,10 @@ const TYPES: Record<string, string> = {
 };
 
 async function distFile(file: string): Promise<{ name: string; body: Buffer }> {
+  const full = path.resolve(ROOT, file);
   try {
-    return { name: file, body: await readFile(path.join(DIST, file)) };
+    if (!full.startsWith(ROOT + path.sep)) throw new Error(`${file} is outside ${DIST}`);
+    return { name: file, body: await readFile(full) };
   } catch {
     return { name: PAGE, body: await readFile(path.join(DIST, PAGE)) };
   }
@@ -48,7 +51,7 @@ const server = createServer((request, response) => {
     response.end(body);
   };
   void answer();
-}).listen(PORT);
+}).listen(PORT, "127.0.0.1");
 
 const failures: string[] = [];
 function check(name: string, passed: boolean, detail = ""): void {
