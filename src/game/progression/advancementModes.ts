@@ -531,9 +531,7 @@ function finishSelection(
     elite: ELITE_SKILLS.has(skill),
     source: "sevens-skill-selection",
     sourceMatchId: entry.matchId,
-    ...(candidates
-      ? { candidateRolls: candidates.map((c) => ({ ...c })) }
-      : {}),
+    ...(candidates && { candidateRolls: candidates.map((c) => ({ ...c })) }),
   });
   team.pendingDevelopment = (team.pendingDevelopment ?? []).filter(
     (pending) => pending.id !== entry.id

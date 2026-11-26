@@ -55,7 +55,7 @@ export async function jumpPlayer(
   context?: FlowContext
 ): Promise<void> {
   const prepared = prepareJump(deps, playerId, target, context);
-  if (!prepared.ok) return Promise.reject(prepared.reason);
+  if (!prepared.ok) throw new Error(prepared.reason);
   const { jump } = prepared;
   const { player, gameService } = jump;
   const { eventBus, diceController } = deps;
@@ -224,8 +224,8 @@ function jumpDeclaredContext(jump: JumpRun): JumpDeclaredContext {
     over: { ...jump.over },
     negativeModifier: -penalty,
     bonusModifier: 0,
-    ...(gameService ? { decisions: gameService.getDecisionService(), arbiter: gameService.getRerollArbiter() } : {}),
-    ...(jump.context?.flowManager === undefined ? {} : { flow: jump.context?.flowManager }),
+    ...(gameService && { decisions: gameService.getDecisionService(), arbiter: gameService.getRerollArbiter() }),
+    ...(jump.context?.flowManager !== undefined && { flow: jump.context?.flowManager }),
     dice: deps.diceController,
     triggers: [],
   };
@@ -245,8 +245,8 @@ function jumpResolvedContext(
     target: player.stats.AG,
     modifiers: modifier,
     success: rolled.success,
-    ...(gameService ? { decisions: gameService.getDecisionService(), arbiter: gameService.getRerollArbiter() } : {}),
-    ...(jump.context?.flowManager === undefined ? {} : { flow: jump.context?.flowManager }),
+    ...(gameService && { decisions: gameService.getDecisionService(), arbiter: gameService.getRerollArbiter() }),
+    ...(jump.context?.flowManager !== undefined && { flow: jump.context?.flowManager }),
     dice: jump.deps.diceController,
     triggers: [],
   };
@@ -265,7 +265,7 @@ function landJump(
     from,
     to: { ...destination },
     path: [from, { ...destination }],
-    ...(holdingBall ? { ballFrom: from, ballPath: [from, { ...destination }] } : {}),
+    ...(holdingBall && { ballFrom: from, ballPath: [from, { ...destination }] }),
     ballJoinStep: 0,
   });
   if (

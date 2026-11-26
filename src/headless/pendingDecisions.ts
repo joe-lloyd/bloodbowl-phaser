@@ -15,11 +15,11 @@ export function requestedDecision(
         playerId: request.playerId,
         chooserTeamId: request.chooserTeamId,
         rollKind: request.rollKind,
-        ...(request.rollName === undefined ? {} : { rollName: request.rollName }),
+        ...(request.rollName !== undefined && { rollName: request.rollName }),
         sources: request.sources,
-        ...(request.skill === undefined ? {} : { skill: request.skill }),
+        ...(request.skill !== undefined && { skill: request.skill }),
         roll: request.roll,
-        ...(request.needed === undefined ? {} : { needed: request.needed }),
+        ...(request.needed !== undefined && { needed: request.needed }),
       };
     case "reaction":
       return {
@@ -28,9 +28,7 @@ export function requestedDecision(
         chooserTeamId: request.chooserTeamId,
         skill: request.skill,
         prompt: request.prompt,
-        ...(request.opponentId === undefined
-          ? {}
-          : { opponentId: request.opponentId }),
+        ...(request.opponentId !== undefined && { opponentId: request.opponentId }),
       };
     case "bite-target":
       return {
@@ -38,7 +36,7 @@ export function requestedDecision(
         playerId: request.playerId,
         chooserTeamId: request.chooserTeamId,
         targetIds: [...request.targetIds],
-        ...(request.purpose ? { purpose: request.purpose } : {}),
+        ...(request.purpose && { purpose: request.purpose }),
       };
     case "interception":
       return {
@@ -53,10 +51,10 @@ export function requestedDecision(
         kind: request.kind,
         chooserTeamId: request.chooserTeamId,
         playerIds: [...request.playerIds],
-        ...(request.skills ? { skills: [...request.skills] } : {}),
-        ...(request.stats ? { stats: [...request.stats] } : {}),
-        ...(request.spells ? { spells: [...request.spells] } : {}),
-        ...(request.item === undefined ? {} : { item: request.item }),
+        ...(request.skills && { skills: [...request.skills] }),
+        ...(request.stats && { stats: [...request.stats] }),
+        ...(request.spells && { spells: [...request.spells] }),
+        ...(request.item !== undefined && { item: request.item }),
         optional: request.optional,
       };
     case "foul-assists":
@@ -75,9 +73,9 @@ export function requestedDecision(
         chooserTeamId: request.chooserTeamId,
         playerId: request.playerId,
         resultKind: request.resultKind,
-        ...(request.location === undefined ? {} : { location: request.location }),
-        ...(request.position === undefined ? {} : { position: request.position }),
-        ...(request.casualtyType === undefined ? {} : { casualtyType: request.casualtyType }),
+        ...(request.location !== undefined && { location: request.location }),
+        ...(request.position !== undefined && { position: request.position }),
+        ...(request.casualtyType !== undefined && { casualtyType: request.casualtyType }),
       };
     default:
       return unsurfaced(request);
@@ -99,11 +97,11 @@ function blockDiceDecision(
     defenderId: data.defenderId,
     chooserTeamId: findPlayer(chooserId)?.teamId ?? "",
     options: data.results,
-    ...(data.choiceStage === undefined ? {} : { choiceStage: data.choiceStage }),
-    ...(data.teamRerollAvailable === undefined ? {} : { teamRerollAvailable: data.teamRerollAvailable }),
-    ...(data.proAvailable === undefined ? {} : { proAvailable: data.proAvailable }),
-    ...(data.brawlerAvailable === undefined ? {} : { brawlerAvailable: data.brawlerAvailable }),
-    ...(data.veteranRerollAvailable === undefined ? {} : { veteranRerollAvailable: data.veteranRerollAvailable }),
+    ...(data.choiceStage !== undefined && { choiceStage: data.choiceStage }),
+    ...(data.teamRerollAvailable !== undefined && { teamRerollAvailable: data.teamRerollAvailable }),
+    ...(data.proAvailable !== undefined && { proAvailable: data.proAvailable }),
+    ...(data.brawlerAvailable !== undefined && { brawlerAvailable: data.brawlerAvailable }),
+    ...(data.veteranRerollAvailable !== undefined && { veteranRerollAvailable: data.veteranRerollAvailable }),
   };
 }
 

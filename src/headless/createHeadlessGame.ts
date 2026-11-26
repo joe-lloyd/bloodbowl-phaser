@@ -162,17 +162,15 @@ function freshMatchState(
   team2: Team
 ): GameState | undefined {
   const fixture = {
-    ...(options.paysWinnings ? { paysWinnings: true } : {}),
-    ...(options.competition ? { competition: true } : {}),
+    ...(options.paysWinnings && { paysWinnings: true }),
+    ...(options.competition && { competition: true }),
   };
   if (options.startingPhase) {
     return GameService.createMatchState({
       team1,
       team2,
       startingPhase: options.startingPhase,
-      ...(options.startingSubPhase === undefined
-        ? {}
-        : { startingSubPhase: options.startingSubPhase }),
+      ...(options.startingSubPhase !== undefined && { startingSubPhase: options.startingSubPhase }),
       fixture,
       ...formatOption(options),
     });
@@ -215,7 +213,7 @@ export function createHeadlessGame(
 
   const initialState = startingState(options, restored, team1, team2);
 
-  const gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: rng, blockResolutionService: blockResolutionService, ...(initialState === undefined ? {} : { initialState: initialState }), delay: options.delay ?? noDelay }
+  const gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: rng, blockResolutionService: blockResolutionService, ...(initialState !== undefined && { initialState: initialState }), delay: options.delay ?? noDelay }
   );
   if (options.knockout) gameService.getState().knockout = true;
   if (options.paysWinnings) gameService.getState().paysWinnings = true;

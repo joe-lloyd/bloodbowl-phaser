@@ -17,13 +17,13 @@ export function surfaceArmourModifier(
   }
 }
 
-const REPLACES_SURFACE: readonly string[] = [
+const REPLACES_SURFACE: ReadonlySet<string> = new Set([
   SkillType.CLAWS,
   SkillType.CHAINSAW,
-];
+]);
 
 export function surfaceStacksWith(
   triggers: readonly { skill: string }[]
 ): boolean {
-  return triggers.every((trigger) => !REPLACES_SURFACE.includes(trigger.skill));
+  return triggers.every((trigger) => !REPLACES_SURFACE.has(trigger.skill));
 }

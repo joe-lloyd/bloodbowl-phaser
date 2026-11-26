@@ -311,7 +311,7 @@ export class KickoffEventManager {
       event,
       teamId,
       selectionLimit,
-      ...(landingSquare === undefined ? {} : { landingSquare }),
+      ...(landingSquare !== undefined && { landingSquare }),
     });
   }
 

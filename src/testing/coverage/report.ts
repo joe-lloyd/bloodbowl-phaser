@@ -213,7 +213,7 @@ export function buildCoverage(
           layer,
           status: "excluded",
           cases: [],
-          ...(exclusion === undefined ? {} : { exclusion }),
+          ...(exclusion !== undefined && { exclusion }),
         };
       }
       return { layer, status: "missing", cases: [] };
@@ -253,9 +253,7 @@ export function buildCoverage(
         capability: scenarioCase.capability,
         layers: scenarioCase.layers,
         variants: scenarioCase.variants.map((variant) => variant.id),
-        ...(scenarioCase.regression
-          ? { regressionId: scenarioCase.regression.id }
-          : {}),
+        ...(scenarioCase.regression && { regressionId: scenarioCase.regression.id }),
       }))
       .sort((a, b) => (a.id < b.id ? -1 : 1)),
   };

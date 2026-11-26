@@ -272,10 +272,8 @@ function playoutRound(
     us: context.us,
     indices: alive.map(({ option }) => option.index),
     seeds: timing.seeds,
-    ...(timing.deadlineAt === undefined
-      ? {}
-      : { deadlineAt: timing.deadlineAt }),
-    ...(plans.length === alive.length ? { plans } : {}),
+    ...(timing.deadlineAt !== undefined && { deadlineAt: timing.deadlineAt }),
+    ...((plans.length === alive.length) && { plans }),
   };
 }
 

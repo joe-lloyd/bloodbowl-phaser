@@ -134,7 +134,7 @@ function planLegs(
         ? {
             square: state.ballPosition,
             target: (securing ? secureBallTarget : pickupTarget)(mover, state.ballPosition, c.getOpposingPlayers(player.teamId), state),
-            ...(securing ? { securing: true } : {}),
+            ...(securing && { securing: true }),
           }
         : undefined;
   return planMoveLegs(start, route, {
@@ -146,7 +146,7 @@ function planLegs(
     rushModifier: rushRollModifier(state, player),
     dodgeModifier: souvenirModifier(state, player.id, "dodge"),
 
-    ...(pickup === undefined ? {} : { pickup }),
+    ...(pickup !== undefined && { pickup }),
   });
 }
 

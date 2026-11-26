@@ -45,10 +45,10 @@ const STREET_PATIENTS: readonly PlayerStatus[] = [
   PlayerStatus.RESERVE,
 ];
 
-const GUTTER_PATIENTS: readonly PlayerStatus[] = [
+const GUTTER_PATIENTS: ReadonlySet<PlayerStatus> = new Set([
   PlayerStatus.KO,
   PlayerStatus.RESERVE,
-];
+]);
 
 function mayDrink(
   state: GameState,
@@ -62,7 +62,7 @@ function mayDrink(
       !hasSkill(player.skills, SkillType.REGENERATION)
     );
   return (
-    GUTTER_PATIENTS.includes(player.status) &&
+    GUTTER_PATIENTS.has(player.status) &&
     !getVariantInducements(state).dosedPlayerIds.includes(player.id)
   );
 }
@@ -80,12 +80,8 @@ function potionPatients(
 
 function choiceAnswer(answer: DecisionAnswer): InducementChoiceDecisionAnswer {
   return {
-    ...("playerId" in answer && typeof answer.playerId === "string"
-      ? { playerId: answer.playerId }
-      : {}),
-    ...("skill" in answer && typeof answer.skill === "string"
-      ? { skill: answer.skill }
-      : {}),
+    ...("playerId" in answer && typeof answer.playerId === "string" && { playerId: answer.playerId }),
+    ...("skill" in answer && typeof answer.skill === "string" && { skill: answer.skill }),
   };
 }
 

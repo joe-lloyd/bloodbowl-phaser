@@ -100,7 +100,7 @@ export async function movePlayer(
   context?: FlowContext
 ): Promise<void> {
   const prepared = prepareMove(deps, playerId, path);
-  if (!prepared.ok) return Promise.reject(prepared.reason);
+  if (!prepared.ok) throw new Error(prepared.reason);
   const { player, maView } = prepared;
   const { eventBus, diceController } = deps;
 
@@ -328,9 +328,9 @@ function walk(run: MoveRun, presentationId?: string) {
     from: run.shownFrom,
     to: { ...run.currentPos },
     path: steps,
-    ...(carried ? { ballFrom: run.shownFrom, ballPath: steps } : {}),
+    ...(carried && { ballFrom: run.shownFrom, ballPath: steps }),
     ballJoinStep: 0,
-    ...(presentationId === undefined ? {} : { presentationId }),
+    ...(presentationId !== undefined && { presentationId }),
   };
   run.shownSteps = run.completedPath.length;
   run.shownFrom = { ...run.currentPos };
@@ -415,9 +415,9 @@ function triggerServices(
   const arbiter = run.gameService?.getRerollArbiter();
   const flow = run.context?.flowManager;
   return {
-    ...(decisions ? { decisions } : {}),
-    ...(flow ? { flow } : {}),
-    ...(arbiter ? { arbiter } : {}),
+    ...(decisions && { decisions }),
+    ...(flow && { flow }),
+    ...(arbiter && { arbiter }),
   };
 }
 

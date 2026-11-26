@@ -107,7 +107,7 @@ export class TouchController {
         this.scene.cameras.main.backgroundColor.rgba
       );
       const ring = document.createElement("div");
-      ring.setAttribute("data-testid", "route-loupe");
+      ring.dataset["testid"] = "route-loupe";
       ring.style.cssText = `position:absolute;pointer-events:none;width:${String(LOUPE_PX + 6)}px;height:${String(LOUPE_PX + 6)}px;border:3px solid #e8c25a;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.55)`;
       this.scene.game.canvas.parentElement?.append(ring);
       this.loupeRing = ring;

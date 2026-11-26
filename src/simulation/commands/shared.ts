@@ -33,13 +33,11 @@ export function makeCoach(
         samples: BUDGETS[name].samples,
         options: BUDGETS[name].options,
       },
-      ...(weightsFile
-        ? {
+      ...(weightsFile && {
             weights: parseWeights(
               JSON.parse(fs.readFileSync(weightsFile, "utf8"))
             ),
-          }
-        : {}),
+          }),
     });
   if (name === "planner")
     return weightsFile
@@ -54,7 +52,7 @@ export function makeCoach(
   const model = process.env["TYPESAFE_MODEL"];
   const coach = createJevCoach({
     apiKey,
-    ...(model === undefined ? {} : { model }),
+    ...(model !== undefined && { model }),
   });
   jevStats.push(coach.stats);
   return coach;

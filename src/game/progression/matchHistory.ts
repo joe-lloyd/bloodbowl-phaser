@@ -100,7 +100,7 @@ export function playedGameFor(
     opponent: { name: opponent.name, rosterName: opponent.rosterName },
     score: { own, opponent: theirs },
     outcome,
-    ...(ending ? { ending } : {}),
+    ...(ending && { ending }),
     players: stats.flatMap((line) => playedGamePlayer(team, line) ?? []),
   };
 }
@@ -162,13 +162,11 @@ export function parsePlayedGames(raw: unknown): PlayedGame[] {
         id: entry["id"],
         playedAt: num(entry["playedAt"]),
         kind,
-        ...(typeof entry["fixture"] === "string"
-          ? { fixture: entry["fixture"] }
-          : {}),
+        ...((typeof entry["fixture"] === "string") && { fixture: entry["fixture"] }),
         opponent: { name: String(opponent["name"] ?? ""), rosterName },
         score: { own: num(score["own"]), opponent: num(score["opponent"]) },
         outcome,
-        ...(ending ? { ending } : {}),
+        ...(ending && { ending }),
         players: Array.isArray(entry["players"])
           ? entry["players"].flatMap((p) => parsePlayer(p) ?? [])
           : [],

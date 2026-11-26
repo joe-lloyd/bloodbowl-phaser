@@ -85,21 +85,21 @@ const ttm = (opts: TtmOpts): ScenarioSetup => {
         playerIndex: throwerIndex,
         x: opts.thrower?.x ?? 10,
         y: opts.thrower?.y ?? 5,
-        ...(opts.extraThrowerSkills ? { skills: opts.extraThrowerSkills } : {}),
+        ...(opts.extraThrowerSkills && { skills: opts.extraThrowerSkills }),
       },
       {
         playerIndex: 3,
         x: opts.mate?.x ?? 11,
         y: opts.mate?.y ?? 5,
-        ...(opts.extraMateSkills ? { skills: opts.extraMateSkills } : {}),
-        ...(Object.keys(mateStats).length > 0 ? { stats: mateStats } : {}),
+        ...(opts.extraMateSkills && { skills: opts.extraMateSkills }),
+        ...((Object.keys(mateStats).length > 0) && { stats: mateStats }),
       },
     ],
     team2Placements: (opts.opponents ?? [{ x: 1, y: 1 }]).map((o, i) => ({
       playerIndex: o.index ?? i,
       x: o.x,
       y: o.y,
-      ...(o.stats ? { stats: o.stats } : {}),
+      ...(o.stats && { stats: o.stats }),
     })),
     ballPosition: opts.ball ?? { x: 18, y: 9 },
   });
@@ -130,7 +130,7 @@ const script = ({
     x,
     y,
     mode,
-    ...(swoopFacing ? { swoopFacing } : {}),
+    ...(swoopFacing && { swoopFacing }),
   },
 ];
 

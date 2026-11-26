@@ -52,7 +52,7 @@ export function settleSpecialArmour(
   flowManager.add(
     new InjuryOperation(victim.id, {
       modifier: hit.injuryModifier,
-      ...(causedBy ? { causedById: causedBy.id, cause: "special" } : {}),
+      ...(causedBy && { causedById: causedBy.id, cause: "special" }),
     }),
     true
   );

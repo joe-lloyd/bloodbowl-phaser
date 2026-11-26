@@ -247,7 +247,7 @@ export function turnIntoFrog(
       playerId: player.id,
       stats: { ...player.stats },
       skills: player.skills,
-      ...(spell.drives > 1 ? { drivesLeft: spell.drives } : {}),
+      ...((spell.drives > 1) && { drivesLeft: spell.drives }),
     },
   ];
 

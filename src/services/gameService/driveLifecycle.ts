@@ -136,7 +136,7 @@ export function addTouchdown(
   parts.eventBus.emit(GameEventNames.Touchdown, {
     teamId,
     score: parts.state.score[teamId],
-    ...(scorerId === undefined ? {} : { scorerId }),
+    ...(scorerId !== undefined && { scorerId }),
   });
 
   announceTouchdown(parts, teamId, scorerId);

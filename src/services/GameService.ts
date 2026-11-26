@@ -680,9 +680,7 @@ export class GameService implements IGameService {
       parts: this.parts,
       playerId,
       action,
-      ...(requestedReplacement === undefined
-        ? {}
-        : { blockReplacement: requestedReplacement }),
+      ...(requestedReplacement !== undefined && { blockReplacement: requestedReplacement }),
       options,
     });
   }
@@ -746,8 +744,8 @@ export class GameService implements IGameService {
         teammateId,
         x,
         y,
-        ...(mode === undefined ? {} : { mode }),
-        ...(swoopFacing === undefined ? {} : { swoopFacing }),
+        ...(mode !== undefined && { mode }),
+        ...(swoopFacing !== undefined && { swoopFacing }),
       });
     });
   }

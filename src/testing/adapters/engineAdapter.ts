@@ -91,7 +91,7 @@ export async function runCaseInEngine(
       intent: describeStep(step, index),
       command: step.command,
       ok: response.ok,
-      ...(response.reason ? { reason: response.reason } : {}),
+      ...(response.reason && { reason: response.reason }),
       replies: [],
     };
     stepLog.push(record);

@@ -24,7 +24,7 @@ export function showSetupPlacement(context: {
   }
   const isTeam1 = activeTeam.id === scene.team1.id;
   const status = gameService.getSetupStatus(activeTeam.id);
-  eventBus.emit(GameEventNames.UI_ShowSetupControls, { subPhase, activeTeam, ...(status === undefined ? {} : { status }) });
+  eventBus.emit(GameEventNames.UI_ShowSetupControls, { subPhase, activeTeam, ...(status !== undefined && { status }) });
   scene.highlightSetupZone(isTeam1);
   scene.enablePlacement(activeTeam, isTeam1);
 }

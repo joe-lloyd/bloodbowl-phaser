@@ -153,7 +153,7 @@ export class MovementManager {
   public async standUp(playerId: string): Promise<void> {
     const player = findPlayer(this.deps, playerId);
     if (player?.status !== PlayerStatus.PRONE) {
-      return Promise.reject("Player is not prone");
+      throw new Error("Player is not prone");
     }
 
     const maView = withDriveModifiers(player, this.state);
@@ -161,7 +161,7 @@ export class MovementManager {
 
     const allowance = moveAllowance(maView);
     if (this.getMovementUsed(playerId) + standUpCost(maView) > allowance) {
-      return Promise.reject("Not enough movement to stand up");
+      throw new Error("Not enough movement to stand up");
     }
 
     if (!(await standToMove(this.deps, player, maView))) return;

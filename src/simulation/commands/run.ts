@@ -84,8 +84,8 @@ export async function runBatch(options: RunOptions): Promise<number> {
           seed,
           rosters,
           coaches,
-          ...(options.maxCommands === undefined ? {} : { maxCommands: options.maxCommands }),
-          ...(options.gameType === undefined ? {} : { gameType: options.gameType }),
+          ...(options.maxCommands !== undefined && { maxCommands: options.maxCommands }),
+          ...(options.gameType !== undefined && { gameType: options.gameType }),
         });
       } catch (error) {
         findings.push(runnerThrew(error, seed));
@@ -172,7 +172,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
       matches.reduce((s, m) => s + m.ms, 0) / Math.max(1, matches.length)
     ),
     commandCoverage: commandCounts,
-    ...(jevStats.length > 0 ? { jev: jevStats } : {}),
+    ...((jevStats.length > 0) && { jev: jevStats }),
     findings: grouped,
     perMatch: matches.sort((a, b) => a.seed - b.seed),
   };

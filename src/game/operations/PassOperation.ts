@@ -336,7 +336,7 @@ export class PassOperation extends GameOperation {
       player: passer,
       passType: passRange.type,
       hailMary: this.hailMary,
-      ...(targetPlayer === undefined ? {} : { targetPlayer: targetPlayer }),
+      ...(targetPlayer !== undefined && { targetPlayer: targetPlayer }),
       marking: markingOpponents,
       modifiers:
         passModifier(gameService.getState(), passRange.type) +
@@ -411,7 +411,7 @@ export class PassOperation extends GameOperation {
         passType: result.passType,
         accurate: result.accurate,
         finalPosition,
-        ...(scatterPath ? { scatterPath } : {}),
+        ...(scatterPath && { scatterPath }),
       });
       await context.delay(1500);
     };

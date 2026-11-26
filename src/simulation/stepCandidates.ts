@@ -349,7 +349,7 @@ function throwTeammateSteps({
             throwerId: player.id,
             teammateId: mate.id,
             ...aim,
-            ...(swoopFacing ? { swoopFacing } : {}),
+            ...(swoopFacing && { swoopFacing }),
           },
           `${describePlayer(player)} throws ${describePlayer(mate)} at ${square(aim)}${swoopFacing ? `, swooping ${swoopFacing}` : ""}`
         );

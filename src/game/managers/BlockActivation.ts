@@ -415,7 +415,7 @@ export abstract class BlockActivation extends BlockRerolls {
       from,
       to: { ...to },
       path: [from, { ...to }],
-      ...(carriedBall ? { ballFrom: from, ballPath: [from, { ...to }] } : {}),
+      ...(carriedBall && { ballFrom: from, ballPath: [from, { ...to }] }),
       ballJoinStep: 0,
     });
     this.callbacks
@@ -428,7 +428,7 @@ function snapshotPlayer(player: Player): Player {
   const { gridPosition, conditions, ...rest } = player;
   return {
     ...rest,
-    ...(gridPosition ? { gridPosition: { ...gridPosition } } : {}),
-    ...(conditions ? { conditions: [...conditions] } : {}),
+    ...(gridPosition && { gridPosition: { ...gridPosition } }),
+    ...(conditions && { conditions: [...conditions] }),
   };
 }

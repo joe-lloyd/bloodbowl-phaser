@@ -47,10 +47,8 @@ export function skillRerollConfig(opts: {
     description: opts.description,
     setup: opts.setup,
     script: opts.script,
-    ...(opts.seedSearch === undefined ? {} : { seedSearch: opts.seedSearch }),
-    ...(opts.skillProvenance === undefined
-      ? {}
-      : { skillProvenance: opts.skillProvenance }),
+    ...(opts.seedSearch !== undefined && { seedSearch: opts.seedSearch }),
+    ...(opts.skillProvenance !== undefined && { skillProvenance: opts.skillProvenance }),
     outcomes: [
       {
         id: "skill-reroll-offered",
@@ -92,11 +90,9 @@ export function blockConfig(opts: {
     name: opts.name,
     description: opts.description,
     setup: opts.setup,
-    ...(opts.rerolls === undefined ? {} : { rerolls: opts.rerolls }),
-    ...(opts.seedSearch === undefined ? {} : { seedSearch: opts.seedSearch }),
-    ...(opts.skillProvenance === undefined
-      ? {}
-      : { skillProvenance: opts.skillProvenance }),
+    ...(opts.rerolls !== undefined && { rerolls: opts.rerolls }),
+    ...(opts.seedSearch !== undefined && { seedSearch: opts.seedSearch }),
+    ...(opts.skillProvenance !== undefined && { skillProvenance: opts.skillProvenance }),
     script: [
       { type: "declare-action", playerId: opts.attacker, action: "block" },
       {

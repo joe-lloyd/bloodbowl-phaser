@@ -183,10 +183,7 @@ function takeStalling(parts: GameParts, playerId: string): boolean {
 function declaredStalling(parts: GameParts, active: Declaration): boolean {
   return (
     !!active.stalling &&
-    !(
-      (active.action === "pass" || active.action === "handoff") &&
-      !parts.ballManager.hasBall(active.id)
-    )
+    (!(active.action === "pass" || active.action === "handoff") || parts.ballManager.hasBall(active.id))
   );
 }
 

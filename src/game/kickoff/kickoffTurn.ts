@@ -47,7 +47,7 @@ export function unspentTurn(turn: TurnData): TurnData {
     teamId: turn.teamId,
     turnNumber: turn.turnNumber,
     isHalf2: turn.isHalf2,
-    ...(turn.extraTime ? { extraTime: true } : {}),
+    ...(turn.extraTime && { extraTime: true }),
     activatedPlayerIds: new Set(),
     hasBlitzed: false,
     hasPassed: false,

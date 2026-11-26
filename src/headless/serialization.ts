@@ -174,40 +174,40 @@ export interface CreateMatchSaveInput {
 
 function rerollFields(source: GameState | GameSnapshot) {
   return {
-    ...(source.bribes === undefined ? {} : { bribes: structuredClone(source.bribes) }),
-    ...(source.weatherReady === undefined ? {} : { weatherReady: structuredClone(source.weatherReady) }),
-    ...(source.teamRerollsUsed === undefined ? {} : { teamRerollsUsed: structuredClone(source.teamRerollsUsed) }),
-    ...(source.leaderRerolls === undefined ? {} : { leaderRerolls: structuredClone(source.leaderRerolls) }),
-    ...(source.veteranRerollsUsed === undefined ? {} : { veteranRerollsUsed: structuredClone(source.veteranRerollsUsed) }),
-    ...(source.briberyRerollsUsed === undefined ? {} : { briberyRerollsUsed: structuredClone(source.briberyRerollsUsed) }),
+    ...(source.bribes !== undefined && { bribes: structuredClone(source.bribes) }),
+    ...(source.weatherReady !== undefined && { weatherReady: structuredClone(source.weatherReady) }),
+    ...(source.teamRerollsUsed !== undefined && { teamRerollsUsed: structuredClone(source.teamRerollsUsed) }),
+    ...(source.leaderRerolls !== undefined && { leaderRerolls: structuredClone(source.leaderRerolls) }),
+    ...(source.veteranRerollsUsed !== undefined && { veteranRerollsUsed: structuredClone(source.veteranRerollsUsed) }),
+    ...(source.briberyRerollsUsed !== undefined && { briberyRerollsUsed: structuredClone(source.briberyRerollsUsed) }),
   };
 }
 
 function driveFields(source: GameState | GameSnapshot) {
   return {
-    ...(source.driveEffects === undefined ? {} : { driveEffects: structuredClone(source.driveEffects) }),
-    ...(source.lostBall === undefined ? {} : { lostBall: source.lostBall }),
-    ...(source.stallingPlayerIds === undefined ? {} : { stallingPlayerIds: structuredClone(source.stallingPlayerIds) }),
-    ...(source.seriousKnockoutIds === undefined ? {} : { seriousKnockoutIds: structuredClone(source.seriousKnockoutIds) }),
-    ...(source.turnUsage === undefined ? {} : { turnUsage: structuredClone(source.turnUsage) }),
-    ...(source.raisedDead === undefined ? {} : { raisedDead: structuredClone(source.raisedDead) }),
-    ...(source.fanFactors === undefined ? {} : { fanFactors: structuredClone(source.fanFactors) }),
+    ...(source.driveEffects !== undefined && { driveEffects: structuredClone(source.driveEffects) }),
+    ...(source.lostBall !== undefined && { lostBall: source.lostBall }),
+    ...(source.stallingPlayerIds !== undefined && { stallingPlayerIds: structuredClone(source.stallingPlayerIds) }),
+    ...(source.seriousKnockoutIds !== undefined && { seriousKnockoutIds: structuredClone(source.seriousKnockoutIds) }),
+    ...(source.turnUsage !== undefined && { turnUsage: structuredClone(source.turnUsage) }),
+    ...(source.raisedDead !== undefined && { raisedDead: structuredClone(source.raisedDead) }),
+    ...(source.fanFactors !== undefined && { fanFactors: structuredClone(source.fanFactors) }),
   };
 }
 
 function inducementFields(source: GameState | GameSnapshot) {
   return {
-    ...(source.inducements === undefined ? {} : { inducements: structuredClone(source.inducements) }),
-    ...(source.pregameInducements === undefined ? {} : { pregameInducements: structuredClone(source.pregameInducements) }),
-    ...(source.matchInducements === undefined ? {} : { matchInducements: structuredClone(source.matchInducements) }),
-    ...(source.kick === undefined ? {} : { kick: structuredClone(source.kick) }),
-    ...(source.result === undefined ? {} : { result: structuredClone(source.result) }),
+    ...(source.inducements !== undefined && { inducements: structuredClone(source.inducements) }),
+    ...(source.pregameInducements !== undefined && { pregameInducements: structuredClone(source.pregameInducements) }),
+    ...(source.matchInducements !== undefined && { matchInducements: structuredClone(source.matchInducements) }),
+    ...(source.kick !== undefined && { kick: structuredClone(source.kick) }),
+    ...(source.result !== undefined && { result: structuredClone(source.result) }),
   };
 }
 
 function optionalTurnFields(turn: TurnData | TurnSnapshot) {
   return {
-    ...(turn.hasPunted ? { hasPunted: true } : {}),
+    ...(turn.hasPunted && { hasPunted: true }),
   };
 }
 
@@ -228,7 +228,7 @@ export function serializeGameState(
       teamId: state.turn.teamId,
       turnNumber: state.turn.turnNumber,
       isHalf2: state.turn.isHalf2,
-      ...(state.turn.extraTime ? { extraTime: true } : {}),
+      ...(state.turn.extraTime && { extraTime: true }),
       activatedPlayerIds: Array.from(state.turn.activatedPlayerIds),
       hasBlitzed: state.turn.hasBlitzed,
       hasPassed: state.turn.hasPassed,
@@ -245,9 +245,9 @@ export function serializeGameState(
     ...driveFields(state),
     ...inducementFields(state),
 
-    ...(state.knockout ? { knockout: true } : {}),
-    ...(state.paysWinnings ? { paysWinnings: true } : {}),
-    ...(state.competition ? { competition: true } : {}),
+    ...(state.knockout && { knockout: true }),
+    ...(state.paysWinnings && { paysWinnings: true }),
+    ...(state.competition && { competition: true }),
     ...formatFields(state),
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
@@ -280,16 +280,16 @@ function playerSnapshot(p: Player, turn: TurnData): PlayerSnapshot {
 
 function formatFields(source: Pick<GameState, "gameType" | "venue">) {
   return {
-    ...(source.gameType === undefined ? {} : { gameType: source.gameType }),
-    ...(source.venue === undefined ? {} : { venue: source.venue }),
+    ...(source.gameType !== undefined && { gameType: source.gameType }),
+    ...(source.venue !== undefined && { venue: source.venue }),
   };
 }
 
 function matchFlags(snapshot: GameSnapshot) {
   return {
-    ...(snapshot.knockout ? { knockout: true } : {}),
-    ...(snapshot.paysWinnings ? { paysWinnings: true } : {}),
-    ...(snapshot.competition ? { competition: true } : {}),
+    ...(snapshot.knockout && { knockout: true }),
+    ...(snapshot.paysWinnings && { paysWinnings: true }),
+    ...(snapshot.competition && { competition: true }),
     ...formatFields(snapshot),
   };
 }
@@ -313,7 +313,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     teamId: snapshot.turn.teamId,
     turnNumber: snapshot.turn.turnNumber,
     isHalf2: snapshot.turn.isHalf2,
-    ...(snapshot.turn.extraTime ? { extraTime: true } : {}),
+    ...(snapshot.turn.extraTime && { extraTime: true }),
     activatedPlayerIds: new Set(snapshot.turn.activatedPlayerIds),
     hasBlitzed: snapshot.turn.hasBlitzed,
     hasPassed: snapshot.turn.hasPassed,
@@ -329,7 +329,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
 
   return {
     phase: snapshot.phase,
-    ...(snapshot.subPhase === null ? {} : { subPhase: snapshot.subPhase }),
+    ...(snapshot.subPhase !== null && { subPhase: snapshot.subPhase }),
     activeTeamId: snapshot.activeTeamId,
     turn,
     score: { ...snapshot.score },
@@ -342,7 +342,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     weather: snapshot.weather,
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
-    ...(snapshot.setup ? { setup: structuredClone(snapshot.setup) } : {}),
+    ...(snapshot.setup && { setup: structuredClone(snapshot.setup) }),
   };
 }
 
@@ -400,13 +400,9 @@ export function createMatchSave(input: CreateMatchSaveInput): MatchSave {
       ...input.matchStats,
       players: input.matchStats.players.map((stats) => ({ ...stats })),
     },
-    ...(input.turnManager
-      ? { turnManager: structuredClone(input.turnManager) }
-      : {}),
-    ...(input.competition
-      ? { competition: structuredClone(input.competition) }
-      : {}),
-    ...(input.computer ? { computer: { ...input.computer } } : {}),
+    ...(input.turnManager && { turnManager: structuredClone(input.turnManager) }),
+    ...(input.competition && { competition: structuredClone(input.competition) }),
+    ...(input.computer && { computer: { ...input.computer } }),
   };
 
   return normalizeMatchSave(payload);

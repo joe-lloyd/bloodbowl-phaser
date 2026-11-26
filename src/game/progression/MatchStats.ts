@@ -296,7 +296,7 @@ export class MatchStats {
       version: 1,
       progressionEnabled: this.progressionEnabled,
       applied: this.appliedFlag,
-      ...(this.concedingTeamId === undefined ? {} : { concedingTeamId: this.concedingTeamId }),
+      ...(this.concedingTeamId !== undefined && { concedingTeamId: this.concedingTeamId }),
       players: [...this.stats.values()].map((stats) => ({ ...stats })),
     };
   }

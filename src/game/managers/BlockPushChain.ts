@@ -260,7 +260,7 @@ export abstract class BlockPushChain extends BlockActivation {
         !chain.preventFollowUp,
       resultType: chain.resultType,
       attackerId: chain.attackerId,
-      ...(chooserTeamId === undefined ? {} : { chooserTeamId }),
+      ...(chooserTeamId !== undefined && { chooserTeamId }),
       pushTier: tier,
     });
   }
@@ -437,14 +437,12 @@ export abstract class BlockPushChain extends BlockActivation {
       const isOriginalDefender = i === 0;
       this.landLink(link, player, landing, {
         falls: isOriginalDefender && knockDownDefender,
-        ...(isOriginalDefender && offersFollowUp
-          ? {
+        ...(isOriginalDefender && offersFollowUp && {
               followUpData: {
                 attackerId: chain.attackerId,
                 targetSquare: link.from,
               },
-            }
-          : {}),
+            }),
       });
     }
     return landing;
@@ -481,9 +479,9 @@ export abstract class BlockPushChain extends BlockActivation {
       from: link.from,
       to,
       path: [link.from, to],
-      ...(carriedBall ? { ballFrom: link.from, ballPath: [link.from, to] } : {}),
+      ...(carriedBall && { ballFrom: link.from, ballPath: [link.from, to] }),
       ballJoinStep: 0,
-      ...(followUpData ? { followUpData } : {}),
+      ...(followUpData && { followUpData }),
     });
 
     if (
@@ -529,7 +527,7 @@ export abstract class BlockPushChain extends BlockActivation {
       playerId: pushed.id,
       from,
       to: null,
-      ...(landing === "pit" ? { pit: { ...direction } } : {}),
+      ...((landing === "pit") && { pit: { ...direction } }),
     });
     await this.applyChain(followUp);
   }

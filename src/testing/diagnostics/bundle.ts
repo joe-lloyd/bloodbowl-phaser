@@ -90,9 +90,7 @@ export function buildDiagnosticBundle({
       capability: scenarioCase.capability,
       interactions: [...scenarioCase.interactions],
       tags: [...(scenarioCase.tags ?? [])],
-      ...(scenarioCase.regression
-        ? { regressionId: scenarioCase.regression.id }
-        : {}),
+      ...(scenarioCase.regression && { regressionId: scenarioCase.regression.id }),
     },
     variant: {
       id: variant.id,
@@ -101,11 +99,11 @@ export function buildDiagnosticBundle({
       expectedOutcome: variant.expectedOutcome,
     },
     fixture: {
-      ...(scenarioCase.setup.team1Roster === undefined ? {} : { team1Roster: scenarioCase.setup.team1Roster }),
-      ...(scenarioCase.setup.team2Roster === undefined ? {} : { team2Roster: scenarioCase.setup.team2Roster }),
+      ...(scenarioCase.setup.team1Roster !== undefined && { team1Roster: scenarioCase.setup.team1Roster }),
+      ...(scenarioCase.setup.team2Roster !== undefined && { team2Roster: scenarioCase.setup.team2Roster }),
       syntheticGrants: (scenarioCase.syntheticGrants ?? []).map((grant) => ({
         player: grant.player,
-        ...(grant.skill ? { skill: String(grant.skill) } : {}),
+        ...(grant.skill && { skill: grant.skill }),
         reason: grant.reason,
       })),
     },
@@ -117,7 +115,7 @@ export function buildDiagnosticBundle({
         intent: record.intent,
         command: record.command,
         ok: record.ok,
-        ...(record.reason ? { reason: record.reason } : {}),
+        ...(record.reason && { reason: record.reason }),
         replies: record.replies,
       })) ??
       scenarioCase.steps.map((step, index) => ({
@@ -125,7 +123,7 @@ export function buildDiagnosticBundle({
         intent: step.intent ?? step.command.type,
         command: step.command,
       })),
-    ...(failure ? { failure } : {}),
+    ...(failure && { failure }),
     decisions: observed.decisions,
     events: observed.events,
     responses: observed.responses,

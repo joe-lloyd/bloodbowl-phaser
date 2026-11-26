@@ -60,12 +60,10 @@ function describePlacement(
         legality === "illegal" ? nativeFixtures(skill)[0] : undefined;
       const reason = reasons.get(`${ref}|${skill}`);
       return {
-        skill: String(skill),
+        skill: skill,
         legality,
-        ...(reason === undefined ? {} : { reason }),
-        ...(native
-          ? { preferredNative: `${native.roster} ${native.positionName}` }
-          : {}),
+        ...(reason !== undefined && { reason }),
+        ...(native && { preferredNative: `${native.roster} ${native.positionName}` }),
       };
     }),
     statOverrides: Object.entries(placement.stats ?? {}).map(

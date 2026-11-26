@@ -25,12 +25,12 @@ import {
   teamSetupStatus,
 } from "./setupStatus";
 
-const UNAVAILABLE_STATUSES: readonly PlayerStatus[] = [
+const UNAVAILABLE_STATUSES: ReadonlySet<PlayerStatus> = new Set([
   PlayerStatus.KO,
   PlayerStatus.INJURED,
   PlayerStatus.DEAD,
   PlayerStatus.REMOVED,
-];
+]);
 
 export class SetupManager {
   private placedPlayers = new Map<string, { x: number; y: number }>();
@@ -758,7 +758,7 @@ export class SetupManager {
     y: number,
     playerId: string
   ): boolean {
-    for (const [id, position] of this.placedPlayers.entries()) {
+    for (const [id, position] of this.placedPlayers) {
       if (id !== playerId && position.x === x && position.y === y) return true;
     }
     return false;
@@ -772,7 +772,7 @@ export class SetupManager {
     const team = this.getTeam(player.teamId);
     if (team && isPendingRecruit(team, player.id)) return false;
     return (
-      !UNAVAILABLE_STATUSES.includes(player.status) &&
+      !UNAVAILABLE_STATUSES.has(player.status) &&
       !isConfinedToReserves(player, this.state)
     );
   }

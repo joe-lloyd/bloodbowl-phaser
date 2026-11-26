@@ -68,7 +68,7 @@ export class ServiceContainer {
     const gameService = new GameService({
       eventBus: this.eventBus, team1, team2, rngService: this.rngService,
       blockResolutionService: this.blockResolutionService,
-      ...(initialState === undefined ? {} : { initialState }),
+      ...(initialState !== undefined && { initialState }),
     });
     this.engineGameService = gameService;
     if (turnManagerState) {

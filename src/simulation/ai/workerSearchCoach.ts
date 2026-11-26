@@ -83,7 +83,7 @@ async function workerPlayouts(
       indices.map((index, k) => ({
         index,
         seed,
-        ...(plans ? { plan: plans[k] } : {}),
+        ...(plans && { plan: plans[k] }),
       }))
     )
     .map((job, index) => ({ job, index }));
@@ -99,8 +99,8 @@ async function workerPlayouts(
         root,
         us,
         jobs: share.map(({ job }) => job),
-        ...(deadlineAt === undefined ? {} : { deadlineAt }),
-        ...(weights ? { weights } : {}),
+        ...(deadlineAt !== undefined && { deadlineAt }),
+        ...(weights && { weights }),
       });
       for (const [k, { index }] of share.entries()) {
         scores[index] = got[k] ?? null;
@@ -132,7 +132,7 @@ export function createWorkerSearchCoach(
     ...createSearchCoach({
       budget: options.budget,
       playouts,
-      ...(options.weights ? { weights: options.weights } : {}),
+      ...(options.weights && { weights: options.weights }),
     }),
     close() {
       for (const worker of pool.workers) worker?.terminate();

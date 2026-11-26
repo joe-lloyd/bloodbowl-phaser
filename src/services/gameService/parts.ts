@@ -213,7 +213,7 @@ function makeTurnManager(
       onPhaseChanged: (phase, subPhase) => {
         eventBus.emit(GameEventNames.PhaseChanged, {
           phase,
-          ...(subPhase === undefined ? {} : { subPhase }),
+          ...(subPhase !== undefined && { subPhase }),
         });
       },
       onHalfEnded: (next) => {

@@ -88,7 +88,7 @@ function auditGrant(grant: GrantToAudit): {
     roster,
     positionName: positionAt(roster, playerIndex) ?? "?",
     legality,
-    ...(reason ? { reason } : {}),
+    ...(reason && { reason }),
   };
 
   if (legality === "native") {

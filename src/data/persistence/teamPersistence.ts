@@ -196,22 +196,16 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
     injuries: Array.isArray(raw["injuries"])
       ? (raw["injuries"])
       : [],
-    ...(raw["careerStats"] === undefined
-      ? {}
-      : { careerStats: raw["careerStats"] as PlayerCareerStats }),
-    ...(typeof raw["timesKeptFromDraft"] === "number"
-      ? { timesKeptFromDraft: raw["timesKeptFromDraft"] }
-      : {}),
-    ...(raw["veteran"] === true ? { veteran: true } : {}),
-    ...(raw["teamCaptain"] === true ? { teamCaptain: true } : {}),
-    ...(raw["pendingAdvancementRoll"]
-      ? {
+    ...(raw["careerStats"] !== undefined && { careerStats: raw["careerStats"] as PlayerCareerStats }),
+    ...((typeof raw["timesKeptFromDraft"] === "number") && { timesKeptFromDraft: raw["timesKeptFromDraft"] }),
+    ...((raw["veteran"] === true) && { veteran: true }),
+    ...((raw["teamCaptain"] === true) && { teamCaptain: true }),
+    ...(Boolean(raw["pendingAdvancementRoll"]) && {
           pendingAdvancementRoll: raw[
             "pendingAdvancementRoll"
           ] as PendingAdvancementRoll,
-        }
-      : {}),
-    ...(appearance ? { appearance } : {}),
+        }),
+    ...(appearance && { appearance }),
   };
 }
 
@@ -320,10 +314,8 @@ export function hydratePlayer(
     hasActed: false,
     cost,
     teamValue,
-    ...(stored.careerStats === undefined ? {} : { careerStats: stored.careerStats }),
-    ...(stored.timesKeptFromDraft
-      ? { timesKeptFromDraft: stored.timesKeptFromDraft }
-      : {}),
+    ...(stored.careerStats !== undefined && { careerStats: stored.careerStats }),
+    ...(stored.timesKeptFromDraft && { timesKeptFromDraft: stored.timesKeptFromDraft }),
   };
   if (hydrationWarning) player.hydrationWarning = hydrationWarning;
   if (stored.veteran) player.veteran = true;
@@ -349,16 +341,12 @@ export function dehydratePlayer(player: Player): StoredPlayer {
     advancements: player.advancements ?? [],
     characteristicAdvances: player.characteristicAdvances ?? {},
     injuries: player.injuries ?? [],
-    ...(player.careerStats ? { careerStats: player.careerStats } : {}),
-    ...(player.timesKeptFromDraft
-      ? { timesKeptFromDraft: player.timesKeptFromDraft }
-      : {}),
-    ...(player.veteran ? { veteran: true } : {}),
-    ...(player.teamCaptain ? { teamCaptain: true } : {}),
-    ...(player.pendingAdvancementRoll
-      ? { pendingAdvancementRoll: player.pendingAdvancementRoll }
-      : {}),
-    ...(player.appearance ? { appearance: player.appearance } : {}),
+    ...(player.careerStats && { careerStats: player.careerStats }),
+    ...(player.timesKeptFromDraft && { timesKeptFromDraft: player.timesKeptFromDraft }),
+    ...(player.veteran && { veteran: true }),
+    ...(player.teamCaptain && { teamCaptain: true }),
+    ...(player.pendingAdvancementRoll && { pendingAdvancementRoll: player.pendingAdvancementRoll }),
+    ...(player.appearance && { appearance: player.appearance }),
   };
 }
 
@@ -388,9 +376,7 @@ export function hydrateStoredTeam(
   const team: Team = {
     id: teamId,
     name: String(raw["name"] ?? ""),
-    ...(typeof raw["coachName"] === "string"
-      ? { coachName: raw["coachName"] }
-      : {}),
+    ...((typeof raw["coachName"] === "string") && { coachName: raw["coachName"] }),
     rosterName: rosterName!,
     colors: raw["colors"] as TeamColors,
     players,
@@ -414,58 +400,28 @@ export function hydrateStoredTeam(
     draws: Number(raw["draws"] ?? 0),
     touchdowns: Number(raw["touchdowns"] ?? 0),
     casualties: Number(raw["casualties"] ?? 0),
-    ...(raw["seedMetadata"]
-      ? { seedMetadata: raw["seedMetadata"] as SeedMetadata }
-      : {}),
-    ...(raw["recordedFixtureIds"]
-      ? { recordedFixtureIds: raw["recordedFixtureIds"] as string[] }
-      : {}),
-    ...(raw["playedGames"] === undefined
-      ? {}
-      : { playedGames: parsePlayedGames(raw["playedGames"]) }),
-    ...(raw["draftRuleset"] === undefined
-      ? {}
-      : { draftRuleset: readSevensRuleset(raw["draftRuleset"]) }),
-    ...(raw["gameType"] === undefined
-      ? {}
-      : { gameType: readGameType(raw["gameType"]) }),
-    ...(raw["activeCompetitionId"]
-      ? { activeCompetitionId: raw["activeCompetitionId"] as string }
-      : {}),
-    ...(raw["firstMatchPlayedAt"] == null
-      ? {}
-      : { firstMatchPlayedAt: Number(raw["firstMatchPlayedAt"]) }),
-    ...(raw["advancementMode"]
-      ? { advancementMode: raw["advancementMode"] as TeamAdvancementMode }
-      : {}),
-    ...(raw["advancementModeLocked"]
-      ? { advancementModeLocked: Boolean(raw["advancementModeLocked"]) }
-      : {}),
-    ...(raw["computerCoached"] === true
-      ? { computerCoached: true as const }
-      : {}),
-    ...(typeof raw["computerTemplateId"] === "string"
-      ? { computerTemplateId: raw["computerTemplateId"] }
-      : {}),
-    ...(Array.isArray(raw["pendingDevelopment"])
-      ? {
+    ...(Boolean(raw["seedMetadata"]) && { seedMetadata: raw["seedMetadata"] as SeedMetadata }),
+    ...(Boolean(raw["recordedFixtureIds"]) && { recordedFixtureIds: raw["recordedFixtureIds"] as string[] }),
+    ...(raw["playedGames"] !== undefined && { playedGames: parsePlayedGames(raw["playedGames"]) }),
+    ...(raw["draftRuleset"] !== undefined && { draftRuleset: readSevensRuleset(raw["draftRuleset"]) }),
+    ...(raw["gameType"] !== undefined && { gameType: readGameType(raw["gameType"]) }),
+    ...(Boolean(raw["activeCompetitionId"]) && { activeCompetitionId: raw["activeCompetitionId"] as string }),
+    ...(raw["firstMatchPlayedAt"] != null && { firstMatchPlayedAt: Number(raw["firstMatchPlayedAt"]) }),
+    ...(Boolean(raw["advancementMode"]) && { advancementMode: raw["advancementMode"] as TeamAdvancementMode }),
+    ...(Boolean(raw["advancementModeLocked"]) && { advancementModeLocked: Boolean(raw["advancementModeLocked"]) }),
+    ...((raw["computerCoached"] === true) && { computerCoached: true as const }),
+    ...((typeof raw["computerTemplateId"] === "string") && { computerTemplateId: raw["computerTemplateId"] }),
+    ...(Array.isArray(raw["pendingDevelopment"]) && {
           pendingDevelopment: raw["pendingDevelopment"],
-        }
-      : {}),
-    ...(Array.isArray(raw["matchedPlayAllocations"])
-      ? {
+        }),
+    ...(Array.isArray(raw["matchedPlayAllocations"]) && {
           matchedPlayAllocations: raw[
             "matchedPlayAllocations"
           ],
-        }
-      : {}),
-    ...(Array.isArray(raw["draftInducements"])
-      ? { draftInducements: parseDraftInducements(raw["draftInducements"]) }
-      : {}),
-    ...(Array.isArray(raw["draftHistory"])
-      ? { draftHistory: raw["draftHistory"] }
-      : {}),
-    ...(knownRoster ? parseAllegiance(knownRoster, raw) : {}),
+        }),
+    ...(Array.isArray(raw["draftInducements"]) && { draftInducements: parseDraftInducements(raw["draftInducements"]) }),
+    ...(Array.isArray(raw["draftHistory"]) && { draftHistory: raw["draftHistory"] }),
+    ...(knownRoster && parseAllegiance(knownRoster, raw)),
     ...readClubState(raw["club"]),
   };
   team.players = team.players.filter((player) => staysOnRoster(team, player));
@@ -486,7 +442,7 @@ export function dehydrateTeam(team: Team): StoredTeam {
     schemaVersion: TEAM_SCHEMA_VERSION,
     id: team.id,
     name: team.name,
-    ...(team.coachName === undefined ? {} : { coachName: team.coachName }),
+    ...(team.coachName !== undefined && { coachName: team.coachName }),
     rosterName: team.rosterName,
     colors: team.colors,
     players: team.players.map(dehydratePlayer),
@@ -505,38 +461,24 @@ export function dehydrateTeam(team: Team): StoredTeam {
     draws: team.draws,
     touchdowns: team.touchdowns,
     casualties: team.casualties,
-    ...(team.seedMetadata ? { seedMetadata: team.seedMetadata } : {}),
-    ...(team.recordedFixtureIds
-      ? { recordedFixtureIds: team.recordedFixtureIds }
-      : {}),
+    ...(team.seedMetadata && { seedMetadata: team.seedMetadata }),
+    ...(team.recordedFixtureIds && { recordedFixtureIds: team.recordedFixtureIds }),
     ...storedPlayedGames(team),
-    ...(team.draftRuleset ? { draftRuleset: team.draftRuleset } : {}),
-    ...(team.gameType ? { gameType: team.gameType } : {}),
-    ...(team.activeCompetitionId
-      ? { activeCompetitionId: team.activeCompetitionId }
-      : {}),
-    ...(team.firstMatchPlayedAt == null
-      ? {}
-      : { firstMatchPlayedAt: team.firstMatchPlayedAt }),
-    ...(team.advancementMode ? { advancementMode: team.advancementMode } : {}),
-    ...(team.advancementModeLocked
-      ? { advancementModeLocked: team.advancementModeLocked }
-      : {}),
-    ...(team.pendingDevelopment
-      ? { pendingDevelopment: team.pendingDevelopment }
-      : {}),
-    ...(team.matchedPlayAllocations
-      ? { matchedPlayAllocations: team.matchedPlayAllocations }
-      : {}),
-    ...(team.draftInducements
-      ? { draftInducements: team.draftInducements }
-      : {}),
-    ...(team.draftHistory ? { draftHistory: team.draftHistory } : {}),
-    ...(team.computerCoached ? { computerCoached: true as const } : {}),
-    ...(team.computerTemplateId === undefined ? {} : { computerTemplateId: team.computerTemplateId }),
-    ...(team.league ? { league: team.league } : {}),
-    ...(team.favouredOf ? { favouredOf: team.favouredOf } : {}),
-    ...(team.club ? { club: team.club } : {}),
+    ...(team.draftRuleset && { draftRuleset: team.draftRuleset }),
+    ...(team.gameType && { gameType: team.gameType }),
+    ...(team.activeCompetitionId && { activeCompetitionId: team.activeCompetitionId }),
+    ...(team.firstMatchPlayedAt != null && { firstMatchPlayedAt: team.firstMatchPlayedAt }),
+    ...(team.advancementMode && { advancementMode: team.advancementMode }),
+    ...(team.advancementModeLocked && { advancementModeLocked: team.advancementModeLocked }),
+    ...(team.pendingDevelopment && { pendingDevelopment: team.pendingDevelopment }),
+    ...(team.matchedPlayAllocations && { matchedPlayAllocations: team.matchedPlayAllocations }),
+    ...(team.draftInducements && { draftInducements: team.draftInducements }),
+    ...(team.draftHistory && { draftHistory: team.draftHistory }),
+    ...(team.computerCoached && { computerCoached: true as const }),
+    ...(team.computerTemplateId !== undefined && { computerTemplateId: team.computerTemplateId }),
+    ...(team.league && { league: team.league }),
+    ...(team.favouredOf && { favouredOf: team.favouredOf }),
+    ...(team.club && { club: team.club }),
   };
 }
 
