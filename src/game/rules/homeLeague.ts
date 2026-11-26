@@ -32,9 +32,9 @@ function comebacks(
   random: Random
 ): string[] {
   const back: string[] = [];
-  for (const id of waiting) {
-    if (back.length === open) break;
-    if (random() < COMEBACK_CHANCE) back.push(id);
+  for (let place = 0; place < open; place++) {
+    const next = waiting[back.length];
+    if (next !== undefined && random() < COMEBACK_CHANCE) back.push(next);
   }
   return back;
 }

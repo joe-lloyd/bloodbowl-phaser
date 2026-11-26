@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import type { Team } from "../../../types/Team";
 import { inTournament } from "../../../game/rules/club";
 import { homeLeagueOf } from "../../../competition/homeLeague";
@@ -34,17 +33,19 @@ function CompetitionLine({ team }: { team: Team }) {
   );
 }
 
-export function ClubNotice({ team }: { team: Team }) {
-  const navigate = useNavigate();
+export function ClubNotice({
+  team,
+  onOpenSeason,
+}: {
+  team: Team;
+  onOpenSeason: () => void;
+}) {
   if (!team.club) return null;
   return (
     <div className="mb-4 flex flex-col gap-2">
       <CompetitionLine team={team} />
       <div>
-        <HudButton
-          size="sm"
-          onClick={() => void navigate(`/clubs/${team.id}/season`)}
-        >
+        <HudButton size="sm" onClick={onOpenSeason}>
           Club league · season {homeLeagueOf(team).season}
         </HudButton>
       </div>

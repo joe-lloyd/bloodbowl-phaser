@@ -52,6 +52,16 @@ describe("rotating a club league's rivals", () => {
     expect(sorted(rotation.bench)).toEqual(sorted(rotation.resting));
   });
 
+  it("rolls once for each open place, not once for each benched club", () => {
+    const shuffle = Array.from({ length: 13 }, (_, index) => index / 13);
+    const rotation = rotateRivals(
+      { rivalIds: rivals, benchIds: ["u", "v", "w", "x", "y", "z"] },
+      sequence([...shuffle, 0.1, 0.9, 0.1])
+    );
+    expect(rotation.comingBack).toHaveLength(2);
+    expect(rotation.newcomers).toBe(1);
+  });
+
   it("drafts new clubs instead when every comeback roll misses", () => {
     const rotation = rotateRivals(
       { rivalIds: rivals, benchIds: ["x", "y"] },
