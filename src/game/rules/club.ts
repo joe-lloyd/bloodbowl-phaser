@@ -251,8 +251,8 @@ export function chooseGutterSitsOut(
   return { allowed: true };
 }
 
-export function careerCounts(team: Team, competition: boolean): boolean {
-  return !team.club || competition;
+export function careerCounts(team: Team, counted: boolean): boolean {
+  return !team.club || counted;
 }
 
 export function shirtMoveRefusal(

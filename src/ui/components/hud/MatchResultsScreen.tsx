@@ -394,7 +394,7 @@ export function MatchResultsScreen({
   const recordDevelopment = async () => {
     const gameState = container?.gameService.getState();
     const managed = savedTeams(teams).filter((team) =>
-      careerCounts(team, !!state.competition)
+      careerCounts(team, !!state.competition || progressionEnabled)
     );
     if (!developmentRecorded.current) {
       for (const team of managed) {

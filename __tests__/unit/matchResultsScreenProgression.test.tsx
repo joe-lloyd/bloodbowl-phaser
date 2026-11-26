@@ -70,7 +70,7 @@ describe("MatchResultsScreen", () => {
     expect(exitButton.disabled).toBe(false);
   });
 
-  it("keeps a club's career out of an exhibition even with progression on", async () => {
+  it("lets a club keep the SPP from a friendly the coach chose to count", async () => {
     localStorage.clear();
     const { services, team1, team2 } = setup(true);
     team1.club = {};
@@ -98,7 +98,7 @@ describe("MatchResultsScreen", () => {
         (sum, player) => sum + player.spp,
         0
       );
-    expect(spp("team-1")).toBe(0);
+    expect(spp("team-1")).toBe(4);
     expect(spp("team-2")).toBe(4);
   });
 
