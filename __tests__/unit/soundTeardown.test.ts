@@ -231,7 +231,7 @@ describe("SoundManager mute/volume apply live", () => {
 
     const masterGain = (manager as unknown as { masterGain: FakeGainNode })
       .masterGain;
-    expect(masterGain.gain.value).toBeCloseTo(0.42);
+    expect(masterGain.gain.value).toBeCloseTo(0.168);
   });
 
   it("muting after init drives the master gain to 0 immediately — silencing sound already in flight, not just future triggers", async () => {
@@ -272,7 +272,7 @@ describe("SoundManager mute/volume apply live", () => {
 
     const masterGain = (manager as unknown as { masterGain: FakeGainNode })
       .masterGain;
-    expect(masterGain.gain.value).toBeCloseTo(0.9);
+    expect(masterGain.gain.value).toBeCloseTo(0.36);
   });
 });
 

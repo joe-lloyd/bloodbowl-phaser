@@ -9,6 +9,12 @@ const STORAGE_KEY = "bb-sound-settings";
 
 const DEFAULT_SETTINGS: SoundSettings = { muted: false, volume: 0.7 };
 
+const MASTER_LEVEL = 0.4;
+
+export function outputGain(settings: SoundSettings): number {
+  return settings.muted ? 0 : settings.volume * MASTER_LEVEL;
+}
+
 function readSettings(): SoundSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
