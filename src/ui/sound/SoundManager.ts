@@ -1,6 +1,6 @@
 import { type PlaybackUnit, sample } from "./synth";
 import { SAMPLE_URLS } from "./catalog";
-import { soundSettings, type SoundSettings } from "./settings";
+import { outputGain, soundSettings } from "./settings";
 import { loadAudio } from "../../boundary/audio";
 
 type AudioContextFactory = () => AudioContext;
@@ -32,12 +32,12 @@ export class SoundManager {
     this.initPromise = new Promise((resolve) => {
       this.ctx = this.createContext();
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = gainForSettings(soundSettings.get());
+      this.masterGain.gain.value = outputGain(soundSettings.get());
       this.masterGain.connect(this.ctx.destination);
 
       this.unsubscribeSettings = soundSettings.subscribe((settings) => {
         if (this.masterGain) {
-          this.masterGain.gain.value = gainForSettings(settings);
+          this.masterGain.gain.value = outputGain(settings);
         }
       });
 
@@ -165,10 +165,6 @@ async function loadSample(
     console.warn(`SoundManager: could not load ${url}, using synth`, error);
     return null;
   }
-}
-
-function gainForSettings(settings: SoundSettings): number {
-  return settings.muted ? 0 : settings.volume;
 }
 
 function defaultCreateContext(): AudioContext {
