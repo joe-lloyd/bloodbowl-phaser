@@ -9,13 +9,15 @@ export const FoulAppearanceRule: SkillRule = {
       `Foul Appearance (${ctx.attacker.playerName})`,
       ctx.attacker.teamId
     );
-    if (roll === 1) {
-      ctx.cancelled = true;
-      ctx.triggers.push({
-        playerId: self.id,
-        skill: SkillType.FOUL_APPEARANCE,
-        effect: "Foul Appearance: the block is cancelled",
-      });
+    if (roll !== 1) {
+      return;
     }
+
+    ctx.cancelled = true;
+    ctx.triggers.push({
+      playerId: self.id,
+      skill: SkillType.FOUL_APPEARANCE,
+      effect: "Foul Appearance: the block is cancelled",
+    });
   },
 };

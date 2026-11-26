@@ -29,7 +29,7 @@ function openHelpers({ player, teammates, opponents }: Riser): number {
     (mate) =>
       mate.status === PlayerStatus.ACTIVE &&
       adjacent(mate, player) &&
-      !opponents.some((opp) => hasTackleZone(opp) && adjacent(opp, mate))
+      opponents.every((opp) => !(hasTackleZone(opp) && adjacent(opp, mate)))
   ).length;
 }
 

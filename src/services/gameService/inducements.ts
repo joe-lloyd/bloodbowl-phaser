@@ -151,7 +151,7 @@ function purchaseError(parts: GameParts, teamId: string): string | undefined {
   const pregame = parts.state.pregameInducements;
   if (!pregame) return undefined;
   if (pregame.complete) return "inducements-already-confirmed";
-  if (![parts.team1.id, parts.team2.id].every((id) => pregame.ready[id]))
+  if ([parts.team1.id, parts.team2.id].some((id) => pregame.ready[id] !== true))
     return "teams-not-ready";
   if (!isPregameOpening(parts.state)) return "pregame-finished";
   if (shoppingTeamId(pregame, [parts.team1.id, parts.team2.id]) !== teamId)

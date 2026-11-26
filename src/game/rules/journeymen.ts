@@ -35,22 +35,21 @@ export function offerJourneymen(
   );
   const staying = new Set<string>();
   for (const player of fresh) {
-    if (
-      game.leagueFixture &&
+    if (!(game.leagueFixture &&
       isLeagueMode(team.advancementMode) &&
-      (game.playedIds?.has(player.id) ?? true) &&
-      !player.injuries.includes(InjuryType.DEAD)
-    ) {
-      staying.add(player.id);
-      team.pendingDevelopment ??= [];
-      team.pendingDevelopment.push({
-        id: `journeyman-${matchId}-${player.id}`,
-        kind: "journeyman-offer",
-        playerId: player.id,
-        matchId,
-        createdAt: Date.now(),
-      });
+      (game.playedIds?.has(player.id) ?? true)) || player.injuries.includes(InjuryType.DEAD)) {
+      continue;
     }
+
+    staying.add(player.id);
+    team.pendingDevelopment ??= [];
+    team.pendingDevelopment.push({
+      id: `journeyman-${matchId}-${player.id}`,
+      kind: "journeyman-offer",
+      playerId: player.id,
+      matchId,
+      createdAt: Date.now(),
+    });
   }
   const leaving = new Set(
     fresh.filter((player) => !staying.has(player.id)).map((p) => p.id)

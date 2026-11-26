@@ -158,10 +158,12 @@ export abstract class BlockPushChain extends BlockActivation {
       pushCtx.forceFollowUp = false;
     }
 
-    if (this.isBallAndChain(attacker)) {
-      pushCtx.preventFollowUp = false;
-      pushCtx.forceFollowUp = true;
+    if (!this.isBallAndChain(attacker)) {
+      return;
     }
+
+    pushCtx.preventFollowUp = false;
+    pushCtx.forceFollowUp = true;
   }
 
   private async resolveRefusedPush(
@@ -258,7 +260,7 @@ export abstract class BlockPushChain extends BlockActivation {
         !chain.preventFollowUp,
       resultType: chain.resultType,
       attackerId: chain.attackerId,
-      ...(chooserTeamId !== undefined ? { chooserTeamId } : {}),
+      ...(chooserTeamId === undefined ? {} : { chooserTeamId }),
       pushTier: tier,
     });
   }

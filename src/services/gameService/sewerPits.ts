@@ -68,10 +68,12 @@ export function rollSewerPits(parts: GameParts): boolean {
     );
     const outcome = sewerPitRoll(roll);
     if (outcome === "climbs-out") climbOut(parts, player, pit);
-    if (outcome === "casualty") {
-      pitCasualty(parts, player);
-      queued = true;
+    if (outcome !== "casualty") {
+      continue;
     }
+
+    pitCasualty(parts, player);
+    queued = true;
   }
   return queued;
 }

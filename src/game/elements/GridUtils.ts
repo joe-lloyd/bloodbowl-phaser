@@ -67,5 +67,5 @@ export function isInEndZone(
   width: number,
   scoringTeamSide: 1 | 2
 ): boolean {
-  return scoringTeamSide === 1 ? pos.x === width - 1 : pos.x === 0;
+  return pos.x === (scoringTeamSide === 1 ? width - 1 : 0);
 }

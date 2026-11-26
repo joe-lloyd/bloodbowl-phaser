@@ -106,7 +106,7 @@ function scatterOf(
   return {
     scatterPath,
     landingPos: passController.settleLanding(
-      scatterPath?.[scatterPath.length - 1] ?? target
+      scatterPath?.at(-1) ?? target
     ),
   };
 }
@@ -552,13 +552,7 @@ export class PassOperation extends GameOperation {
       eventBus.emit(GameEventNames.UI_Notification, "Inaccurate Pass!");
     }
 
-    if (!isOnPitch(landingPos)) {
-      const path = scatterPath ?? [];
-      const lastInBounds = path[path.length - 2];
-      eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
-      if (!lastInBounds) throw new Error("Pass left the pitch without a path");
-      gameService.throwInBall(lastInBounds, landingPos);
-    } else {
+    if (isOnPitch(landingPos)) {
       gameService.setBallPosition(landingPos.x, landingPos.y);
 
       const playerAtLanding = gameService.getPlayerAt(
@@ -610,6 +604,12 @@ export class PassOperation extends GameOperation {
           context.flowManager.add(new BounceOperation(landingPos), true);
         }
       }
+    } else {
+      const path = scatterPath ?? [];
+      const lastInBounds = path.at(-2);
+      eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
+      if (!lastInBounds) throw new Error("Pass left the pitch without a path");
+      gameService.throwInBall(lastInBounds, landingPos);
     }
   }
 

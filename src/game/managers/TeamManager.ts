@@ -168,7 +168,7 @@ export function loadTeams(): Team[] {
     migrateAdvancementMode(team);
     latchGutterUnlock(team);
 
-    if (isSeedOwned(team) && !team.players.some((player) => player.veteran)) {
+    if (isSeedOwned(team) && team.players.every((player) => !player.veteran)) {
       chooseFirstLinemanAsVeteran(team);
     }
   });
@@ -180,20 +180,22 @@ function migrateAdvancementMode(team: Team): void {
   const hasProgressionHistory = team.players.some(
     (player) => (player.spp ?? 0) > 0 || (player.advancements?.length ?? 0) > 0
   );
-  if (hasProgressionHistory) {
-    team.advancementMode = "advanced-league";
-    team.advancementModeLocked = true;
+  if (!hasProgressionHistory) {
+    return;
   }
+
+  team.advancementMode = "advanced-league";
+  team.advancementModeLocked = true;
 }
 
 export function saveTeam(team: Team): Promise<void> {
   const teams = loadTeams();
   const index = teams.findIndex((t) => t.id === team.id);
 
-  if (index >= 0) {
-    teams[index] = team;
-  } else {
+  if (index === -1) {
     teams.push(team);
+  } else {
+    teams[index] = team;
   }
 
   return saveTeams(teams);

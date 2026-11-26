@@ -138,8 +138,8 @@ export function grantEffect(
 function isOpenKickoffPlayer(player: Player, opponents: Player[]): boolean {
   const position = player.gridPosition;
   if (!position || player.status !== PlayerStatus.ACTIVE) return false;
-  return !opponents.some((opponent) => opponent.status === PlayerStatus.ACTIVE && opponent.gridPosition
-    && Math.max(Math.abs(opponent.gridPosition.x - position.x), Math.abs(opponent.gridPosition.y - position.y)) === 1);
+  return opponents.every((opponent) => !(opponent.status === PlayerStatus.ACTIVE && opponent.gridPosition
+    && Math.max(Math.abs(opponent.gridPosition.x - position.x), Math.abs(opponent.gridPosition.y - position.y)) === 1));
 }
 
 const ACTION_PICKS: ReadonlySet<KickoffEvent> = new Set([

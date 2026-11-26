@@ -1,7 +1,7 @@
 import { type Player } from "../../../types/Player";
 
 function kind(text: string): string {
-  return text.replace(/[()]/g, "").trim().toLowerCase().replace(/s$/, "");
+  return text.replaceAll(/[()]/g, "").trim().toLowerCase().replace(/s$/, "");
 }
 
 export function matchesKeyword(

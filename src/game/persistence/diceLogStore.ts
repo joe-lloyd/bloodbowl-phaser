@@ -113,7 +113,7 @@ function logFor(input: {
 }): DiceLog {
   const id = String(input.seed);
   const kept = listDiceLogs().filter((log) => log.seed === input.seed);
-  const newest = kept[kept.length - 1];
+  const newest = kept.at(-1);
   if (newest && input.resumed) return newest;
   const taken = kept.length > 0 || input.resumed;
   return createDiceLog({

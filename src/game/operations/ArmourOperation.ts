@@ -232,9 +232,9 @@ export class ArmourOperation extends InjuryPartiesOperation {
       flowManager.add(
         new InjuryOperation(this.playerId, {
           modifier: injuryModifier,
-          ...(this.causedById !== undefined
-            ? { causedById: this.causedById }
-            : {}),
+          ...(this.causedById === undefined
+            ? {}
+            : { causedById: this.causedById }),
           cause: this.casualtyCause(),
           stunnedIsKnockedOut: armourSkipped,
         }),

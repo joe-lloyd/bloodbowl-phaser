@@ -54,8 +54,8 @@ const EVENT_OUTCOMES: RuleOutcome[] = Object.entries(KICKOFF_TABLE).map(
   ([roll, event]) => ({
     id: event
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, ""),
+      .replaceAll(/[^a-z0-9]+/g, "-")
+      .replaceAll(/(^-|-$)/g, ""),
     name: `${roll} — ${event}`,
     description: KICKOFF_EVENT_MEANING[event],
     exampleSeed: KICKOFF_EXAMPLE_SEEDS[event],

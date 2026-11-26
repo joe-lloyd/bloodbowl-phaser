@@ -156,10 +156,12 @@ export class SetupPhaseHandler implements PhaseHandler {
   private deleteFormation(name: string | undefined, key: string, isTeam1: boolean): void {
     const manager = this.scene.formationManager;
     if (!name || manager.isBuiltIn(name)) return;
-    if (manager.deleteFormation(key, name)) {
-      this.emitFormationList(key, isTeam1);
-      this.eventBus.emit(GameEventNames.UI_Notification, `Formation "${name}" deleted.`);
+    if (!manager.deleteFormation(key, name)) {
+      return;
     }
+
+    this.emitFormationList(key, isTeam1);
+    this.eventBus.emit(GameEventNames.UI_Notification, `Formation "${name}" deleted.`);
   }
 
   private weatherRead(): Promise<void> {

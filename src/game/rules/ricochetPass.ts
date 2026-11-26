@@ -53,7 +53,7 @@ export function ricochetPath(
 
 function lastOf(path: readonly Square[], wall: Square): Square {
   const beside = { x: wall.x, y: wall.y < 0 ? 0 : activeLayout().rows - 1 };
-  return path[path.length - 1] ?? beside;
+  return path.at(-1) ?? beside;
 }
 
 export function ricochetDrop(dice: RicochetDice, flight: RicochetPath): Square {

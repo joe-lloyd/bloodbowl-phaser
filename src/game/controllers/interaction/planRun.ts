@@ -33,7 +33,7 @@ function refusesTarget(c: GameplayInteractionController, kind: FinishKind, targe
 }
 
 function showFinishStep(c: GameplayInteractionController, kind: FinishKind): void {
-  if (c.currentStepId === kind || !c.actionSteps.some((step) => step.id === kind)) return;
+  if (c.currentStepId === kind || c.actionSteps.every((step) => step.id !== kind)) return;
   c.currentStepId = kind;
   showSteps(c);
   if (c.selectedPlayerId) refreshPlayerVisualization(c, c.selectedPlayerId);

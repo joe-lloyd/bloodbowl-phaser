@@ -313,20 +313,22 @@ export class BallManager {
       path.push({ ...next });
     }
 
-    if (path.length) {
-      this.eventBus.emit(GameEventNames.SkillTriggered, {
-        playerId: reactor.id,
-        skill: SkillType.ON_THE_BALL,
-        effect: "On the Ball: receiving-team move before the Kick-off Event",
-      });
-      this.eventBus.emit(GameEventNames.PlayerMoved, {
-        playerId: reactor.id,
-        from: start,
-        to: { ...reactor.gridPosition },
-        path,
-        ballJoinStep: 0,
-      });
+    if (path.length === 0) {
+      return;
     }
+
+    this.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: reactor.id,
+      skill: SkillType.ON_THE_BALL,
+      effect: "On the Ball: receiving-team move before the Kick-off Event",
+    });
+    this.eventBus.emit(GameEventNames.PlayerMoved, {
+      playerId: reactor.id,
+      from: start,
+      to: { ...reactor.gridPosition },
+      path,
+      ballJoinStep: 0,
+    });
   }
 
   private async scatterInTheWind(kick: KickRecord): Promise<void> {
@@ -359,11 +361,11 @@ export class BallManager {
     kick: KickRecord
   ): void {
     const path = this.movementController.scatter(from, "Scatter", squares);
-    const to = path[path.length - 1];
+    const to = path.at(-1);
     if (!to) throw new Error("Weather scatter produced no path");
     const settled = settleKick(
       this.diceController,
-      { lastIn: path[path.length - 2] ?? from, to },
+      { lastIn: path.at(-2) ?? from, to },
       this.isTeam1Kicking()
     );
     this.announceWallHits(settled.wallHits);
@@ -654,12 +656,14 @@ export class BallManager {
     let standingEnemies = 0;
 
     oppTeam.players.forEach((p) => {
-      if (p.status === PlayerStatus.ACTIVE && p.gridPosition) {
-        const dx = Math.abs(p.gridPosition.x - position.x);
-        const dy = Math.abs(p.gridPosition.y - position.y);
-        if (dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0)) {
-          standingEnemies++;
-        }
+      if (!(p.status === PlayerStatus.ACTIVE && p.gridPosition)) {
+        return;
+      }
+
+      const dx = Math.abs(p.gridPosition.x - position.x);
+      const dy = Math.abs(p.gridPosition.y - position.y);
+      if (dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0)) {
+        standingEnemies++;
       }
     });
 

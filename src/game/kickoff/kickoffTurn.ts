@@ -137,6 +137,6 @@ export function mayReselect(state: GameState): boolean {
     !activePlayer?.committed &&
     !activePlayer?.squigRageSettled &&
     turn.movementUsed.size === 0 &&
-    !running.playerIds.some((id) => turn.activatedPlayerIds.has(id))
+    running.playerIds.every((id) => !turn.activatedPlayerIds.has(id))
   );
 }

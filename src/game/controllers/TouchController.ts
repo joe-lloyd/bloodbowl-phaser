@@ -109,7 +109,7 @@ export class TouchController {
       const ring = document.createElement("div");
       ring.setAttribute("data-testid", "route-loupe");
       ring.style.cssText = `position:absolute;pointer-events:none;width:${String(LOUPE_PX + 6)}px;height:${String(LOUPE_PX + 6)}px;border:3px solid #e8c25a;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.55)`;
-      this.scene.game.canvas.parentElement?.appendChild(ring);
+      this.scene.game.canvas.parentElement?.append(ring);
       this.loupeRing = ring;
     return this.loupe;
   }
@@ -129,11 +129,13 @@ export class TouchController {
     loupe.setPosition(left, top);
     loupe.setZoom(Math.max(main.zoom * LOUPE_ZOOM, LOUPE_MIN_ZOOM));
     loupe.centerOn(world.worldX, world.worldY);
-    if (this.loupeRing) {
-      this.loupeRing.style.display = "block";
-      this.loupeRing.style.left = `${String(left - 3)}px`;
-      this.loupeRing.style.top = `${String(top - 3)}px`;
+    if (!this.loupeRing) {
+      return;
     }
+
+    this.loupeRing.style.display = "block";
+    this.loupeRing.style.left = `${String(left - 3)}px`;
+    this.loupeRing.style.top = `${String(top - 3)}px`;
   }
 
   private hideLoupe(): void {

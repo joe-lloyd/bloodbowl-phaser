@@ -327,8 +327,8 @@ export function foulPreview(
   ];
   if (
     has(fouler, SkillType.LONE_FOULER) &&
-    !analysis.offensiveAssists.length &&
-    !analysis.defensiveAssists.length
+    analysis.offensiveAssists.length === 0 &&
+    analysis.defensiveAssists.length === 0
   ) {
     lines.push("Lone Fouler may re-roll the armour roll");
   }

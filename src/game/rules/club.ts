@@ -143,7 +143,7 @@ function renumberClashes(team: Team, homeIds: Set<string>): void {
 
 export function restoreClubHome(team: Team, stored: Team): void {
   if (!stored.club) return;
-  const removedAfterMatch = new Set(team.club?.matchSquad ?? []);
+  const removedAfterMatch = new Set(team.club?.matchSquad);
   const played = new Map(team.players.map((player) => [player.id, player]));
   const storedIds = new Set(stored.players.map((player) => player.id));
   const homeIds = new Set(

@@ -899,7 +899,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "any adjacent unoccupied square must be offered"
               );
               assert(
-                !opts.some((o) => o.x === 10 && o.y === 5),
+                opts.every((o) => !(o.x === 10 && o.y === 5)),
                 "the blocker's own square is occupied and never offered"
               );
             },

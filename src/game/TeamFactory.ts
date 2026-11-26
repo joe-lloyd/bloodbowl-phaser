@@ -100,8 +100,8 @@ export function positionByPlayerIndex(rosterName: RosterName): string[] {
   );
 }
 
-export class TeamFactory {
-  static createTestTeam(
+export const TeamFactory = {
+  createTestTeam(
     rosterName: RosterName,
     teamName: string,
     color: number
@@ -110,7 +110,7 @@ export class TeamFactory {
       teamName,
       rosterName,
       { primary: color, secondary: 0xffffff },
-      50000
+      50_000
     );
 
     const roster = getRosterByRosterName(rosterName);
@@ -140,5 +140,5 @@ export class TeamFactory {
     }
 
     return team;
-  }
-}
+  },
+};

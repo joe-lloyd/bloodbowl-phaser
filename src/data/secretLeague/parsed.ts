@@ -15,5 +15,5 @@ export function problemsOf(results: readonly Parsed<unknown>[]): string[] {
 }
 
 export function letters(name: string): string {
-  return name.toLowerCase().replace(/[^a-z]/g, "");
+  return name.toLowerCase().replaceAll(/[^a-z]/g, "");
 }

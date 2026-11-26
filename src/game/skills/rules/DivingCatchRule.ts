@@ -12,13 +12,15 @@ export const DivingCatchRule: SkillRule = {
         effect: `Diving Catch: attempts the ${ctx.origin ?? "landing"} ball from an adjacent square`,
       });
     }
-    if (ctx.origin === "pass" && ctx.isPassTarget) {
-      ctx.modifiers += 1;
-      ctx.triggers.push({
-        playerId: self.id,
-        skill: SkillType.DIVING_CATCH,
-        effect: "Diving Catch: +1 to catch the Pass in the target square",
-      });
+    if (!(ctx.origin === "pass" && ctx.isPassTarget)) {
+      return;
     }
+
+    ctx.modifiers += 1;
+    ctx.triggers.push({
+      playerId: self.id,
+      skill: SkillType.DIVING_CATCH,
+      effect: "Diving Catch: +1 to catch the Pass in the target square",
+    });
   },
 };

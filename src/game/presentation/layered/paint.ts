@@ -34,7 +34,7 @@ export function rampTint(colour: number, tone: number): Rgb {
     const [t0, c0] = stops[i - 1] ?? [0, c];
     if (tone <= t1) return mix(c0, c1, (tone - t0) / (t1 - t0));
   }
-  return stops[stops.length - 1]?.[1] ?? c;
+  return stops.at(-1)?.[1] ?? c;
 }
 
 export function colourTable(palette: LayeredPalette, colors: TeamColors): Uint8ClampedArray {

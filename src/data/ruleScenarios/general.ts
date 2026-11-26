@@ -119,7 +119,7 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "the defender must be pushed back"
               );
               assert(
-                !r.decisions.some((d) => d.type === "follow-up"),
+                r.decisions.every((d) => d.type !== "follow-up"),
                 "no follow-up decision may be offered"
               );
             },
@@ -189,7 +189,7 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 attackerId: pending.attackerId,
               };
             }
-            return undefined;
+            return;
           },
         },
         outcomes: [
@@ -239,7 +239,7 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 attackerId: pending.attackerId,
               };
             }
-            return undefined;
+            return;
           },
         },
         outcomes: [
@@ -553,7 +553,7 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "the blocker must follow up into the vacated square"
               );
               assert(
-                !r.decisions.some((d) => d.type === "follow-up"),
+                r.decisions.every((d) => d.type !== "follow-up"),
                 "no follow-up choice may be offered"
               );
               assert(

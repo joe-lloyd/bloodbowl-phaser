@@ -143,7 +143,7 @@ export class BlockManager extends BlockPushChain {
       isAttackerChoice = ctx.isAttackerChoice;
     }
 
-    const teamId = attackerId.split("-")[0];
+    const teamId = attackerId.split("-", 1)[0];
     const results = this.diceController.rollBlockDice(numDice, teamId);
 
     if (attacker && defender) {
@@ -380,7 +380,7 @@ export class BlockManager extends BlockPushChain {
         : gs.getPassController().scatterPass(to);
     const finalPosition = result.fumbled
       ? { ...from }
-      : (scatterPath?.[scatterPath.length - 1] ?? { ...to });
+      : (scatterPath?.at(-1) ?? { ...to });
 
     this.eventBus.emit(GameEventNames.PassAttempted, {
       playerId: passer.id,

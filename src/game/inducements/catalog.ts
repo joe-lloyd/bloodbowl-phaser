@@ -37,7 +37,7 @@ export function sevensInducementCatalog(
     ...line(Inducement.TEMP_AGENCY_CHEERLEADER, 2, 15_000),
     ...line(Inducement.PART_TIME_ASSISTANT_COACH, 2, 15_000),
     ...line(Inducement.BLITZERS_BEST_KEGS, 2, 50_000),
-    ...line(Inducement.PRAYERS_TO_NUFFLE, 2, 5_000),
+    ...line(Inducement.PRAYERS_TO_NUFFLE, 2, 5000),
     ...line(Inducement.EXTRA_TEAM_TRAINING, 6, 125_000),
     ...line(
       Inducement.BRIBE,

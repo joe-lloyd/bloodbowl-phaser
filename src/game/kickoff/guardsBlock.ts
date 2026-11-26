@@ -51,6 +51,6 @@ export function chosenGuardOutcome(
 ): GuardOutcome {
   const outcomes = faces.map((face) => guardOutcome(face, target));
   const ranked = [...outcomes].sort((a, b) => SEVERITY[a] - SEVERITY[b]);
-  const pick = chooser === "target" ? ranked[0] : ranked[ranked.length - 1];
+  const pick = chooser === "target" ? ranked[0] : ranked.at(-1);
   return pick ?? "safe";
 }

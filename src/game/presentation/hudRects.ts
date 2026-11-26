@@ -74,14 +74,16 @@ export function watchHudPanels(onChange: () => void): {
             if (watched.has(box)) continue;
             watched.add(box);
             observer.observe(box);
-            if (box.hasAttribute(HUD_FRAME_ATTRIBUTE)) {
-              frames.add(box);
-              box.addEventListener("transitionend", onChange);
-              visibility.observe(box, {
-                attributes: true,
-                attributeFilter: ["aria-hidden"],
-              });
+            if (!box.hasAttribute(HUD_FRAME_ATTRIBUTE)) {
+              continue;
             }
+
+            frames.add(box);
+            box.addEventListener("transitionend", onChange);
+            visibility.observe(box, {
+              attributes: true,
+              attributeFilter: ["aria-hidden"],
+            });
           }
         });
     },

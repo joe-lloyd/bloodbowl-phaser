@@ -9,13 +9,15 @@ export const DauntlessRule: SkillRule = {
     if (defenderBaseST <= attackerBaseST) return;
 
     const roll = ctx.dice.rollD6(`Dauntless (${self.playerName})`, self.teamId);
-    if (roll + attackerBaseST > defenderBaseST) {
-      ctx.attackerStrength += defenderBaseST - attackerBaseST;
-      ctx.triggers.push({
-        playerId: self.id,
-        skill: SkillType.DAUNTLESS,
-        effect: `Dauntless: matches Strength ${String(defenderBaseST)}`,
-      });
+    if (!(roll + attackerBaseST > defenderBaseST)) {
+      return;
     }
+
+    ctx.attackerStrength += defenderBaseST - attackerBaseST;
+    ctx.triggers.push({
+      playerId: self.id,
+      skill: SkillType.DAUNTLESS,
+      effect: `Dauntless: matches Strength ${String(defenderBaseST)}`,
+    });
   },
 };

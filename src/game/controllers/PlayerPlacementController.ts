@@ -162,10 +162,12 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   }
 
   deselectPlayer(): void {
-    if (this.selectedPlayerId) {
-      this.emit(GameEventNames.PlayerDeselected, this.selectedPlayerId);
-      this.selectedPlayerId = null;
+    if (!this.selectedPlayerId) {
+      return;
     }
+
+    this.emit(GameEventNames.PlayerDeselected, this.selectedPlayerId);
+    this.selectedPlayerId = null;
   }
 
   placePlayer(playerId: string, gridX: number, gridY: number): boolean {
@@ -232,10 +234,12 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   }
 
   removePlayer(playerId: string): void {
-    if (this.placedPlayers.has(playerId)) {
-      this.placedPlayers.delete(playerId);
-      this.emit(GameEventNames.PlayerRemoved, playerId);
+    if (!this.placedPlayers.has(playerId)) {
+      return;
     }
+
+    this.placedPlayers.delete(playerId);
+    this.emit(GameEventNames.PlayerRemoved, playerId);
   }
 
   clearPlacements(): void {

@@ -323,7 +323,7 @@ function rewindRoute({ c, player, start, x, y }: Parameters<typeof dragRouteTo>[
     return true;
   }
   const back = c.waypoints.findIndex((p) => p.x === x && p.y === y);
-  if (back >= 0) {
+  if (back !== -1) {
     c.waypoints = c.waypoints.slice(0, back + 1);
     drawCurrentPath(c);
     refreshPlayerVisualization(c, player.id);
@@ -335,7 +335,7 @@ function rewindRoute({ c, player, start, x, y }: Parameters<typeof dragRouteTo>[
 function extendRoute(c: GameplayInteractionController, start: Square, { x, y }: Square): void {
   c.jumpTargeting = false;
   const route = c.waypoints;
-  const before = route[route.length - 2] ?? start;
+  const before = route.at(-2) ?? start;
   if (
     route.length > 0 &&
     Math.max(Math.abs(before.x - x), Math.abs(before.y - y)) === 1
@@ -349,7 +349,7 @@ function extendRoute(c: GameplayInteractionController, start: Square, { x, y }: 
 
 export function dragRouteTo(
 { c,player,start,x,y }: { c: GameplayInteractionController; player: Player; start: Square; x: number; y: number; }): void {
-  const end = c.waypoints[c.waypoints.length - 1] ?? start;
+  const end = c.waypoints.at(-1) ?? start;
   if (end.x === x && end.y === y) return;
   if (rewindRoute({ c, player, start, x, y })) return;
   if (c.getPlayerAt(x, y)) return;

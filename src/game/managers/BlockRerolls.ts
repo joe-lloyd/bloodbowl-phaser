@@ -196,7 +196,7 @@ export abstract class BlockRerolls extends BlockManagerBase {
 
     if (!attacker || !this.brawlerUsable(attacker)) return;
     const index = pending.results.findIndex((r) => r.type === "both-down");
-    if (index < 0) return;
+    if (index === -1) return;
 
     this.callbacks
       .getFlowManager?.()

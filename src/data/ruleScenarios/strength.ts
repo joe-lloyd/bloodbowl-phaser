@@ -415,7 +415,7 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "-2 ST must make both ST3 opponents choose three dice"
               );
               assert(
-                !r.decisions.some((d) => d.type === "follow-up"),
+                r.decisions.every((d) => d.type !== "follow-up"),
                 "Multiple Block must never offer a Follow-up"
               );
             },

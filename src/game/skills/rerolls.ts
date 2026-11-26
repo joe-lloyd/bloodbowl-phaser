@@ -54,9 +54,9 @@ export function availableRerolls(
   skillAllowed = true
 ) {
   const arbiter = deps.gameService.getRerollArbiter();
-  const skillSource = !skillAllowed
-    ? undefined
-    : findSkillSource(deps, player, rollKind);
+  const skillSource = skillAllowed
+    ? findSkillSource(deps, player, rollKind)
+    : undefined;
   const sources: RerollSource[] = [];
   if (skillSource) sources.push("skill");
   const barred = teamRerollBarred(
@@ -170,7 +170,7 @@ export async function withRerollOffer<T extends RollLike>(
     sources,
     ...(skillSource ? { skill: String(skillSource) } : {}),
     roll: first.roll,
-    ...(needed !== undefined ? { needed } : {}),
+    ...(needed === undefined ? {} : { needed }),
   });
   if (!answer.accept) return first;
 

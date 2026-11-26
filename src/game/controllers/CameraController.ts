@@ -91,7 +91,7 @@ export function clearArea(
     const cuts: ScreenRect[] = [
       { ...area, left: Math.max(area.left, p.right) },
       { ...area, right: Math.min(area.right, p.left) },
-      ...(bands.length && sideColumn
+      ...(bands.length > 0 && sideColumn
         ? []
         : [
             { ...area, top: Math.max(area.top, p.bottom) },
@@ -134,7 +134,7 @@ export class CameraController {
   private coachZoomed = false;
   private view: View = { kind: "overview" };
   private size: { width: number; height: number };
-  private minZoom = Number.POSITIVE_INFINITY;
+  private minZoom = Infinity;
   private fitZoomComplete: (() => void) | undefined;
 
   private handoffTimer: ({ remove(dispatchCallback?: boolean): unknown }) | undefined;
@@ -447,23 +447,23 @@ export class CameraController {
   public handoff(all: Point[], next: Point[]): void {
     this.release();
     if (this.phone()) {
-      this.handOver(next.length ? next : all, 650);
+      this.handOver(next.length > 0 ? next : all, 650);
       return;
     }
     if (reducedMotion()) {
-      this.handOver(next.length ? next : all, 0);
+      this.handOver(next.length > 0 ? next : all, 0);
       return;
     }
-    if (all.length) this.fitSquares(all, 650);
+    if (all.length > 0) this.fitSquares(all, 650);
     else this.overview(650);
     this.handoffTimer = this.scene.time.delayedCall(1250, () => {
       this.handoffTimer = undefined;
-      if (next.length) this.fitSquares(next, 650);
+      if (next.length > 0) this.fitSquares(next, 650);
     });
   }
 
   private handOver(squares: Point[], duration: number): void {
-    if (squares.length) this.fitSquares(squares, duration);
+    if (squares.length > 0) this.fitSquares(squares, duration);
     else this.overview(duration);
   }
 

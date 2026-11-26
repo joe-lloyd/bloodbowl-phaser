@@ -502,7 +502,7 @@ export class ThrowTeammateOperation extends GameOperation {
     const path = gameService
       .getBallMovementController()
       .scatter({ x: this.aimX, y: this.aimY }, "Team-mate Scatter");
-    const scatterEnd = path[path.length - 1];
+    const scatterEnd = path.at(-1);
     if (!scatterEnd) throw new Error("Team-mate scatter produced no path");
     const strike = firstWallOnPath({ x: this.aimX, y: this.aimY }, path);
     if (strike)

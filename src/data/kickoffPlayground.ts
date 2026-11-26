@@ -65,8 +65,8 @@ const TABLE_IDS = [
 const slug = (text: string) =>
   text
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "");
 
 export function playgroundEvent(
   table: KickoffTableId,

@@ -12,15 +12,15 @@ export function canSecureBall(
     p.gridPosition?.x === x && p.gridPosition?.y === y;
 
   if ([player, ...others].some((p) => on(p, ball.x, ball.y))) return false;
-  return !others.some(
+  return others.every(
     (p) =>
-      p.teamId !== player.teamId &&
+      !(p.teamId !== player.teamId &&
       !!p.gridPosition &&
       hasTackleZone(p) &&
       Math.max(
         Math.abs(p.gridPosition.x - ball.x),
         Math.abs(p.gridPosition.y - ball.y)
-      ) <= 2
+      ) <= 2)
   );
 }
 

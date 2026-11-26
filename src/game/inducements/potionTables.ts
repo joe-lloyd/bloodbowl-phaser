@@ -15,11 +15,7 @@ export interface PotionBoost {
 }
 
 export type PotionOutcome =
-  | { kind: "dies"; name: string }
-  | { kind: "casualty"; name: string }
-  | { kind: "nothing"; name: string }
-  | { kind: "superior"; name: string }
-  | PotionBoost;
+  PotionBoost | { kind: "dies"; name: string } | { kind: "casualty"; name: string } | { kind: "nothing"; name: string } | { kind: "superior"; name: string };
 
 const boost = (
   name: string,

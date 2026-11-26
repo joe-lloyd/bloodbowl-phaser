@@ -36,10 +36,12 @@ export function endKickoffTurnOnFall(
 
 export function onPlayerDowned(parts: GameParts, playerId: string): void {
   const player = parts.game.getPlayerById(playerId);
-  if (player && hasCondition(player, PlayerCondition.ROOTED)) {
-    removeCondition(player, PlayerCondition.ROOTED);
-    parts.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+  if (!(player && hasCondition(player, PlayerCondition.ROOTED))) {
+    return;
   }
+
+  removeCondition(player, PlayerCondition.ROOTED);
+  parts.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 }
 
 export function sweepChomped(parts: GameParts): void {
@@ -52,10 +54,12 @@ export function sweepChomped(parts: GameParts): void {
       ? parts.game.getPlayerById(chomp.byPlayerId)
       : undefined;
     const marking = isChompMarking(chomper, player);
-    if (!marking) {
-      removeCondition(player, PlayerCondition.CHOMPED);
-      parts.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+    if (marking) {
+      continue;
     }
+
+    removeCondition(player, PlayerCondition.CHOMPED);
+    parts.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
   }
 }
 
@@ -118,14 +122,16 @@ export function handleTurnEnding(parts: GameParts, endingTeamId: string): void {
   foldTurnEnding(ctx, players);
   for (const id of ctx.standUp) {
     const p = parts.game.getPlayerById(id);
-    if (p?.status === PlayerStatus.PRONE) {
-      p.status = PlayerStatus.ACTIVE;
-      parts.eventBus.emit(GameEventNames.PlayerStoodUp, {
-        playerId: id,
-        cost: 0,
-      });
-      parts.eventBus.emit(GameEventNames.PlayerStatusChanged, p);
+    if (p?.status !== PlayerStatus.PRONE) {
+      continue;
     }
+
+    p.status = PlayerStatus.ACTIVE;
+    parts.eventBus.emit(GameEventNames.PlayerStoodUp, {
+      playerId: id,
+      cost: 0,
+    });
+    parts.eventBus.emit(GameEventNames.PlayerStatusChanged, p);
   }
   for (const t of ctx.triggers) {
     parts.eventBus.emit(GameEventNames.SkillTriggered, t);

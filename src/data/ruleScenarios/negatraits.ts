@@ -565,7 +565,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         }),
         decisionPolicy: {
           custom: (pending, game) => {
-            if (pending.type !== "block-dice") return undefined;
+            if (pending.type !== "block-dice") return;
             const gs = game.ctx.gameService;
             const attacker = gs.getPlayerById(pending.attackerId);
             if (
@@ -1555,7 +1555,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 team2.players.length === 7,
                 "the victim's team gains nothing — the Reserve is only on the killing side"
               );
-              const added = team1.players[team1.players.length - 1];
+              const added = team1.players.at(-1);
               assert(
                 fixtureValue(added).status === PlayerStatus.RESERVE &&
                   !fixtureValue(added).gridPosition,

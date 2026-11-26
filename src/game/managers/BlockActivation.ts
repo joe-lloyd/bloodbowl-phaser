@@ -348,11 +348,11 @@ export abstract class BlockActivation extends BlockRerolls {
     const free = (pos: { x: number; y: number }) =>
       onPitch(pos) &&
       !this.getPlayerAt(pos.x, pos.y) &&
-      !standingOpponents.some(
+      standingOpponents.every(
         (o) =>
-          o.gridPosition &&
+          !(o.gridPosition &&
           Math.abs(o.gridPosition.x - pos.x) <= 1 &&
-          Math.abs(o.gridPosition.y - pos.y) <= 1
+          Math.abs(o.gridPosition.y - pos.y) <= 1)
       );
     const squares: { x: number; y: number }[] = [];
     for (let dx = -1; dx <= 1; dx++) {
@@ -371,7 +371,7 @@ export abstract class BlockActivation extends BlockRerolls {
     if (
       !attacker ||
       attacker.status !== PlayerStatus.ACTIVE ||
-      !squares.length
+      squares.length === 0
     ) {
       gs?.finishActivation(attackerId);
       return;

@@ -44,7 +44,7 @@ export function confirmKill(
   armsPlagueRidden: boolean
 ): void {
   eventBus.emit(GameEventNames.PlayerKilled, {
-    ...(killerId !== undefined ? { causerId: killerId } : {}),
+    ...(killerId === undefined ? {} : { causerId: killerId }),
     victimId: victim.id,
   });
   raiseDead(gameService, eventBus, victim);

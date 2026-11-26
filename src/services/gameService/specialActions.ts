@@ -300,17 +300,14 @@ function mayGaze(parts: GameParts, attacker: Player, targetId: string) {
       ? parts.state.activePlayer.action
       : undefined;
   const target = parts.game.getPlayerById(targetId);
-  return !(
-    declared !== "gaze" ||
+  return !(declared !== "gaze" ||
     !target?.gridPosition ||
     target.teamId === attacker.teamId ||
     target.status !== PlayerStatus.ACTIVE ||
-    !attacker.gridPosition ||
-    Math.max(
+    !attacker.gridPosition) && Math.max(
       Math.abs(attacker.gridPosition.x - target.gridPosition.x),
       Math.abs(attacker.gridPosition.y - target.gridPosition.y)
-    ) !== 1
-  );
+    ) === 1;
 }
 
 function specialOperation(

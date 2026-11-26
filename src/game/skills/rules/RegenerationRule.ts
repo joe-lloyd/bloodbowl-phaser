@@ -9,13 +9,15 @@ export const RegenerationRule: SkillRule = {
       self.teamId
     );
     ctx.regenerationRoll = roll;
-    if (roll >= 4) {
-      ctx.regenerated = true;
-      ctx.triggers.push({
-        playerId: self.id,
-        skill: SkillType.REGENERATION,
-        effect: `Regeneration: ${String(roll)} — the casualty is ignored`,
-      });
+    if (!(roll >= 4)) {
+      return;
     }
+
+    ctx.regenerated = true;
+    ctx.triggers.push({
+      playerId: self.id,
+      skill: SkillType.REGENERATION,
+      effect: `Regeneration: ${String(roll)} — the casualty is ignored`,
+    });
   },
 };

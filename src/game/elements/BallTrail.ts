@@ -34,10 +34,10 @@ export class BallTrail {
   }
 
   public addPoint(x: number, y: number): void {
-    const flight = this.flights[this.flights.length - 1];
+    const flight = this.flights.at(-1);
     if (!flight) return;
     this.ballAt = { x, y };
-    const last = flight[flight.length - 1] ?? flight[0];
+    const last = flight.at(-1) ?? flight[0];
     if (Math.hypot(x - last.x, y - last.y) >= POINT_SPACING)
       flight.push({ x, y, at: this.scene.time.now });
     this.draw();
@@ -61,7 +61,7 @@ export class BallTrail {
   private update = (): void => {
     if (this.flights.length === 0) return;
 
-    const current = this.ballAt ? this.flights[this.flights.length - 1] : null;
+    const current = this.ballAt ? this.flights.at(-1) : null;
     this.flights = this.flights.filter(
       (flight) => flight === current || flight.some((p) => this.opacity(p) > 0)
     );

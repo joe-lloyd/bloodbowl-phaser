@@ -252,12 +252,14 @@ export class SetupManager {
       );
       return;
     }
-    if (this.placedPlayers.delete(playerId)) {
-      this.returnToDugout(player);
-      this.updateStatus(player.teamId);
-      this.eventBus.emit(GameEventNames.PlayerRemoved, playerId);
-      this.emitStatus(player.teamId);
+    if (!this.placedPlayers.delete(playerId)) {
+      return;
     }
+
+    this.returnToDugout(player);
+    this.updateStatus(player.teamId);
+    this.eventBus.emit(GameEventNames.PlayerRemoved, playerId);
+    this.emitStatus(player.teamId);
   }
 
   public swapPlayers(player1Id: string, player2Id: string): boolean {
@@ -415,7 +417,7 @@ export class SetupManager {
     formation: FormationPosition[],
     eligible: Player[]
   ): FormationPosition[] {
-    if (!formation.every((position) => position.role))
+    if (formation.some((position) => !position.role))
       return formation.slice(0, Math.min(7, eligible.length));
     const captain = teamCaptain(team);
     return assignPlayers({
@@ -728,10 +730,12 @@ export class SetupManager {
 
   private clearTeamPlacements(team: Team): void {
     team.players.forEach((player) => {
-      if (this.placedPlayers.delete(player.id)) {
-        this.returnToDugout(player);
-        this.eventBus.emit(GameEventNames.PlayerRemoved, player.id);
+      if (!this.placedPlayers.delete(player.id)) {
+        return;
       }
+
+      this.returnToDugout(player);
+      this.eventBus.emit(GameEventNames.PlayerRemoved, player.id);
     });
   }
 
