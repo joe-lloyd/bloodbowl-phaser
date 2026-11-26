@@ -151,7 +151,8 @@ function portraitMismatches(model: string): string[] {
 
 describe("portrait layers", () => {
   it("give every layer of every model a portrait copy with its idle/se frames", () => {
-    expect(MODELS.flatMap(portraitMismatches)).toEqual([]);
+    const fix = "run python3 portrait_layers.py <model> in scripts/sprites/factory";
+    expect(MODELS.flatMap(portraitMismatches), fix).toEqual([]);
   });
 
   it("draw thrall's portrait exactly as the full layers do", () => {
