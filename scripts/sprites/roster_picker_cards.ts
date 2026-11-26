@@ -1,11 +1,8 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { crc32, deflateSync, inflateSync } from "node:zlib";
-import { z } from "zod";
+import { mkdirSync, writeFileSync } from "node:fs";
 import {
   parseLayeredModels,
   type LayerData,
 } from "../../src/boundary/layeredArt";
-import { parseJson } from "../../src/boundary/json";
 import { COMPUTER_TEAM_CATALOGUE } from "../../src/data/computerTeamCatalogue";
 import {
   getAvailableRosterNames,
@@ -21,6 +18,7 @@ import { colourTable } from "../../src/game/presentation/layered/paint";
 import secretLeagueModels from "../../src/data/community/secretLeagueModels.json";
 import secretLeagueRosters from "../../src/data/community/secretLeague2025.json";
 import manifest from "../../src/game/presentation/spriteManifest.json";
+import { encodePng, readLayerFiles } from "./spriteFiles";
 import { PositionKeyWord, type PlayerTemplate } from "../../src/types/Player";
 import type { RosterName, TeamColors } from "../../src/types/Team";
 
@@ -28,13 +26,6 @@ const WIDTH = 220;
 const HEIGHT = 126;
 const IDLE_FRAMES = 8;
 const OUTPUT = "public/assets/roster-picker";
-const LAYER_INDEX = z.object({
-  frames: z.record(
-    z.string(),
-    z.tuple([z.number(), z.number(), z.number(), z.number(), z.number()])
-  ),
-  pixels: z.number(),
-});
 
 const layered = parseLayeredModels(manifest);
 const rosterModels: Record<string, Record<string, string>> = manifest.positions;
@@ -71,11 +62,7 @@ const POSITIONS: readonly Placement[] = [
 function readLayer(base: string): LayerData {
   const cached = rawLayers.get(base);
   if (cached) return cached;
-  const meta = parseJson(readFileSync(`${base}.json`, "utf8"), LAYER_INDEX);
-  const planes = inflateSync(readFileSync(`${base}.bin`));
-  if (planes.length !== meta.pixels * 3)
-    throw new Error(`Bad sprite layer ${base}`);
-  const data = { ...meta, planes };
+  const data = readLayerFiles(base);
   rawLayers.set(base, data);
   return data;
 }
@@ -235,40 +222,7 @@ function makeStrip(lineup: readonly Character[]): Buffer {
       );
     });
   }
-  return png(bytes, WIDTH * IDLE_FRAMES);
-}
-
-function chunk(type: string, data: Buffer): Buffer {
-  const bytes = Buffer.concat([Buffer.from(type), data]);
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(data.length);
-  const checksum = Buffer.alloc(4);
-  checksum.writeUInt32BE(crc32(bytes));
-  return Buffer.concat([length, bytes, checksum]);
-}
-
-function png(pixels: Buffer, width: number): Buffer {
-  const stride = width * 4;
-  const scanlines = Buffer.alloc((stride + 1) * HEIGHT);
-  for (let row = 0; row < HEIGHT; row++) {
-    pixels.copy(
-      scanlines,
-      row * (stride + 1) + 1,
-      row * stride,
-      (row + 1) * stride
-    );
-  }
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(width);
-  header.writeUInt32BE(HEIGHT, 4);
-  header[8] = 8;
-  header[9] = 6;
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk("IHDR", header),
-    chunk("IDAT", deflateSync(scanlines)),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
+  return encodePng({ pixels: bytes, width: WIDTH * IDLE_FRAMES, height: HEIGHT });
 }
 
 mkdirSync(OUTPUT, { recursive: true });
