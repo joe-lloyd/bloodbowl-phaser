@@ -201,7 +201,7 @@ function markerHit(
   const intent = plan.intent;
   if (plan.tier !== "sure-block" && plan.tier !== "blitz") return null;
   if (intent.kind !== "block" && intent.kind !== "blitz") return null;
-  if (!markers.some((m) => m.id === intent.target.id)) return null;
+  if (markers.every((m) => m.id !== intent.target.id)) return null;
   return {
     attacker: plan.player,
     target: intent.target,

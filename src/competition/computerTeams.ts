@@ -351,7 +351,7 @@ function resolveSkillSelection({
     if (!team.pendingDevelopment?.some((e) => e.id === entry.id)) return;
     const decision = skillSelectionDecision(team, entry);
     switch (decision.type) {
-      case "choose-route": {
+      case "choose-route":
         if (
           (wantSecondary || decision.primaryOptions.length === 0) &&
           decision.secondaryAvailable
@@ -369,7 +369,6 @@ function resolveSkillSelection({
           throw new Error("no Skill Selection route is available");
         }
         break;
-      }
       case "name-primary-skill":
         nominatePrimarySkill(
           team,

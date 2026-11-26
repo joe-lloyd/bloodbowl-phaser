@@ -278,7 +278,7 @@ export class SandboxScene extends GameScene {
     this.eventBus.emit(GameEventNames.ScenarioLoaded, {
       name: scenario.name,
       seed: effectiveSeed,
-      ...(shownOutcome !== undefined ? { expectedOutcome: shownOutcome } : {}),
+      ...(shownOutcome === undefined ? {} : { expectedOutcome: shownOutcome }),
     });
 
     const newUrl = new URL(window.location.href);
@@ -305,17 +305,16 @@ export class SandboxScene extends GameScene {
       );
     }
 
-    if (
-      scenario.setup.team2Roster &&
-      scenario.setup.team2Roster !== this.team2.rosterName
-    ) {
-      console.log(`[Sandbox] Swapping Team 2 to ${scenario.setup.team2Roster}`);
-      this.team2 = sandboxTeam(
-        scenario.setup.team2Roster,
-        `Test ${scenario.setup.team2Roster} 2`,
-        0xdc143c
-      );
+    if (!scenario.setup.team2Roster || scenario.setup.team2Roster === this.team2.rosterName) {
+      return;
     }
+
+    console.log(`[Sandbox] Swapping Team 2 to ${scenario.setup.team2Roster}`);
+    this.team2 = sandboxTeam(
+      scenario.setup.team2Roster,
+      `Test ${scenario.setup.team2Roster} 2`,
+      0xdc143c
+    );
   }
 
   private cleanupSandbox(): void {
@@ -330,10 +329,12 @@ export class SandboxScene extends GameScene {
       this.eventBus.off(GameEventNames.RefreshBoard, this.refreshBoardHandler);
       this.refreshBoardHandler = null;
     }
-    if (this.playerMovedHandler) {
-      this.eventBus.off(GameEventNames.PlayerMoved, this.playerMovedHandler);
-      this.playerMovedHandler = null;
+    if (!this.playerMovedHandler) {
+      return;
     }
+
+    this.eventBus.off(GameEventNames.PlayerMoved, this.playerMovedHandler);
+    this.playerMovedHandler = null;
   }
 
   public override startSetupPhase(): void {

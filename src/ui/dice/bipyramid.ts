@@ -31,7 +31,7 @@ function ringLabels({ ring, layout }: BipyramidShape, faces: Face[]) {
     Array.from({ length: ring }, (_, turn) =>
       faces.map((_face, face) => {
         const spot = face % ring;
-        const side = face < ring !== flip ? 0 : ring;
+        const side = face < ring === flip ? ring : 0;
         const step = flip ? ring - 1 - spot : spot;
         return pick(layout, side + ((turn + step) % ring));
       })

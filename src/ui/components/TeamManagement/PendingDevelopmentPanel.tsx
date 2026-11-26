@@ -367,11 +367,7 @@ function AdvancedLeagueEntry({
         an advancement ({player.spp} SPP) before the team&apos;s next required
         fixture.
       </p>
-      {!canAdvance(player) ? (
-        <p className="mt-1 text-hud-warn">
-          Not enough SPP yet — this resolves automatically once they qualify.
-        </p>
-      ) : onOpenPlayer ? (
+      {canAdvance(player) ? onOpenPlayer ? (
         <HudButton
           size="sm"
           onClick={() => {
@@ -390,6 +386,10 @@ function AdvancedLeagueEntry({
           }}
           onNotice={onNotice}
         />
+      ) : (
+        <p className="mt-1 text-hud-warn">
+          Not enough SPP yet — this resolves automatically once they qualify.
+        </p>
       )}
     </div>
   );
@@ -546,7 +546,7 @@ function SkillSelectionEntry({
                   category &&
                   void act((draft, draftEntry) => {
                     startPrimarySelection(draft, draftEntry, playerId, category);
-                    return undefined;
+                    return;
                   })
                 }
               >
@@ -559,7 +559,7 @@ function SkillSelectionEntry({
               onClick={() => {
                 void act((draft, draftEntry) => {
                   startSecondarySelection(draft, draftEntry, rng);
-                  return undefined;
+                  return;
                 });
               }}
             >
@@ -593,7 +593,7 @@ function SkillSelectionEntry({
                   skill &&
                   void act((draft, draftEntry) => {
                     nominatePrimarySkill(draft, draftEntry, decision.chooser, skill);
-                    return undefined;
+                    return;
                   })
                 }
               >

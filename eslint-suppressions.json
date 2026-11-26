@@ -4422,9 +4422,6 @@
     },
     "unicorn/no-unreadable-array-destructuring": {
       "count": 1
-    },
-    "unicorn/numeric-separators-style": {
-      "count": 1
     }
   },
   "__tests__/unit/soundTestPageNavigation.test.tsx": {
@@ -7586,11 +7583,6 @@
       "count": 2
     }
   },
-  "src/boundary/social.ts": {
-    "unicorn/prefer-string-replace-all": {
-      "count": 1
-    }
-  },
   "src/boundary/stadium.ts": {
     "unicorn/max-nested-calls": {
       "count": 3
@@ -7610,18 +7602,10 @@
     "unicorn/consistent-class-member-order": {
       "count": 1
     },
-    "unicorn/explicit-length-check": {
-      "count": 1
-    },
     "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/no-for-each": {
-      "count": 1
-    }
-  },
-  "src/competition/computerFill.ts": {
-    "unicorn/no-negated-array-predicate": {
       "count": 1
     }
   },
@@ -7652,9 +7636,6 @@
     "max-lines-per-function": {
       "count": 1
     },
-    "max-statements": {
-      "count": 1
-    },
     "sonarjs/no-duplicate-string": {
       "count": 1
     },
@@ -7665,9 +7646,6 @@
       "count": 1
     },
     "unicorn/no-useless-spread": {
-      "count": 1
-    },
-    "unicorn/switch-case-braces": {
       "count": 1
     }
   },
@@ -7688,9 +7666,6 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 5
     },
-    "unicorn/explicit-length-check": {
-      "count": 1
-    },
     "unicorn/no-array-sort": {
       "count": 3
     },
@@ -7702,9 +7677,6 @@
     },
     "unicorn/prefer-simple-condition-first": {
       "count": 2
-    },
-    "unicorn/prefer-type-error": {
-      "count": 1
     }
   },
   "src/competition/online.ts": {
@@ -7738,12 +7710,6 @@
   "src/competition/resultRecording.ts": {
     "unicorn/consistent-conditional-object-spread": {
       "count": 8
-    },
-    "unicorn/consistent-existence-index-check": {
-      "count": 1
-    },
-    "unicorn/no-negated-array-predicate": {
-      "count": 1
     }
   },
   "src/competition/roundPlan.ts": {
@@ -7791,21 +7757,11 @@
       "count": 1
     }
   },
-  "src/competition/teamLocks.ts": {
-    "unicorn/no-negated-array-predicate": {
-      "count": 1
-    }
-  },
   "src/competition/teamRefs.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
-  "src/config/GameConfig.ts": {
-    "unicorn/numeric-separators-style": {
       "count": 1
     }
   },
@@ -7979,11 +7935,6 @@
       "count": 1
     }
   },
-  "src/firebase/boundaries.test.ts": {
-    "unicorn/numeric-separators-style": {
-      "count": 1
-    }
-  },
   "src/firebase/cloudMatchSaveRepository.ts": {
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
@@ -8023,11 +7974,6 @@
     },
     "unicorn/prefer-early-return": {
       "count": 1
-    }
-  },
-  "src/firebase/connection.ts": {
-    "unicorn/numeric-separators-style": {
-      "count": 3
     }
   },
   "src/firebase/friends.ts": {
@@ -8072,9 +8018,6 @@
     },
     "unicorn/prefer-global-this": {
       "count": 4
-    },
-    "unicorn/prefer-number-properties": {
-      "count": 1
     }
   },
   "src/firebase/lobbyTournamentLock.ts": {
@@ -8087,24 +8030,9 @@
       "count": 1
     }
   },
-  "src/gallery/GalleryRoutes.tsx": {
-    "unicorn/prefer-split-limit": {
-      "count": 1
-    }
-  },
-  "src/gallery/LiveLobby.tsx": {
-    "unicorn/no-useless-undefined": {
-      "count": 1
-    }
-  },
   "src/gallery/afterVariants.tsx": {
     "unicorn/no-for-each": {
       "count": 2
-    }
-  },
-  "src/gallery/blockSheets.tsx": {
-    "unicorn/require-array-join-separator": {
-      "count": 1
     }
   },
   "src/gallery/cloud/cloudData.ts": {
@@ -8156,23 +8084,12 @@
       "count": 1
     }
   },
-  "src/gallery/frames.ts": {
-    "unicorn/prefer-string-replace-all": {
-      "count": 2
-    }
-  },
   "src/gallery/isolate.ts": {
     "unicorn/no-global-object-property-assignment": {
       "count": 1
     },
-    "unicorn/prefer-continue": {
-      "count": 1
-    },
     "unicorn/prefer-global-this": {
       "count": 6
-    },
-    "unicorn/prefer-string-replace-all": {
-      "count": 2
     }
   },
   "src/gallery/kickoffVariants.tsx": {
@@ -8185,19 +8102,6 @@
   },
   "src/gallery/main.tsx": {
     "unicorn/prefer-query-selector": {
-      "count": 1
-    }
-  },
-  "src/gallery/measure.ts": {
-    "unicorn/prefer-split-limit": {
-      "count": 1
-    },
-    "unicorn/prefer-string-replace-all": {
-      "count": 1
-    }
-  },
-  "src/gallery/onlineVariants.tsx": {
-    "unicorn/numeric-separators-style": {
       "count": 1
     }
   },
@@ -10776,9 +10680,6 @@
     "sonarjs/no-duplicate-string": {
       "count": 1
     },
-    "unicorn/catch-error-name": {
-      "count": 2
-    },
     "unicorn/consistent-class-member-order": {
       "count": 1
     },
@@ -10787,9 +10688,6 @@
     },
     "unicorn/no-for-each": {
       "count": 3
-    },
-    "unicorn/no-negated-condition": {
-      "count": 1
     },
     "unicorn/no-return-array-push": {
       "count": 1
@@ -10858,9 +10756,6 @@
     "sonarjs/cognitive-complexity": {
       "count": 1
     },
-    "unicorn/catch-error-name": {
-      "count": 1
-    },
     "unicorn/consistent-function-scoping": {
       "count": 1
     },
@@ -10876,19 +10771,10 @@
     "unicorn/prefer-await": {
       "count": 1
     },
-    "unicorn/prefer-continue": {
-      "count": 1
-    },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
     },
-    "unicorn/prefer-string-repeat": {
-      "count": 1
-    },
     "unicorn/prefer-top-level-await": {
-      "count": 1
-    },
-    "unicorn/text-encoding-identifier-case": {
       "count": 1
     }
   },
@@ -10922,9 +10808,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 7
-    },
-    "unicorn/no-negated-condition": {
-      "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
@@ -11013,9 +10896,6 @@
     },
     "sonarjs/no-duplicate-string": {
       "count": 2
-    },
-    "unicorn/prefer-type-literal-last": {
-      "count": 1
     }
   },
   "src/headless/serialization.ts": {
@@ -11224,9 +11104,6 @@
     "unicorn/no-for-each": {
       "count": 5
     },
-    "unicorn/prefer-early-return": {
-      "count": 1
-    },
     "unicorn/prefer-spread": {
       "count": 1
     }
@@ -11264,11 +11141,8 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
     },
-    "unicorn/no-negated-condition": {
-      "count": 1
-    },
     "unicorn/prefer-early-return": {
-      "count": 3
+      "count": 1
     },
     "unicorn/prefer-global-this": {
       "count": 4
@@ -11303,9 +11177,6 @@
     "max-params": {
       "count": 2
     },
-    "unicorn/explicit-length-check": {
-      "count": 1
-    },
     "unicorn/no-for-each": {
       "count": 3
     }
@@ -11322,9 +11193,6 @@
     },
     "max-statements": {
       "count": 1
-    },
-    "unicorn/explicit-length-check": {
-      "count": 2
     },
     "unicorn/prefer-simple-condition-first": {
       "count": 2
@@ -11385,9 +11253,6 @@
     "unicorn/no-unreadable-for-of-expression": {
       "count": 2
     },
-    "unicorn/numeric-separators-style": {
-      "count": 1
-    },
     "unicorn/prefer-continue": {
       "count": 1
     }
@@ -11402,9 +11267,6 @@
       "count": 2
     },
     "unicorn/prefer-code-point": {
-      "count": 1
-    },
-    "unicorn/prefer-string-replace-all": {
       "count": 1
     }
   },
@@ -11610,9 +11472,6 @@
     "unicorn/no-immediate-mutation": {
       "count": 1
     },
-    "unicorn/no-negated-array-predicate": {
-      "count": 1
-    },
     "unicorn/prefer-single-call": {
       "count": 1
     },
@@ -11628,9 +11487,6 @@
       "count": 3
     },
     "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/prefer-continue": {
       "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
@@ -11665,9 +11521,6 @@
     }
   },
   "src/simulation/ai/decisions.ts": {
-    "unicorn/consistent-existence-index-check": {
-      "count": 1
-    },
     "unicorn/no-array-callback-reference": {
       "count": 1
     },
@@ -11677,21 +11530,12 @@
     "unicorn/no-for-each": {
       "count": 1
     },
-    "unicorn/no-useless-undefined": {
-      "count": 5
-    },
-    "unicorn/prefer-early-return": {
-      "count": 1
-    },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
     }
   },
   "src/simulation/ai/difficulty.ts": {
     "unicorn/no-unnecessary-global-this": {
-      "count": 1
-    },
-    "unicorn/relative-url-style": {
       "count": 1
     }
   },
@@ -11750,9 +11594,6 @@
     }
   },
   "src/simulation/ai/inducementChoices.ts": {
-    "unicorn/consistent-existence-index-check": {
-      "count": 2
-    },
     "unicorn/no-array-reduce": {
       "count": 1
     },
@@ -11761,13 +11602,7 @@
     }
   },
   "src/simulation/ai/kickoffChoices.ts": {
-    "unicorn/consistent-existence-index-check": {
-      "count": 2
-    },
     "unicorn/no-array-sort": {
-      "count": 2
-    },
-    "unicorn/no-negated-array-predicate": {
       "count": 2
     },
     "unicorn/no-unreadable-object-destructuring": {
@@ -11790,9 +11625,6 @@
       "count": 1
     },
     "unicorn/no-array-sort": {
-      "count": 2
-    },
-    "unicorn/no-negated-array-predicate": {
       "count": 2
     }
   },
@@ -11823,12 +11655,6 @@
     }
   },
   "src/simulation/ai/planner.ts": {
-    "unicorn/consistent-existence-index-check": {
-      "count": 4
-    },
-    "unicorn/explicit-length-check": {
-      "count": 1
-    },
     "unicorn/no-array-reduce": {
       "count": 1
     },
@@ -11839,11 +11665,6 @@
       "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/puntActivations.ts": {
-    "unicorn/prefer-minimal-ternary": {
       "count": 1
     }
   },
@@ -11859,17 +11680,11 @@
     },
     "unicorn/prefer-simple-condition-first": {
       "count": 2
-    },
-    "unicorn/prefer-simplified-conditions": {
-      "count": 1
     }
   },
   "src/simulation/ai/routes.ts": {
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
-    },
-    "unicorn/explicit-length-check": {
-      "count": 2
     },
     "unicorn/no-array-callback-reference": {
       "count": 1
@@ -11882,17 +11697,11 @@
     },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
-    },
-    "unicorn/prefer-continue": {
-      "count": 1
     }
   },
   "src/simulation/ai/search.ts": {
     "unicorn/consistent-conditional-object-spread": {
       "count": 2
-    },
-    "unicorn/logical-assignment-operators": {
-      "count": 1
     },
     "unicorn/no-array-sort": {
       "count": 2
@@ -11902,9 +11711,6 @@
     },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
-    },
-    "unicorn/numeric-separators-style": {
-      "count": 2
     },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
@@ -11949,9 +11755,6 @@
     },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
-    },
-    "unicorn/prefer-type-error": {
-      "count": 1
     }
   },
   "src/simulation/ai/workerSearchCoach.ts": {
@@ -11960,9 +11763,6 @@
     },
     "unicorn/no-for-each": {
       "count": 3
-    },
-    "unicorn/no-negated-condition": {
-      "count": 1
     }
   },
   "src/simulation/bench.ts": {
@@ -12075,9 +11875,6 @@
     "unicorn/prefer-simple-condition-first": {
       "count": 2
     },
-    "unicorn/prefer-string-replace-all": {
-      "count": 1
-    },
     "unicorn/prefer-then-catch": {
       "count": 1
     },
@@ -12096,16 +11893,10 @@
     },
     "unicorn/no-array-reduce": {
       "count": 1
-    },
-    "unicorn/prefer-at": {
-      "count": 1
     }
   },
   "src/simulation/coaches/jev.ts": {
     "unicorn/no-array-sort": {
-      "count": 1
-    },
-    "unicorn/numeric-separators-style": {
       "count": 1
     }
   },
@@ -12148,9 +11939,6 @@
     "unicorn/consistent-function-scoping": {
       "count": 3
     },
-    "unicorn/explicit-length-check": {
-      "count": 2
-    },
     "unicorn/import-style": {
       "count": 1
     },
@@ -12164,9 +11952,6 @@
       "count": 1
     },
     "unicorn/prefer-await": {
-      "count": 1
-    },
-    "unicorn/prefer-string-repeat": {
       "count": 1
     },
     "unicorn/prefer-then-catch": {
@@ -12183,13 +11968,7 @@
     "max-statements": {
       "count": 1
     },
-    "unicorn/consistent-existence-index-check": {
-      "count": 1
-    },
     "unicorn/no-duplicate-loops": {
-      "count": 1
-    },
-    "unicorn/prefer-early-return": {
       "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
@@ -12212,9 +11991,6 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 3
     },
-    "unicorn/explicit-length-check": {
-      "count": 2
-    },
     "unicorn/import-style": {
       "count": 1
     },
@@ -12227,13 +12003,7 @@
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     },
-    "unicorn/prefer-direct-iteration": {
-      "count": 1
-    },
     "unicorn/prefer-single-call": {
-      "count": 1
-    },
-    "unicorn/prefer-string-replace-all": {
       "count": 1
     }
   },
@@ -12281,9 +12051,6 @@
     },
     "unicorn/consistent-function-scoping": {
       "count": 1
-    },
-    "unicorn/explicit-length-check": {
-      "count": 2
     },
     "unicorn/import-style": {
       "count": 1
@@ -12375,11 +12142,6 @@
       "count": 1
     }
   },
-  "src/simulation/raceRates.ts": {
-    "unicorn/numeric-separators-style": {
-      "count": 27
-    }
-  },
   "src/simulation/replay.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
@@ -12397,14 +12159,6 @@
       "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
-      "count": 1
-    },
-    "unicorn/prefer-type-error": {
-      "count": 1
-    }
-  },
-  "src/simulation/rng.ts": {
-    "unicorn/numeric-separators-style": {
       "count": 1
     }
   },
@@ -12446,9 +12200,6 @@
       "count": 1
     },
     "unicorn/no-return-array-push": {
-      "count": 1
-    },
-    "unicorn/prefer-string-replace-all": {
       "count": 1
     }
   },
@@ -12520,9 +12271,6 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 2
     },
-    "unicorn/explicit-length-check": {
-      "count": 1
-    },
     "unicorn/import-style": {
       "count": 1
     },
@@ -12533,9 +12281,6 @@
       "count": 4
     },
     "unicorn/no-unsafe-string-replacement": {
-      "count": 2
-    },
-    "unicorn/prefer-string-replace-all": {
       "count": 2
     }
   },
@@ -12578,9 +12323,6 @@
     },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    },
-    "unicorn/require-array-join-separator": {
-      "count": 2
     }
   },
   "src/testing/cases/drive-transition.ts": {
@@ -12609,9 +12351,6 @@
     },
     "unicorn/no-useless-coercion": {
       "count": 1
-    },
-    "unicorn/prefer-global-number-constants": {
-      "count": 1
     }
   },
   "src/testing/cases/helpers.ts": {
@@ -12636,9 +12375,6 @@
     },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    },
-    "unicorn/require-array-join-separator": {
-      "count": 2
     }
   },
   "src/testing/cases/secure-the-ball.ts": {
@@ -12652,9 +12388,6 @@
     },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 2
-    },
-    "unicorn/require-array-join-separator": {
-      "count": 1
     }
   },
   "src/testing/cases/stalling.ts": {
@@ -12665,9 +12398,6 @@
   "src/testing/cases/team-special-rules.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
-    },
-    "unicorn/require-array-join-separator": {
-      "count": 2
     }
   },
   "src/testing/coverage/exclusions.ts": {
@@ -12680,9 +12410,6 @@
       "count": 1
     },
     "unicorn/no-array-sort": {
-      "count": 1
-    },
-    "unicorn/prefer-array-from-map": {
       "count": 1
     },
     "unicorn/prefer-simple-sort-comparator": {
@@ -12700,9 +12427,6 @@
       "count": 3
     },
     "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    },
-    "unicorn/prefer-direct-iteration": {
       "count": 1
     },
     "unicorn/prefer-simple-sort-comparator": {
@@ -12733,29 +12457,17 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 2
     },
-    "unicorn/explicit-length-check": {
-      "count": 1
-    },
     "unicorn/no-array-callback-reference": {
       "count": 2
     },
     "unicorn/no-array-sort": {
       "count": 3
     },
-    "unicorn/no-immediate-mutation": {
-      "count": 1
-    },
-    "unicorn/prefer-array-from-map": {
-      "count": 1
-    },
-    "unicorn/prefer-direct-iteration": {
-      "count": 1
-    },
     "unicorn/prefer-simple-sort-comparator": {
       "count": 1
     },
     "unicorn/prefer-single-call": {
-      "count": 4
+      "count": 1
     },
     "unicorn/require-array-sort-compare": {
       "count": 2
@@ -12764,9 +12476,6 @@
   "src/testing/devVenue.ts": {
     "unicorn/prefer-global-this": {
       "count": 2
-    },
-    "unicorn/prefer-type-literal-last": {
-      "count": 1
     }
   },
   "src/testing/diagnostics/bundle.ts": {
@@ -12859,9 +12568,6 @@
   "src/testing/scenarioCase/types.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 2
-    },
-    "unicorn/prefer-export-from": {
-      "count": 1
     }
   },
   "src/testing/scenarioCase/validate.ts": {
@@ -12880,9 +12586,6 @@
     "unicorn/no-for-each": {
       "count": 2
     },
-    "unicorn/no-negated-condition": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 2
     },
@@ -12898,9 +12601,6 @@
       "count": 1
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
-    "unicorn/explicit-length-check": {
       "count": 2
     }
   },
@@ -12937,16 +12637,10 @@
     },
     "unicorn/no-computed-property-existence-check": {
       "count": 1
-    },
-    "unicorn/no-negated-condition": {
-      "count": 2
     }
   },
   "src/types/Team.ts": {
     "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "@typescript-eslint/no-deprecated": {
       "count": 1
     },
     "@typescript-eslint/no-unnecessary-condition": {
@@ -12956,17 +12650,6 @@
       "count": 1
     },
     "unicorn/consistent-conditional-object-spread": {
-      "count": 1
-    },
-    "unicorn/numeric-separators-style": {
-      "count": 1
-    },
-    "unicorn/prefer-string-slice": {
-      "count": 1
-    }
-  },
-  "src/types/events.ts": {
-    "unicorn/prefer-export-from": {
       "count": 1
     }
   },
@@ -13005,9 +12688,6 @@
       "count": 1
     },
     "@typescript-eslint/no-invalid-void-type": {
-      "count": 1
-    },
-    "unicorn/prefer-type-literal-last": {
       "count": 1
     }
   },
@@ -13063,9 +12743,6 @@
       "count": 1
     },
     "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-negated-condition": {
       "count": 1
     }
   },
@@ -13141,9 +12818,6 @@
     },
     "max-lines-per-function": {
       "count": 2
-    },
-    "unicorn/no-negated-condition": {
-      "count": 1
     }
   },
   "src/ui/components/TeamManagement/PendingDevelopmentPanel.tsx": {
@@ -13168,12 +12842,6 @@
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
     },
-    "unicorn/no-negated-condition": {
-      "count": 1
-    },
-    "unicorn/no-useless-undefined": {
-      "count": 3
-    },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
     }
@@ -13188,11 +12856,6 @@
       "count": 2
     }
   },
-  "src/ui/components/club/GutterPanel.tsx": {
-    "unicorn/no-useless-undefined": {
-      "count": 1
-    }
-  },
   "src/ui/components/common/LayeredPortrait.tsx": {
     "unicorn/no-array-callback-reference": {
       "count": 1
@@ -13201,9 +12864,6 @@
       "count": 1
     },
     "unicorn/prefer-await": {
-      "count": 2
-    },
-    "unicorn/prefer-split-limit": {
       "count": 2
     }
   },
@@ -13236,7 +12896,7 @@
       "count": 1
     },
     "unicorn/prefer-add-event-listener": {
-      "count": 2
+      "count": 1
     },
     "unicorn/prefer-await": {
       "count": 5
@@ -13301,11 +12961,6 @@
     },
     "unicorn/prefer-await": {
       "count": 2
-    }
-  },
-  "src/ui/components/competition/RosterProfileSection.tsx": {
-    "unicorn/numeric-separators-style": {
-      "count": 1
     }
   },
   "src/ui/components/competition/SignupPanel.tsx": {
@@ -13388,14 +13043,6 @@
     },
     "unicorn/no-top-level-assignment-in-function": {
       "count": 2
-    },
-    "unicorn/prefer-add-event-listener-options": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/ActionPlanCard.tsx": {
-    "unicorn/explicit-length-check": {
-      "count": 1
     }
   },
   "src/ui/components/hud/Announcer.tsx": {
@@ -13441,9 +13088,6 @@
     },
     "unicorn/prefer-simple-condition-first": {
       "count": 2
-    },
-    "unicorn/prefer-string-replace-all": {
-      "count": 1
     }
   },
   "src/ui/components/hud/CoinFlipOverlay.tsx": {
@@ -13454,9 +13098,6 @@
       "count": 1
     },
     "max-lines-per-function": {
-      "count": 1
-    },
-    "unicorn/no-negated-condition": {
       "count": 1
     }
   },
@@ -13479,16 +13120,10 @@
     "unicorn/prefer-default-parameters": {
       "count": 1
     },
-    "unicorn/prefer-early-return": {
-      "count": 1
-    },
     "unicorn/prefer-global-this": {
       "count": 2
     },
     "unicorn/prefer-number-coercion": {
-      "count": 1
-    },
-    "unicorn/prefer-number-properties": {
       "count": 1
     }
   },
@@ -13514,11 +13149,6 @@
       "count": 1
     },
     "no-nested-ternary": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/FormationPicker.tsx": {
-    "unicorn/prefer-add-event-listener-options": {
       "count": 1
     }
   },
@@ -13555,38 +13185,20 @@
     "no-nested-ternary": {
       "count": 1
     },
-    "unicorn/catch-error-name": {
-      "count": 1
-    },
     "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-negated-condition": {
       "count": 1
     },
     "unicorn/prefer-early-return": {
       "count": 1
-    },
-    "unicorn/prefer-minimal-ternary": {
-      "count": 1
-    },
-    "unicorn/prefer-smaller-scope": {
-      "count": 1
     }
   },
   "src/ui/components/hud/HUDLayout.tsx": {
-    "unicorn/prefer-add-event-listener-options": {
-      "count": 2
-    },
     "unicorn/prefer-global-this": {
       "count": 4
     }
   },
   "src/ui/components/hud/HalfTimeCard.tsx": {
     "max-lines-per-function": {
-      "count": 1
-    },
-    "unicorn/explicit-length-check": {
       "count": 1
     }
   },
@@ -13647,12 +13259,6 @@
     "react-hooks/set-state-in-effect": {
       "count": 1
     },
-    "unicorn/no-negated-array-predicate": {
-      "count": 1
-    },
-    "unicorn/prefer-add-event-listener-options": {
-      "count": 1
-    },
     "unicorn/prefer-early-return": {
       "count": 1
     },
@@ -13703,9 +13309,6 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 4
     },
-    "unicorn/explicit-length-check": {
-      "count": 1
-    },
     "unicorn/no-array-sort": {
       "count": 1
     },
@@ -13715,16 +13318,7 @@
     "unicorn/no-for-each": {
       "count": 4
     },
-    "unicorn/no-negated-array-predicate": {
-      "count": 1
-    },
-    "unicorn/no-negated-condition": {
-      "count": 1
-    },
     "unicorn/prefer-continue": {
-      "count": 1
-    },
-    "unicorn/prefer-early-return": {
       "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
@@ -13767,9 +13361,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    },
-    "unicorn/consistent-existence-index-check": {
-      "count": 2
     }
   },
   "src/ui/components/hud/PhoneDice.tsx": {
@@ -13819,17 +13410,11 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
-    },
-    "unicorn/no-negated-condition": {
-      "count": 2
     }
   },
   "src/ui/components/hud/RollPreviews.tsx": {
     "no-nested-ternary": {
       "count": 2
-    },
-    "unicorn/explicit-length-check": {
-      "count": 1
     }
   },
   "src/ui/components/hud/SandboxOverlay.tsx": {
@@ -13853,9 +13438,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 2
-    },
-    "unicorn/prefer-early-return": {
-      "count": 1
     },
     "unicorn/prefer-global-this": {
       "count": 1
@@ -13960,9 +13542,6 @@
   "src/ui/components/hud/actionMenuButtons.tsx": {
     "unicorn/prefer-simple-condition-first": {
       "count": 1
-    },
-    "unicorn/prefer-string-replace-all": {
-      "count": 1
     }
   },
   "src/ui/components/hud/ballMovementLog.ts": {
@@ -13981,11 +13560,6 @@
       "count": 1
     }
   },
-  "src/ui/components/hud/diceLogColor.ts": {
-    "unicorn/prefer-minimal-ternary": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/dicePlacement.ts": {
     "unicorn/no-array-reduce": {
       "count": 1
@@ -13998,16 +13572,7 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 3
     },
-    "unicorn/consistent-existence-index-check": {
-      "count": 1
-    },
-    "unicorn/prefer-at": {
-      "count": 1
-    },
     "unicorn/prefer-await": {
-      "count": 1
-    },
-    "unicorn/prefer-continue": {
       "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
@@ -14031,9 +13596,6 @@
     }
   },
   "src/ui/components/hud/matchStripText.ts": {
-    "unicorn/explicit-length-check": {
-      "count": 2
-    },
     "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
     }
@@ -14064,9 +13626,6 @@
     "no-nested-ternary": {
       "count": 3
     },
-    "unicorn/explicit-length-check": {
-      "count": 1
-    },
     "unicorn/no-break-in-nested-loop": {
       "count": 2
     },
@@ -14085,9 +13644,6 @@
   "src/ui/components/hud/usePlayerInfo.ts": {
     "unicorn/no-for-each": {
       "count": 2
-    },
-    "unicorn/prefer-add-event-listener-options": {
-      "count": 1
     },
     "unicorn/prefer-global-this": {
       "count": 2
@@ -14123,9 +13679,6 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
     },
-    "unicorn/no-negated-array-predicate": {
-      "count": 2
-    },
     "unicorn/no-useless-spread": {
       "count": 1
     }
@@ -14157,9 +13710,6 @@
     },
     "unicorn/no-array-callback-reference": {
       "count": 2
-    },
-    "unicorn/no-negated-condition": {
-      "count": 1
     }
   },
   "src/ui/components/pages/LeagueTeamProgress.tsx": {
@@ -14242,17 +13792,11 @@
     "react-hooks/set-state-in-effect": {
       "count": 1
     },
-    "unicorn/catch-error-name": {
-      "count": 2
-    },
     "unicorn/no-await-expression-member": {
       "count": 1
     },
     "unicorn/no-computed-property-existence-check": {
       "count": 4
-    },
-    "unicorn/no-negated-condition": {
-      "count": 1
     },
     "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
@@ -14283,12 +13827,6 @@
     "react-hooks/purity": {
       "count": 1
     },
-    "unicorn/no-negated-array-predicate": {
-      "count": 1
-    },
-    "unicorn/no-negated-condition": {
-      "count": 3
-    },
     "unicorn/prefer-logical-operator-over-ternary": {
       "count": 1
     }
@@ -14305,9 +13843,6 @@
     },
     "no-nested-ternary": {
       "count": 2
-    },
-    "unicorn/no-negated-condition": {
-      "count": 1
     }
   },
   "src/ui/components/pages/SoundTest.tsx": {
@@ -14346,12 +13881,6 @@
     "react-hooks/set-state-in-effect": {
       "count": 1
     },
-    "unicorn/consistent-existence-index-check": {
-      "count": 1
-    },
-    "unicorn/explicit-length-check": {
-      "count": 2
-    },
     "unicorn/no-array-callback-reference": {
       "count": 1
     },
@@ -14361,19 +13890,10 @@
     "unicorn/no-for-each": {
       "count": 2
     },
-    "unicorn/no-lonely-if": {
-      "count": 1
-    },
     "unicorn/no-useless-spread": {
       "count": 1
     },
-    "unicorn/no-useless-undefined": {
-      "count": 2
-    },
     "unicorn/prefer-default-parameters": {
-      "count": 1
-    },
-    "unicorn/prefer-early-return": {
       "count": 1
     }
   },
@@ -14388,7 +13908,7 @@
       "count": 2
     },
     "no-nested-ternary": {
-      "count": 2
+      "count": 1
     },
     "unicorn/consistent-function-scoping": {
       "count": 1
@@ -14415,9 +13935,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 2
-    },
-    "unicorn/prefer-early-return": {
-      "count": 1
     },
     "unicorn/prefer-global-this": {
       "count": 1
@@ -14454,9 +13971,6 @@
       "count": 1
     },
     "unicorn/no-declarations-before-early-exit": {
-      "count": 1
-    },
-    "unicorn/no-negated-condition": {
       "count": 1
     },
     "unicorn/prefer-global-this": {
@@ -14543,18 +14057,12 @@
     "@typescript-eslint/consistent-type-imports": {
       "count": 1
     },
-    "unicorn/numeric-separators-style": {
-      "count": 3
-    },
     "unicorn/prefer-global-this": {
       "count": 1
     }
   },
   "src/ui/dice/bipyramid.ts": {
     "unicorn/no-for-each": {
-      "count": 1
-    },
-    "unicorn/no-negated-condition": {
       "count": 1
     }
   },
@@ -14582,9 +14090,6 @@
     },
     "unicorn/no-for-each": {
       "count": 1
-    },
-    "unicorn/prefer-early-return": {
-      "count": 1
     }
   },
   "src/ui/dice/diceScene.ts": {
@@ -14611,9 +14116,6 @@
   },
   "src/ui/dice/diceStage.ts": {
     "unicorn/no-top-level-assignment-in-function": {
-      "count": 1
-    },
-    "unicorn/prefer-dom-node-append": {
       "count": 1
     }
   },
@@ -14708,12 +14210,6 @@
     "unicorn/no-global-object-property-assignment": {
       "count": 2
     },
-    "unicorn/no-useless-undefined": {
-      "count": 1
-    },
-    "unicorn/prefer-early-return": {
-      "count": 1
-    },
     "unicorn/prefer-global-this": {
       "count": 2
     },
@@ -14790,9 +14286,6 @@
     "react-hooks/purity": {
       "count": 1
     },
-    "unicorn/catch-error-name": {
-      "count": 1
-    },
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
     },
@@ -14801,9 +14294,6 @@
     },
     "unicorn/prefer-await": {
       "count": 5
-    },
-    "unicorn/prefer-early-return": {
-      "count": 1
     }
   },
   "src/ui/pages/TurnClock.tsx": {
@@ -14846,29 +14336,17 @@
     "unicorn/consistent-function-scoping": {
       "count": 1
     },
-    "unicorn/no-negated-condition": {
-      "count": 2
-    },
-    "unicorn/numeric-separators-style": {
-      "count": 1
-    },
     "unicorn/prefer-query-selector": {
       "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
       "count": 3
     },
-    "unicorn/prefer-string-replace-all": {
-      "count": 1
-    },
     "unicorn/prefer-then-catch": {
       "count": 1
     }
   },
   "src/ui/sound/SoundManager.ts": {
-    "unicorn/catch-error-name": {
-      "count": 6
-    },
     "unicorn/consistent-class-member-order": {
       "count": 1
     },
@@ -14896,17 +14374,9 @@
       "count": 1
     }
   },
-  "src/ui/sound/catalog.ts": {
-    "unicorn/no-zero-fractions": {
-      "count": 4
-    }
-  },
   "src/ui/sound/synth.ts": {
     "unicorn/no-for-each": {
       "count": 2
-    },
-    "unicorn/prefer-add-event-listener": {
-      "count": 1
     }
   },
   "src/vite-env.d.ts": {

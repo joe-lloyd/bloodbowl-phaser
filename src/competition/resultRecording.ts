@@ -285,7 +285,7 @@ function markReporter(
       (entrant.id === fixture.homeEntrantId ||
         entrant.id === fixture.awayEntrantId)
   );
-  if (index >= 0) next.reporterEntrantIndex = index;
+  if (index !== -1) next.reporterEntrantIndex = index;
 }
 
 function swapped<Value>(sides: { home: Value; away: Value }) {
@@ -446,7 +446,7 @@ export async function withdrawFromCompetition(
     context.competitionType,
     context.competitionId,
     (latest) => {
-      if (!latest.entrants.some((candidate) => candidate.id === entrantId))
+      if (latest.entrants.every((candidate) => candidate.id !== entrantId))
         throw new Error("Entrant not found.");
       return {
         ...latest,

@@ -84,7 +84,7 @@ interface Place {
 }
 
 export function GalleryRoutes({ path, own }: Place) {
-  const [pathname = path] = path.split("?");
+  const [pathname = path] = path.split("?", 1);
   return (
     <MemoryRouter initialEntries={["/", path]} initialIndex={1}>
       <Routes>

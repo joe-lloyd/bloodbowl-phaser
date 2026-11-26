@@ -51,7 +51,7 @@ export function mergeCoverageResults(
     }
   }
 
-  const entries: EntryResult[] = [...byEntryId.entries()]
+  const entries: EntryResult[] = [...byEntryId]
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .flatMap(([, group]) => {
       const [head] = group;

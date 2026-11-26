@@ -200,7 +200,7 @@ function repairSources(
       `${String(fixture.round - 1)}:${String(fixture.order * 2)}`
     ),
   ].filter((f): f is CompetitionFixture => !!f);
-  if (!sources.length) return false;
+  if (sources.length === 0) return false;
   fixture.sourceFixtureIds = sources.map((source) => source.id);
   return true;
 }
@@ -405,7 +405,7 @@ function checkPenalties(
 
 function checkScores(homeScore: number, awayScore: number): void {
   if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore)) {
-    throw new Error("Scores must be whole numbers.");
+    throw new TypeError("Scores must be whole numbers.");
   }
   if (homeScore < 0 || awayScore < 0) {
     throw new Error("Scores cannot be negative.");

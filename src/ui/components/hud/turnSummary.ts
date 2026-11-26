@@ -98,7 +98,7 @@ export function summarizeTurn({
   const changes = players
     .filter((p) => p.teamId === teamId && affected.has(p.id))
     .map((p) => `${playerLabel(p)}: ${statusLabel(p)}`);
-  if (!changes.length && !ballChanged) return null;
+  if (changes.length === 0 && !ballChanged) return null;
   return { players: changes, ball: describeBall(players, ball) };
 }
 

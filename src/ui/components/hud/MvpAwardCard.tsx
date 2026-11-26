@@ -49,11 +49,11 @@ export function MvpAwardCard({
                 onToggleNominee(playerId);
               }}
               className={cx(
-                hudChoiceClass(slot >= 0),
+                hudChoiceClass(slot !== -1),
                 "min-h-[40px] px-3 py-2 font-hud-label text-hud-base font-bold text-hud-bone"
               )}
             >
-              {slot >= 0 ? `${String(slot + 1)}. ` : ""}#{player.number}{" "}
+              {slot === -1 ? "" : `${String(slot + 1)}. `}#{player.number}{" "}
               {player.playerName}
             </button>
           );

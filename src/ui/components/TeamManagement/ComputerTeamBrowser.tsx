@@ -159,9 +159,9 @@ export function ComputerTeamBrowser() {
                 variant="primary"
                 disabled={!friendlyIds.has(template.id)}
                 title={
-                  !friendlyIds.has(template.id)
-                    ? "This roster needs a league using the NAF rulings."
-                    : undefined
+                  friendlyIds.has(template.id)
+                    ? undefined
+                    : "This roster needs a league using the NAF rulings."
                 }
                 onClick={() =>
                   navigate(

@@ -79,10 +79,10 @@ export function PlayerPage() {
       .map((skill) => skill.type)
       .filter(
         (type) =>
-          !(player.advancements ?? []).some((advancement) =>
-            advancement.type !== "characteristic"
-              ? advancement.name === type
-              : false
+          (player.advancements ?? []).every((advancement) =>
+            !(advancement.type === "characteristic"
+              ? false
+              : advancement.name === type)
           )
       )
   );
@@ -136,7 +136,7 @@ export function PlayerPage() {
                   key={stat}
                   label={STAT_LABELS[stat]}
                   value={current}
-                  {...(current !== base ? { tone: "gold" as const } : {})}
+                  {...(current === base ? {} : { tone: "gold" as const })}
                 />
               ))}
             </div>
@@ -230,13 +230,7 @@ export function PlayerPage() {
             {notice}
           </Notice>
         )}
-        {!eligible ? (
-          <p className="text-hud-mute">
-            {costs
-              ? `Not enough SPP to advance yet: ${String(player.spp)} SPP, and the cheapest advancement (Random Primary) costs ${String(costs.randomPrimary)}.`
-              : "This player is a Legend and cannot advance further."}
-          </p>
-        ) : (
+        {eligible ? (
           <PlayerDevelopment
             player={player}
             team={team}
@@ -247,6 +241,12 @@ export function PlayerPage() {
             }}
             onNotice={setNotice}
           />
+        ) : (
+          <p className="text-hud-mute">
+            {costs
+              ? `Not enough SPP to advance yet: ${String(player.spp)} SPP, and the cheapest advancement (Random Primary) costs ${String(costs.randomPrimary)}.`
+              : "This player is a Legend and cannot advance further."}
+          </p>
         )}
       </Section>
       </TeamSaveFieldset>

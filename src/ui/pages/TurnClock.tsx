@@ -159,13 +159,13 @@ export function TurnClock({
       freezeRef.current = null;
 
       resumeRef.current =
-        frozen.remaining != null
-          ? {
+        frozen.remaining == null
+          ? null
+          : {
               remaining: frozen.remaining,
               at: Date.now(),
               staleDeadline: timer?.deadline ?? null,
-            }
-          : null;
+            };
 
       const writes =
         !offline && (frozen.reason === "away" ? !frozen.awayIsMe : myTurn());
@@ -408,9 +408,9 @@ function timeLeftAtStop({
 }): number | null {
   if (!clockEnabled) return null;
   if (!deadlineIsThisTurn) return turnSeconds * 1000;
-  return deadline != null
-    ? Math.min(turnSeconds * 1000, deadline - stoppedAt)
-    : null;
+  return deadline == null
+    ? null
+    : Math.min(turnSeconds * 1000, deadline - stoppedAt);
 }
 
 function timeoutBank(
@@ -493,7 +493,7 @@ function StoppedClock({
           : `${opponentName} disconnected: game paused`
       : inStrip
         ? `${fmt(left)} to decide`
-        : `${who} ${fmt(left)} to decide (${String(pending?.type.replace(/-/g, " "))})`;
+        : `${who} ${fmt(left)} to decide (${String(pending?.type.replaceAll('-', " "))})`;
   return (
     <div data-testid="turn-clock-stopped" className={clockClass(inStrip)}>
       <div
@@ -531,7 +531,7 @@ function RunningClock({
   onResume: () => void;
   onPause: () => void;
 }) {
-  const low = remaining <= 15000 && !timer.pausedBy && deadlineIsThisTurn;
+  const low = remaining <= 15_000 && !timer.pausedBy && deadlineIsThisTurn;
   return (
     <div data-testid="turn-clock" className={clockClass(inStrip)}>
       <div

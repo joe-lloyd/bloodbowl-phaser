@@ -86,7 +86,7 @@ export function createJevCoach(
   const settings = {
     apiKey: options.apiKey,
     model,
-    timeoutMs: options.timeoutMs ?? 15000,
+    timeoutMs: options.timeoutMs ?? 15_000,
   };
   return {
     name: `jev:${model}`,

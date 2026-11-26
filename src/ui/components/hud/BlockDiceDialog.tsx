@@ -508,7 +508,7 @@ function choiceStatus({
   attackingTeamName: string | undefined;
   diceShown: number;
 }): string {
-  if (chosen) return `Chosen: ${chosen.replace(/-/g, " ").toUpperCase()}`;
+  if (chosen) return `Chosen: ${chosen.replaceAll('-', " ").toUpperCase()}`;
   if (proMode)
     return `Pro: ${pickText(diceShown)}, to re-roll it (3+)`;
   if (getActiveOnlineMatch()?.mayAct() === false)

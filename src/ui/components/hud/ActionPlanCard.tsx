@@ -77,7 +77,7 @@ function PlanDetails({ plan }: { plan: ActionPlanSummary }) {
         ))}
       </ol>
       <div className="text-hud-xs text-hud-dim">
-        {plan.rerolls.length
+        {plan.rerolls.length > 0
           ? `Re-rolls: ${plan.rerolls.join(", ")}`
           : "No re-roll available"}
       </div>

@@ -197,14 +197,14 @@ export async function runBench(options: BenchOptions): Promise<number> {
   );
   process.stdout.write(
     `${formatBench(options, report, puzzles)}\n` +
-      (rosters.length ? `${formatStandards(rosters, games)}\n` : "") +
+      (rosters.length > 0 ? `${formatStandards(rosters, games)}\n` : "") +
       [...broke]
         .map(([key, n]) => `  finding: ${key} ${String(n)}x\n`)
         .join("") +
       errors.map((e) => `  error: ${e}\n`).join("") +
       `\nReport: ${options.out}\n`
   );
-  return errors.length || report.blockingFindings ? 1 : 0;
+  return errors.length > 0 || report.blockingFindings ? 1 : 0;
 }
 
 function baselineName(options: BenchOptions): string {
@@ -261,7 +261,7 @@ function formatStandards(rows: RosterRow[], games: BenchGame[]): string {
         `  ${r.roster.padEnd(20)} ${String(r.games).padStart(5)} ${`${String(Math.round(r.winRate * 100))}%`.padStart(4)}  ` +
         `${f(r.side.touchdownsPerGame)} (${f(r.standard.touchdowns)})  ` +
         `${f(r.side.casualtiesPerGame).padStart(5)}  ` +
-        `${f(r.sppPerGame, 1).padStart(4)} (${f(r.standard.spp, 1).padStart(4)}) ${r.meets ? "met " : "    "}  ` +
+        `${f(r.sppPerGame, 1).padStart(4)} (${f(r.standard.spp, 1).padStart(4)}) ${r.meets ? "met " : ' '.repeat(4)}  ` +
         actions(r.side)
     ),
     `  ${String(met)} of ${String(rows.length)} rosters meet their standard; ${f(meanTouchdowns)} TD a game averaged over rosters, against ${f(AVERAGE_TOUCHDOWNS)}`,

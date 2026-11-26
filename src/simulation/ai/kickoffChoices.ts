@@ -76,10 +76,10 @@ function bestSteps(
   const chosen: KickoffStep[] = [];
   while (chosen.length < limit) {
     const [best] = able
-      .filter(({ id }) => !chosen.some(({ player }) => player.id === id))
+      .filter(({ id }) => chosen.every(({ player }) => player.id !== id))
       .flatMap((player) => {
         const open = freeNeighbours(ground, player).filter(
-          (s) => !chosen.some(({ at }) => key(at) === key(s))
+          (s) => chosen.every(({ at }) => key(at) !== key(s))
         );
         return bestKickoffStep(ground, player, open) ?? [];
       })
@@ -123,7 +123,7 @@ export function kickoffPick(
   const placing = candidates.findIndex(
     ({ commands: [command] }) => command.type === "kickoff-place-player"
   );
-  if (placing >= 0)
+  if (placing !== -1)
     return { index: placing, note: `${event}: ${UNDER_THE_BALL}` };
   const wanted = wantedPicks(args);
   const next = wanted.find(
@@ -134,7 +134,7 @@ export function kickoffPick(
       command.type === "kickoff-select-player" &&
       command.playerId === next?.player.id
   );
-  if (next && selecting >= 0)
+  if (next && selecting !== -1)
     return {
       index: selecting,
       note: `${event}: ${next.what}`,

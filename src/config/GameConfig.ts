@@ -127,7 +127,7 @@ export const GameConfig = {
   },
   TOTAL_HALVES: 2,
 
-  STARTING_GOLD: 600000,
+  STARTING_GOLD: 600_000,
 
   MIN_PLAYERS: 7,
   MAX_ROSTER_SIZE: 11,

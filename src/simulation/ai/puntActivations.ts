@@ -88,9 +88,7 @@ function looseWorth(punt: Punt, at: Square): number {
     ...collectors.map((p) => {
       const left = p.stats.MA - distance(p.gridPosition, at);
       const scores = toGoal(board, at) <= left;
-      return scores
-        ? c.w.touchdown * PICK_UP
-        : progressWorth(punt, at) * PICK_UP;
+      return (scores ? c.w.touchdown : progressWorth(punt, at)) * PICK_UP;
     })
   );
   const share = collectors.length > 0 ? 1 - PICK_UP : 1;

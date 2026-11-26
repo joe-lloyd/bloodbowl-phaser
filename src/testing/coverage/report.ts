@@ -162,14 +162,10 @@ export function buildCoverage(
 ): CoverageResult {
   const inventory = options.inventory ?? buildInventory();
   const exclusions = options.exclusions ?? COVERAGE_EXCLUSIONS;
-  const issues: CoverageIssue[] = [];
-
-  for (const issue of validateScenarioCases(cases, options.support)) {
-    issues.push({
+  const issues: CoverageIssue[] = Array.from(validateScenarioCases(cases, options.support), issue => ({
       kind: caseIssueKind(issue),
       message: `${issue.caseId} · ${issue.field}: ${issue.message}`,
-    });
-  }
+    }));
   issues.push(...cases.flatMap(fixtureIssues));
 
   const knownIds = new Set(inventory.map((entry) => entry.id));
@@ -266,11 +262,7 @@ export function buildCoverage(
 }
 
 export function renderCoverageReport(result: CoverageResult): string {
-  const lines: string[] = [];
-  lines.push("E2E coverage");
-  lines.push("============");
-  lines.push(`generated ${result.generatedAt}`);
-  lines.push("");
+  const lines: string[] = [ "E2E coverage", "============", `generated ${result.generatedAt}`, ""];
 
   for (const layer of EXECUTION_LAYERS) {
     const totals = result.totals[layer];
@@ -293,7 +285,7 @@ export function renderCoverageReport(result: CoverageResult): string {
     byKind.set(entry.entry.kind, bucket);
   }
 
-  for (const [kind, group] of [...byKind.entries()].sort()) {
+  for (const [kind, group] of [...byKind].sort()) {
     const missing = group.filter((entry) =>
       entry.layers.some((layer) => layer.status === "missing")
     );
@@ -302,7 +294,7 @@ export function renderCoverageReport(result: CoverageResult): string {
     );
     lines.push(
       `${kind}: ${String(group.length - missing.length)}/${String(group.length)} complete` +
-        (excluded.length ? `, ${String(excluded.length)} excluded` : "")
+        (excluded.length > 0 ? `, ${String(excluded.length)} excluded` : "")
     );
     for (const entry of missing) {
       const layers = entry.layers

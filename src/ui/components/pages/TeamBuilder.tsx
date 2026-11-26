@@ -118,10 +118,10 @@ function persistTeam(toSave: Team) {
   const teams = TeamManager.loadTeams();
   const existingIndex = teams.findIndex((t) => t.id === toSave.id);
 
-  if (existingIndex >= 0) {
-    teams[existingIndex] = toSave;
-  } else {
+  if (existingIndex === -1) {
     teams.push(toSave);
+  } else {
+    teams[existingIndex] = toSave;
   }
 
   return TeamManager.saveTeams(teams);
@@ -286,7 +286,7 @@ export function TeamBuilder() {
         setRosterChosen(true);
         return true;
       };
-      if (loadRequestedTeam()) return undefined;
+      if (loadRequestedTeam()) return;
       const stops: (() => void)[] = [];
       const stopWaiting = () => {
         stops.forEach((stop) => {
@@ -306,7 +306,7 @@ export function TeamBuilder() {
     savedSnapshot.current = null;
     setRosterChosen(false);
     setTeam(freshTeam(selectedRace, selectedColor));
-    return undefined;
+    return;
   }, [teamId]);
 
   const handleRaceChange = (race: RosterName) => {
@@ -318,9 +318,7 @@ export function TeamBuilder() {
       return;
     }
 
-    if (team.players.length > 0) {
-      if (!confirm("Changing race will clear your roster. Continue?")) return;
-    }
+    if (team.players.length > 0 && !confirm("Changing race will clear your roster. Continue?")) return;
 
     setSelectedRace(race);
     setTeam(freshTeam(race, selectedColor, team));
@@ -435,20 +433,22 @@ export function TeamBuilder() {
 
     const newPlayers = team.players.map((p) => ({ ...p }));
     const sourcePlayer = newPlayers.find((p) => p.number === sourceSlot);
-    const targetPlayer = newPlayers.find((p) => p.number === targetSlot);
 
-    if (sourcePlayer) {
-      sourcePlayer.number = targetSlot;
-
-      if (targetPlayer) {
-        targetPlayer.number = sourceSlot;
-      }
-
-      setTeam({
-        ...team,
-        players: newPlayers,
-      });
+    if (!sourcePlayer) {
+      return;
     }
+
+    const targetPlayer = newPlayers.find((p) => p.number === targetSlot);
+    sourcePlayer.number = targetSlot;
+
+    if (targetPlayer) {
+      targetPlayer.number = sourceSlot;
+    }
+
+    setTeam({
+      ...team,
+      players: newPlayers,
+    });
   };
 
   const staffChange =
@@ -498,7 +498,7 @@ export function TeamBuilder() {
     if (postMatch && developmentPending(team)) return;
     const results = rollExpensiveMistakes(team);
     setTeam({ ...team });
-    if (results.length) setCompletion(results.join(" "));
+    if (results.length > 0) setCompletion(results.join(" "));
     saveInFlight.current = true;
     setSaving(true);
     try {
@@ -511,7 +511,7 @@ export function TeamBuilder() {
       }
       savedSnapshot.current = snapshotOf(team);
       setSaveError("");
-      if (!results.length) leaveAfterSave();
+      if (results.length === 0) leaveAfterSave();
     } catch (cause) {
       setSaveError(
         `Your team could not be saved. ${cause instanceof Error ? cause.message : String(cause)}. Retry saving to continue.`

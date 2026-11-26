@@ -10,8 +10,7 @@ declare global {
 }
 
 export function devVenueFormat():
-  | { format: MatchFormat }
-  | Record<string, never> {
+  Record<string, never> | { format: MatchFormat } {
   if (!import.meta.env.DEV) return {};
   const wanted =
     window.__bbDevVenue ??

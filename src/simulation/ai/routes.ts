@@ -244,10 +244,12 @@ function relax({ search, k, cell, p, stepRush, neighbours }: RelaxArgs): void {
       );
     if (next === ballKey) chance *= search.pickup;
     const q = p * chance;
-    if (q > bestAt.get(k + 1, next)) {
-      bestAt.set(k + 1, next, q);
-      parentAt.set(k + 1, next, cell);
+    if (!(q > bestAt.get(k + 1, next))) {
+      continue;
     }
+
+    bestAt.set(k + 1, next, q);
+    parentAt.set(k + 1, next, cell);
   }
 }
 
@@ -377,7 +379,7 @@ export function routesFor({
       to: square(cell),
       path,
       rolls,
-      chance: rolls.length
+      chance: rolls.length > 0
         ? chain({
             player: player,
             rolls: rolls,
@@ -400,7 +402,7 @@ export function withTeamReroll(
   for (const [cell, route] of routes)
     out.set(
       cell,
-      route.rolls.length
+      route.rolls.length > 0
         ? {
             ...route,
             chance: chain({

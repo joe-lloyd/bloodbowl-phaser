@@ -10,8 +10,8 @@ export function lockIsStale(
 ): boolean {
   if (!competition) return false;
   if (competition.status === "complete") return true;
-  return !competition.entrants.some(
-    (entrant) => entrant.teamId === team.id && !entrant.withdrawn
+  return competition.entrants.every(
+    (entrant) => !(entrant.teamId === team.id && !entrant.withdrawn)
   );
 }
 

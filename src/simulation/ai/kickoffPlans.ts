@@ -90,7 +90,7 @@ export function teamPlans(ground: KickoffGround, limit: number): Activation[] {
   while (chosen.length < limit) {
     const blitzed = chosen.some(isHit);
     const best = board.ours
-      .filter((p) => !chosen.some(({ player }) => player.id === p.id))
+      .filter((p) => chosen.every(({ player }) => player.id !== p.id))
       .flatMap((player) =>
         playerPlans({
           ground,
@@ -99,7 +99,7 @@ export function teamPlans(ground: KickoffGround, limit: number): Activation[] {
           squares,
         }).filter((plan) => !blitzed || !isHit(plan))
       )
-      .filter((plan) => !chosen.some((c) => sharesSquare(c, plan)))
+      .filter((plan) => chosen.every((c) => !sharesSquare(c, plan)))
       .reduce<Activation | null>(
         (top, plan) => (top && top.value >= plan.value ? top : plan),
         null

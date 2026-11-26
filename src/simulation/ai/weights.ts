@@ -111,7 +111,7 @@ function overrides(raw: unknown, where: string): Partial<Weights> {
   for (const [name, value] of Object.entries(object(raw, where))) {
     if (!(name in DEFAULT_WEIGHTS)) throw new Error(`unknown weight "${name}"`);
     if (typeof value !== "number" || !Number.isFinite(value))
-      throw new Error(`weight "${name}" must be a finite number`);
+      throw new TypeError(`weight "${name}" must be a finite number`);
     out[name] = value;
   }
   return out;

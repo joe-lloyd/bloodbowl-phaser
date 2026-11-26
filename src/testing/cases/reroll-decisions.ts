@@ -126,7 +126,7 @@ const veteranRerollsBlock: ScenarioCase = {
         checkpointAssert(
           first?.type === "block-dice" &&
             first.veteranRerollAvailable === true &&
-            first.options.map((option) => option.type).join() === "skull",
+            first.options.map((option) => option.type).join(',') === "skull",
           "one Player Down die must offer the Veteran re-roll"
         );
       },
@@ -153,7 +153,7 @@ const veteranRerollsBlock: ScenarioCase = {
           blockDice.length === 2 &&
             second?.type === "block-dice" &&
             second.veteranRerollAvailable === false &&
-            second.options.map((option) => option.type).join() === "push",
+            second.options.map((option) => option.type).join(',') === "push",
           "the re-rolled die must read Push with no second Veteran offer"
         );
         checkpointAssert(

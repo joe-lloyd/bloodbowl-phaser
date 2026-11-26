@@ -315,7 +315,7 @@ export function TypeSheet() {
             <span
               key={family}
               className="w-72 truncate"
-              style={{ fontSize, fontFamily: stack.join() }}
+              style={{ fontSize, fontFamily: stack.join(',') }}
             >
               {family.replace("hud-", "")}
             </span>

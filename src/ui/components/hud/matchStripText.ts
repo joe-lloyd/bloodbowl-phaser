@@ -76,7 +76,7 @@ export function weatherSummary(weather: Weather): {
 }
 
 export function spentSummary(spent: string[]): string | null {
-  return spent.length ? `Spent: ${spent.join(", ")}` : null;
+  return spent.length > 0 ? `Spent: ${spent.join(", ")}` : null;
 }
 
 export function spentActions(
@@ -119,6 +119,6 @@ export function driveEffectText(state: GameState, team: Team): string[] {
           .join(", ") + " this drive";
     return [`#${String(player.number)}: ${detail}`];
   });
-  if (modifiers.length) text.push(`Dodgy Snack ${modifiers.join("; ")}`);
+  if (modifiers.length > 0) text.push(`Dodgy Snack ${modifiers.join("; ")}`);
   return text;
 }

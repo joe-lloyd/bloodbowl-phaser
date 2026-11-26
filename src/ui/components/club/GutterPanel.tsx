@@ -24,7 +24,7 @@ function hire(template: PlayerTemplate): ClubChange {
     const result = hireGutterSpecialist(team, template);
     if (!result.hired) return result.reason;
     giveIdentity(team, result.player);
-    return undefined;
+    return;
   };
 }
 

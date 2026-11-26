@@ -12,7 +12,7 @@ export function summariseRun(observed: ObservedRun): string {
   const decisions = observed.decisions.map((decision) => decision.type);
   return [
     `phase=${observed.snapshot.phase}`,
-    rolls.length ? `rolls=[${rolls.join(", ")}]` : "rolls=[]",
-    decisions.length ? `decisions=[${decisions.join(", ")}]` : "decisions=[]",
+    rolls.length > 0 ? `rolls=[${rolls.join(", ")}]` : "rolls=[]",
+    decisions.length > 0 ? `decisions=[${decisions.join(", ")}]` : "decisions=[]",
   ].join(" ");
 }

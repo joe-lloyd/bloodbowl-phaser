@@ -65,7 +65,7 @@ const teamCaptainReroll: ScenarioCase = {
             "the Captain rolls a 6 and the team still has its re-roll",
           assert(observed) {
             checkpointAssert(
-              rolls(observed, (type) => type === "Team Captain").join() === "6",
+              rolls(observed, (type) => type === "Team Captain").join(',') === "6",
               "the Captain must roll a single 6"
             );
             checkpointAssert(
@@ -177,7 +177,7 @@ const briberyArgueReroll: ScenarioCase = {
           "Bribery and Corruption must be announced"
         );
         checkpointAssert(
-          observed.snapshot.briberyRerollsUsed?.join() === "team1",
+          observed.snapshot.briberyRerollsUsed?.join(',') === "team1",
           "the once-per-game re-roll must be recorded as used"
         );
       },

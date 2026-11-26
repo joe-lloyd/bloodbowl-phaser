@@ -180,9 +180,9 @@ function TossAction({
       </HudButton>
     );
   if (step === "FLIPPING") return <RollBusy>Flipping…</RollBusy>;
-  return !computerWon ? (
+  return computerWon ? null : (
     <KickOrReceive onChoose={onChoose} />
-  ) : null;
+  );
 }
 
 function CoinSides({

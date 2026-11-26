@@ -49,6 +49,7 @@ class FakeBiquadFilterNode extends FakeAudioNode {
 }
 
 class FakeScheduledSourceNode extends FakeAudioNode {
+  private readonly endedListeners: (() => void)[] = [];
   onended: (() => void) | null = null;
   started = false;
   stopped = false;
@@ -60,7 +61,12 @@ class FakeScheduledSourceNode extends FakeAudioNode {
     if (this.stopped) return;
     this.stopped = true;
     this.onended?.();
+    for (const listener of this.endedListeners) listener();
   });
+
+  addEventListener(type: string, listener: () => void): void {
+    if (type === "ended") this.endedListeners.push(listener);
+  }
 }
 
 class FakeOscillatorNode extends FakeScheduledSourceNode {
@@ -76,7 +82,7 @@ class FakeBufferSourceNode extends FakeScheduledSourceNode {
 class FakeAudioContext {
   state: "running" | "suspended" | "closed" = "running";
   currentTime = 0;
-  sampleRate = 44100;
+  sampleRate = 44_100;
   destination = new FakeAudioNode();
   createGain = vi.fn(() => new FakeGainNode());
   createOscillator = vi.fn(() => new FakeOscillatorNode());

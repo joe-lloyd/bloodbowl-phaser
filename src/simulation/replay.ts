@@ -30,7 +30,7 @@ export function parseRecording(text: string): MatchRecording {
     !Array.isArray(value.rosters) ||
     typeof value.seed !== "number"
   ) {
-    throw new Error("recording is missing seed, rosters or steps");
+    throw new TypeError("recording is missing seed, rosters or steps");
   }
   if (
     value.lineup !== undefined &&

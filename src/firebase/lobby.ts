@@ -192,7 +192,7 @@ export async function seedFor(lobby: LobbyDoc): Promise<number> {
     secrets.push(secret);
   }
   const hash = await sha256Hex(secrets.join(":"));
-  return parseInt(hash.slice(0, 8), 16) >>> 1;
+  return Number.parseInt(hash.slice(0, 8), 16) >>> 1;
 }
 
 export function seedReady(lobby: LobbyDoc): boolean {

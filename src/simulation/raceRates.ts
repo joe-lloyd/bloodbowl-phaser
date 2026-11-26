@@ -13,7 +13,7 @@ export interface RaceRates {
 
 export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
   [RosterName.AMAZON]: {
-    games: 17559,
+    games: 17_559,
     wins: 0.59,
     touchdowns: 1.221,
     casualties: 1.649,
@@ -21,7 +21,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 39.374,
   },
   [RosterName.BLACK_ORC]: {
-    games: 14239,
+    games: 14_239,
     wins: 0.43,
     touchdowns: 0.867,
     casualties: 1.85,
@@ -37,7 +37,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 39.798,
   },
   [RosterName.CHAOS_CHOSEN]: {
-    games: 14574,
+    games: 14_574,
     wins: 0.454,
     touchdowns: 0.899,
     casualties: 1.87,
@@ -45,7 +45,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 43.413,
   },
   [RosterName.CHAOS_DWARF]: {
-    games: 19906,
+    games: 19_906,
     wins: 0.518,
     touchdowns: 1.009,
     casualties: 2.126,
@@ -53,7 +53,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 46.186,
   },
   [RosterName.CHAOS_RENEGADE]: {
-    games: 13424,
+    games: 13_424,
     wins: 0.434,
     touchdowns: 0.929,
     casualties: 2.163,
@@ -61,7 +61,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 37.327,
   },
   [RosterName.DARK_ELF]: {
-    games: 21346,
+    games: 21_346,
     wins: 0.51,
     touchdowns: 1.195,
     casualties: 1.391,
@@ -69,7 +69,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 32.1,
   },
   [RosterName.DWARF]: {
-    games: 18609,
+    games: 18_609,
     wins: 0.533,
     touchdowns: 1.013,
     casualties: 2.245,
@@ -77,7 +77,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 48.49,
   },
   [RosterName.ELVEN_UNION]: {
-    games: 10342,
+    games: 10_342,
     wins: 0.482,
     touchdowns: 1.312,
     casualties: 1.203,
@@ -93,7 +93,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 33.064,
   },
   [RosterName.GOBLIN]: {
-    games: 13024,
+    games: 13_024,
     wins: 0.336,
     touchdowns: 0.84,
     casualties: 1.907,
@@ -101,7 +101,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 26.409,
   },
   [RosterName.HALFLING]: {
-    games: 10491,
+    games: 10_491,
     wins: 0.383,
     touchdowns: 0.928,
     casualties: 2.058,
@@ -109,7 +109,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 28.917,
   },
   [RosterName.HIGH_ELF]: {
-    games: 10829,
+    games: 10_829,
     wins: 0.476,
     touchdowns: 1.244,
     casualties: 1.254,
@@ -117,7 +117,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 30.22,
   },
   [RosterName.HUMAN]: {
-    games: 22044,
+    games: 22_044,
     wins: 0.528,
     touchdowns: 1.227,
     casualties: 1.875,
@@ -125,7 +125,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 37.875,
   },
   [RosterName.IMPERIAL_NOBILITY]: {
-    games: 10379,
+    games: 10_379,
     wins: 0.443,
     touchdowns: 0.927,
     casualties: 1.576,
@@ -133,7 +133,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 37.319,
   },
   [RosterName.KHORNE]: {
-    games: 14422,
+    games: 14_422,
     wins: 0.403,
     touchdowns: 0.818,
     casualties: 2.119,
@@ -141,7 +141,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 39.417,
   },
   [RosterName.LIZARDMEN]: {
-    games: 18110,
+    games: 18_110,
     wins: 0.509,
     touchdowns: 1.145,
     casualties: 1.721,
@@ -149,7 +149,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 41.721,
   },
   [RosterName.NECROMANTIC_HORROR]: {
-    games: 20529,
+    games: 20_529,
     wins: 0.507,
     touchdowns: 1.041,
     casualties: 1.838,
@@ -157,7 +157,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 41.219,
   },
   [RosterName.NORSE]: {
-    games: 20631,
+    games: 20_631,
     wins: 0.537,
     touchdowns: 1.137,
     casualties: 2.057,
@@ -165,7 +165,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 42.644,
   },
   [RosterName.NURGLE]: {
-    games: 11527,
+    games: 11_527,
     wins: 0.429,
     touchdowns: 0.775,
     casualties: 1.93,
@@ -173,7 +173,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 45.989,
   },
   [RosterName.OGRE]: {
-    games: 11263,
+    games: 11_263,
     wins: 0.377,
     touchdowns: 0.759,
     casualties: 2.53,
@@ -189,7 +189,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 39.892,
   },
   [RosterName.ORC]: {
-    games: 27308,
+    games: 27_308,
     wins: 0.538,
     touchdowns: 1.028,
     casualties: 2.054,
@@ -197,7 +197,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 45.939,
   },
   [RosterName.SHAMBLING_UNDEAD]: {
-    games: 21078,
+    games: 21_078,
     wins: 0.566,
     touchdowns: 1.165,
     casualties: 2.247,
@@ -205,7 +205,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 43.065,
   },
   [RosterName.SKAVEN]: {
-    games: 21913,
+    games: 21_913,
     wins: 0.529,
     touchdowns: 1.494,
     casualties: 1.57,
@@ -213,7 +213,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 30.114,
   },
   [RosterName.SNOTLING]: {
-    games: 11383,
+    games: 11_383,
     wins: 0.486,
     touchdowns: 1.012,
     casualties: 2.166,
@@ -221,7 +221,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 25.737,
   },
   [RosterName.TOMB_KINGS]: {
-    games: 14972,
+    games: 14_972,
     wins: 0.513,
     touchdowns: 0.943,
     casualties: 2.13,
@@ -229,7 +229,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 49.124,
   },
   [RosterName.UNDERWORLD_DENIZENS]: {
-    games: 17818,
+    games: 17_818,
     wins: 0.583,
     touchdowns: 1.41,
     casualties: 1.767,
@@ -237,7 +237,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 30.015,
   },
   [RosterName.VAMPIRE]: {
-    games: 14523,
+    games: 14_523,
     wins: 0.433,
     touchdowns: 1.112,
     casualties: 1.323,
@@ -245,7 +245,7 @@ export const RACE_RATES: Partial<Record<RosterName, RaceRates>> = {
     blocks: 30.391,
   },
   [RosterName.WOOD_ELF]: {
-    games: 15757,
+    games: 15_757,
     wins: 0.503,
     touchdowns: 1.362,
     casualties: 1.231,

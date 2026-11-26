@@ -1,7 +1,7 @@
 import { type GameState } from "./GameState";
 import { type Team } from "./Team";
 import { type Player } from "./Player";
-import { GameEventNames } from "./gameEvents/names";
+import type { GameEventNames } from "./gameEvents/names";
 import type { MatchGameEvents } from "./gameEvents/match";
 import type { BlockGameEvents, BlockUIEvents } from "./gameEvents/block";
 import type { PassGameEvents, PassUIEvents } from "./gameEvents/pass";
@@ -9,9 +9,8 @@ import type { KickoffGameEvents, KickoffUIEvents } from "./gameEvents/kickoff";
 import type { NetworkGameEvents, NetworkUIEvents } from "./gameEvents/network";
 import type { CommonUIEvents } from "./gameEvents/ui";
 
-export { GameEventNames };
 export type { ActionType, RefereeCallStep } from "./gameEvents/match";
-export type {  StepPrompt } from "./gameEvents/network";
+export type { StepPrompt } from "./gameEvents/network";
 export type {
   LogEntryCategory,
   AnnouncementKind,
@@ -43,3 +42,5 @@ interface StateEvents {
 }
 
 export type AllEvents = GameEvents & UIEvents & StateEvents;
+
+export { GameEventNames } from "./gameEvents/names";

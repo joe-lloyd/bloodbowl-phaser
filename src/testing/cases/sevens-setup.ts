@@ -194,7 +194,7 @@ const weatherReadyUp: ScenarioCase = {
           `the weather must be rolled once, rolled ${String(rolls.length)} times`
         );
         checkpointAssert(
-          observed.snapshot.weatherReady?.join() === "team1,team2",
+          observed.snapshot.weatherReady?.join(',') === "team1,team2",
           "both coaches must be recorded as ready"
         );
       },

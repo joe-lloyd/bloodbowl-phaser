@@ -119,7 +119,7 @@ function HalfTimeDetails({
         ))}
       </ul>
       <Title level="row" as="h3" className="mt-2">KO recovery</Title>
-      {summary.recovery.length ? (
+      {summary.recovery.length > 0 ? (
         <ul data-testid="half-time-recovery">
           {summary.recovery.map((line) => (
             <li key={line}>{line}</li>

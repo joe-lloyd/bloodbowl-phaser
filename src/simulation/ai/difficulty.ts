@@ -40,7 +40,7 @@ export function coachFor(difficulty: Difficulty): Coach & { close?(): void } {
     budget: BUDGETS[difficulty],
     workers: Math.max(1, Math.min(MAX_WORKERS, cores - 1)),
     createWorker: () =>
-      new Worker(new URL("./searchWorker.ts", import.meta.url), {
+      new Worker(new URL("searchWorker.ts", import.meta.url), {
         type: "module",
       }),
   });

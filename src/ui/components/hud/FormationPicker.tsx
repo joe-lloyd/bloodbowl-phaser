@@ -107,7 +107,7 @@ function useOutsidePress(
       if (inside.some((area) => area.current?.contains(target))) return;
       onPress();
     };
-    document.addEventListener("pointerdown", check, true);
+    document.addEventListener("pointerdown", check, {capture: true});
     window.addEventListener("resize", onPress);
     return () => {
       document.removeEventListener("pointerdown", check, true);

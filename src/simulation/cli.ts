@@ -62,7 +62,7 @@ function parseFlags<T>(
   return options;
 }
 
-const timestamp = () => new Date().toISOString().replace(/[:.]/g, "-");
+const timestamp = () => new Date().toISOString().replaceAll(/[:.]/g, "-");
 
 function parseRunOptions(argv: string[]): RunOptions {
   let recordChosen = false;

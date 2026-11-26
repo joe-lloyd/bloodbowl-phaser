@@ -297,11 +297,11 @@ export function createTeam(
   rosterName: RosterName,
   colors: TeamColors,
   rerollCost: number,
-  startingTreasury = 600000,
+  startingTreasury = 600_000,
   advancementMode?: TeamAdvancementMode
 ): Team {
   return {
-    id: `team-${String(Date.now())}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `team-${String(Date.now())}-${Math.random().toString(36).slice(2, 11)}`,
     name,
     coachName: "",
     rosterName,

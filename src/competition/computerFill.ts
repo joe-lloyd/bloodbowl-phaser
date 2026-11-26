@@ -33,7 +33,7 @@ function nextTemplate({
   );
   const variants = templates.filter((template) => template.rosterName === roster);
   const unused = variants.filter(
-    (template) => !used.some((other) => other.id === template.id)
+    (template) => used.every((other) => other.id !== template.id)
   );
   return randomItem(unused.length > 0 ? unused : variants, random);
 }
