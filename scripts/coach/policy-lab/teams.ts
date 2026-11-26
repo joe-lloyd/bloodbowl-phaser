@@ -197,12 +197,13 @@ export function labInventory(
       team: stabilizeIds(teamFromVariant(v, gameType), v.id),
       developmentBudget: v.sppSpent,
     }));
-  getComputerTeamTemplates({ gameType }).forEach((template, index) => {
+  const templates = getComputerTeamTemplates({ gameType });
+  for (const [index, template] of templates.entries()) {
     const args = { template: template.id, index, gameType };
     retained.push(
       develop({ ...args, random: false }),
       develop({ ...args, random: true })
     );
-  });
+  }
   return retained;
 }

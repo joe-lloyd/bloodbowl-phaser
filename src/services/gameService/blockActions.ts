@@ -309,9 +309,9 @@ async function triggerFollowUp(
     ),
     followCtx
   );
-  followCtx.triggers.forEach((t) => {
+  for (const t of followCtx.triggers) {
     eventBus.emit(GameEventNames.SkillTriggered, t);
-  });
+  }
 }
 
 function fallThroughFollowUp(

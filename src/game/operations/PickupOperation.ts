@@ -13,6 +13,11 @@ import {
   withRerollOffer,
 } from "../skills";
 import { isSecuringBall } from "../rules/secureBall";
+import type { Player } from "../../types/Player";
+
+function pickupTarget(securing: boolean, player: Player): number {
+  return securing ? 2 : player.stats.AG;
+}
 
 function pickupNotification(securing: boolean, success: boolean): string {
   if (securing) return success ? "Ball secured!" : "Failed to secure the ball!";
@@ -77,9 +82,9 @@ export class PickupOperation extends GameOperation {
       ),
       pickupCtx
     );
-    pickupCtx.triggers.forEach((t) => {
+    for (const t of pickupCtx.triggers) {
       eventBus.emit(GameEventNames.SkillTriggered, t);
-    });
+    }
 
     if (pickupCtx.autoFail) {
       eventBus.emit(GameEventNames.DiceRoll, {
@@ -136,7 +141,7 @@ export class PickupOperation extends GameOperation {
         playerId: this.playerId,
         success: true,
         roll,
-        target: securing ? 2 : player.stats.AG,
+        target: pickupTarget(securing, player),
       });
 
       gameService.checkForTouchdown(this.playerId);
@@ -150,7 +155,7 @@ export class PickupOperation extends GameOperation {
         playerId: this.playerId,
         success: false,
         roll,
-        target: securing ? 2 : player.stats.AG,
+        target: pickupTarget(securing, player),
       });
 
       flowManager.add(new BounceOperation(player.gridPosition), true);

@@ -208,11 +208,11 @@ function eliminate(m: number[][], col: number, tiny: number): boolean {
   m[pivot] = nth(m, col);
   m[col] = lead;
   if (Math.abs(nth(lead, col)) < tiny) return false;
-  m.forEach((row, r) => {
-    if (r === col) return;
+  for (const [r, row] of m.entries()) {
+    if (r === col) continue;
     const f = nth(row, col) / nth(lead, col);
     for (let k = col; k < row.length; k++) row[k] = nth(row, k) - f * nth(lead, k);
-  });
+  }
   return true;
 }
 

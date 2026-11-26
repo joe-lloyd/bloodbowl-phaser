@@ -381,15 +381,15 @@ interface Step {
 function extend({ best, fit, required }: Step) {
   const next = required ? best.map(() => -Infinity) : best.slice();
   const choice = best.map(() => -1);
-  best.forEach((base, mask) => {
-    if (base === -Infinity) return;
-    fit.forEach((gain, s) => {
+  for (const [mask, base] of best.entries()) {
+    if (base === -Infinity) continue;
+    for (const [s, gain] of fit.entries()) {
       const into = mask | (1 << s);
-      if (into === mask || base + gain <= (next[into] ?? -Infinity)) return;
+      if (into === mask || base + gain <= (next[into] ?? -Infinity)) continue;
       next[into] = base + gain;
       choice[into] = s;
-    });
-  });
+    }
+  }
   return { next, choice };
 }
 

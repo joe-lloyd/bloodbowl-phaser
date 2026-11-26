@@ -185,7 +185,7 @@ function multipleBlockSteps({
   )
     return;
   const targets = adjacent.filter((p) => p.status === PlayerStatus.ACTIVE);
-  targets.forEach((first, i) => {
+  for (const [i, first] of targets.entries()) {
     for (const second of targets.slice(i + 1)) {
       step(
         {
@@ -197,7 +197,7 @@ function multipleBlockSteps({
         `${describePlayer(player)} blocks ${describePlayer(first)} and ${describePlayer(second)}`
       );
     }
-  });
+  }
 }
 
 function gazeSteps({ player, action, adjacent, step }: StepContext): void {

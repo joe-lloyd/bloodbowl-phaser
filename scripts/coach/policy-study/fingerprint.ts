@@ -39,8 +39,8 @@ export function treeDigest(base: string, paths: string[]): string {
           .update(readFileSync(file));
     }
   }
-  paths.forEach((path) => {
+  for (const path of paths) {
     visit(join(base, path));
-  });
+  }
   return hash.digest("hex");
 }

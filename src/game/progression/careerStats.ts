@@ -30,8 +30,8 @@ export function foldMatchSummaryIntoCareers(
   const byId = new Map(
     teams.flatMap((team) => team.players).map((player) => [player.id, player])
   );
-  summary.players.forEach((stats) => {
+  for (const stats of summary.players) {
     const player = byId.get(stats.playerId);
     if (player) foldMatchStatsIntoCareer(player, stats);
-  });
+  }
 }

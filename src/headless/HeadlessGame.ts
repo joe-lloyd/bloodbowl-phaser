@@ -306,21 +306,21 @@ export class HeadlessGame {
   }
 
   private subscribeToAllEvents(): void {
-    Object.values(GameEventNames).forEach((name) => {
+    for (const name of Object.values(GameEventNames)) {
       this.ctx.eventBus.on(name as any, (data: any) => {
         this.eventLog.push({ name, data });
         this.interceptDecision(name, data);
       });
-    });
+    }
   }
 
   private interceptDecision(name: string, data: any): void {
     switch (name) {
       case GameEventNames.KickoffEventStepStarted:
         this.surfaceKickoffPending();
-        this.decisionWaiters.splice(0).forEach((wake) => {
+        for (const wake of this.decisionWaiters.splice(0)) {
           wake();
-        });
+        }
         return;
       case GameEventNames.KickoffEventStepResolved:
         if (this.pending?.type === "kickoff-event") this.pending = null;
@@ -336,9 +336,9 @@ export class HeadlessGame {
         const requested = requestedDecision(data);
         if (!requested) return;
         this.pending = requested;
-        this.decisionWaiters.splice(0).forEach((wake) => {
+        for (const wake of this.decisionWaiters.splice(0)) {
           wake();
-        });
+        }
         return;
       }
     }

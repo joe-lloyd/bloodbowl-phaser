@@ -289,13 +289,13 @@ export function resetDriveState(parts: GameParts): void {
 
   resetActivationMarks(parts.marks);
 
-  [...team1.players, ...team2.players].forEach((p) => {
+  for (const p of [...team1.players, ...team2.players]) {
     if (p.conditions?.length)
       p.conditions = p.conditions.filter(
         (condition) => condition.type === PlayerCondition.FROG
       );
     if (p.sewerPit) movePlayerToBox(p, { box: "reserves" }, parts.eventBus);
-  });
+  }
 
   parts.eventBus.emit(GameEventNames.RefreshBoard, undefined);
 }

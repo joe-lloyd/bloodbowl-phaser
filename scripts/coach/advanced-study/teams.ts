@@ -132,8 +132,7 @@ export function advancedInventory(gameType: GameType = DEFAULT_GAME_TYPE) {
     });
   }
   for (const replicate of [0, 1]) {
-    templates.forEach((template, index) =>
-      variants.push(
+    for (const [index, template] of templates.entries()) variants.push(
         ...developedVariants({
           templateId: template.id,
           index,
@@ -142,7 +141,7 @@ export function advancedInventory(gameType: GameType = DEFAULT_GAME_TYPE) {
           gameType,
         })
       )
-    );
+    ;
   }
   return variants;
 }

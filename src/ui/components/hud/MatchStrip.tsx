@@ -76,14 +76,14 @@ export function MatchStrip({
       GameEventNames.ActionResolved,
       GameEventNames.TeamUpdated,
     ];
-    events.forEach((event) => {
+    for (const event of events) {
       eventBus.on(event, refresh);
-    });
+    }
     refresh();
     return () => {
-      events.forEach((event) => {
+      for (const event of events) {
         eventBus.off(event, refresh);
-      });
+      }
     };
   }, [eventBus]);
 

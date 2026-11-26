@@ -72,12 +72,12 @@ const finished =
   (fx: MatchFixture) =>
     later(80, () => {
       setScore(fx, 2, 1, true);
-      [
+      for (const { id } of [
         ...fx.team1.players.slice(0, 7),
         ...fx.team2.players.slice(0, 7),
-      ].forEach(({ id }) => {
+      ]) {
         fx.bus.emit(GameEventNames.PlayerActivated, id);
-      });
+      }
       fx.bus.emit(GameEventNames.PhaseChanged, {
         phase: GamePhase.GAME_OVER,
         subPhase: SubPhase.SETUP_KICKING,
@@ -89,11 +89,11 @@ const clearNominees = () => {
   const players = [
     ...document.querySelectorAll<HTMLButtonElement>("section button"),
   ].filter((button) => button.textContent.includes("#"));
-  players.slice(0, 6).forEach((button, index) => {
+  for (const [index, button] of players.slice(0, 6).entries()) {
     later(index * 30, () => {
       button.click();
     });
-  });
+  }
 };
 
 const RESULTS = rows(

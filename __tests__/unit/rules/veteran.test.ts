@@ -26,9 +26,8 @@ function draftOf(templates: PlayerTemplate[]) {
     { primary: 0, secondary: 0 },
     0
   );
-  templates.forEach((template, index) =>
-    team.players.push(createPlayer(template, team.id, index + 1))
-  );
+  for (const [index, template] of templates.entries()) team.players.push(createPlayer(template, team.id, index + 1))
+  ;
   return team;
 }
 

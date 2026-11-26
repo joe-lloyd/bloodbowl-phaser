@@ -241,7 +241,7 @@ remember(pendingDecisionSpy)];
 export function createController(): GameplayInteractionController {
   whenFlowIdle.mockResolvedValue(undefined);
   mockEventBus.removeAllListeners();
-  restoreFixtures.forEach((restore) => { restore(); });
+  for (const restore of restoreFixtures) { restore(); }
   Object.assign(mockPitch, initialPitch);
   Object.assign(mockGameService, serviceSpies);
   mockGameService.getState.mockReturnValue(stateWith({}));

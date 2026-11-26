@@ -66,9 +66,9 @@ describe("BlockResolutionService.getPushOptions", () => {
     );
     expect(tier).toBe("crowd");
     expect(options).toHaveLength(3);
-    options.forEach((o) => {
+    for (const o of options) {
       expect(o.x).toBe(26);
-    });
+    }
   });
 
   it("prefers an open square over the crowd at the sideline", () => {

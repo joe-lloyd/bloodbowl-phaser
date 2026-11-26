@@ -172,13 +172,13 @@ export function useInfoUpdates(eventBus: EventBus): void {
       GameEventNames.DriveEffectExpired,
       GameEventNames.DriveEffectGranted,
     ] as const;
-    events.forEach((event) => {
+    for (const event of events) {
       eventBus.on(event, refresh);
-    });
+    }
     return () => {
-      events.forEach((event) => {
+      for (const event of events) {
         eventBus.off(event, refresh);
-      });
+      }
     };
   }, [eventBus]);
 }

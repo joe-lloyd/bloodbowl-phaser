@@ -34,11 +34,10 @@ async function setup() {
     home(),
     new TeamBuilder().withId("away").withPlayers(2).build(),
   ];
-  teams
-    .flatMap((team) => team.players)
-    .forEach((p) => {
+  const teamPlayers = teams.flatMap((team) => team.players);
+  for (const p of teamPlayers) {
       p.playerName = `Player ${String(p.number)}`;
-    });
+    }
   const services = ServiceContainer.initialize({ eventBus: bus, team1: fixtureValue(teams[0]), team2: fixtureValue(teams[1]) });
   services.gameService.getState().phase = GamePhase.PLAY;
   services.gameService.getState().activeTeamId = "away";

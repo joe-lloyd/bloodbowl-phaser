@@ -60,10 +60,10 @@ describe("sideline exit routes", () => {
       );
       const grid = route.map((point) => worldToBoard(point, project));
       const expected = [patient, [patient[0], lane], [box[0], lane], box];
-      grid.forEach((point, i) => {
+      for (const [i, point] of grid.entries()) {
         expect(point.x).toBeCloseTo(fixtureValue(fixtureValue(expected[i])[0]));
         expect(point.y).toBeCloseTo(fixtureValue(fixtureValue(expected[i])[1]));
-      });
+      }
     }
   );
 
@@ -83,9 +83,9 @@ describe("sideline exit routes", () => {
       project,
     });
     const steps = walkingSteps(route);
-    route.slice(1).forEach((corner) => {
+    for (const corner of route.slice(1)) {
       expect(steps).toContainEqual(corner);
-    });
+    }
     const withStart = [route[0], ...steps];
     for (let i = 1; i < withStart.length; i++) {
       const a = worldToBoard(fixtureValue(withStart[i - 1]), project);
@@ -119,9 +119,9 @@ describe("sideline exit routes", () => {
       [9.5, -2.5],
     ];
     expect(grid).toHaveLength(expected.length);
-    grid.forEach((point, i) => {
+    for (const [i, point] of grid.entries()) {
       expect(point.x).toBeCloseTo(fixtureValue(fixtureValue(expected[i])[0]));
       expect(point.y).toBeCloseTo(fixtureValue(fixtureValue(expected[i])[1]));
-    });
+    }
   });
 });

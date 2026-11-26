@@ -77,9 +77,16 @@ export async function resolveInjuryRoll(
     ctx.triggers.push(ctx.koDowngrade);
   }
   ctx.result = verdict.result;
-  ctx.triggers.forEach((t) => {
+  for (const t of ctx.triggers) {
     eventBus.emit(GameEventNames.SkillTriggered, t);
-  });
+  }
+  return resolvedInjury(ctx, verdict);
+}
+
+function resolvedInjury(
+  ctx: InjuryRollContext,
+  verdict: InjuryVerdict
+): ResolvedInjury {
   return Object.assign(ctx, {
     ...(verdict.casualty === undefined ? {} : { casualty: verdict.casualty }),
     seriousKnockout: verdict.seriousKnockout,

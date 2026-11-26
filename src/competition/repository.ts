@@ -214,9 +214,8 @@ export async function listCompetitions(
     );
   }
   const combined = new Map<string, CompetitionDoc>();
-  [...local, ...remote].forEach((competition) =>
-    combined.set(storageKey(competition.type, competition.id), competition)
-  );
+  for (const competition of [...local, ...remote]) combined.set(storageKey(competition.type, competition.id), competition)
+  ;
   return [...combined.values()]
     .map(normalizeCompetition)
     .sort((a, b) => b.updatedAt - a.updatedAt);

@@ -181,8 +181,8 @@ export abstract class BlockManagerBase {
   protected announce(
     triggers: { playerId: string; skill: string; effect: string }[]
   ): void {
-    triggers.forEach((t) => {
+    for (const t of triggers) {
       this.eventBus.emit(GameEventNames.SkillTriggered, t);
-    });
+    }
   }
 }

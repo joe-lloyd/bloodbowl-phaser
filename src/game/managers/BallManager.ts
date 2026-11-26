@@ -655,9 +655,9 @@ export class BallManager {
     const oppTeam = player.teamId === this.team1.id ? this.team2 : this.team1;
     let standingEnemies = 0;
 
-    oppTeam.players.forEach((p) => {
+    for (const p of oppTeam.players) {
       if (!(p.status === PlayerStatus.ACTIVE && p.gridPosition)) {
-        return;
+        continue;
       }
 
       const dx = Math.abs(p.gridPosition.x - position.x);
@@ -665,7 +665,7 @@ export class BallManager {
       if (dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0)) {
         standingEnemies++;
       }
-    });
+    }
 
     const result = this.pickupController.attemptPickup(player, standingEnemies);
 

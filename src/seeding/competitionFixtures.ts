@@ -164,11 +164,11 @@ function playFixtures(
 function normalizeTimestamps(doc: CompetitionDoc): void {
   doc.createdAt = SEED_EPOCH;
   const sorted = [...doc.fixtures].sort((a, b) => a.id.localeCompare(b.id));
-  sorted.forEach((fixture, index) => {
+  for (const [index, fixture] of sorted.entries()) {
     if (fixture.result) {
       fixture.result.completedAt = SEED_EPOCH + (index + 1) * 60_000;
     }
-  });
+  }
   doc.updatedAt = SEED_EPOCH + sorted.length * 60_000;
 }
 

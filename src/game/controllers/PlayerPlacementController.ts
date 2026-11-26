@@ -246,23 +246,23 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     const playerIds = Array.from(this.placedPlayers.keys());
     this.placedPlayers.clear();
 
-    playerIds.forEach((playerId) => {
+    for (const playerId of playerIds) {
       this.emit(GameEventNames.PlayerRemoved, playerId);
-    });
+    }
   }
 
   loadFormation(formation: FormationPosition[]): void {
     this.clearPlacements();
 
-    formation.forEach((pos, index) => {
-      if (!this.currentTeam) return;
+    for (const [index, pos] of formation.entries()) {
+      if (!this.currentTeam) continue;
       const parsed = Number.parseInt(pos.playerId, 10);
       const rosterIndex = Number.isNaN(parsed) ? index : parsed;
       const player = this.currentTeam.players[rosterIndex];
       if (player) {
         this.placePlayer(player.id, pos.x, pos.y);
       }
-    });
+    }
   }
 
   getPlacements(): FormationPosition[] {
@@ -271,14 +271,15 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
   syncFromTeam(): void {
     this.placedPlayers.clear();
-    this.currentTeam?.players.forEach((player) => {
+    const players = this.currentTeam?.players ?? [];
+    for (const player of players) {
       if (player.gridPosition) {
         this.placedPlayers.set(player.id, {
           playerId: player.id,
           ...player.gridPosition,
         });
       }
-    });
+    }
   }
 
   getPlacedCount(): number {

@@ -125,9 +125,9 @@ describe("graphical match pregame through the protocol", () => {
       (team) => {
         const stored = structuredClone(team);
         stored.firstMatchPlayedAt = 1;
-        stored.players.forEach((player) => {
+        for (const player of stored.players) {
           delete player.teamCaptain;
-        });
+        }
         return stored;
       }
     );

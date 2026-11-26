@@ -19,13 +19,13 @@ export function usePregameInducements(eventBus: EventBus) {
       GameEventNames.DecisionResolved,
       GameEventNames.PhaseChanged,
     ] as const;
-    events.forEach((event) => {
+    for (const event of events) {
       eventBus.on(event, update);
-    });
+    }
     return () => {
-      events.forEach((event) => {
+      for (const event of events) {
         eventBus.off(event, update);
-      });
+      }
     };
   }, [eventBus]);
   const service = ServiceContainer.isInitialized()

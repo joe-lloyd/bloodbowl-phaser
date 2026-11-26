@@ -371,16 +371,16 @@ export function applySnapshotToTeams(
     snapshot.teams.flatMap((t) => t.players.map((p) => [p.id, p] as const))
   );
 
-  teams.forEach((team) => {
-    team.players.forEach((player) => {
+  for (const team of teams) {
+    for (const player of team.players) {
       const snap = byId.get(player.id);
-      if (!snap) return;
+      if (!snap) continue;
       player.status = snap.status;
       if (snap.position) player.gridPosition = { ...snap.position };
       else delete player.gridPosition;
       player.conditions = snap.conditions.map((c) => ({ ...c }));
-    });
-  });
+    }
+  }
 }
 
 export function createMatchSave(input: CreateMatchSaveInput): MatchSave {

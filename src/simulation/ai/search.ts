@@ -250,13 +250,13 @@ function addRoundScores(
   rows: number[][]
 ): void {
   for (const row of rows)
-    alive.forEach((option, column) => {
+    for (const [column, option] of alive.entries()) {
       const score = row[column];
       if (score === undefined)
         throw new RangeError("Playout result omitted an option score");
       option.total += score;
       option.count++;
-    });
+    }
 }
 
 function playoutRound(

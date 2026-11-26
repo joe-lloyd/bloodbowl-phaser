@@ -42,15 +42,15 @@ const vector = (row: Row) => [1, ...FEATURES.map((n) => row.f[n])];
 function normalEquations(xs: number[][], ys: number[]): number[][] {
   const k = nth(xs, 0).length;
   const a = Array.from({ length: k }, () => new Array<number>(k + 1).fill(0));
-  xs.forEach((x, n) => {
-    a.forEach((row, i) => {
+  for (const [n, x] of xs.entries()) {
+    for (const [i, row] of a.entries()) {
       for (let j = 0; j < k; j++) row[j] = nth(row, j) + nth(x, i) * nth(x, j);
       row[k] = nth(row, k) + nth(x, i) * nth(ys, n);
-    });
-  });
-  a.forEach((row, i) => {
+    }
+  }
+  for (const [i, row] of a.entries()) {
     if (i >= 1) row[i] = nth(row, i) + LAMBDA;
-  });
+  }
   return a;
 }
 
@@ -63,11 +63,11 @@ function eliminate(a: number[][], c: number): void {
   const lead = nth(a, pivot);
   a[pivot] = nth(a, c);
   a[c] = lead;
-  a.forEach((row, r) => {
-    if (r === c || nth(lead, c) === 0) return;
+  for (const [r, row] of a.entries()) {
+    if (r === c || nth(lead, c) === 0) continue;
     const m = nth(row, c) / nth(lead, c);
     for (let j = c; j <= k; j++) row[j] = nth(row, j) - m * nth(lead, j);
-  });
+  }
 }
 
 function fit(xs: number[][], ys: number[]): number[] {
@@ -89,9 +89,8 @@ function r2(predicted: number[], rows: Row[]): number {
 
 function ranked(predicted: number[], rows: Row[]): number {
   const bySeed = new Map<number, number[]>();
-  rows.forEach((r, i) =>
-    bySeed.set(r.seed, [...(bySeed.get(r.seed) ?? []), i])
-  );
+  for (const [i, r] of rows.entries()) bySeed.set(r.seed, [...(bySeed.get(r.seed) ?? []), i])
+  ;
   let right = 0;
   let pairs = 0;
   for (const game of bySeed.values())

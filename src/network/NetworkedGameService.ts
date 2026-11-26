@@ -351,12 +351,12 @@ export class NetworkedGameService implements IGameService {
   ): import("../types/SetupTypes").SetupFormationResult {
     const team = this.inner.getTeam(teamId);
     const placedPlayerIds: string[] = [];
-    formation.slice(0, 7).forEach((position, index) => {
+    for (const [index, position] of formation.slice(0, 7).entries()) {
       const rosterIndex = Number.parseInt(position.playerId, 10);
       const player =
         team?.players[Number.isNaN(rosterIndex) ? index : rosterIndex];
       if (player) placedPlayerIds.push(player.id);
-    });
+    }
     this.send({ type: "apply-formation", teamId, formation });
     return {
       placedPlayerIds,

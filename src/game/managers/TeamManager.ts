@@ -25,9 +25,9 @@ export interface TeamRepository {
 function hydrateAll(raw: unknown[]): Team[] {
   return raw.map((entry) => {
     const { team, warnings } = readStoredTeam(entry);
-    warnings.forEach((warning) => {
+    for (const warning of warnings) {
       console.warn(`[TeamManager] ${warning}`);
-    });
+    }
     return team;
   });
 }
@@ -85,9 +85,7 @@ export class TeamLibraryUnavailableError extends Error {
 }
 
 function notifyLibraryListeners(): void {
-  repositoryListeners.forEach((listener) => {
-    listener();
-  });
+  for (const listener of repositoryListeners) listener();
 }
 
 export function setTeamRepository(repository: TeamRepository | null): void {
@@ -137,13 +135,13 @@ export function saveTeams(teams: Team[]): Promise<void> {
   let saved: Promise<void>;
   try {
     assertTeamLibraryLoaded();
-    teams.forEach(clearUnneededExpensiveMistakes);
+    for (const team of teams) clearUnneededExpensiveMistakes(team);
     const stored = new Map(
       activeRepository.loadTeams().map((team) => [team.id, team])
     );
-    teams.forEach((team) => {
+    for (const team of teams) {
       carryGutterUnlock(team, stored.get(team.id));
-    });
+    }
     const locked = teams.map((team) =>
       withStartLock(team, stored.get(team.id))
     );
@@ -161,7 +159,7 @@ export function saveTeams(teams: Team[]): Promise<void> {
 export function loadTeams(): Team[] {
   if (libraryStatus !== "loaded") return [];
   const teams = activeRepository.loadTeams();
-  teams.forEach((team) => {
+  for (const team of teams) {
     clearUnneededExpensiveMistakes(team);
 
     backfillFirstMatchPlayedAt(team);
@@ -171,7 +169,7 @@ export function loadTeams(): Team[] {
     if (isSeedOwned(team) && team.players.every((player) => !player.veteran)) {
       chooseFirstLinemanAsVeteran(team);
     }
-  });
+  }
   return teams;
 }
 

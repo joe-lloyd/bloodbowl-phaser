@@ -123,9 +123,9 @@ export async function next(dialogOpen = false) {
     }
   );
   let best = 0;
-  scores.forEach((score, i) => {
+  for (const [i, score] of scores.entries()) {
     if (score > fixtureValue(scores[best])) best = i;
-  });
+  }
   const choice = { index: best };
   heuristicCoach;
   const top = point.candidates

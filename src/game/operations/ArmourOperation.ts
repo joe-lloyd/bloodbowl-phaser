@@ -62,9 +62,9 @@ export async function foldArmourRoll(
     effectiveAV(roll.player, gameService.getState()),
     armourSkipped
   );
-  ctx.triggers.forEach((t) => {
+  for (const t of ctx.triggers) {
     eventBus.emit(GameEventNames.SkillTriggered, t);
-  });
+  }
   return ctx;
 }
 

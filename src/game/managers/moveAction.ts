@@ -149,9 +149,9 @@ export async function movePlayer(
         ]),
         dodgeCtx
       );
-      dodgeCtx.triggers.forEach((t) => {
+      for (const t of dodgeCtx.triggers) {
         eventBus.emit(GameEventNames.SkillTriggered, t);
-      });
+      }
 
       if (dodgeCtx.escapeCancelled) {
         end = "heldFast";
@@ -180,9 +180,9 @@ export async function movePlayer(
       if (resolvedCtx.success) {
         await foldTrigger("onDodgeSucceeded", vacatedMarkers(run), resolvedCtx);
       }
-      resolvedCtx.triggers.forEach((t) => {
+      for (const t of resolvedCtx.triggers) {
         eventBus.emit(GameEventNames.SkillTriggered, t);
-      });
+      }
 
       diveIntoVacated(eventBus, {
         diverId: resolvedCtx.proneInVacated,

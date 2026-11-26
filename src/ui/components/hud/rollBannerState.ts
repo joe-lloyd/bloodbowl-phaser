@@ -151,7 +151,7 @@ export class RollBook {
     const latest = open.pop();
     if (!latest) return;
     latest.outcome = outcome;
-    open.forEach((t) => (t.outcome = "superseded"));
+    for (const t of open) (t.outcome = "superseded");
   }
 
   text(seq: number, stage: "thrown" | "landed"): RollBannerText | null {

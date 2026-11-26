@@ -15,7 +15,6 @@ import {
 import {
   createPlayer,
   InjuryType,
-  type Player,
 } from "../../../src/types/Player";
 import { Inducement } from "../../../src/types/Inducements";
 import {
@@ -159,12 +158,12 @@ describe("team hydration and the tolerant reader", () => {
     expect(reloaded.name).toBe(team.name);
     expect(reloaded.players).toHaveLength(team.players.length);
     expect(reloaded.teamValue).toBe(calculateTeamValue(reloaded));
-    reloaded.players.forEach((player: Player, index: number) => {
+    for (const [index, player] of reloaded.players.entries()) {
       expect(player.stats).toEqual(fixtureValue(team.players[index]).stats);
       expect(player.skills.map((s) => s.type).sort()).toEqual(
         fixtureValue(team.players[index]).skills.map((s) => s.type).sort()
       );
-    });
+    }
   });
 
   it("re-saves a converted legacy document in the normalized shape", () => {

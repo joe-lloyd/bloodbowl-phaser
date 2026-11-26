@@ -111,12 +111,12 @@ function blendPixels(
   for (let i = 0; i < target.length; i += 4) {
     const alpha = (source[i + 3] ?? 0) / 255;
     if (alpha === 0) continue;
-    channels.forEach((channel, offset) => {
+    for (const [offset, channel] of channels.entries()) {
       const index = i + offset;
       target[index] =
         (source[index] ?? 0) * channel * alpha +
         (target[index] ?? 0) * (1 - alpha);
-    });
+    }
     target[i + 3] = 255 * alpha + (target[i + 3] ?? 0) * (1 - alpha);
   }
 }

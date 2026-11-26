@@ -38,6 +38,66 @@ function opponentIn(group: Variant[], position: number): Variant {
   return opponent;
 }
 
+interface ScheduleOptions {
+  smoke: boolean;
+  seedBase: number;
+  receivingBalance: boolean;
+}
+
+interface PairSlot {
+  a: Variant;
+  b: Variant;
+  pair: string;
+  seed: number;
+}
+
+function pairLegs(
+  { a, b, pair, seed }: PairSlot,
+  options: ScheduleOptions
+): PolicyJob[] {
+  const jobs: PolicyJob[] = [];
+  for (let leg = 0; leg < (options.receivingBalance ? 8 : 4); leg++) {
+    const sides: [Variant, Variant] = leg % 2 ? [b, a] : [a, b];
+    jobs.push({
+      id: `${pair}-${String(leg)}`,
+      pair,
+      seed,
+      leg,
+      cohort: "advanced",
+      coaches: ["planner", "planner"],
+      templates: [sides[0].template, sides[1].template],
+      variantIds: [sides[0].id, sides[1].id],
+      candidateSide: leg % 4 === 0 || leg % 4 === 3 ? 0 : 1,
+      development: a.arm,
+      ...(options.receivingBalance
+        ? { receivingSide: leg < 4 ? (0 as const) : (1 as const) }
+        : {}),
+    });
+  }
+  return jobs;
+}
+
+function groupJobs(
+  group: Variant[],
+  groupIndex: number,
+  options: ScheduleOptions
+): PolicyJob[] {
+  const jobs: PolicyJob[] = [];
+  for (const offset of [11, 37]) {
+    for (const [index, a] of group.entries()) {
+      const b = opponentIn(group, index + offset);
+      const pair = `${options.smoke ? "smoke" : "confirm"}-${String(groupIndex)}-${String(offset)}-${String(index)}`;
+      const seed =
+        (options.smoke ? 12_000_000 : options.seedBase) +
+        groupIndex * 10_000 +
+        offset * 100 +
+        index;
+      jobs.push(...pairLegs({ a, b, pair, seed }, options));
+    }
+  }
+  return jobs;
+}
+
 export function policySchedule(
   variants: Variant[],
   smoke = false,
@@ -49,37 +109,11 @@ export function policySchedule(
     const group = `${v.arm}:${String(v.replicate)}`;
     groups.set(group, [...(groups.get(group) ?? []), v]);
   }
+  const options = { smoke, seedBase, receivingBalance };
   const jobs: PolicyJob[] = [];
   let groupIndex = 0;
   for (const group of groups.values()) {
-    for (const offset of [11, 37])
-      group.forEach((a, index) => {
-        const b = opponentIn(group, index + offset);
-        const pair = `${smoke ? "smoke" : "confirm"}-${String(groupIndex)}-${String(offset)}-${String(index)}`;
-        const seed =
-          (smoke ? 12_000_000 : seedBase) +
-          groupIndex * 10_000 +
-          offset * 100 +
-          index;
-        for (let leg = 0; leg < (receivingBalance ? 8 : 4); leg++) {
-          const sides: [Variant, Variant] = leg % 2 ? [b, a] : [a, b];
-          jobs.push({
-            id: `${pair}-${String(leg)}`,
-            pair,
-            seed,
-            leg,
-            cohort: "advanced",
-            coaches: ["planner", "planner"],
-            templates: [sides[0].template, sides[1].template],
-            variantIds: [sides[0].id, sides[1].id],
-            candidateSide: leg % 4 === 0 || leg % 4 === 3 ? 0 : 1,
-            development: a.arm,
-            ...(receivingBalance
-              ? { receivingSide: leg < 4 ? (0 as const) : (1 as const) }
-              : {}),
-          });
-        }
-      });
+    jobs.push(...groupJobs(group, groupIndex, options));
     groupIndex++;
   }
   return jobs;

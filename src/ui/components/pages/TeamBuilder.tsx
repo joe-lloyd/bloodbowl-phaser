@@ -289,9 +289,9 @@ export function TeamBuilder() {
       if (loadRequestedTeam()) return;
       const stops: (() => void)[] = [];
       const stopWaiting = () => {
-        stops.forEach((stop) => {
+        for (const stop of stops) {
           stop();
-        });
+        }
       };
       const retry = () => {
         if (loadRequestedTeam()) stopWaiting();
@@ -481,9 +481,9 @@ export function TeamBuilder() {
     const [nextTeam, ...remaining] = searchParams.getAll("nextTeam");
     if (postMatch && nextTeam) {
       searchParams.delete("nextTeam");
-      remaining.forEach((id) => {
+      for (const id of remaining) {
         searchParams.append("nextTeam", id);
-      });
+      }
       navigate(`/build-team/${encodeURIComponent(nextTeam)}?${searchParams}`, {
         replace: true,
       });

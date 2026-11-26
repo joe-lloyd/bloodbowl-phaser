@@ -130,12 +130,12 @@ export class GameScene extends Phaser.Scene {
     this.raisedSprite = null;
 
     if (clearPlayerPositions) {
-      this.team1.players.forEach((p) => {
+      for (const p of this.team1.players) {
         delete p.gridPosition;
-      });
-      this.team2.players.forEach((p) => {
+      }
+      for (const p of this.team2.players) {
         delete p.gridPosition;
-      });
+      }
     }
 
     if (clearPlayerPositions && this.ballSprite) {
@@ -305,9 +305,9 @@ export class GameScene extends Phaser.Scene {
     this.diceLog?.dispose();
     this.diceLog = null;
 
-    this.busSubscriptions.forEach((unsubscribe) => {
+    for (const unsubscribe of this.busSubscriptions) {
       unsubscribe();
-    });
+    }
     this.busSubscriptions = [];
 
     if (this.gameplayController) {
@@ -343,9 +343,9 @@ export class GameScene extends Phaser.Scene {
       });
       this.dugouts.clear();
     }
-    this.staffTerraces.forEach((terrace) => {
+    for (const terrace of this.staffTerraces) {
       terrace.destroy();
-    });
+    }
     this.staffTerraces = [];
 
     this.pitch?.destroy();
@@ -400,9 +400,9 @@ export class GameScene extends Phaser.Scene {
       d.destroy();
     });
     this.dugouts.clear();
-    this.staffTerraces.forEach((terrace) => {
+    for (const terrace of this.staffTerraces) {
       terrace.destroy();
-    });
+    }
     this.staffTerraces = [];
     this.createDugouts();
   }

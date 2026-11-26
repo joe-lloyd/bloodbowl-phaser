@@ -66,9 +66,9 @@ export class Confirmations {
   }
 
   dropAll(): void {
-    [...this.open].forEach((stopListening) => {
+    for (const stopListening of this.open) {
       stopListening();
-    });
+    }
   }
 }
 

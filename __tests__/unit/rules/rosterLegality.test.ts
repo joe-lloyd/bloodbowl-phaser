@@ -19,9 +19,9 @@ function teamWith(templates: PlayerTemplate[]) {
     primary: 0,
     secondary: 0,
   }, humanRoster.rerollCost);
-  templates.forEach((template, index) => {
+  for (const [index, template] of templates.entries()) {
     team.players.push(createPlayer(template, team.id, index + 1));
-  });
+  }
   return team;
 }
 

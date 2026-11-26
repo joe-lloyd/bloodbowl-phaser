@@ -42,7 +42,7 @@ type AnnouncementSetter = Dispatch<SetStateAction<Announcement | null>>;
 type Timers = RefObject<ReturnType<typeof setTimeout>[]>;
 
 function clearAnnouncementTimers(timers: Timers): void {
-  timers.current.forEach(clearTimeout);
+  for (const timer of timers.current) clearTimeout(timer);
   timers.current = [];
 }
 

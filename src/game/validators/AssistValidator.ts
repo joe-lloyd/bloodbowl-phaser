@@ -28,12 +28,12 @@ export abstract class AssistValidator {
     );
     const enemies = allPlayers.filter((p) => p.teamId !== subject.teamId);
 
-    teammates.forEach((teammate) => {
-      if (!this.isAdjacent(teammate, opponent)) return;
+    for (const teammate of teammates) {
+      if (!this.isAdjacent(teammate, opponent)) continue;
 
-      if (!this.hasTackleZone(teammate)) return;
+      if (!this.hasTackleZone(teammate)) continue;
 
-      if (hasCondition(teammate, PlayerCondition.EYE_GOUGED)) return;
+      if (hasCondition(teammate, PlayerCondition.EYE_GOUGED)) continue;
 
       const markers = enemies.filter(
         (enemy) =>
@@ -54,7 +54,7 @@ export abstract class AssistValidator {
       foldCountAssists(ctx, [teammate, ...markers]);
 
       if (!ctx.negated) assists.push(teammate);
-    });
+    }
 
     return assists;
   }

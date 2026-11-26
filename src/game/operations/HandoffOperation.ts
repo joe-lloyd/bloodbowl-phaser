@@ -45,9 +45,9 @@ export class HandoffOperation extends GameOperation {
       triggers: [],
     };
     await foldTrigger("onHandoffDeclared", [passer], ctx);
-    ctx.triggers.forEach((t) => {
+    for (const t of ctx.triggers) {
       eventBus.emit(GameEventNames.SkillTriggered, t);
-    });
+    }
 
     if (ctx.refused) {
       eventBus.emit(

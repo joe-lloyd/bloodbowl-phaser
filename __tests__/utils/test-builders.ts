@@ -34,9 +34,9 @@ export class TeamBuilder {
   withId(id: string): this {
     this.team.id = id;
 
-    this.team.players.forEach((player) => {
+    for (const player of this.team.players) {
       player.teamId = id;
-    });
+    }
     return this;
   }
 

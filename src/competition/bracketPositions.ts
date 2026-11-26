@@ -25,9 +25,12 @@ export class BracketPositions {
       .filter((fixture) => fixture.round === index.firstRound)
       .sort((a, b) => a.order - b.order);
     for (const side of ["left", "right"] as const) {
-      this.openingFixtures
-        .filter((fixture) => this.sideOf(fixture) === side)
-        .forEach((fixture, row) => this.leafRow.set(fixture.id, row));
+      const sideFixtures = this.openingFixtures.filter(
+        (fixture) => this.sideOf(fixture) === side
+      );
+      for (const [row, fixture] of sideFixtures.entries()) {
+        this.leafRow.set(fixture.id, row);
+      }
     }
   }
 

@@ -501,9 +501,8 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
         response.snapshot,
         !!response.pendingDecision
       );
-      violations.forEach((v) =>
-        report("invariant", v.rule, v.message, response.snapshot)
-      );
+      for (const v of violations) report("invariant", v.rule, v.message, response.snapshot)
+      ;
     }
   }
 

@@ -661,9 +661,9 @@ export class CameraController {
   }
 
   public destroy(): void {
-    this.unsubscribers.forEach((off) => {
+    for (const off of this.unsubscribers) {
       off();
-    });
+    }
     this.unsubscribers = [];
     this.scene.scale.off("resize", this.onResize, this);
     this.cancelCameraWork();

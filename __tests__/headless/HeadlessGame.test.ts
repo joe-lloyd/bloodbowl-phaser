@@ -77,13 +77,13 @@ describe("HeadlessGame action protocol", () => {
       seed: 24,
     });
     const nominees = game.ctx.team1.players.slice(0, 6);
-    nominees.forEach((player, index) => {
+    for (const [index, player] of nominees.entries()) {
       game.ctx.eventBus.emit(GameEventNames.PlayerPlaced, {
         playerId: player.id,
         x: index,
         y: 1,
       });
-    });
+    }
 
     const mvp = await game.execute({
       type: "award-mvp",

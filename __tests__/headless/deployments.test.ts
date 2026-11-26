@@ -33,7 +33,7 @@ function dwarfs() {
       createPlayer(template, team.id, team.players.length + 1)
     );
   };
-  [
+  for (const position of [
     "Dwarf Lineman",
     "Dwarf Lineman",
     "Dwarf Lineman",
@@ -41,7 +41,9 @@ function dwarfs() {
     "Dwarf Runner",
     "Dwarf Blitzer",
     "Troll Slayer",
-  ].forEach(hire);
+  ]) {
+    hire(position);
+  }
   return team;
 }
 

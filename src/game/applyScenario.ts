@@ -10,39 +10,70 @@ import {
   emptyMatchInducements,
 } from "./inducements/matchInducements";
 
-function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
-  placements.forEach((p) => {
-    const player = team.players[p.playerIndex];
-    if (!player) return;
-    player.gridPosition = { x: p.x, y: p.y };
-    player.status = p.status || PlayerStatus.ACTIVE;
-    if (p.stats) Object.assign(player.stats, p.stats);
-    if (p.veteran) player.veteran = true;
-    if (p.teamCaptain) {
-      player.teamCaptain = true;
-      if (!hasSkill(player.skills, SkillType.PRO)) {
-        player.skills.push({
-          ...getSkill(SkillType.PRO),
-          scenarioGranted: true,
-        });
-      }
-    }
-    if (p.conditions?.length) {
-      player.conditions = p.conditions.map((type) => ({ type }));
-    } else {
-      delete player.conditions;
-    }
+type Player = Team["players"][number];
+type SkillEntry = NonNullable<PlayerPlacement["skills"]>[number];
 
-    p.skills?.forEach((entry) => {
-      const type = typeof entry === "object" ? entry.type : entry;
-      const parameter = typeof entry === "object" ? entry.parameter : undefined;
-      if (hasSkill(player.skills, type)) return;
-      player.skills.push({
-        ...getSkill(type, parameter),
-        scenarioGranted: true,
-      });
+function grantCaptaincy(player: Player): void {
+  player.teamCaptain = true;
+  if (!hasSkill(player.skills, SkillType.PRO)) {
+    player.skills.push({
+      ...getSkill(SkillType.PRO),
+      scenarioGranted: true,
     });
+  }
+}
+
+function grantScenarioSkill(player: Player, entry: SkillEntry): void {
+  const type = typeof entry === "object" ? entry.type : entry;
+  const parameter = typeof entry === "object" ? entry.parameter : undefined;
+  if (hasSkill(player.skills, type)) return;
+  player.skills.push({
+    ...getSkill(type, parameter),
+    scenarioGranted: true,
   });
+}
+
+function setConditions(
+  player: Player,
+  conditions: PlayerPlacement["conditions"]
+): void {
+  if (conditions?.length) {
+    player.conditions = conditions.map((type) => ({ type }));
+  } else {
+    delete player.conditions;
+  }
+}
+
+function applyPlacement(player: Player, p: PlayerPlacement): void {
+  player.gridPosition = { x: p.x, y: p.y };
+  player.status = p.status || PlayerStatus.ACTIVE;
+  if (p.stats) Object.assign(player.stats, p.stats);
+  if (p.veteran) player.veteran = true;
+  if (p.teamCaptain) grantCaptaincy(player);
+  setConditions(player, p.conditions);
+  const skills = p.skills ?? [];
+  for (const entry of skills) grantScenarioSkill(player, entry);
+}
+
+function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
+  for (const p of placements) {
+    const player = team.players[p.playerIndex];
+    if (!player) continue;
+    applyPlacement(player, p);
+  }
+}
+
+function clearScenarioGrants(team: Team): void {
+  for (const player of team.players) {
+    player.skills = player.skills.filter((s) => !s.scenarioGranted);
+    delete player.teamCaptain;
+  }
+}
+
+function applyRerolls(scenario: Scenario, team1: Team, team2: Team): void {
+  const { teamRerolls } = scenario.setup;
+  if (teamRerolls?.team1 !== undefined) team1.rerolls = teamRerolls.team1;
+  if (teamRerolls?.team2 !== undefined) team2.rerolls = teamRerolls.team2;
 }
 
 function scenarioMeasures(
@@ -53,10 +84,11 @@ function scenarioMeasures(
   const measures = scenario.setup.measures;
   if (!measures) return undefined;
   const state = { ...emptyMatchInducements(), rolled: true };
-  for (const [team, held] of [
+  const teamMeasures = [
     [team1, measures.team1 ?? []],
     [team2, measures.team2 ?? []],
-  ] as const) {
+  ] as const;
+  for (const [team, held] of teamMeasures) {
     state.measures[team.id] = held.map((measure) => ({
       measure,
       used: measure === DesperateMeasure.MAGIC_SCROLL,
@@ -66,6 +98,25 @@ function scenarioMeasures(
     }
   }
   return state;
+}
+
+function scenarioOptionalFields(
+  scenario: Scenario,
+  team1: Team,
+  team2: Team
+): Partial<Pick<GameState, "matchInducements" | "bribes">> {
+  const matchInducements = scenarioMeasures(scenario, team1, team2);
+  return {
+    ...(matchInducements ? { matchInducements } : {}),
+    ...(scenario.setup.bribes
+      ? {
+          bribes: {
+            [team1.id]: scenario.setup.bribes.team1 ?? 0,
+            [team2.id]: scenario.setup.bribes.team2 ?? 0,
+          },
+        }
+      : {}),
+  };
 }
 
 function ballSquare(scenario: Scenario): { x: number; y: number } | null {
@@ -90,15 +141,9 @@ export function applyScenario(
   SetupManager.sanitizeTeam(team1);
   SetupManager.sanitizeTeam(team2);
 
-  [team1, team2].forEach((team) => {
-    team.players.forEach((player) => {
-      player.skills = player.skills.filter((s) => !s.scenarioGranted);
-      delete player.teamCaptain;
-    });
-  });
-  const { teamRerolls } = scenario.setup;
-  if (teamRerolls?.team1 !== undefined) team1.rerolls = teamRerolls.team1;
-  if (teamRerolls?.team2 !== undefined) team2.rerolls = teamRerolls.team2;
+  clearScenarioGrants(team1);
+  clearScenarioGrants(team2);
+  applyRerolls(scenario, team1, team2);
 
   applyPlacements(team1, scenario.setup.team1Placements);
   applyPlacements(team2, scenario.setup.team2Placements);
@@ -108,8 +153,6 @@ export function applyScenario(
 
   const turnNumber =
     scenario.setup.turn ?? (scenario.setup.phase === GamePhase.KICKOFF ? 0 : 2);
-
-  const matchInducements = scenarioMeasures(scenario, team1, team2);
 
   return {
     phase: scenario.setup.phase,
@@ -136,14 +179,6 @@ export function applyScenario(
     weather: scenario.setup.weather ?? "Nice",
     ballPosition: ballSquare(scenario),
     activePlayer: null,
-    ...(matchInducements ? { matchInducements } : {}),
-    ...(scenario.setup.bribes
-      ? {
-          bribes: {
-            [team1.id]: scenario.setup.bribes.team1 ?? 0,
-            [team2.id]: scenario.setup.bribes.team2 ?? 0,
-          },
-        }
-      : {}),
+    ...scenarioOptionalFields(scenario, team1, team2),
   };
 }

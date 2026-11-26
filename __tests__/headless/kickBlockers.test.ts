@@ -69,10 +69,10 @@ describe("an online reload during a later drive's Charge", () => {
     gs.startGame("team1");
     gs.resetDriveState();
     for (const [team, x] of [[game.ctx.team1, 5], [game.ctx.team2, 14]] as const)
-      team.players.slice(0, 7).forEach((player, index) => {
+      for (const [index, player] of team.players.slice(0, 7).entries()) {
         player.gridPosition = { x, y: index + 2 };
         player.status = "Active";
-      });
+      }
     const state = gs.getState();
     state.phase = GamePhase.KICKOFF;
     state.subPhase = SubPhase.ROLL_KICKOFF;

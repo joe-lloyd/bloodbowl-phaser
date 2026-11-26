@@ -43,9 +43,9 @@ export function chooseVeteran(team: Team, playerId: string): EditDecision {
       reason: "The Veteran must be a player with the Lineman keyword.",
     };
   }
-  team.players.forEach((player) => {
+  for (const player of team.players) {
     setVeteran(player, player === chosen);
-  });
+  }
   return { allowed: true };
 }
 
@@ -55,7 +55,7 @@ export function chooseFirstLinemanAsVeteran(team: Team): void {
     ? team.players.find((player) => isLinemanPosition(player.keywords))
     : undefined;
   if (!first && drafted) return;
-  team.players.forEach((player) => {
+  for (const player of team.players) {
     setVeteran(player, player === first);
-  });
+  }
 }

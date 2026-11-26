@@ -29,9 +29,9 @@ beforeEach(async () => {
     .withName("Orcs")
     .withPlayers(1)
     .build();
-  [...home.players, ...away.players].forEach((p) => {
+  for (const p of [...home.players, ...away.players]) {
     p.playerName = `Player ${String(p.number)}`;
-  });
+  }
   homeIds = home.players.map((p) => p.id);
   home.rerolls = 3;
   away.rerolls = 2;

@@ -69,11 +69,11 @@ function freshGame(table: KickoffTableId, seed: number, watch: { onDelay: Watch 
   const team2 = TeamFactory.createTestTeam(RosterName.ORC, "Two", 2);
   for (const [index, team] of [team1, team2].entries()) {
     team.id = `team${String(index + 1)}`;
-    team.players.forEach((player, at) => {
+    for (const [at, player] of team.players.entries()) {
       player.id = `${team.id}-${String(at)}`;
       player.teamId = team.id;
       player.skills = [];
-    });
+    }
     SetupManager.sanitizeTeam(team);
     team.rerolls = 0;
     for (const [at, square] of line(index === 0).entries()) {

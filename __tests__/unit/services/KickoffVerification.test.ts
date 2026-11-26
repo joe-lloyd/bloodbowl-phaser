@@ -52,17 +52,14 @@ describe("Kickoff Verification", () => {
       [4, 6],
       [4, 8],
     ];
-    left.forEach(([x, y], index) =>
-      gameService.placePlayer(fixtureValue(team1.players[index]).id, fixtureValue(x), fixtureValue(y))
-    );
+    for (const [index, [x, y]] of left.entries()) gameService.placePlayer(fixtureValue(team1.players[index]).id, fixtureValue(x), fixtureValue(y))
+    ;
     gameService.confirmSetup("t1");
     await Promise.resolve();
 
-    left
-      .map(([x, y]) => [19 - fixtureValue(x), y])
-      .forEach(([x, y], index) =>
-        gameService.placePlayer(fixtureValue(team2.players[index]).id, fixtureValue(x), fixtureValue(y))
-      );
+    const mirrored = left.map(([x, y]) => [19 - fixtureValue(x), y]);
+    for (const [index, [x, y]] of mirrored.entries()) gameService.placePlayer(fixtureValue(team2.players[index]).id, fixtureValue(x), fixtureValue(y))
+      ;
     gameService.confirmSetup("t2");
   });
 

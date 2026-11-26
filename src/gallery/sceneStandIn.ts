@@ -73,9 +73,9 @@ function setupActions({ bus, fx, active }: SetupDesk) {
       gameService.resolveSetupConcession(active().id, true);
     },
     clear: () => {
-      active().players.forEach(({ id }) => {
+      for (const { id } of active().players) {
         gameService.removePlayer(id);
-      });
+      }
     },
     load: (name = "") => {
       const formation = manager.getFormation(

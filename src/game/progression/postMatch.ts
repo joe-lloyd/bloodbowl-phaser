@@ -8,6 +8,27 @@ import {
 } from "./advancementModes";
 import { mustAdvance } from "./progression";
 
+function queueAdvancement(
+  team: Team,
+  matchId: string,
+  player: Team["players"][number]
+): void {
+  team.pendingDevelopment ??= [];
+  const already = team.pendingDevelopment.some(
+    (entry) =>
+      entry.kind === "advanced-league-advancement" &&
+      entry.playerId === player.id
+  );
+  if (!already) {
+    team.pendingDevelopment.push({
+      id: `pending-${matchId}-${player.id}`,
+      kind: "advanced-league-advancement",
+      playerId: player.id,
+      createdAt: Date.now(),
+    });
+  }
+}
+
 export function recordPendingDevelopment(
   team: Team,
   matchId: string,
@@ -33,22 +54,10 @@ export function recordPendingDevelopment(
     !team.advancementMode ||
     team.advancementMode === "advanced-league"
   ) {
-    team.players.filter(mustAdvance).forEach((player) => {
-      team.pendingDevelopment ??= [];
-      const already = team.pendingDevelopment.some(
-        (entry) =>
-          entry.kind === "advanced-league-advancement" &&
-          entry.playerId === player.id
-      );
-      if (!already) {
-        team.pendingDevelopment.push({
-          id: `pending-${matchId}-${player.id}`,
-          kind: "advanced-league-advancement",
-          playerId: player.id,
-          createdAt: Date.now(),
-        });
-      }
-    });
+    for (const player of team.players) {
+      if (!mustAdvance(player)) continue;
+      queueAdvancement(team, matchId, player);
+    }
   }
   team.teamValue = calculateTeamValue(team);
 

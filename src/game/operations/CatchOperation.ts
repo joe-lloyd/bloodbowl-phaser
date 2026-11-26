@@ -63,9 +63,9 @@ export async function catchRoll(
     ]),
     catchCtx
   );
-  catchCtx.triggers.forEach((t) => {
+  for (const t of catchCtx.triggers) {
     eventBus.emit(GameEventNames.SkillTriggered, t);
-  });
+  }
   if (catchCtx.autoFail) return false;
 
   const agilityTest = new AgilityTestOperation(

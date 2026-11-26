@@ -79,12 +79,12 @@ function positions(snapshot: {
   teams: { players: { position: { x: number; y: number } | null }[] }[];
 }): Record<string, { x: number; y: number } | null> {
   const out: Record<string, { x: number; y: number } | null> = {};
-  snapshot.teams.forEach((team, teamIndex) => {
-    team.players.forEach((player, playerIndex) => {
+  for (const [teamIndex, team] of snapshot.teams.entries()) {
+    for (const [playerIndex, player] of team.players.entries()) {
       out[`team${String(teamIndex + 1)}:${String(playerIndex)}`] =
         player.position;
-    });
-  });
+    }
+  }
   return out;
 }
 
@@ -92,11 +92,11 @@ function statuses(snapshot: {
   teams: { players: { status: string }[] }[];
 }): Record<string, string> {
   const out: Record<string, string> = {};
-  snapshot.teams.forEach((team, teamIndex) => {
-    team.players.forEach((player, playerIndex) => {
+  for (const [teamIndex, team] of snapshot.teams.entries()) {
+    for (const [playerIndex, player] of team.players.entries()) {
       out[`team${String(teamIndex + 1)}:${String(playerIndex)}`] =
         player.status;
-    });
-  });
+    }
+  }
   return out;
 }

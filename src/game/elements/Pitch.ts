@@ -246,33 +246,33 @@ export class Pitch {
 
   public drawTackleZones(zones: { x: number; y: number }[]): void {
     this.clearLayer("tackle_zone");
-    zones.forEach((z) => {
+    for (const z of zones) {
       this.diamond({ x: z.x, y: z.y }, { color: 0xff0000, alpha: 0.2 }).setName(
         "tackle_zone"
       );
-    });
+    }
   }
 
   public drawSprintRisks(risks: { x: number; y: number }[]): void {
     this.clearLayer("sprint_risk");
-    risks.forEach((risk) => {
+    for (const risk of risks) {
       this.diamond(
         { x: risk.x, y: risk.y },
         { color: 0xffff00, alpha: 0.3 }
       ).setName("sprint_risk");
-    });
+    }
   }
 
   public drawDodgeRisks(risks: { x: number; y: number }[]): void {
     this.clearLayer("dodge_risk");
-    risks.forEach(({ x, y }) => {
+    for (const { x, y } of risks) {
       const shape = this.diamond(
         { x: x, y: y },
         { color: 0xff6600, alpha: 0.3, inset: 0.04 }
       );
       shape.setStrokeStyle(2, 0xff6600);
       shape.setName("dodge_risk");
-    });
+    }
   }
 
   private addRollTag(
@@ -395,9 +395,9 @@ export class Pitch {
     }
     this.readout.add(graphics);
 
-    path.forEach((step) => {
+    for (const step of path) {
       this.movementDot(step, rolls);
-    });
+    }
     this.drawDodgeRisks(
       rolls.filter((r) => r.type === "dodge").map((r) => r.square)
     );
@@ -449,14 +449,13 @@ export class Pitch {
       [ours, 0x4ade80],
       [theirs, 0xf87171],
     ] as const) {
-      squares.forEach((square) =>
-        this.diamond(
+      for (const square of squares) this.diamond(
           { x: square.x, y: square.y },
           { color: color, alpha: 0.12, inset: 0.08 }
         )
           .setStrokeStyle(3, color)
           .setName("assist_ring")
-      );
+      ;
     }
   }
 
@@ -472,11 +471,11 @@ export class Pitch {
   }
 
   private clearTweenedLayer(prefix: string): void {
-    this.container.getAll().forEach((child) => {
-      if (!child.name.startsWith(prefix)) return;
+    for (const child of this.container.getAll()) {
+      if (!child.name.startsWith(prefix)) continue;
       this.scene.tweens.killTweensOf(child);
       child.destroy();
-    });
+    }
   }
 
   public visibleHighlights(): GridPosition[] {
@@ -501,11 +500,11 @@ export class Pitch {
   }
 
   public clearLayer(name: string): void {
-    this.children().forEach((child) => {
+    for (const child of this.children()) {
       if (child.name === name) {
         child.destroy();
       }
-    });
+    }
   }
 
   public clearHover(): void {
@@ -523,12 +522,12 @@ export class Pitch {
     ranges.forEach((squares, passType) => {
       const colorConfig = colors[passType];
       if (!colorConfig) return;
-      squares.forEach((square) => {
+      for (const square of squares) {
         this.diamond(
           { x: square.x, y: square.y },
           { color: colorConfig.color, alpha: colorConfig.alpha }
         ).setName("pass_zone");
-      });
+      }
     });
   }
 
@@ -630,20 +629,27 @@ export class Pitch {
       this.container.add(band);
     }
 
-    zoneSquares.forEach((square) => {
+    this.drawInterceptSquares(zoneSquares, threatSquares);
+  }
+
+  private drawInterceptSquares(
+    zoneSquares: GridPosition[],
+    threatSquares: GridPosition[]
+  ): void {
+    for (const square of zoneSquares) {
       this.diamond(
         { x: square.x, y: square.y },
         { color: 0xff5555, alpha: 0.22 }
       ).setName("pass_intercept");
-    });
-    threatSquares.forEach((square) => {
+    }
+    for (const square of threatSquares) {
       const shape = this.diamond(
         { x: square.x, y: square.y },
         { color: 0xff0000, alpha: 0.45 }
       );
       shape.setStrokeStyle(3, 0xff3333, 1);
       shape.setName("pass_intercept");
-    });
+    }
   }
 
   public drawInterceptionRolls(
@@ -674,14 +680,14 @@ export class Pitch {
 
   public drawHandoffTargets(targets: { x: number; y: number }[]): void {
     this.clearLayer("handoff_target");
-    targets.forEach((t) => {
+    for (const t of targets) {
       const shape = this.diamond(
         { x: t.x, y: t.y },
         { color: 0x22c55e, alpha: 0.35, inset: 0.04 }
       );
       shape.setStrokeStyle(2, 0x22c55e, 0.9);
       shape.setName("handoff_target");
-    });
+    }
   }
 
   public getPixelPosition(

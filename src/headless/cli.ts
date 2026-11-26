@@ -7,6 +7,8 @@ import { SCENARIOS } from "../data/scenarios";
 import { GamePhase } from "../types/GameState";
 import { GameConfig } from "../config/GameConfig";
 import type { RuleConfig, ScriptResult } from "../game/rules-lab";
+import type * as RuleLab from "../game/rules-lab";
+import type * as RuleScenarios from "../data/ruleScenarios";
 
 interface CliOptions {
   scenario?: string | undefined;
@@ -78,34 +80,41 @@ function printHelp(): void {
 const PITCH_WIDTH = GameConfig.PITCH_WIDTH;
 const PITCH_HEIGHT = GameConfig.PITCH_HEIGHT;
 
+function placePlayerCell(
+  grid: string[][],
+  mark: string,
+  p: PlayerSnapshot
+): void {
+  if (!p.position) return;
+  const { x, y } = p.position;
+  if (y < 0 || y >= PITCH_HEIGHT || x < 0 || x >= PITCH_WIDTH) return;
+  const downed = p.status === "Prone" || p.status === "Stunned" ? "*" : "";
+  const cell = `${mark}${String(p.number)}${downed}`;
+  const row = grid[y];
+  if (!row) return;
+  row[x] = cell.length > 2 ? cell.slice(0, 3) : ` ${cell}`;
+}
+
+function markBallCell(grid: string[][], ball: { x: number; y: number }): void {
+  const { x, y } = ball;
+  if (y < 0 || y >= PITCH_HEIGHT || x < 0 || x >= PITCH_WIDTH) return;
+  const row = grid[y];
+  const existing = row?.[x];
+  if (row && existing !== undefined)
+    row[x] = existing.trim() === "." ? " o" : existing.trim() + "o";
+}
+
 function renderPitch(snapshot: GameSnapshot): string {
   const grid: string[][] = Array.from({ length: PITCH_HEIGHT }, () =>
     Array.from({ length: PITCH_WIDTH }, () => " .")
   );
 
-  snapshot.teams.forEach((team, teamIndex) => {
+  for (const [teamIndex, team] of snapshot.teams.entries()) {
     const mark = teamIndex === 0 ? "A" : "B";
-    team.players.forEach((p: PlayerSnapshot) => {
-      if (!p.position) return;
-      const { x, y } = p.position;
-      if (y < 0 || y >= PITCH_HEIGHT || x < 0 || x >= PITCH_WIDTH) return;
-      const downed = p.status === "Prone" || p.status === "Stunned" ? "*" : "";
-      const cell = `${mark}${String(p.number)}${downed}`;
-      const row = grid[y];
-      if (!row) return;
-      row[x] = cell.length > 2 ? cell.slice(0, 3) : ` ${cell}`;
-    });
-  });
-
-  if (snapshot.ballPosition) {
-    const { x, y } = snapshot.ballPosition;
-    if (y >= 0 && y < PITCH_HEIGHT && x >= 0 && x < PITCH_WIDTH) {
-      const row = grid[y];
-      const existing = row?.[x];
-      if (row && existing !== undefined)
-        row[x] = existing.trim() === "." ? " o" : existing.trim() + "o";
-    }
+    for (const p of team.players) placePlayerCell(grid, mark, p);
   }
+
+  if (snapshot.ballPosition) markBallCell(grid, snapshot.ballPosition);
 
   const header =
     ' '.repeat(4) +
@@ -160,30 +169,38 @@ function parseTextCommand(line: string): unknown | null {
   }
 }
 
-async function main(): Promise<void> {
-  const options = parseArgs(process.argv.slice(2));
-
-  const scenario = options.scenario
-    ? SCENARIOS.find((s) => s.id === options.scenario)
-    : undefined;
-  if (options.scenario && !scenario) {
+function resolveScenario(id: string | undefined) {
+  const scenario = id ? SCENARIOS.find((s) => s.id === id) : undefined;
+  if (id && !scenario) {
     process.stderr.write(
-      `Unknown scenario '${options.scenario}'. Available: ${SCENARIOS.map((s) => s.id).join(", ")}\n`
+      `Unknown scenario '${id}'. Available: ${SCENARIOS.map((s) => s.id).join(", ")}\n`
     );
     process.exit(1);
   }
+  return scenario;
+}
+
+const toStderr =
+  (label: string) =>
+  (...args: unknown[]) =>
+    process.stderr.write(
+      `${label} ${args.map((a) => (typeof a === "string" ? a : safeJson(a))).join(" ")}\n`
+    );
+
+function redirectConsoleToStderr(): void {
+  console.log = toStderr("[log]");
+  console.info = toStderr("[info]");
+  console.warn = toStderr("[warn]");
+  console.error = toStderr("[error]");
+}
+
+async function main(): Promise<void> {
+  const options = parseArgs(process.argv.slice(2));
+
+  const scenario = resolveScenario(options.scenario);
 
   if (options.json || options.script || options.rule) {
-    const toStderr =
-      (label: string) =>
-      (...args: unknown[]) =>
-        process.stderr.write(
-          `${label} ${args.map((a) => (typeof a === "string" ? a : safeJson(a))).join(" ")}\n`
-        );
-    console.log = toStderr("[log]");
-    console.info = toStderr("[info]");
-    console.warn = toStderr("[warn]");
-    console.error = toStderr("[error]");
+    redirectConsoleToStderr();
   }
 
   if (options.rule) {
@@ -214,8 +231,7 @@ async function main(): Promise<void> {
   await runTextMode(game);
 }
 
-type RuleEntry =
-  (typeof import("../data/ruleScenarios"))["RULE_SCENARIOS"][number];
+type RuleEntry = (typeof RuleScenarios.RULE_SCENARIOS)[number];
 
 function ruleConfigs(
   options: CliOptions,
@@ -275,6 +291,34 @@ function reportSeed(
 const errorText = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+function writeLine(line: string): void {
+  process.stdout.write(line + "\n");
+}
+
+async function reportOutcomes(
+  config: RuleConfig,
+  options: CliOptions,
+  lab: {
+    findSeed: typeof RuleLab.findSeed;
+    skillEvents: (result: ScriptResult) => string;
+  }
+): Promise<boolean> {
+  let failed = false;
+  for (const outcome of selected(config.outcomes, options.outcome)) {
+    try {
+      const found = await lab.findSeed(config, outcome.id);
+      outcome.verify?.(found.result);
+      writeLine(`  ✓ ${outcome.id}: seed ${String(found.seed)} — ${outcome.name}`);
+      const events = lab.skillEvents(found.result);
+      if (events) writeLine(events);
+    } catch (error) {
+      failed = true;
+      writeLine(`  ✗ ${outcome.id}: ${errorText(error)}`);
+    }
+  }
+  return failed;
+}
+
 async function runRuleMode(options: CliOptions): Promise<void> {
   const { RULE_SCENARIOS } = await import("../data/ruleScenarios");
   const { runRuleConfig, findSeed } = await import("../game/rules-lab");
@@ -282,38 +326,28 @@ async function runRuleMode(options: CliOptions): Promise<void> {
 
   const { entry, configs } = ruleConfigs(options, RULE_SCENARIOS);
 
-  const out = (line: string) => process.stdout.write(line + "\n");
   let failed = false;
 
-  for (const config of configs) {
-    out(`\n=== ${entry.skill}: ${config.name} (${config.id})`);
-    out(`    ${config.description}`);
+  const skillEvents = (result: ScriptResult) =>
+    skillEventLines(result, [
+      GameEventNames.SkillTriggered,
+      GameEventNames.RerollUsed,
+    ]);
 
-    const skillEvents = (result: ScriptResult) =>
-      skillEventLines(result, [
-        GameEventNames.SkillTriggered,
-        GameEventNames.RerollUsed,
-      ]);
+  for (const config of configs) {
+    writeLine(`\n=== ${entry.skill}: ${config.name} (${config.id})`);
+    writeLine(`    ${config.description}`);
 
     if (options.seed !== undefined) {
       const result = await runRuleConfig(config, options.seed);
-      reportSeed(config, options.seed, result, out);
+      reportSeed(config, options.seed, result, writeLine);
       const events = skillEvents(result);
-      if (events) out(events);
+      if (events) writeLine(events);
       continue;
     }
 
-    for (const outcome of selected(config.outcomes, options.outcome)) {
-      try {
-        const found = await findSeed(config, outcome.id);
-        outcome.verify?.(found.result);
-        out(`  ✓ ${outcome.id}: seed ${String(found.seed)} — ${outcome.name}`);
-        const events = skillEvents(found.result);
-        if (events) out(events);
-      } catch (error) {
-        failed = true;
-        out(`  ✗ ${outcome.id}: ${errorText(error)}`);
-      }
+    if (await reportOutcomes(config, options, { findSeed, skillEvents })) {
+      failed = true;
     }
   }
   process.exit(failed ? 1 : 0);

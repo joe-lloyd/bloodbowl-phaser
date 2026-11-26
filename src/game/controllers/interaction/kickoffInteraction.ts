@@ -198,9 +198,9 @@ function clearKickoffHighlights(c: GameplayInteractionController): void {
     c.scene.unhighlightPlayer(playerId);
   }
   c.kickoffHighlightedPlayerIds.clear();
-  c.kickoffSquareMarkers.forEach((marker) => {
+  for (const marker of c.kickoffSquareMarkers) {
     marker.destroy();
-  });
+  }
   c.kickoffSquareMarkers = [];
 }
 

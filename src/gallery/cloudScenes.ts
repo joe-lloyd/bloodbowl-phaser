@@ -181,10 +181,10 @@ export function openGamesList(): void {
 
 export function otherCoaches(): void {
   signedIn();
-  [1, 2, 3].forEach((index) => {
+  for (const index of [1, 2, 3]) {
     const team = teamAt(index);
     putDocument(`users/${RIVAL}/teams/${team.id}`, dehydrateTeam(team));
-  });
+  }
 }
 
 export const CLOUD_LEAGUE = "/leagues/gallery-online";

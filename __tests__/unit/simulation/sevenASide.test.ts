@@ -15,12 +15,13 @@ function fielding(count: number, swarmingRoll?: number): GameSnapshot {
       id: `${team.id}-extra-${String(team.players.length)}`,
     });
   }
-  team.players.forEach((player, index) => {
+  for (const [index, player] of team.players.entries()) {
     player.position = index < count ? { x: 1, y: index } : null;
-  });
-  fixtureValue(snapshot.teams[1]).players.forEach((player) => {
+  }
+  const awayPlayers = fixtureValue(snapshot.teams[1]).players;
+  for (const player of awayPlayers) {
     player.position = null;
-  });
+  }
   if (swarmingRoll !== undefined) {
     snapshot.setup = {
       ...(snapshot.setup ?? {

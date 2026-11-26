@@ -20,21 +20,21 @@ function sent(commands: (keyof typeof serviceSpies)[], events: string[]): string
   const entries: Entry[] = [];
   for (const name of commands) {
     const mock = serviceSpies[name];
-    mock.mock.calls.forEach((args: unknown[], i: number) =>
+    for (const [i, args] of mock.mock.calls.entries()) {
       entries.push({
         order: fixtureValue(mock.mock.invocationCallOrder[i]),
         call: `${name}(${args.map((a) => JSON.stringify(a)).join(", ")})`,
-      })
-    );
+      });
+    }
   }
-  eventBusSpies.emit.mock.calls.forEach((args: unknown[], i: number) => {
+  for (const [i, args] of eventBusSpies.emit.mock.calls.entries()) {
     const [event, payload] = args;
     if (typeof event === "string" && events.includes(event))
       entries.push({
         order: fixtureValue(eventBusSpies.emit.mock.invocationCallOrder[i]),
         call: `${event} ${JSON.stringify(payload ?? null)}`,
       });
-  });
+  }
   return entries.sort((a, b) => a.order - b.order).map((e) => e.call);
 }
 

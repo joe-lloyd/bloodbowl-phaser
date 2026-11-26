@@ -202,9 +202,9 @@ export class MomentQueue {
       this.eventBus.emit(GameEventNames.UI_PresentMoment, null);
     }
     this.running = false;
-    this.idleWaiters.splice(0).forEach((resolve) => {
+    for (const resolve of this.idleWaiters.splice(0)) {
       resolve();
-    });
+    }
   }
 
   dispose(): void {
@@ -221,9 +221,9 @@ export class MomentQueue {
     this.eventBus.off(GameEventNames.TouchbackAwarded, this.touchbackAwarded);
     this.eventBus.off(GameEventNames.BallPlaced, this.ballPlaced);
     this.finishBeat?.();
-    this.idleWaiters.splice(0).forEach((resolve) => {
+    for (const resolve of this.idleWaiters.splice(0)) {
       resolve();
-    });
+    }
     if (queues.get(this.eventBus) === this) queues.delete(this.eventBus);
   }
 }

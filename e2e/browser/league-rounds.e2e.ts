@@ -39,8 +39,9 @@ function season(allPlayed = false) {
     game.status = "complete";
     game.result = { homeScore: 2, awayScore: 1, completedAt: 0 };
   };
-  if (allPlayed) fixtures.forEach(play);
-  else play(fixtureValue(fixtures[0]));
+  if (allPlayed) {
+    for (const fixture of fixtures) play(fixture);
+  } else play(fixtureValue(fixtures[0]));
   const league: LeagueDoc = {
     id: "rounds",
     type: "league",

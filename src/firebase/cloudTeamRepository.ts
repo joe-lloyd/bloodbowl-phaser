@@ -46,9 +46,9 @@ async function fetchCloudTeams(uid: string): Promise<Team[]> {
   const snapshot = await getDocs(teamsCollection(uid));
   return readEach(snapshot.docs, (d) => {
     const { team, warnings } = readCloudTeam(d.data());
-    warnings.forEach((warning) => {
+    for (const warning of warnings) {
       console.warn(`[cloudTeamRepository] ${warning}`);
-    });
+    }
     return team;
   });
 }
@@ -127,9 +127,9 @@ export class CloudTeamRepository implements TeamRepository {
   constructor(uid: string, initialTeams: Team[]) {
     this.uid = uid;
     this.cache = [...initialTeams];
-    initialTeams.forEach((team) => {
+    for (const team of initialTeams) {
       this.lastWritten.set(team.id, documentText(team));
-    });
+    }
   }
 
   loadTeams(): Team[] {
@@ -193,7 +193,7 @@ export class CloudTeamRepository implements TeamRepository {
     const changed = teams.filter((team) => this.claimWrite(team));
     const copies = structuredClone(changed);
     const removed = [...previousIds].filter((id) => !nextIds.has(id));
-    removed.forEach((id) => this.lastWritten.delete(id));
+    for (const id of removed) this.lastWritten.delete(id);
     const written = this.writing.then(() =>
       Promise.allSettled([
         ...copies.map((team, index) =>
