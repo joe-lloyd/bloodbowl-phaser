@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
 import { Title } from "../componentWarehouse/HudTitle";
-import {
-  GAME_TYPES,
-  GAME_TYPE_LABELS,
-} from "../../../game/variants/gameTypes";
 import { useNavigate } from "react-router-dom";
 import {
   cx,
@@ -24,7 +20,7 @@ import {
 import { useCoachProfile } from "../../hooks/useCoachProfile";
 import { getActiveMatchCode, fetchLobby } from "../../../firebase/lobby";
 import { InviteInbox } from "../social/InviteInbox";
-import { FriendsMenuButton } from "../social/LobbyFriends";
+import { MenuGroups, MenuLayout } from "./MenuBoard";
 import { isAdminUser } from "../../../firebase/admin";
 import {
   clearMatchSave,
@@ -43,7 +39,7 @@ interface ActiveMatch {
 
 export function MainMenu() {
   const navigate = useNavigate();
-  const { user, ready, onlineAvailable, confirmLink, signOut } = useAuth();
+  const { user, ready, onlineAvailable } = useAuth();
 
   const [signingIn, setSigningIn] = useState<SignInRequest | null>(null);
   const signIn = () =>
@@ -62,7 +58,6 @@ export function MainMenu() {
     signingIn.resolve(user);
     setSigningIn(null);
   }, [user, signingIn]);
-  const coach = useCoachProfile(user);
   const [authError, setAuthError] = useState<string | null>(null);
   const [activeMatch, setActiveMatch] = useState<ActiveMatch | null>(null);
   const [localMatch, setLocalMatch] = useState<MatchSaveDescription | null>(
@@ -141,175 +136,41 @@ export function MainMenu() {
   };
 
   const onlineDisabled = !onlineAvailable || !ready;
+  const admin = isAdminUser(user);
+
+  const menu = (
+    <MenuGroups
+      admin={admin}
+      uid={user?.uid ?? null}
+      onlineAvailable={onlineAvailable}
+      onlineDisabled={onlineDisabled}
+      onOpen={(path) => void navigate(path)}
+      onOnline={(path) => void handleOnline(path)}
+    />
+  );
+
+  const side = (
+    <>
+      <ResumeBanners
+        activeMatch={activeMatch}
+        localMatch={localMatch}
+        onOpen={navigate}
+        onResumeLocal={resumeLocal}
+        onDiscardLocal={discardLocal}
+      />
+      {user && <InviteInbox uid={user.uid} />}
+      <CoachPanel
+        user={user}
+        onlineAvailable={onlineAvailable}
+        authError={authError}
+        onSignIn={() => void signIn().catch(() => {})}
+      />
+    </>
+  );
 
   return (
     <PageShell width="wide" className="flex flex-col justify-center">
-      <div className="mx-auto flex w-full max-w-5xl flex-col items-center py-6 text-center phone:py-0">
-        <Title level="hero" as="h1" className="mt-2 phone:mt-0">
-          BLOOD BOWL
-        </Title>
-        <p className="mt-3 phone:mt-1 font-hud-label text-hud-base font-bold uppercase tracking-[0.08em] text-hud-dim">
-          {GAME_TYPES.map((gameType) => GAME_TYPE_LABELS[gameType]).join(" · ")}
-        </p>
-        <div
-          aria-hidden
-          className="mt-4 h-[3px] w-56 bg-gradient-to-r from-transparent via-hud-blood to-transparent"
-        />
-
-        <ResumeBanners
-          activeMatch={activeMatch}
-          localMatch={localMatch}
-          onOpen={navigate}
-          onResumeLocal={resumeLocal}
-          onDiscardLocal={discardLocal}
-        />
-        {user && <InviteInbox uid={user.uid} className="mt-4 max-w-2xl" />}
-
-        <div
-          className={cx(
-            "mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 phone:mt-4 phone:gap-2 phone:landscape:grid-cols-3",
-            isAdminUser(user) ? "lg:grid-cols-5" : "lg:grid-cols-4"
-          )}
-        >
-          <MenuSection title="Play">
-            <HudButton
-              variant="primary"
-              size="lg"
-              block
-              onClick={() => navigate("/select-team")}
-            >
-              Play Local
-            </HudButton>
-            <HudButton block onClick={() => navigate("/build-team")}>
-              Teams
-            </HudButton>
-          </MenuSection>
-
-          <MenuSection title="Competitions">
-            <HudButton block onClick={() => navigate("/leagues")}>
-              Leagues
-            </HudButton>
-            <HudButton block onClick={() => navigate("/tournaments")}>
-              Tournaments
-            </HudButton>
-          </MenuSection>
-
-          <MenuSection
-            title="Online"
-            note={onlineAvailable ? undefined : "Needs Firebase config"}
-          >
-            <HudButton
-              block
-              onClick={() => handleOnline("/online/host")}
-              disabled={onlineDisabled}
-              title={onlineAvailable ? undefined : ONLINE_HINT}
-            >
-              Host Game
-            </HudButton>
-            <HudButton
-              block
-              onClick={() => handleOnline("/online/join")}
-              disabled={onlineDisabled}
-              title={onlineAvailable ? undefined : ONLINE_HINT}
-            >
-              Join Game
-            </HudButton>
-            <FriendsMenuButton
-              uid={user?.uid ?? null}
-              disabled={onlineDisabled}
-              title={onlineAvailable ? undefined : ONLINE_HINT}
-              onClick={() => void handleOnline("/friends")}
-            />
-          </MenuSection>
-
-          {isAdminUser(user) && (
-            <MenuSection title="Extras">
-              <HudButton
-                variant="ghost"
-                block
-                onClick={() => navigate("/sand-box")}
-              >
-                Sandbox
-              </HudButton>
-              <HudButton
-                variant="ghost"
-                block
-                onClick={() => void navigate("/kickoff-playground")}
-              >
-                Kick-off Playground
-              </HudButton>
-              <HudButton
-                variant="ghost"
-                block
-                onClick={() => navigate("/music")}
-              >
-                Sound Test
-              </HudButton>
-            </MenuSection>
-          )}
-
-          {isAdminUser(user) && (
-            <MenuSection title="Club">
-              <HudButton block onClick={() => void navigate("/clubs")}>
-                My Clubs
-              </HudButton>
-              <HudButton block onClick={() => void navigate("/clubs/new")}>
-                Found a Club
-              </HudButton>
-            </MenuSection>
-          )}
-        </div>
-
-        <div
-          className={cx(
-            "mt-10 flex w-full flex-col items-center gap-3 phone:mt-4",
-            onlineAvailable && SIGNED_IN_CONTROLS_HEIGHT
-          )}
-        >
-          {user ? (
-            <>
-              <CoachNameEditor
-                value={coach.coachName ?? ""}
-                placeholder={coach.effectiveName}
-                onSave={(name) => void coach.save(name)}
-              />
-              {user.emailVerified ? (
-                <span className="text-hud-sm text-hud-mute">
-                  Signed in. Your account name stays private.
-                </span>
-              ) : (
-                <ConfirmEmail
-                  link={confirmLink}
-                  onResend={() => void sendVerificationLink()}
-                />
-              )}
-              <HudButton
-                variant="ghost"
-                size="sm"
-                onClick={() => void signOut()}
-              >
-                Sign out
-              </HudButton>
-            </>
-          ) : (
-            onlineAvailable && (
-              <HudButton
-                variant="secondary"
-                onClick={() => void signIn().catch(() => {})}
-              >
-                Sign in
-              </HudButton>
-            )
-          )}
-          {authError && (
-            <Notice tone="bad" role="alert">
-              {authError}
-            </Notice>
-          )}
-        </div>
-
-        <InstallGame />
-      </div>
+      <MenuLayout menu={menu} side={side} />
       {signingIn && (
         <SignInDialog
           key={signingIn.id}
@@ -324,8 +185,6 @@ export function MainMenu() {
     </PageShell>
   );
 }
-
-const ONLINE_HINT = "Online play requires Firebase config (see .env.example)";
 
 class SignInCancelled extends Error {}
 
@@ -368,7 +227,73 @@ function ConfirmEmail({
   );
 }
 
-const SIGNED_IN_CONTROLS_HEIGHT = "min-h-[110px]";
+function CoachPanel({
+  user,
+  onlineAvailable,
+  authError,
+  onSignIn,
+}: {
+  user: AuthUser | null;
+  onlineAvailable: boolean;
+  authError: string | null;
+  onSignIn: () => void;
+}) {
+  return (
+    <Panel
+      as="section"
+      aria-label="Coach"
+      className="flex flex-col items-center gap-3 p-4 text-center"
+    >
+      {user ? (
+        <SignedInCoach user={user} />
+      ) : (
+        <span className="text-hud-sm text-hud-dim">
+          {onlineAvailable
+            ? "Sign in to host and join online games."
+            : "Online play is off in this build."}
+        </span>
+      )}
+      {!user && onlineAvailable && (
+        <HudButton variant="secondary" onClick={onSignIn}>
+          Sign in
+        </HudButton>
+      )}
+      {authError && (
+        <Notice tone="bad" role="alert">
+          {authError}
+        </Notice>
+      )}
+      <InstallGame />
+    </Panel>
+  );
+}
+
+function SignedInCoach({ user }: { user: AuthUser }) {
+  const { confirmLink, signOut } = useAuth();
+  const coach = useCoachProfile(user);
+  return (
+    <>
+      <CoachNameEditor
+        value={coach.coachName ?? ""}
+        placeholder={coach.effectiveName}
+        onSave={(name) => void coach.save(name)}
+      />
+      {user.emailVerified ? (
+        <span className="text-hud-sm text-hud-mute">
+          Signed in. Your account name stays private.
+        </span>
+      ) : (
+        <ConfirmEmail
+          link={confirmLink}
+          onResend={() => void sendVerificationLink()}
+        />
+      )}
+      <HudButton variant="ghost" size="sm" onClick={() => void signOut()}>
+        Sign out
+      </HudButton>
+    </>
+  );
+}
 
 function CoachNameEditor({
   value,
@@ -443,7 +368,7 @@ function ResumeBanners({
 }) {
   if (!activeMatch && !localMatch) return null;
   return (
-    <div className="mt-8 flex w-full max-w-2xl flex-col gap-3">
+    <div className="flex w-full flex-col gap-3">
       {activeMatch && (
         <button
           onClick={() => {
@@ -489,27 +414,5 @@ function ResumeBanners({
         </Panel>
       )}
     </div>
-  );
-}
-
-function MenuSection({
-  title,
-  note,
-  children,
-}: {
-  title: string;
-  note?: string | undefined;
-  children: React.ReactNode;
-}) {
-  return (
-    <Panel as="section" className="flex flex-col gap-3 p-4 phone:gap-2 phone:p-3 phone:portrait:grid phone:portrait:grid-cols-2">
-      <div className="flex items-baseline phone:portrait:col-span-2 justify-between gap-2 border-b border-hud-gold/20 pb-2">
-        <Title level="section" as="h2">
-          {title}
-        </Title>
-        {note && <span className="hud-label text-hud-mute">{note}</span>}
-      </div>
-      {children}
-    </Panel>
   );
 }
