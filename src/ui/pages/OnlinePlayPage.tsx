@@ -88,8 +88,8 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         matchRef.current = created;
         setActiveOnlineMatch(created);
         setMatch(created);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      } catch (error_) {
+        if (!cancelled) setError(error_ instanceof Error ? error_.message : String(error_));
       }
     })();
 
@@ -128,11 +128,13 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
 
   useEffect(() => {
     if (!user || !lobby || leftRef.current) return;
-    if (lobby.status === "finished" || lobby.status === "abandoned") {
-      leftRef.current = true;
-      void clearActiveMatchCode(user.uid);
-      navigate("/", { replace: true });
+    if (!(lobby.status === "finished" || lobby.status === "abandoned")) {
+      return;
     }
+
+    leftRef.current = true;
+    void clearActiveMatchCode(user.uid);
+    navigate("/", { replace: true });
   }, [lobby, user, navigate]);
 
   const leave = () => {

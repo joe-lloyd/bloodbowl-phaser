@@ -58,8 +58,8 @@ beforeEach(() => {
   rendered.stages.length = 0;
   let seed = 42;
   vi.spyOn(Math, "random").mockImplementation(() => {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    return seed / 4294967296;
+    seed = (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0;
+    return seed / 4_294_967_296;
   });
   vi.spyOn(performance, "now").mockImplementation(() => now);
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {

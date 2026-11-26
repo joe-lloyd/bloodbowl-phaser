@@ -14,5 +14,5 @@ export const frameUrl = (id: string, size: FrameSize) =>
 export const slug = (text: string) =>
   text
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "");

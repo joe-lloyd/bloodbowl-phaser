@@ -338,11 +338,11 @@ function BracketSlot({
     <div
       className={cx(
         "flex justify-between gap-2 py-0.5 font-hud-body text-hud-sm",
-        !entrant
-          ? "italic text-hud-mute"
-          : isEliminated
+        entrant
+          ? isEliminated
             ? "text-hud-dim line-through"
-            : "text-hud-bone",
+            : "text-hud-bone"
+          : "italic text-hud-mute",
         isWinner && "font-bold"
       )}
     >

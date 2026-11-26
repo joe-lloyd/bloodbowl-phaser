@@ -358,7 +358,7 @@ function ActionButton(props: ActionButtonContextProps) {
   const variant = blockReplacement ?? half;
   const testId = variant
     ? `action-${action ?? "block"}-${variant}`
-    : `action-${action ?? label.toLowerCase().replace(/\s+/g, "-")}`;
+    : `action-${action ?? label.toLowerCase().replaceAll(/\s+/g, "-")}`;
   const rendered = { button, press, testId, tone, props };
   return compact ? (
     <CompactActionButton {...rendered} />

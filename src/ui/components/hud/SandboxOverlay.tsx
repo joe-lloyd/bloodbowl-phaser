@@ -142,10 +142,12 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
     const outcome = config?.outcomes.find(
       (candidate) => candidate.id === value
     );
-    if (outcome?.exampleSeed !== undefined && config) {
-      setSeedInput(String(outcome.exampleSeed));
-      load(config.id, outcome.exampleSeed, outcome.id);
+    if (outcome?.exampleSeed === undefined || !config) {
+      return;
     }
+
+    setSeedInput(String(outcome.exampleSeed));
+    load(config.id, outcome.exampleSeed, outcome.id);
   };
 
   const parsedSeed = (): number | undefined => {

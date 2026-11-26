@@ -82,7 +82,7 @@ export async function runTune(options: TuneOptions): Promise<number> {
   }[] = [];
   const idle: ChildProcess[] = [];
   const feed = () => {
-    while (idle.length && queue.length) {
+    while (idle.length > 0 && queue.length > 0) {
       const child = idle.pop()!;
       const next = queue.shift()!;
       running.set(child, next.done);

@@ -379,14 +379,14 @@ export function validateScenarioCases(
     const regressionId = scenarioCase.regression?.id;
     if (regressionId) {
       const owner = seenRegressionIds.get(regressionId);
-      if (owner !== undefined) {
+      if (owner === undefined) {
+        seenRegressionIds.set(regressionId, scenarioCase.id);
+      } else {
         issues.push({
           caseId: scenarioCase.id,
           field: "regression.id",
           message: `duplicate regression id '${regressionId}' — already on '${owner}'`,
         });
-      } else {
-        seenRegressionIds.set(regressionId, scenarioCase.id);
       }
     }
 

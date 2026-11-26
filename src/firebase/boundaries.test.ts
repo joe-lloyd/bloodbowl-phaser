@@ -43,7 +43,7 @@ function lobby() {
     status: "lobby",
     settings: {
       turnSeconds: 120,
-      timeoutBankMs: 300000,
+      timeoutBankMs: 300_000,
       progressionEnabled: false,
     },
     players: {

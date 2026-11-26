@@ -132,16 +132,12 @@ function layersFor(id: string): ExecutionLayer[] {
 }
 
 export function buildInventory(): InventoryEntry[] {
-  const entries: InventoryEntry[] = [];
-
-  for (const scenario of SCENARIOS) {
-    entries.push({
+  const entries: InventoryEntry[] = Array.from(SCENARIOS, scenario => ({
       id: `sandbox-scenario:${scenario.id}`,
       kind: "sandbox-scenario",
       label: scenario.name,
       requiredLayers: ["engine"],
-    });
-  }
+    }));
 
   for (const entry of RULE_SCENARIOS) {
     for (const config of entry.configs) {

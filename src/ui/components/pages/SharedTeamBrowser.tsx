@@ -47,9 +47,7 @@ export function SharedTeamBrowser() {
         }
       />
 
-      {!user ? (
-        <EmptyState title="Sign in to browse other coaches' teams." />
-      ) : error ? (
+      {user ? error ? (
         <Notice tone="bad" role="alert">
           {error}
         </Notice>
@@ -94,6 +92,8 @@ export function SharedTeamBrowser() {
             </Panel>
           ))}
         </div>
+      ) : (
+        <EmptyState title="Sign in to browse other coaches' teams." />
       )}
     </PageShell>
   );

@@ -163,7 +163,7 @@ function playoutOver({
 }
 
 const sampleSeed = (base: number, sample: number) =>
-  (Math.imul(base ^ (sample + 1), 0x9e3779b1) >>> 0) % 2147483647 || 1;
+  (Math.imul(base ^ (sample + 1), 0x9e3779b1) >>> 0) % 2_147_483_647 || 1;
 
 export interface PlayoutRound {
   root: GameFork;
@@ -289,7 +289,7 @@ async function searchAmong<T extends SearchOption>(
       ? undefined
       : Date.now() + budget.deadlineMs;
   const late = () => deadlineAt !== undefined && Date.now() > deadlineAt;
-  const base = context.rng.int(2147483647);
+  const base = context.rng.int(2_147_483_647);
   const baseline: ScoredOption<T> = { option: options[0], total: 0, count: 0 };
   let alive = [
     baseline,
@@ -399,7 +399,7 @@ async function executeCandidate(
   let refused = false;
   for (const command of candidate.commands) {
     const result = await game.execute(command);
-    refused = refused || !result.ok;
+    refused ||= !result.ok;
   }
   return refused;
 }

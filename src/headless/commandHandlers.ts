@@ -196,9 +196,9 @@ async function chooseInducement(
   const validSpell =
     spell === undefined || spell === "fireball" || spell === "zap";
   const square =
-    cmd.x !== undefined && cmd.y !== undefined
-      ? { square: { x: cmd.x, y: cmd.y } }
-      : {};
+    cmd.x === undefined || cmd.y === undefined
+      ? {}
+      : { square: { x: cmd.x, y: cmd.y } };
   refuseUnless(
     host,
     pending,

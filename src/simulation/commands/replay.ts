@@ -21,7 +21,7 @@ export async function replay(argv: string[]): Promise<number> {
     );
   const flag = (name: string) => {
     const i = argv.indexOf(name);
-    return i >= 0 ? argv[i + 1] : undefined;
+    return i === -1 ? undefined : argv[i + 1];
   };
   const recording = parseRecording(fs.readFileSync(file, "utf8"));
   const stepFlag = flag("--step") ?? flag("--save-at");
@@ -113,8 +113,10 @@ async function writeOutputs(
   }
 
   const saveOut = flag("--save-out");
-  if (saveOut) {
-    fs.writeFileSync(saveOut, serializeMatchSave(result.game.matchSave()));
-    process.stdout.write(`browser save written to ${saveOut}\n`);
+  if (!saveOut) {
+    return;
   }
+
+  fs.writeFileSync(saveOut, serializeMatchSave(result.game.matchSave()));
+  process.stdout.write(`browser save written to ${saveOut}\n`);
 }

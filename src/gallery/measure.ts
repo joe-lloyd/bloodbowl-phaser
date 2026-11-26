@@ -52,7 +52,7 @@ export function readFact(specimen: Element, fact: Fact): string {
   const style = view.getComputedStyle(element);
   const { measure } = fact;
   if (measure === "fontFamily")
-    return style.fontFamily.split(",")[0]?.replace(/"/g, "") ?? "none";
+    return style.fontFamily.split(",", 1)[0]?.replaceAll('"', "") ?? "none";
   const styled = STYLED.find((name) => name === measure);
   if (styled) return hex(style[styled]);
   const box = element.getBoundingClientRect();

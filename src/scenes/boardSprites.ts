@@ -206,7 +206,7 @@ function reportBoardStateConflicts(scene: GameScene): void {
     scene.gameService.getState(),
     allPlayers(scene)
   );
-  if (conflicts.length) {
+  if (conflicts.length > 0) {
     console.warn("[GameScene] board state conflicts:", conflicts);
   }
 }

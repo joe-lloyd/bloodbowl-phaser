@@ -50,7 +50,9 @@ export function LeagueRounds({
 
   return (
     <>
-      {plan.next !== undefined ? (
+      {plan.next === undefined ? (
+        nextRoundTools && <div className="mb-6">{nextRoundTools}</div>
+      ) : (
         <NextRound
           round={plan.next}
           fixtures={roundFixtures(competition.fixtures, plan.next)}
@@ -60,8 +62,6 @@ export function LeagueRounds({
           renderActions={renderActions}
           tools={nextRoundTools}
         />
-      ) : (
-        nextRoundTools && <div className="mb-6">{nextRoundTools}</div>
       )}
 
       {plan.upcoming.length > 0 && (

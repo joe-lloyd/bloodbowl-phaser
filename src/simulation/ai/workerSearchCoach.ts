@@ -99,7 +99,7 @@ async function workerPlayouts(
         root,
         us,
         jobs: share.map(({ job }) => job),
-        ...(deadlineAt !== undefined ? { deadlineAt } : {}),
+        ...(deadlineAt === undefined ? {} : { deadlineAt }),
         ...(weights ? { weights } : {}),
       });
       share.forEach(({ index }, k) => {

@@ -93,7 +93,7 @@ export function noteFor(a: Activation): string {
     "stand-up": "stands up",
   }[a.intent.kind];
   const rolls = a.rolls.map((r) => rollLabel(ROLL_NAMES[r.kind], r.target));
-  return rolls.length ? `${what} (${rolls.join(", ")})` : what;
+  return rolls.length > 0 ? `${what} (${rolls.join(", ")})` : what;
 }
 
 export function availableActions(candidates: readonly Candidate[]): Available {
@@ -343,7 +343,7 @@ function retainedStep({
   }
   if (key(actor.gridPosition) === key(intent.route.to)) {
     const end = candidates.findIndex((c) => c.kind === END_ACTIVATION);
-    return end < 0 ? null : { index: end, note: noteFor(plan) };
+    return end === -1 ? null : { index: end, note: noteFor(plan) };
   }
   const c = activationContext({
     board: board,
@@ -582,7 +582,7 @@ function kickoffTurnChoice(
   }
   const done = acting ? END_ACTIVATION : "end-turn";
   const index = candidates.findIndex((c) => c.kind === done);
-  return index < 0 ? null : { index };
+  return index === -1 ? null : { index };
 }
 
 interface ContinueChoiceArgs {
@@ -624,7 +624,7 @@ function continueChoice({
   const index = plan ? nextStep(plan, candidates) : -1;
   if (plan && index >= 0) return { index, note: noteFor(plan) };
   const end = candidates.findIndex((c) => c.kind === END_ACTIVATION);
-  return end >= 0 ? { index: end } : null;
+  return end === -1 ? null : { index: end };
 }
 
 interface DeclareChoiceArgs {
@@ -661,7 +661,7 @@ function declareChoice({
     const end = candidates.findIndex(
       (c) => c.kind === "end-turn" || c.kind === END_ACTIVATION
     );
-    return end >= 0 ? { index: end } : null;
+    return end === -1 ? null : { index: end };
   }
   const pick = choosing
     ? choosePlan({

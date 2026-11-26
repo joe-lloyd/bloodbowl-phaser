@@ -160,7 +160,7 @@ export type HeadlessCommand =
   | { type: "legal-actions"; playerId?: string };
 
 export type PendingDecision =
-  | {
+  BiteTargetDecisionRequest | InducementChoiceDecisionRequest | FoulAssistsDecisionRequest | {
       type: "kickoff-event";
       chooserTeamId: string;
       event: KickoffEventStepState["event"];
@@ -169,8 +169,7 @@ export type PendingDecision =
       movedPlayerIds: string[];
       awaitingPlacement: string[];
       landingSquare?: GridPosition;
-    }
-  | {
+    } | {
       type: "block-dice";
       attackerId: string;
       defenderId: string;
@@ -186,8 +185,7 @@ export type PendingDecision =
       brawlerAvailable?: boolean;
 
       veteranRerollAvailable?: boolean;
-    }
-  | {
+    } | {
       type: "push-direction";
       attackerId: string;
       defenderId: string;
@@ -195,17 +193,14 @@ export type PendingDecision =
 
       chooserTeamId?: string;
       options: GridPosition[];
-    }
-  | {
+    } | {
       type: "follow-up";
       attackerId: string;
       targetSquare: GridPosition;
-    }
-  | {
+    } | {
       type: "touchback";
       teamId: string;
-    }
-  | {
+    } | {
       type: "reroll";
       playerId: string;
       chooserTeamId: string;
@@ -218,23 +213,19 @@ export type PendingDecision =
 
       roll: number;
       needed?: number;
-    }
-  | {
+    } | {
       type: "reaction";
       playerId: string;
       chooserTeamId: string;
       skill: string;
       prompt: string;
       opponentId?: string;
-    }
-  | BiteTargetDecisionRequest
-  | {
+    } | {
       type: "interception";
       chooserTeamId: string;
       passerId: string;
       candidates: { playerId: string; modifier: number }[];
-    }
-  | {
+    } | {
       type: "apothecary";
       id: string;
       chooserTeamId: string;
@@ -243,9 +234,7 @@ export type PendingDecision =
       location?: "pitch" | "crowd";
       position?: GridPosition;
       casualtyType?: "badly-hurt" | "seriously-hurt" | "dead";
-    }
-  | InducementChoiceDecisionRequest
-  | FoulAssistsDecisionRequest;
+    };
 
 export interface EmittedEvent {
   name: string;

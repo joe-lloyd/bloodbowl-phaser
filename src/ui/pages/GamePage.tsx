@@ -105,7 +105,7 @@ export function GamePage({
   const routeState = (location.state as RouteState | null) ?? {};
 
   const [persistedResumeSave] = useState(() => {
-    if (teams || mode !== "normal") return undefined;
+    if (teams || mode !== "normal") return;
     const save = readMatchSave();
     return save && !save.computer ? save : undefined;
   });
@@ -208,13 +208,15 @@ export function GamePage({
       ) {
         clearMatchSave();
       }
-      if (gameRef.current) {
-        gameRef.current.destroy(true);
-        gameRef.current = null;
-        window.game = null;
-
-        ServiceContainer.reset();
+      if (!gameRef.current) {
+        return;
       }
+
+      gameRef.current.destroy(true);
+      gameRef.current = null;
+      window.game = null;
+
+      ServiceContainer.reset();
     };
   }, [
     mode,

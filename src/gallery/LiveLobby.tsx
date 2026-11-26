@@ -12,7 +12,7 @@ function opponentTosses(path: string, lobby: LobbyDoc, winnerTeamId: string) {
   const { coinFlip } = lobby;
   const waiting =
     coinFlip?.hostReady && coinFlip.guestReady && !coinFlip.winnerTeamId;
-  if (!waiting) return undefined;
+  if (!waiting) return;
   const timer = setTimeout(() => {
     putDocument(path, { ...lobby, coinFlip: { ...coinFlip, winnerTeamId } });
   }, 1500);

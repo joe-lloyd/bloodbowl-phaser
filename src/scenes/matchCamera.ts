@@ -37,7 +37,7 @@ export function followMatchWithCamera(scene: GameScene): void {
       return;
     nextPlayerChoice = null;
     const squares = teamSquares(scene, intent.teamId, true);
-    if (squares.length) camera().fitSquares(squares, 420);
+    if (squares.length > 0) camera().fitSquares(squares, 420);
   };
   subscribe(GameEventNames.DecisionRequested, (request) => {
     if (request.type !== "interception") return;
@@ -128,7 +128,7 @@ export function followMatchWithCamera(scene: GameScene): void {
     }
     const next = teamSquares(scene, teamId);
     if (handoff) camera().handoff(teamSquares(scene), next);
-    else if (next.length) camera().fitSquares(next, 650);
+    else if (next.length > 0) camera().fitSquares(next, 650);
     else camera().overview();
   });
 

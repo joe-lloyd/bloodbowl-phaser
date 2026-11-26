@@ -10,7 +10,7 @@ import {
 import { type GameSnapshot } from "../../headless/serialization";
 import { type DecisionPolicy, type PlayerRef } from "../../game/rules-lab/types";
 
-export type { PlayerRef };
+
 
 export type ExecutionLayer = "engine" | "browser" | "visual";
 
@@ -145,3 +145,5 @@ export function checkpointsForLayer(
     (checkpoint) => (checkpoint.layers ?? scenarioCase.layers).includes(layer)
   );
 }
+
+export {type PlayerRef} from "../../game/rules-lab/types";

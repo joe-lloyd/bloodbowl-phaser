@@ -37,7 +37,7 @@ function first(
   test: (c: Candidate) => boolean
 ): number | null {
   const index = candidates.findIndex(test);
-  return index >= 0 ? index : null;
+  return index === -1 ? null : index;
 }
 
 function best(
@@ -48,10 +48,12 @@ function best(
   let pickScore = -Infinity;
   candidates.forEach((c, i) => {
     const value = score(c);
-    if (value !== undefined && value > pickScore) {
-      pickScore = value;
-      pick = i;
+    if (value === undefined || !(value > pickScore)) {
+      return;
     }
+
+    pickScore = value;
+    pick = i;
   });
   return pick;
 }
@@ -97,9 +99,9 @@ function blockDiceChoice(
     return first(candidates, (c) => c.commands[0].type === "keep-block-dice");
   return best(candidates, (c) => {
     const command = c.commands[0];
-    if (command.type !== "choose-block-result") return undefined;
+    if (command.type !== "choose-block-result") return;
     const option = pending.options[command.index];
-    if (!option) return undefined;
+    if (!option) return;
     const r = rank(option.type);
     return weAttack ? r : -r;
   });
@@ -121,7 +123,7 @@ function pushChoice(
   const pushingThem = defender?.teamId !== board.us;
   return best(candidates, (c) => {
     const command = c.commands[0];
-    if (command.type !== "choose-push-direction" || !from) return undefined;
+    if (command.type !== "choose-push-direction" || !from) return;
     const square = { x: command.x, y: command.y };
     const landing = pushLandingAt(from, square);
     if (landing !== "pitch") return pushingThem ? OFF_PITCH_PUSH[landing] : NaN;
@@ -167,9 +169,9 @@ function touchbackChoice(
 ): number | null {
   return best(candidates, (c) => {
     const command = c.commands[0];
-    if (command.type !== "touchback") return undefined;
+    if (command.type !== "touchback") return;
     const p = board.gs.getPlayerById(command.playerId);
-    if (!p?.gridPosition) return undefined;
+    if (!p?.gridPosition) return;
     const unreliable = UNRELIABLE.some((skill) => hasSkill(p.skills, skill));
     return (
       -board.marks.getUint8(key(p.gridPosition)) * 10 -

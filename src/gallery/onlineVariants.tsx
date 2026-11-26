@@ -115,7 +115,7 @@ const CLOCKS: Row[] = [
     id: "clock-paused",
     title: "Paused by you",
     view: over((fx) =>
-      clock(fx, { timer: { pausedBy: "me", pausedAt: Date.now() - 5_000 } })
+      clock(fx, { timer: { pausedBy: "me", pausedAt: Date.now() - 5000 } })
     ),
   },
   {

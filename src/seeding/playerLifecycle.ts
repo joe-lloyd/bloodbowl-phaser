@@ -111,7 +111,7 @@ const STAT_DECREASE_INJURIES: Partial<Record<InjuryType, keyof PlayerStats>> = {
 };
 
 function decoratePlayer(player: Player, plan: PlayerDecorationPlan): void {
-  const surplus = 1_000;
+  const surplus = 1000;
   player.spp = surplus;
   for (const pick of plan.advancements ?? []) {
     applyAdvancement(player, toAdvancementChoice(player, pick));

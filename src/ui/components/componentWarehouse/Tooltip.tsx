@@ -60,7 +60,7 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
 
   useEffect(() => {
     if (!trigger) return;
-    window.addEventListener("scroll", hide, true);
+    window.addEventListener("scroll", hide, {capture: true});
     return () => {
       window.removeEventListener("scroll", hide, true);
     };

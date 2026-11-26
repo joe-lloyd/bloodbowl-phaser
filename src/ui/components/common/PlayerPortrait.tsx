@@ -33,9 +33,9 @@ function loadAtlas(model: string, layer: Layer) {
       fetch(`${base}.json`).then((r) => r.json()),
       new Promise<HTMLImageElement>((resolve, reject) => {
         const image = new Image();
-        image.onload = () => {
+        image.addEventListener('load', () => {
           resolve(image);
-        };
+        });
         image.onerror = reject;
         image.src = `${base}.png`;
       }),

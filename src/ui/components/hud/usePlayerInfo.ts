@@ -88,7 +88,7 @@ function useDismissInfoCard(
       setHoveredPlayer(null);
       setHoveredCrew(null);
     };
-    window.addEventListener("pointerdown", putAway, true);
+    window.addEventListener("pointerdown", putAway, {capture: true});
     return () => {
       window.removeEventListener("pointerdown", putAway, true);
     };

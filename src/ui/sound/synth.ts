@@ -140,11 +140,11 @@ function playback(input: {
   onEnded: () => void;
 }): PlaybackUnit {
   let stopped = false;
-  input.source.onended = () => {
+  input.source.addEventListener('ended', () => {
     if (stopped) return;
     stopped = true;
     input.onEnded();
-  };
+  });
   return {
     stop: () => {
       if (stopped) return;

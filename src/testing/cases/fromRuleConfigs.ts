@@ -72,7 +72,7 @@ function scenarioCaseFromRuleConfig(
       name: outcome.name,
       ...(outcome.description ? { description: outcome.description } : {}),
 
-      seed: seed ?? Number.NaN,
+      seed: seed ?? NaN,
       expectedOutcome: outcome.name,
       checkpoints: [outcomeCheckpoint(config, outcome)],
       interactive: true,

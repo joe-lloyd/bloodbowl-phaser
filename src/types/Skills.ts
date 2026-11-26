@@ -175,9 +175,9 @@ function buildSkillDefinitions(): Record<SkillType, SkillDefinition> {
       kind: entry.kind,
       usage: entry.usage,
       compulsory: entry.compulsory,
-      ...(entry.parameterForm != null
-        ? { parameterForm: entry.parameterForm }
-        : {}),
+      ...(entry.parameterForm == null
+        ? {}
+        : { parameterForm: entry.parameterForm }),
       description: entry.description,
     };
   }
@@ -193,7 +193,7 @@ export function getSkill(type: SkillType, parameter?: string | number): Skill {
     type,
     category: def.category,
     description: def.description,
-    ...(parameter !== undefined ? { parameter } : {}),
+    ...(parameter === undefined ? {} : { parameter }),
   };
 }
 

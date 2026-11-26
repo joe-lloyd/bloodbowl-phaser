@@ -136,7 +136,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
     group.matches.add(finding.seed);
     groups.set(finding.key, group);
   }
-  const grouped = [...groups.entries()]
+  const grouped = [...groups]
     .map(([key, g]) => ({
       key,
       kind: g.kind,
@@ -172,7 +172,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
       matches.reduce((s, m) => s + m.ms, 0) / Math.max(1, matches.length)
     ),
     commandCoverage: commandCounts,
-    ...(jevStats.length ? { jev: jevStats } : {}),
+    ...(jevStats.length > 0 ? { jev: jevStats } : {}),
     findings: grouped,
     perMatch: matches.sort((a, b) => a.seed - b.seed),
   };
@@ -295,7 +295,7 @@ function printSummary(
   }
   lines.push(
     "",
-    grouped.length ? "Findings (blocking first):" : "No findings."
+    grouped.length > 0 ? "Findings (blocking first):" : "No findings."
   );
   for (const g of grouped) {
     lines.push(
@@ -311,4 +311,4 @@ function printSummary(
   process.stdout.write(`${lines.join("\n")}\n`);
 }
 
-const slug = (name: string) => name.toLowerCase().replace(/[^a-z]+/g, "-");
+const slug = (name: string) => name.toLowerCase().replaceAll(/[^a-z]+/g, "-");

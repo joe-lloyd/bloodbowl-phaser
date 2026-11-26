@@ -16,11 +16,11 @@ export function isPlayerOnline({
   return now - last <= thresholdMs;
 }
 
-const OPPONENT_SLOW_MS = 12000;
+const OPPONENT_SLOW_MS = 12_000;
 
-export const OPPONENT_DISCONNECT_MS = 20000;
+export const OPPONENT_DISCONNECT_MS = 20_000;
 
-export const OPPONENT_ABANDON_MS = 30000;
+export const OPPONENT_ABANDON_MS = 30_000;
 
 export const OWN_SLOW_MS = 6000;
 

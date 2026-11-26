@@ -107,8 +107,8 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
         );
         if (competitionFixture) await inviteOpponent(created.code, user.uid, competitionFixture);
         if (!cancelled) setCode(created.code);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      } catch (error_) {
+        if (!cancelled) setError(error_ instanceof Error ? error_.message : String(error_));
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -173,8 +173,8 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
         const joined = await joining();
         setCode(joined);
         void navigate(`/online/lobby/${joined}`, { replace: true });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+      } catch (error_) {
+        setError(error_ instanceof Error ? error_.message : String(error_));
       } finally {
         setBusy(false);
       }
@@ -540,7 +540,7 @@ function LobbyPlayers({
       <PlayerCard
         label={isHost ? "Guest" : "You (Guest)"}
         player={lobby.guestUid ? lobby.players[lobby.guestUid] : null}
-        empty={!lobby.guestUid ? "Waiting for opponent…" : undefined}
+        empty={lobby.guestUid ? undefined : "Waiting for opponent…"}
         action={isHost ? opponentAction : null}
       />
     </div>

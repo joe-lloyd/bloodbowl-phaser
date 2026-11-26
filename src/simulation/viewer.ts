@@ -214,7 +214,7 @@ export async function buildMatchDump(
 const TEMPLATE = join(dirname(fileURLToPath(import.meta.url)), "viewer.html");
 
 export function renderMatchHtml(dump: MatchDump): string {
-  const json = JSON.stringify(dump).replace(/</g, "\\u003c");
+  const json = JSON.stringify(dump).replaceAll('<', "\\u003c");
   return fs
     .readFileSync(TEMPLATE, "utf8")
     .replace("__TITLE__", escapeHtml(dump.title))
@@ -222,7 +222,7 @@ export function renderMatchHtml(dump: MatchDump): string {
 }
 
 export function escapeHtml(text: string): string {
-  return text.replace(
+  return text.replaceAll(
     /[&<>"]/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!
   );
@@ -256,7 +256,7 @@ export function renderIndexHtml(batch: {
     .sort((a, b) => b[1] - a[1])
     .map(([k, v]) => `<span>${escapeHtml(k)} <b>${String(v)}</b></span>`)
     .join(" ");
-  const problems = batch.findings.length
+  const problems = batch.findings.length > 0
     ? `<ul>${batch.findings
         .map(
           (f) =>

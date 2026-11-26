@@ -146,7 +146,7 @@ export function SkillList({ skills }: { skills: Skill[] }) {
           <Tooltip content={SKILL_DEFINITIONS[skill.type].description}>
             <span className="cursor-help underline decoration-hud-gold/40 decoration-dotted underline-offset-2">
               {skill.type}
-              {skill.parameter != null ? ` (${String(skill.parameter)})` : ""}
+              {skill.parameter == null ? "" : ` (${String(skill.parameter)})`}
             </span>
           </Tooltip>
           {index < skills.length - 1 ? "," : ""}

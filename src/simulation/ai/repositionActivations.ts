@@ -218,7 +218,7 @@ function cornerWorth(
       TRANSFER_ROLES.has(s.role) &&
       s.value > 0 &&
       onPitch(s.at) &&
-      !(s.only !== undefined && acted.has(s.only))
+      (s.only === undefined || !acted.has(s.only))
   );
   return w.cageCorner + (acted.has(carrier.id) && !planned ? w.cageKeep : 0);
 }

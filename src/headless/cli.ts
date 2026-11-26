@@ -108,7 +108,7 @@ function renderPitch(snapshot: GameSnapshot): string {
   }
 
   const header =
-    "    " +
+    ' '.repeat(4) +
     Array.from({ length: PITCH_WIDTH }, (_, i) =>
       String(i).padStart(3, " ")
     ).join("");
@@ -321,7 +321,7 @@ async function runRuleMode(options: CliOptions): Promise<void> {
 
 async function runScript(game: HeadlessGame, file: string): Promise<void> {
   const lines = fs
-    .readFileSync(file, "utf-8")
+    .readFileSync(file, "utf8")
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l.length > 0 && !l.startsWith("#"));
@@ -352,12 +352,14 @@ async function runScript(game: HeadlessGame, file: string): Promise<void> {
       process.exit(1);
     }
     process.stdout.write(JSON.stringify(response) + "\n");
-    if (!response.ok) {
-      process.stderr.write(
-        `Line ${String(i + 1)}: rejected — ${String(response.reason)}\n`
-      );
-      process.exit(1);
+    if (response.ok) {
+      continue;
     }
+
+    process.stderr.write(
+      `Line ${String(i + 1)}: rejected — ${String(response.reason)}\n`
+    );
+    process.exit(1);
   }
   process.exit(0);
 }
@@ -450,7 +452,7 @@ function safeJsonPretty(data: unknown): string {
   }
 }
 
-main().catch((err) => {
-  process.stderr.write(`Fatal: ${String(err?.stack ?? err)}\n`);
+main().catch((error) => {
+  process.stderr.write(`Fatal: ${String(error?.stack ?? error)}\n`);
   process.exit(1);
 });

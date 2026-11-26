@@ -69,7 +69,7 @@ export class BracketPositions {
       const recorded = fixture.sourceFixtureIds
         .map((id) => this.index.byId.get(id))
         .filter((source) => source !== undefined);
-      if (recorded.length) return recorded;
+      if (recorded.length > 0) return recorded;
     }
     if (fixture.round <= this.index.firstRound) return [];
     return [

@@ -219,7 +219,7 @@ export function MatchResultsScreen({
       if (stats.mvps > 0)
         seeded[stats.teamId] = { playerId: stats.playerId, roll: -1 };
     });
-    if (Object.keys(seeded).length) {
+    if (Object.keys(seeded).length > 0) {
       setMvpResults((previous) => ({ ...seeded, ...previous }));
     }
   }, [container, tracker]);
@@ -316,8 +316,8 @@ export function MatchResultsScreen({
   const statsSummary = tracker.summary(teams.flatMap((team) => team.players));
   const pendingMvpTeams = teams.filter(
     (team) =>
-      !statsSummary.players.some(
-        (stats) => stats.teamId === team.id && stats.mvps > 0
+      statsSummary.players.every(
+        (stats) => !(stats.teamId === team.id && stats.mvps > 0)
       )
   );
   const recordingPending = !!fixtureContext && !competitionRecorded;
@@ -532,10 +532,12 @@ export function MatchResultsScreen({
     if (!canExit) return;
     if (progressionEnabled && !(await confirmSpp(false))) return;
     recordPlayedGames();
-    if (!managePostMatchTeam()) {
-      finishWithMatch();
-      navigate(leaveTo);
+    if (managePostMatchTeam()) {
+      return;
     }
+
+    finishWithMatch();
+    navigate(leaveTo);
   };
 
   return (
@@ -558,11 +560,7 @@ export function MatchResultsScreen({
           summary={statsSummary}
           showSpp={progressionEnabled}
         />
-        {!progressionEnabled ? (
-          <p className="mt-3 text-hud-sm italic text-hud-dim">
-            This match does not award SPP or MVP recognition.
-          </p>
-        ) : confirmed ? (
+        {progressionEnabled ? confirmed ? (
           <p className="mt-6 rounded-hud border border-white/10 bg-black/30 p-4 text-hud-lg">
             MVP and SPP are confirmed. Any player now eligible to advance is
             saved as pending development — finish it any time from{" "}
@@ -601,6 +599,10 @@ export function MatchResultsScreen({
               Confirm and assign SPP
             </button>
           </>
+        ) : (
+          <p className="mt-3 text-hud-sm italic text-hud-dim">
+            This match does not award SPP or MVP recognition.
+          </p>
         )}
 
         <LeaveControls

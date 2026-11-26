@@ -90,10 +90,12 @@ export function upFace(
   let dot = -2;
   normals(kind).forEach((normal, index) => {
     const y = new THREE.Vector3(...normal).applyQuaternion(q).y;
-    if (y > dot) {
-      dot = y;
-      face = index;
+    if (!(y > dot)) {
+      return;
     }
+
+    dot = y;
+    face = index;
   });
   return { face, dot };
 }

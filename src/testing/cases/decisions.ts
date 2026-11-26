@@ -148,8 +148,8 @@ const bribeForFouler: ScenarioCase = {
           .filter((event) => event.name === GameEventNames.RefereeCall)
           .map((event) => (event.data as { step: string }).step);
         checkpointAssert(
-          steps.join() === "called,argued,bribed,outcome",
-          `the card must hear every step, heard ${steps.join()}`
+          steps.join(',') === "called,argued,bribed,outcome",
+          `the card must hear every step, heard ${steps.join(',')}`
         );
         checkpointAssert(
           fixtureValue(observed.snapshot.bribes)?.["team1"] === 0,

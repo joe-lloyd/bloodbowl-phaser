@@ -36,7 +36,7 @@ export function resolveDisplayColor(
   if (nature !== "good" && nature !== "bad") return nature;
   if (!perspectiveTeamId || !teamId) return nature;
   const isMine = teamId === perspectiveTeamId;
-  const favorsMe = isMine ? nature === "good" : nature === "bad";
+  const favorsMe = nature === (isMine ? "good" : "bad");
   return favorsMe ? "good" : "bad";
 }
 

@@ -84,7 +84,7 @@ export function readFriendCodeOwner(value: unknown): string {
 
 export function parseFriendCode(input: string): FriendCode | null {
   const parsed = friendCodeSchema.safeParse(
-    input.toUpperCase().replace(/[^A-Z0-9]/g, "")
+    input.toUpperCase().replaceAll(/[^A-Z0-9]/g, "")
   );
   return parsed.success ? parsed.data : null;
 }

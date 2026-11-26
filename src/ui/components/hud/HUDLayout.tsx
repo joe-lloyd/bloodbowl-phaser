@@ -73,8 +73,8 @@ function useHudPressGuard() {
     const clear = () => {
       pressedHere.current = false;
     };
-    window.addEventListener("mousedown", clear, true);
-    window.addEventListener("touchstart", clear, true);
+    window.addEventListener("mousedown", clear, {capture: true});
+    window.addEventListener("touchstart", clear, {capture: true});
     return () => {
       window.removeEventListener("mousedown", clear, true);
       window.removeEventListener("touchstart", clear, true);

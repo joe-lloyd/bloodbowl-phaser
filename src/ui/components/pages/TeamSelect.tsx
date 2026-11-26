@@ -350,10 +350,12 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                   "px-4 py-3 text-left"
                 )}
                 onClick={() => {
-                  if (value !== opponent) {
-                    setOpponent(value);
-                    setSelectedTeam2(null);
+                  if (value === opponent) {
+                    return;
                   }
+
+                  setOpponent(value);
+                  setSelectedTeam2(null);
                 }}
               >
                 <ChoiceText title={label} detail={detail} />

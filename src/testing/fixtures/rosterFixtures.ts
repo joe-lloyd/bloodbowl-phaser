@@ -32,7 +32,7 @@ export function refFor(
 
 function templateHasSkill(template: PlayerTemplate, skill: SkillType): boolean {
   return template.skills.some((entry) =>
-    typeof entry === "string" ? entry === skill : entry.type === skill
+    (typeof entry === "string" ? entry : entry.type) === skill
   );
 }
 

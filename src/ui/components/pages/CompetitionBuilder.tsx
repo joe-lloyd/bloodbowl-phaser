@@ -422,8 +422,8 @@ function LocalCompetitionBuilder({
                       );
                   }}
                 >
-                  {!templates.some(
-                    (template) => template.id === row.template.id
+                  {templates.every(
+                    (template) => template.id !== row.template.id
                   ) && (
                     <option value={row.template.id} disabled>
                       Choose a legal build
@@ -440,8 +440,8 @@ function LocalCompetitionBuilder({
                       </option>
                     ))}
                 </select>
-                {!templates.some(
-                  (template) => template.id === row.template.id
+                {templates.every(
+                  (template) => template.id !== row.template.id
                 ) && (
                   <Notice tone="bad">
                     This starting roster is not legal under the selected rules.

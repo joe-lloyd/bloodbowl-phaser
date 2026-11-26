@@ -44,7 +44,7 @@ export function createStage(host: HTMLElement) {
   const width = host.clientWidth;
   const height = host.clientHeight;
   gl.setSize(width, height);
-  host.appendChild(gl.domElement);
+  host.append(gl.domElement);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(FOV, width / height, 0.1, 100);
   camera.position.set(0, 9.4, 5.4);

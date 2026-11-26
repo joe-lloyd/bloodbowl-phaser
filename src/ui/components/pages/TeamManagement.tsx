@@ -195,11 +195,7 @@ export function TeamManagement() {
               const next =
                 event.key === "Home"
                   ? "mine"
-                  : event.key === "End"
-                    ? "computer"
-                    : tab === "mine"
-                      ? "computer"
-                      : "mine";
+                  : tab === "mine" || event.key === "End" ? "computer" : "mine";
               setTab(next);
               (next === "mine" ? mineTab : computerTab).current?.focus();
             }}

@@ -158,7 +158,7 @@ function refusalFinding(
     );
   return {
     kind: engineError ? "engine-error" : "rejected-candidate",
-    key: `${command.type}:${reason.replace(/[0-9a-z-]+-player-\d+/g, "<player>").slice(0, 80)}`,
+    key: `${command.type}:${reason.replaceAll(/[0-9a-z-]+-player-\d+/g, "<player>").slice(0, 80)}`,
     message: `${label} → ${reason}`,
   };
 }

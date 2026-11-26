@@ -560,10 +560,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onDugoutDragEnd(playerId: string, x: number, y: number): void {
-    if (this.isSetupActive) {
-      const gridPos = this.pitch.worldToGrid(x, y);
-      this.placementController.placePlayer(playerId, gridPos.x, gridPos.y);
+    if (!this.isSetupActive) {
+      return;
     }
+
+    const gridPos = this.pitch.worldToGrid(x, y);
+    this.placementController.placePlayer(playerId, gridPos.x, gridPos.y);
   }
 
   public kitOf(teamId: string): TeamColors {

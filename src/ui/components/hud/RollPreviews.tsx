@@ -35,7 +35,7 @@ export function RouteSummary({ eventBus }: { eventBus: IEventBus }) {
         </div>
       )}
       <div className="mt-1 text-hud-dim">
-        {route.rerolls.length
+        {route.rerolls.length > 0
           ? `Re-rolls: ${route.rerolls.join(", ")}`
           : "No re-roll available"}
       </div>

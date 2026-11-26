@@ -12,7 +12,7 @@ export interface NetworkUIEvents {
     ma: number;
   };
   [GameEventNames.UI_OtherCoachMoveResolved]: { playerId: string };
-  [GameEventNames.UI_SyncBoard]: { positions: true } | void;
+  [GameEventNames.UI_SyncBoard]: void | { positions: true };
   [GameEventNames.NetworkCommandRejected]: {
     commandType: string;
 

@@ -89,10 +89,12 @@ function cageCorners(c: Context, at: Square, carrier: Player): number {
         !used.has(p.id) &&
         (c.plainRoutes(p).get(key(corner))?.chance ?? 0) >= w.safeMove
     );
-    if (helper) {
-      used.add(helper.id);
-      cage += 1;
+    if (!helper) {
+      continue;
     }
+
+    used.add(helper.id);
+    cage += 1;
   }
   return cage;
 }

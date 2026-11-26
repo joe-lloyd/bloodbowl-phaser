@@ -37,7 +37,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
   };
 
   useEffect(() => {
-    if (confirming && !entries.some((entry) => entry.id === confirming.id)) {
+    if (confirming && entries.every((entry) => entry.id !== confirming.id)) {
       setConfirming(null);
     }
   }, [entries, confirming]);
@@ -65,7 +65,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
       setConfirming(null);
     };
 
-    document.addEventListener("pointerdown", onDocPointerDown, true);
+    document.addEventListener("pointerdown", onDocPointerDown, {capture: true});
     return () => {
       document.removeEventListener("pointerdown", onDocPointerDown, true);
     };

@@ -71,7 +71,7 @@ const FONT_SCALE_DEFAULT = 1;
 function loadFontScale(): number {
   try {
     const raw = window.localStorage.getItem(FONT_SCALE_STORAGE_KEY);
-    const parsed = raw ? parseFloat(raw) : NaN;
+    const parsed = raw ? Number.parseFloat(raw) : NaN;
     if (!Number.isFinite(parsed)) return FONT_SCALE_DEFAULT;
     return clampFontScale(parsed);
   } catch {
@@ -304,13 +304,15 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     if (!chatMatch) return;
     return chatMatch.onChatMessage((message) => {
       setChat((prev) => [...prev, message]);
-      if (!message.fromSelf && tabRef.current !== "chat") {
-        setUnread((count) => count + 1);
-        eventBus.emit(
-          GameEventNames.UI_Notification,
-          `💬 ${message.senderName}: ${message.text}`
-        );
+      if (message.fromSelf || tabRef.current === "chat") {
+        return;
       }
+
+      setUnread((count) => count + 1);
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        `💬 ${message.senderName}: ${message.text}`
+      );
     });
   }, [chatMatch, eventBus]);
 

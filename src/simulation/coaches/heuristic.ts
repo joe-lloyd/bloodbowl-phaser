@@ -172,7 +172,7 @@ function squareValue(player: Player, at: GridPosition, board: Board): number {
 function moveStepValue(command: CommandOf<"move">, board: Board): number {
   const player = fieldPlayer(board, command.playerId);
   const from = player.gridPosition;
-  const to = command.path[command.path.length - 1];
+  const to = command.path.at(-1);
   if (!to) throw new RangeError("Move candidate requires a destination");
   let value = squareValue(player, to, board) - squareValue(player, from, board);
   if (tackleZonesOn(board, player.teamId, from) > 0) value -= 15;

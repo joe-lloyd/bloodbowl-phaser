@@ -28,15 +28,17 @@ class FrameStorage implements Storage {
 
 const touchQuery = (query: string) =>
   query
-    .replace(/\(\s*pointer:\s*coarse\s*\)/g, "(min-width: 0px)")
-    .replace(/\(\s*pointer:\s*fine\s*\)/g, "(max-width: 0px)");
+    .replaceAll(/\(\s*pointer:\s*coarse\s*\)/g, "(min-width: 0px)")
+    .replaceAll(/\(\s*pointer:\s*fine\s*\)/g, "(max-width: 0px)");
 
 function touchRules(rules: CSSRuleList): void {
   for (const rule of rules) {
-    if (rule instanceof CSSMediaRule) {
-      rule.media.mediaText = touchQuery(rule.media.mediaText);
-      touchRules(rule.cssRules);
+    if (!(rule instanceof CSSMediaRule)) {
+      continue;
     }
+
+    rule.media.mediaText = touchQuery(rule.media.mediaText);
+    touchRules(rule.cssRules);
   }
 }
 

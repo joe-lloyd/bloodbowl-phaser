@@ -17,7 +17,7 @@ export function seedMetadata(fixtureKey: string): SeedMetadata {
 }
 
 export function rosterSlug(rosterName: string): string {
-  return rosterName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return rosterName.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-");
 }
 
 export function seedTeamId(fixtureKey: string): string {

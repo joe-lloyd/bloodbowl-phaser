@@ -180,7 +180,7 @@ export class DiceTrayController {
 
   private enqueue = (roll: Omit<Queued, "seq">, first = false) => {
     const item = { ...roll, seq: ++this.thrown };
-    const waiting = this.queue[this.queue.length - 1];
+    const waiting = this.queue.at(-1);
     if (!first && waiting && joinsThrow(waiting, item)) {
       this.mergeThrow(waiting, item);
     } else {
@@ -356,12 +356,14 @@ export class DiceTrayController {
   private trimQueue(): void {
     while (this.queue.length > MAX_QUEUE) {
       const oldest = this.queue.findIndex((q) => !q.block);
-      if (oldest < 0) break;
+      if (oldest === -1) break;
       const dropped = this.queue[oldest];
-      if (dropped) {
-        this.queue.splice(oldest, 1);
-        this.throwStage(dropped, "dropped");
+      if (!dropped) {
+        continue;
       }
+
+      this.queue.splice(oldest, 1);
+      this.throwStage(dropped, "dropped");
     }
   }
   private mergeThrow(waiting: Queued, item: Queued): void {

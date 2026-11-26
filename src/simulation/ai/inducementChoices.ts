@@ -44,7 +44,7 @@ const HURT_ORDER: readonly PlayerStatus[] = [
 
 function hurtRank(player: Player): number {
   const index = HURT_ORDER.indexOf(player.status);
-  return index < 0 ? -1 : HURT_ORDER.length - index;
+  return index === -1 ? -1 : HURT_ORDER.length - index;
 }
 
 const mostValuable = (player: Player) => playerValue(player) / 1_000_000;
@@ -133,5 +133,5 @@ export function inducementChoice(
   if (!chooser) return null;
   const wanted = chooser(board, pending);
   const index = candidates.findIndex((candidate) => matches(candidate, wanted));
-  return index >= 0 ? index : null;
+  return index === -1 ? null : index;
 }

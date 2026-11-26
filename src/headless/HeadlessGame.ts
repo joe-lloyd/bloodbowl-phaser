@@ -254,7 +254,7 @@ export class HeadlessGame {
     const outcome = await Promise.race([
       run.then(
         () => ({ kind: "done" as const }),
-        (err: unknown) => ({ kind: "error" as const, err })
+        (error: unknown) => ({ kind: "error" as const, err: error })
       ),
       raised.then(() => ({ kind: "decision" as const })),
     ]);
@@ -270,8 +270,8 @@ export class HeadlessGame {
     }
     if (outcome.kind === "decision") {
       this.suspend(
-        run.catch((err: unknown) => {
-          console.error("[Headless] suspended command failed:", err);
+        run.catch((error: unknown) => {
+          console.error("[Headless] suspended command failed:", error);
         })
       );
     } else if (!this.pending && this.heldFollowUp) {
@@ -295,9 +295,9 @@ export class HeadlessGame {
     const pending = this.pending;
     const replyFor = DECISION_REPLIES[cmd.type];
     if (pending?.type === "kickoff-event") {
-      return replyFor !== "kickoff-event"
-        ? "decision-pending:kickoff-event — resolve it before other commands"
-        : null;
+      return replyFor === "kickoff-event"
+        ? null
+        : "decision-pending:kickoff-event — resolve it before other commands";
     }
     if (pending && replyFor !== pending.type) {
       return `decision-pending:${pending.type} — resolve it before other commands`;

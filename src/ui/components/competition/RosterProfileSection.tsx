@@ -50,7 +50,7 @@ export function RosterProfileSection({
           <Field label="Draft budget (gold)">
             <input
               type="number"
-              step={10000}
+              step={10_000}
               value={value.draftBudget}
               onChange={(event) => {
                 onChange({ ...value, draftBudget: Number(event.target.value) || 0 });

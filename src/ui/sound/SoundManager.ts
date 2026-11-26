@@ -69,8 +69,8 @@ export class SoundManager {
         () => this.activeUnits.delete(unit),
         Math.max(durationMs, 0) + 250
       );
-    } catch (e) {
-      console.error("SoundManager: Error playing sound", e);
+    } catch (error) {
+      console.error("SoundManager: Error playing sound", error);
     }
   }
 
@@ -97,15 +97,15 @@ export class SoundManager {
     this.activeUnits.forEach((unit) => {
       try {
         unit.stop();
-      } catch (e) {
-        console.error("SoundManager: Error stopping unit", e);
+      } catch (error) {
+        console.error("SoundManager: Error stopping unit", error);
       }
     });
     this.activeUnits.clear();
 
     if (this.ctx?.state === "running") {
-      this.ctx.suspend().catch((e: unknown) => {
-        console.error("SoundManager: Error suspending AudioContext", e);
+      this.ctx.suspend().catch((error: unknown) => {
+        console.error("SoundManager: Error suspending AudioContext", error);
       });
     }
   }
@@ -116,8 +116,8 @@ export class SoundManager {
     this.unsubscribeSettings = null;
     this.detachGestureUnlock();
     if (this.ctx && this.ctx.state !== "closed") {
-      this.ctx.close().catch((e: unknown) => {
-        console.error("SoundManager: Error closing AudioContext", e);
+      this.ctx.close().catch((error: unknown) => {
+        console.error("SoundManager: Error closing AudioContext", error);
       });
     }
     this.ctx = null;
@@ -133,8 +133,8 @@ export class SoundManager {
     }
     this.gestureListenerAttached = true;
     const resume = () => {
-      this.ctx?.resume().catch((e: unknown) => {
-        console.error("SoundManager: Error resuming AudioContext", e);
+      this.ctx?.resume().catch((error: unknown) => {
+        console.error("SoundManager: Error resuming AudioContext", error);
       });
     };
     this.gestureResumeHandler = resume;
@@ -161,8 +161,8 @@ async function loadSample(
 ): Promise<AudioBuffer | null> {
   try {
     return await loadAudio(ctx, url);
-  } catch (e) {
-    console.warn(`SoundManager: could not load ${url}, using synth`, e);
+  } catch (error) {
+    console.warn(`SoundManager: could not load ${url}, using synth`, error);
     return null;
   }
 }

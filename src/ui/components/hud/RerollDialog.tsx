@@ -137,9 +137,9 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
         {request.rollName ?? request.rollKind} roll.
       </p>
       <p data-testid="reroll-odds">
-        {request.needed !== undefined
-          ? `Needed ${String(request.needed)}+, rolled ${String(request.roll)}.`
-          : `Rolled ${String(request.roll)}.`}
+        {request.needed === undefined
+          ? `Rolled ${String(request.roll)}.`
+          : `Needed ${String(request.needed)}+, rolled ${String(request.roll)}.`}
       </p>
     </DialogShell>
   );
@@ -155,9 +155,9 @@ function SourceNeed({
   if (source === "pro")
     return (
       <p data-testid="reroll-need-pro" className="mt-1 text-hud-sm">
-        {needed !== undefined
-          ? `Pro needs 3+, then ${String(needed)}+.`
-          : "Pro needs 3+."}{" "}
+        {needed === undefined
+          ? "Pro needs 3+."
+          : `Pro needs 3+, then ${String(needed)}+.`}{" "}
         A failed Pro check ends the re-roll.
       </p>
     );

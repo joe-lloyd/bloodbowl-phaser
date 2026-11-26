@@ -151,9 +151,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         if (state) {
           const activeTeamId = state.activeTeamId;
           const activeTeam =
-            activeTeamId !== null
-              ? container.gameService.getTeam(activeTeamId)
-              : null;
+            activeTeamId === null
+              ? null
+              : container.gameService.getTeam(activeTeamId);
           const team1 =
             container.gameService.getTeam(state.turn.teamId) || activeTeam;
 
@@ -171,8 +171,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             });
           }
         }
-      } catch (e) {
-        console.error("GameService not ready yet, retrying...", e);
+      } catch (error) {
+        console.error("GameService not ready yet, retrying...", error);
         setTimeout(initHUD, 200);
       }
     };
@@ -258,15 +258,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const menuEntries: MatchOptionsMenuEntry[] = [
     ...computeMatchOptionsMenu(menuContext),
     { type: "panel", id: "sound-settings", render: () => <SoundToggle /> },
-    ...(phone
-      ? [
-          {
+
+          phone ? {
             type: "panel" as const,
             id: "weather",
             render: () => <WeatherNote />,
-          },
-        ]
-      : [{ type: "panel" as const, id: "keys", render: () => <KeyList /> }]),
+          } : { type: "panel" as const, id: "keys", render: () => <KeyList /> }
+        ,
   ];
 
   const reportMenuActionFailed = (error: unknown) => {
@@ -336,10 +334,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     </>
   );
 
-  const phoneBarButton =
-    "hud-slab flex h-11 items-center px-3 font-hud-label text-hud-sm font-bold uppercase tracking-[0.08em] text-hud-bone aria-expanded:border-hud-gold aria-expanded:text-hud-gold";
-
   if (phone) {
+    const phoneBarButton =
+    "hud-slab flex h-11 items-center px-3 font-hud-label text-hud-sm font-bold uppercase tracking-[0.08em] text-hud-bone aria-expanded:border-hud-gold aria-expanded:text-hud-gold";
     return (
       <HUDLayout
         phone
