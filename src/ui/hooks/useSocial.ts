@@ -6,6 +6,7 @@ import {
   subscribeCoachProfile,
   touchPresence,
 } from "../../firebase/coaches";
+import { isHouseBotBrowser } from "../../firebase/houseBot";
 import { subscribeFriendships } from "../../firebase/friends";
 import { subscribeInvites } from "../../firebase/invites";
 import {
@@ -130,13 +131,39 @@ function warnPresence(error: unknown): void {
   console.warn("[presence] could not update", error);
 }
 
+const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel"] as const;
+
+function watchActivity() {
+  let active = false;
+  const mark = () => {
+    active = true;
+  };
+  ACTIVITY_EVENTS.forEach((name) => {
+    window.addEventListener(name, mark, { capture: true, passive: true });
+  });
+  return {
+    mark,
+    take: () => {
+      const was = active || isHouseBotBrowser();
+      active = false;
+      return was;
+    },
+    stop: () => {
+      ACTIVITY_EVENTS.forEach((name) => {
+        window.removeEventListener(name, mark, { capture: true });
+      });
+    },
+  };
+}
+
 export function useCoachPresence(uid: string | null): void {
   useEffect(() => {
     if (!uid) return;
     let profileReady = false;
+    const activity = watchActivity();
     const sync = async () => {
       if (profileReady) {
-        await touchPresence(uid);
+        if (activity.take()) await touchPresence(uid);
         return;
       }
       await ensureCoachProfile(uid);
@@ -145,12 +172,17 @@ export function useCoachPresence(uid: string | null): void {
     const beat = () => {
       if (document.visibilityState === "visible") sync().catch(warnPresence);
     };
+    const returned = () => {
+      if (document.visibilityState === "visible") activity.mark();
+      beat();
+    };
     sync().catch(warnPresence);
     const id = setInterval(beat, PRESENCE_INTERVAL_MS);
-    document.addEventListener("visibilitychange", beat);
+    document.addEventListener("visibilitychange", returned);
     return () => {
       clearInterval(id);
-      document.removeEventListener("visibilitychange", beat);
+      activity.stop();
+      document.removeEventListener("visibilitychange", returned);
     };
   }, [uid]);
 }
