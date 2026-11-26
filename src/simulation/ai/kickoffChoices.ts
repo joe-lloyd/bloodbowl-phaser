@@ -121,7 +121,7 @@ export function kickoffPick(
 ): CoachChoice {
   const { event, selectedPlayerIds } = args.pending;
   const placing = candidates.findIndex(
-    ({ commands: [command] }) => command.type === "kickoff-place-player"
+    (candidate) => candidate.commands[0].type === "kickoff-place-player"
   );
   if (placing !== -1)
     return { index: placing, note: `${event}: ${UNDER_THE_BALL}` };
@@ -130,9 +130,10 @@ export function kickoffPick(
     ({ player }) => !selectedPlayerIds.includes(player.id)
   );
   const selecting = candidates.findIndex(
-    ({ commands: [command] }) =>
-      command.type === "kickoff-select-player" &&
-      command.playerId === next?.player.id
+    (candidate) => {
+      const command = candidate.commands[0];
+      return command.type === "kickoff-select-player" && command.playerId === next?.player.id;
+    }
   );
   if (next && selecting !== -1)
     return {
@@ -143,7 +144,7 @@ export function kickoffPick(
   return {
     index: Math.max(
       0,
-      candidates.findIndex(({ commands: [command] }) => command.type === type)
+      candidates.findIndex((candidate) => candidate.commands[0].type === type)
     ),
   };
 }

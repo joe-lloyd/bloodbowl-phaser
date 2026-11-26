@@ -61,13 +61,22 @@ export function feedingSupportActivations(c: Context): Activation[] {
     !c.available.get(carrier.id)?.has("move")
   )
     return [];
-  const plans = carrierActivations({ ...c, skillPlans: false }, carrier);
-  const out: Activation[] = [];
-  for (const plan of plans.filter((plan) => plan.value > 0)) {
-    if (plan.intent.kind === "carrier" || plan.intent.kind === "score")
-      out.push(...supportForRoute(c, carrier, plan.intent.route));
-  }
-  return out;
+  return carrierActivations({ ...c, skillPlans: false }, carrier).flatMap(
+    (plan) => supportForPlan(c, carrier, plan)
+  );
+}
+
+function supportForPlan(
+  c: Context,
+  carrier: Player,
+  plan: Activation
+): Activation[] {
+  if (
+    plan.value > 0 &&
+    (plan.intent.kind === "carrier" || plan.intent.kind === "score")
+  )
+    return supportForRoute(c, carrier, plan.intent.route);
+  return [];
 }
 
 export function holdsFeedingSupport(c: Context, player: Player): boolean {

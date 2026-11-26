@@ -55,11 +55,9 @@ export function subscribeFriendships(
   uid: string,
   onChange: (friendships: Friendship[]) => void
 ): () => void {
+  const friendships = collection(getDb(), "friendships");
   return onSnapshot(
-    query(
-      collection(getDb(), "friendships"),
-      where("uids", "array-contains", uid)
-    ),
+    query(friendships, where("uids", "array-contains", uid)),
     (snapshot) => {
       onChange(
         readEach(snapshot.docs, (document) => readFriendship(document.data()))

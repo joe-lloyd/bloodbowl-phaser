@@ -40,7 +40,8 @@ export async function replay(argv: string[]): Promise<number> {
       `  ${String(i)}: ${step.ok ? "ok  " : "FAIL"} ${step.label}${step.reason ? ` (${step.reason})` : ""}\n`
     );
   }
-  for (const finding of recording.findings.filter((f) => f.step === until)) {
+  const findings = recording.findings.filter((f) => f.step === until);
+  for (const finding of findings) {
     process.stdout.write(`  finding: ${finding.key}: ${finding.message}\n`);
   }
   process.stdout.write(`${stateLine(snapshot)}\n`);

@@ -89,11 +89,14 @@ export async function openOnlineCompetition(
     online: input.online,
   });
   const coachName = await resolveCoachName(input.organizerUid);
-  const competition = teams.reduce(
-    (current, team) =>
-      withSignup(current, { team, uid: input.organizerUid, coachName }),
-    draft
-  );
+  let competition = draft;
+  for (const team of teams) {
+    competition = withSignup(competition, {
+      team,
+      uid: input.organizerUid,
+      coachName,
+    });
+  }
   await saveCompetition(competition);
   await lockTeams(teams, competition.id);
   return competition;

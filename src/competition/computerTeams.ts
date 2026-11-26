@@ -99,7 +99,8 @@ export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
   }
   spendSpp(team, rng, report);
   spendTreasury(team, report);
-  for (const entry of [...(team.pendingDevelopment ?? [])]) {
+  const pendingSnapshot = [...(team.pendingDevelopment ?? [])];
+  for (const entry of pendingSnapshot) {
     if (entry.kind !== "expensive-mistakes") continue;
     try {
       const result = resolveExpensiveMistakes(team, entry, rng);
@@ -219,9 +220,13 @@ function resolveDraftedOffer(
 function spendSpp(team: Team, rng: Rng, report: ManagementReport): void {
   for (const player of team.players) {
     if (isPendingRecruit(team, player.id)) continue;
-    for (let guard = 0; guard < 10 && canAdvance(player); guard++) {
-      if (!advanceOnce({ team, player, rng, report })) break;
-    }
+    advanceUpToTen({ team, player, rng, report });
+  }
+}
+
+function advanceUpToTen(options: Parameters<typeof advanceOnce>[0]): void {
+  for (let guard = 0; guard < 10 && canAdvance(options.player); guard++) {
+    if (!advanceOnce(options)) return;
   }
 }
 
@@ -302,7 +307,8 @@ function advancementChoice(
 
 function spendTreasury(team: Team, report: ManagementReport): void {
   const spends = isLeagueMode(team.advancementMode) && isActiveTeam(team);
-  for (const item of spends ? planPurchases(team) : []) {
+  const purchases = spends ? planPurchases(team) : [];
+  for (const item of purchases) {
     try {
       applyPurchase(team, item);
       report.done.push(`${team.name}: ${describePurchase(item)}`);
@@ -339,69 +345,97 @@ function resolveSkillSelection({
   rng: Rng;
   report: ManagementReport;
 }): void {
-  const draftedAway = (released: { playerName: string }[]) => {
-    for (const record of released)
-      report.setbacks.push({
-        rule: "drafted-away",
-        detail: `${team.name}: ${record.playerName}, Treasury ${String(team.treasury)}`,
-      });
-  };
   const wantSecondary = rng.rollDie(3) === 1;
   for (let step = 0; step < 10; step++) {
     if (!team.pendingDevelopment?.some((e) => e.id === entry.id)) return;
-    const decision = skillSelectionDecision(team, entry);
-    switch (decision.type) {
-      case "choose-route":
-        if (
-          (wantSecondary || decision.primaryOptions.length === 0) &&
-          decision.secondaryAvailable
-        ) {
-          startSecondarySelection(team, entry, rng);
-        } else if (decision.primaryOptions.length > 0) {
-          const option = rollFrom(decision.primaryOptions, rng);
-          startPrimarySelection(
-            team,
-            entry,
-            option.playerId,
-            firstOf(option.categories)
-          );
-        } else {
-          throw new Error("no Skill Selection route is available");
-        }
-        break;
-      case "name-primary-skill":
-        nominatePrimarySkill(
-          team,
-          entry,
-          decision.chooser,
-          rollFrom(decision.options, rng)
-        );
-        break;
-      case "roll-primary-d3": {
-        const result = rollPrimarySelection(team, entry, rng);
-        report.done.push(
-          `${team.name}: Skill Selection primary ${result.skill} (D3 ${String(result.d3)})`
-        );
-        draftedAway(result.draft.released);
-        return;
-      }
-      case "choose-secondary-category":
-        rollSecondaryCandidates(team, entry, firstOf(decision.categories), rng);
-        break;
-      case "choose-secondary-skill": {
-        const result = chooseSecondarySkill(
-          team,
-          entry,
-          firstOf(decision.candidates).skill,
-          rng
-        );
-        report.done.push(
-          `${team.name}: Skill Selection secondary ${result.skill}`
-        );
-        draftedAway(result.draft.released);
-        return;
-      }
-    }
+    const finished = skillSelectionStep({
+      team,
+      entry,
+      rng,
+      report,
+      wantSecondary,
+    });
+    if (finished) return;
   }
   throw new Error("Skill Selection took ten steps without finishing");
+}
+
+function draftedAway(
+  team: Team,
+  report: ManagementReport,
+  released: { playerName: string }[]
+): void {
+  for (const record of released)
+    report.setbacks.push({
+      rule: "drafted-away",
+      detail: `${team.name}: ${record.playerName}, Treasury ${String(team.treasury)}`,
+    });
+}
+
+function skillSelectionStep({
+  team,
+  entry,
+  rng,
+  report,
+  wantSecondary,
+}: {
+  team: Team;
+  entry: Extract<PendingDevelopment, { kind: "sevens-skill-selection" }>;
+  rng: Rng;
+  report: ManagementReport;
+  wantSecondary: boolean;
+}): boolean {
+  const decision = skillSelectionDecision(team, entry);
+  switch (decision.type) {
+    case "choose-route":
+      if (
+        (wantSecondary || decision.primaryOptions.length === 0) &&
+        decision.secondaryAvailable
+      ) {
+        startSecondarySelection(team, entry, rng);
+      } else if (decision.primaryOptions.length > 0) {
+        const option = rollFrom(decision.primaryOptions, rng);
+        startPrimarySelection(
+          team,
+          entry,
+          option.playerId,
+          firstOf(option.categories)
+        );
+      } else {
+        throw new Error("no Skill Selection route is available");
+      }
+      return false;
+    case "name-primary-skill":
+      nominatePrimarySkill(
+        team,
+        entry,
+        decision.chooser,
+        rollFrom(decision.options, rng)
+      );
+      return false;
+    case "roll-primary-d3": {
+      const result = rollPrimarySelection(team, entry, rng);
+      report.done.push(
+        `${team.name}: Skill Selection primary ${result.skill} (D3 ${String(result.d3)})`
+      );
+      draftedAway(team, report, result.draft.released);
+      return true;
+    }
+    case "choose-secondary-category":
+      rollSecondaryCandidates(team, entry, firstOf(decision.categories), rng);
+      return false;
+    case "choose-secondary-skill": {
+      const result = chooseSecondarySkill(
+        team,
+        entry,
+        firstOf(decision.candidates).skill,
+        rng
+      );
+      report.done.push(
+        `${team.name}: Skill Selection secondary ${result.skill}`
+      );
+      draftedAway(team, report, result.draft.released);
+      return true;
+    }
+  }
 }

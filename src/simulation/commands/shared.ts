@@ -4,7 +4,7 @@ import { randomCoach } from "../coaches/random";
 import { heuristicCoach } from "../coaches/heuristic";
 import { createPlannerCoach, plannerCoach } from "../ai/planner";
 import { BUDGETS, createSearchCoach } from "../ai/search";
-import { parseWeights } from "../ai/weights";
+import { parseWeights, type Weights } from "../ai/weights";
 import { createJevCoach, type JevStats } from "../coaches/jev";
 
 export type CoachName =
@@ -20,6 +20,10 @@ export function fail(message: string): never {
   process.exit(2);
 }
 
+export function readWeights(file: string): Weights {
+  return parseWeights(JSON.parse(fs.readFileSync(file, "utf8")));
+}
+
 export function makeCoach(
   name: CoachName,
   jevStats: JevStats[],
@@ -33,19 +37,11 @@ export function makeCoach(
         samples: BUDGETS[name].samples,
         options: BUDGETS[name].options,
       },
-      ...(weightsFile && {
-            weights: parseWeights(
-              JSON.parse(fs.readFileSync(weightsFile, "utf8"))
-            ),
-          }),
+      ...(weightsFile && { weights: readWeights(weightsFile) }),
     });
   if (name === "planner")
     return weightsFile
-      ? createPlannerCoach({
-          weights: parseWeights(
-            JSON.parse(fs.readFileSync(weightsFile, "utf8"))
-          ),
-        })
+      ? createPlannerCoach({ weights: readWeights(weightsFile) })
       : plannerCoach;
   const apiKey = process.env["TYPESAFE_API_KEY"];
   if (!apiKey) fail("the jev coach needs TYPESAFE_API_KEY in the environment");

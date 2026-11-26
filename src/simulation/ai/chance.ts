@@ -2,6 +2,7 @@ import { type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { activeRules } from "../../game/variants/activeMatch";
 import { type BlockFaces, pickedFaceOdds } from "./wrestle";
+import { byCodeUnit } from "../../game/core/order";
 
 export type Chance = number;
 
@@ -109,7 +110,7 @@ export function sequenceChance(
   ): number => {
     const step = steps[i];
     if (step === undefined) return 1;
-    const key = `${String(i)}/${String(team)}/${[...spent].sort().join(",")}`;
+    const key = `${String(i)}/${String(team)}/${[...spent].sort(byCodeUnit).join(",")}`;
     const known = seen.get(key);
     if (known !== undefined) return known;
     const { player, roll } = step;
@@ -161,7 +162,7 @@ function chainFrom({
   const k = KINDS.indexOf(kind);
   const p = d6(target);
   let saved = 0;
-  if (!noSkillReroll && has[k] && !(spent & (1 << k)))
+  if (!noSkillReroll && has[k] === true && !(spent & (1 << k)))
     saved =
       p *
       chainFrom({

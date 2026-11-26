@@ -1,6 +1,6 @@
 import { GAME_TYPES, isGameType } from "../game/variants/gameTypes";
 import * as os from "node:os";
-import * as path from "node:path";
+import path from "node:path";
 import { RosterName } from "../types/Team";
 import { type CoachName, fail } from "./commands/shared";
 import { type RunOptions, runBatch } from "./commands/run";
@@ -8,16 +8,12 @@ import { replay } from "./commands/replay";
 import { type BenchOptions, benchWorker, runBench } from "./commands/bench";
 import { type TuneOptions, runTune, tuneWorker } from "./commands/tune";
 
+const RECORD_MODES = ["all", "failures", "none"] as const;
+const COACH_NAMES: readonly CoachName[] = ["random", "heuristic", "jev", "planner", "hard", "legend"];
+
 function parseCoach(value: string): CoachName {
-  if (
-    value === "random" ||
-    value === "heuristic" ||
-    value === "jev" ||
-    value === "planner" ||
-    value === "hard" ||
-    value === "legend"
-  )
-    return value;
+  const coach = COACH_NAMES.find((name) => name === value);
+  if (coach) return coach;
   return fail(
     `unknown coach "${value}" (random | heuristic | jev | planner | hard | legend)`
   );
@@ -90,9 +86,9 @@ function parseRunOptions(argv: string[]): RunOptions {
       "--max-commands": (o, value) => (o.maxCommands = Number(value())),
       "--out": (o, value) => (o.out = value()),
       "--record": (o, value) => {
-        const record = value();
-        if (record !== "all" && record !== "failures" && record !== "none")
-          fail("--record all | failures | none");
+        const requested = value();
+        const record = RECORD_MODES.find((mode) => mode === requested);
+        if (record === undefined) fail("--record all | failures | none");
         o.record = record;
         recordChosen = true;
       },
@@ -282,7 +278,7 @@ function parseTuneOptions(argv: string[]): TuneOptions {
   return options;
 }
 
-let engineErrors = 0;
+const engineLog = { errors: 0 };
 const quiet = () => {};
 console.log = quiet;
 console.info = quiet;
@@ -290,13 +286,13 @@ console.debug = quiet;
 console.warn = quiet;
 const stderrError = console.error.bind(console);
 console.error = (...args: unknown[]) => {
-  engineErrors++;
+  engineLog.errors++;
   if (process.env["SIM_VERBOSE"]) stderrError(...args);
 };
 process.on("exit", () => {
-  if (engineErrors > 0) {
+  if (engineLog.errors > 0) {
     process.stderr.write(
-      `The engine logged ${String(engineErrors)} console errors (set SIM_VERBOSE=1 to see them).\n`
+      `The engine logged ${String(engineLog.errors)} console errors (set SIM_VERBOSE=1 to see them).\n`
     );
   }
 });
@@ -314,12 +310,11 @@ const run =
           : mode === "tune-worker"
             ? tuneWorker()
             : runBatch(parseRunOptions(process.argv.slice(2)));
-run.then(
-  (code) => process.exit(code),
-  (error) => {
-    process.stderr.write(
-      `${String(error instanceof Error ? error.stack : String(error))}\n`
-    );
-    process.exit(2);
-  }
-);
+try {
+  process.exit(await run);
+} catch (error) {
+  process.stderr.write(
+    `${String(error instanceof Error ? error.stack : String(error))}\n`
+  );
+  process.exit(2);
+}

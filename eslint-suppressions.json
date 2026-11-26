@@ -5091,46 +5091,12 @@
       "count": 1
     },
     "complexity": {
-      "count": 2
+      "count": 1
     },
     "max-lines-per-function": {
       "count": 1
     },
     "sonarjs/no-duplicate-string": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/no-useless-spread": {
-      "count": 1
-    }
-  },
-  "src/competition/logic.ts": {
-    "unicorn/no-object-as-default-parameter": {
-      "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
-      "count": 4
-    }
-  },
-  "src/competition/online.ts": {
-    "unicorn/no-array-reduce": {
-      "count": 1
-    }
-  },
-  "src/competition/repository.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 5
-    }
-  },
-  "src/competition/roundPlan.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
-  "src/competition/schedule.ts": {
-    "unicorn/prefer-array-flat-map": {
       "count": 1
     }
   },
@@ -5226,58 +5192,6 @@
   "src/data/skillCatalog.ts": {
     "max-lines": {
       "count": 1
-    }
-  },
-  "src/firebase/auth.ts": {
-    "unicorn/no-top-level-assignment-in-function": {
-      "count": 7
-    }
-  },
-  "src/firebase/cloudMatchSaveRepository.ts": {
-    "unicorn/no-declarations-before-early-exit": {
-      "count": 1
-    }
-  },
-  "src/firebase/cloudTeamRepository.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 1
-    }
-  },
-  "src/firebase/coaches.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 2
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    }
-  },
-  "src/firebase/config.ts": {
-    "unicorn/no-top-level-assignment-in-function": {
-      "count": 4
-    },
-    "unicorn/prefer-early-return": {
-      "count": 1
-    }
-  },
-  "src/firebase/friends.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 1
-    }
-  },
-  "src/firebase/invites.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 2
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 1
-    }
-  },
-  "src/firebase/lobby.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 3
     }
   },
   "src/gallery/Frame.tsx": {
@@ -6843,166 +6757,9 @@
       "count": 1
     }
   },
-  "src/simulation/ai/activations.ts": {
-    "unicorn/no-declarations-before-early-exit": {
-      "count": 1
-    },
-    "unicorn/no-immediate-mutation": {
-      "count": 1
-    },
-    "unicorn/prefer-single-call": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/ballActivations.ts": {
-    "unicorn/no-array-reduce": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/blockActivations.ts": {
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/prefer-logical-operator-over-ternary": {
-      "count": 1
-    }
-  },
   "src/simulation/ai/board.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 2
-    }
-  },
-  "src/simulation/ai/chance.ts": {
-    "unicorn/require-array-sort-compare": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/decisions.ts": {
-    "unicorn/no-array-reduce": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/feedingSupport.ts": {
-    "unicorn/no-duplicate-loops": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/foulActivations.ts": {
-    "unicorn/no-duplicate-loops": {
-      "count": 2
-    }
-  },
-  "src/simulation/ai/gamePlans.ts": {
-    "unicorn/no-array-reduce": {
-      "count": 1
-    },
-    "unicorn/no-declarations-before-early-exit": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/gateActivations.ts": {
-    "unicorn/no-array-reduce": {
-      "count": 1
-    },
-    "unicorn/no-duplicate-loops": {
-      "count": 2
-    }
-  },
-  "src/simulation/ai/gazeActivations.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
-    "unicorn/no-unsafe-buffer-conversion": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/inducementChoices.ts": {
-    "unicorn/no-array-reduce": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/kickoffChoices.ts": {
-    "unicorn/no-unreadable-object-destructuring": {
-      "count": 3
-    }
-  },
-  "src/simulation/ai/kickoffPlans.ts": {
-    "unicorn/no-array-reduce": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/kickoffSteps.ts": {
-    "unicorn/no-array-reduce": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-object-destructuring": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/numberTable.ts": {
-    "unicorn/no-unsafe-buffer-conversion": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/planner.ts": {
-    "unicorn/no-array-reduce": {
-      "count": 1
-    },
-    "unicorn/no-declarations-before-early-exit": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/repositionActivations.ts": {
-    "unicorn/no-return-array-push": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/routes.ts": {
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/search.ts": {
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/searchWorker.ts": {
-    "unicorn/no-global-object-property-assignment": {
-      "count": 1
-    },
-    "unicorn/prefer-add-event-listener": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/skillActivations.ts": {
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/teammateActivations.ts": {
-    "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-duplicate-loops": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/weights.ts": {
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
     }
   },
   "src/simulation/bench.ts": {
@@ -7016,9 +6773,6 @@
       "count": 1
     },
     "max-params": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
   },
@@ -7049,12 +6803,6 @@
     },
     "sonarjs/no-duplicate-string": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 2
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 3
     }
   },
   "src/simulation/cli.ts": {
@@ -7063,9 +6811,6 @@
     },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 3
-    },
-    "@typescript-eslint/use-unknown-in-catch-callback-variable": {
-      "count": 1
     },
     "complexity": {
       "count": 2
@@ -7081,18 +6826,6 @@
     },
     "sonarjs/no-duplicate-string": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-top-level-assignment-in-function": {
-      "count": 1
-    },
-    "unicorn/prefer-includes-over-repeated-comparisons": {
-      "count": 2
-    },
-    "unicorn/prefer-top-level-await": {
-      "count": 1
     }
   },
   "src/simulation/coach.ts": {
@@ -7102,14 +6835,6 @@
   },
   "src/simulation/coaches/heuristic.ts": {
     "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "unicorn/no-array-reduce": {
-      "count": 1
-    }
-  },
-  "src/simulation/coaches/random.ts": {
-    "unicorn/no-array-reduce": {
       "count": 1
     }
   },
@@ -7136,18 +6861,6 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 2
-    },
-    "unicorn/consistent-function-scoping": {
-      "count": 3
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/max-nested-calls": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
   },
@@ -7159,9 +6872,6 @@
       "count": 1
     },
     "max-statements": {
-      "count": 1
-    },
-    "unicorn/no-duplicate-loops": {
       "count": 1
     }
   },
@@ -7177,23 +6887,11 @@
     },
     "max-statements": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/prefer-single-call": {
-      "count": 1
     }
   },
   "src/simulation/commands/shared.ts": {
     "no-restricted-syntax": {
-      "count": 4
-    },
-    "unicorn/max-nested-calls": {
-      "count": 2
+      "count": 3
     }
   },
   "src/simulation/commands/tune.ts": {
@@ -7226,15 +6924,6 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 1
-    },
-    "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/prefer-continue": {
-      "count": 1
     }
   },
   "src/simulation/invariants.ts": {
@@ -7249,20 +6938,6 @@
     },
     "max-params": {
       "count": 5
-    },
-    "unicorn/no-return-array-push": {
-      "count": 2
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/prefer-early-return": {
-      "count": 1
-    }
-  },
-  "src/simulation/kickoffCandidates.ts": {
-    "unicorn/no-unreadable-object-destructuring": {
-      "count": 1
     }
   },
   "src/simulation/lineups.ts": {
@@ -7305,9 +6980,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
     }
   },
   "src/simulation/runMatch.ts": {
@@ -7337,9 +7009,6 @@
     },
     "sonarjs/no-duplicate-string": {
       "count": 1
-    },
-    "unicorn/no-return-array-push": {
-      "count": 1
     }
   },
   "src/simulation/stepCandidates.ts": {
@@ -7351,15 +7020,6 @@
     },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    },
-    "unicorn/no-duplicate-loops": {
-      "count": 3
-    },
-    "unicorn/no-return-array-push": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 3
     }
   },
   "src/simulation/tune.ts": {
@@ -7397,12 +7057,6 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-unsafe-string-replacement": {
-      "count": 2
     }
   },
   "src/testing/browserBridge.ts": {

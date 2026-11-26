@@ -31,15 +31,15 @@ function distractedBoard(board: Board, target: Player): Board {
     ],
   };
   const replace = (p: Player) => (p.id === target.id ? distracted : p);
-  const marks = new DataView(board.marks.buffer.slice(0));
+  const marks = new DataView(board.marks.buffer.slice(board.marks.byteOffset, board.marks.byteOffset + board.marks.byteLength));
   for (const at of neighbours(target.gridPosition))
     marks.setUint8(key(at), marks.getUint8(key(at)) - 1);
   const occupant = [...board.occupant];
   occupant[key(target.gridPosition)] = distracted;
   return {
     ...board,
-    theirs: board.theirs.map(replace),
-    everyone: board.everyone.map(replace),
+    theirs: board.theirs.map((p) => replace(p)),
+    everyone: board.everyone.map((p) => replace(p)),
     occupant,
     marks,
   };

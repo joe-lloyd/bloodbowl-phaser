@@ -75,10 +75,10 @@ function kickerWorth(ground: KickoffGround, player: Player, at: Square): Worth {
   const here = [...teamSquares(ground), ...underSquare(ground, player)].filter(
     (s) => key(s.at) === key(at)
   );
-  const best = here.reduce<(typeof here)[number] | null>(
-    (top, s) => (top && top.value >= s.value ? top : s),
-    null
-  );
+  let best: (typeof here)[number] | null = null;
+  for (const s of here) {
+    if (!(best && best.value >= s.value)) best = s;
+  }
   const marking = best?.role === "mark";
   const lane = landing ? (CLOSING / 2) * Math.abs(at.y - landing.y) : 0;
   return {
@@ -111,14 +111,15 @@ export function freeNeighbours(
   { c }: KickoffGround,
   { gridPosition }: Player
 ): Square[] {
-  return neighbours(gridPosition).filter((s) => !c.board.occupant[key(s)]);
+  return neighbours(gridPosition).filter((s) => c.board.occupant[key(s)] === undefined);
 }
 
 export function stepIndex(
   candidates: readonly Candidate[],
   { player, at }: KickoffStep
 ): number {
-  return candidates.findIndex(({ commands: [command] }) => {
+  return candidates.findIndex((candidate) => {
+    const command = candidate.commands[0];
     return (
       command.type === "kickoff-move-player" &&
       command.playerId === player.id &&

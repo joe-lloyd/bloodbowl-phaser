@@ -28,7 +28,8 @@ function byteLength(text: string): number {
 function fittedName(name: string | undefined): string | undefined {
   let fitted = "";
   let characters = 0;
-  for (const { segment } of new Intl.Segmenter().segment(name?.trim() ?? "")) {
+  const segments = new Intl.Segmenter().segment(name?.trim() ?? "");
+  for (const { segment } of segments) {
     const longer = fitted + segment;
     if (characters === COACH_NAME_LIMIT || byteLength(longer) > COACH_NAME_BYTES)
       break;
@@ -80,7 +81,8 @@ export async function getCoachProfile(
 async function freeFriendCode(tx: Transaction): Promise<FriendCode> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const candidate = randomFriendCode();
-    if (!(await tx.get(friendCodeRef(candidate))).exists()) return candidate;
+    const existing = await tx.get(friendCodeRef(candidate));
+    if (!existing.exists()) return candidate;
   }
   throw new Error("Could not find a free friend code. Try again.");
 }
@@ -110,8 +112,8 @@ export async function touchPresence(uid: string): Promise<void> {
 }
 
 export async function getCoachName(uid: string): Promise<string | null> {
-  const name =
-    (await getCoachProfile(uid))?.coachName ?? (await legacyCoachName(uid));
+  const profile = await getCoachProfile(uid);
+  const name = profile?.coachName ?? (await legacyCoachName(uid));
   return name?.trim() ? name : null;
 }
 

@@ -14,6 +14,8 @@ import {
 
 const SINGLE_ELIMINATION = "single-elimination";
 
+const DEFAULT_LEAGUE_POINTS: LeaguePoints = { win: 3, draw: 1, loss: 0 };
+
 function seeded(entrants: CompetitionEntrant[]): CompetitionEntrant[] {
   return [...entrants].sort(
     (a, b) =>
@@ -345,7 +347,7 @@ function recordScoreline({
 export function computeStandings(
   entrants: CompetitionEntrant[],
   fixtures: CompetitionFixture[],
-  points: LeaguePoints = { win: 3, draw: 1, loss: 0 }
+  points: LeaguePoints = DEFAULT_LEAGUE_POINTS
 ): Standing[] {
   const table = new Map<string, Standing>(
     entrants.map((entrant) => [entrant.id, emptyStanding(entrant.id)])
@@ -387,8 +389,8 @@ function checkPenalties(
     throw new Error("Penalties only decide a knockout game left level.");
   }
   if (
-    !Number.isInteger(home) ||
-    !Number.isInteger(away) ||
+    !Number.isSafeInteger(home) ||
+    !Number.isSafeInteger(away) ||
     home < 0 ||
     away < 0 ||
     home + away !== SHOOTOUT_ROLL_OFFS
@@ -400,7 +402,7 @@ function checkPenalties(
 }
 
 function checkScores(homeScore: number, awayScore: number): void {
-  if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore)) {
+  if (!Number.isSafeInteger(homeScore) || !Number.isSafeInteger(awayScore)) {
     throw new TypeError("Scores must be whole numbers.");
   }
   if (homeScore < 0 || awayScore < 0) {

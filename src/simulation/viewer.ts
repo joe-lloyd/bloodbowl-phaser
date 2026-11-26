@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { dirname, join } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { type EmittedEvent } from "../headless/protocol";
 import type { HeadlessGame } from "../headless/HeadlessGame";
@@ -75,17 +75,17 @@ function narrate(events: EmittedEvent[]): string[] {
         ) {
           out.push(`🎲 ${data["description"]}`);
         }
-        break;
+        continue;
       case GameEventNames.UI_Notification:
         if (typeof data === "string") out.push(data);
-        break;
+        continue;
       case GameEventNames.UI_Turnover:
         if (data && typeof data === "object")
           out.push(`TURNOVER: ${String(data["reason"] ?? "")}`);
-        break;
+        continue;
       case GameEventNames.Touchdown:
         out.push("TOUCHDOWN!");
-        break;
+        continue;
     }
   }
 
@@ -211,14 +211,17 @@ export async function buildMatchDump(
   };
 }
 
-const TEMPLATE = join(dirname(fileURLToPath(import.meta.url)), "viewer.html");
+const TEMPLATE = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "viewer.html"
+);
 
 export function renderMatchHtml(dump: MatchDump): string {
   const json = JSON.stringify(dump).replaceAll('<', "\\u003c");
   return fs
     .readFileSync(TEMPLATE, "utf8")
-    .replace("__TITLE__", escapeHtml(dump.title))
-    .replace("/*__MATCH_DATA__*/null", json);
+    .replace("__TITLE__", () => escapeHtml(dump.title))
+    .replace("/*__MATCH_DATA__*/null", () => json);
 }
 
 export function escapeHtml(text: string): string {

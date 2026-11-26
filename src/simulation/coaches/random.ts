@@ -28,7 +28,8 @@ export const randomCoach: Coach = {
     const entries = [...groups.values()];
     let roll =
       rng.next() * entries.reduce((sum, group) => sum + group.weight, 0);
-    const last = entries.reduce((_, group) => group);
+    const last = entries.at(-1);
+    if (!last) throw new Error("No group to choose from");
     for (const group of entries) {
       roll -= group.weight;
       if (roll <= 0) return Promise.resolve({ index: rng.pick(group.indices) });

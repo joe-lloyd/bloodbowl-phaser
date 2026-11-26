@@ -61,11 +61,13 @@ function canSteady(c: Context, helper: Player, big: Player): boolean {
 
 function steadyMoves(c: Context, big: Player): Steady[] {
   const out: Steady[] = [];
-  for (const helper of c.board.ours.filter((h) => canSteady(c, h, big)))
+  for (const helper of c.board.ours) {
+    if (!canSteady(c, helper, big)) continue;
     for (const at of neighbours(big.gridPosition)) {
       const route = c.plainRoutes(helper).get(key(at));
       if (route && route.chance >= c.w.safeMove) out.push({ helper, at });
     }
+  }
   return out;
 }
 
@@ -101,19 +103,19 @@ function steadyPlans({ c, big, best, teammates }: SteadyPlan): Activation[] {
 }
 
 function bestPlan(plans: Activation[], player: Player): Activation | null {
-  return plans
-    .filter((a) => a.player.id === player.id && a.value > 0)
-    .reduce<Activation | null>(
-      (top, a) => (!top || a.value > top.value ? a : top),
-      null
-    );
+  let top: Activation | null = null;
+  for (const a of plans) {
+    if (a.player.id === player.id && a.value > 0 && (!top || a.value > top.value)) top = a;
+  }
+  return top;
 }
 
 function steadySupport(c: Context, plans: Activation[]) {
   const gs = c.board.gs;
   const support: Activation[] = [];
   const wait = new Map<string, number>();
-  for (const big of c.board.ours.filter((element) => steadied(element))) {
+  for (const big of c.board.ours) {
+    if (!steadied(big)) continue;
     const best = bestPlan(plans, big);
     if (!best) continue;
     const teammates = gs.getTeammates(big.id);

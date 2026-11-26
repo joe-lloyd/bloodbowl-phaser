@@ -151,12 +151,13 @@ function retainConflict(uid: string, conflict: MatchSave): void {
 export function connectMatchSavePersistenceToAuth(): void {
   let authRevision = 0;
   subscribeToAuth((user) => {
-    const revision = ++authRevision;
-    const local = getLocalMatchSaveRepository();
+    authRevision += 1;
     if (!user) {
       setMatchSaveRepository(null);
       return;
     }
+    const revision = authRevision;
+    const local = getLocalMatchSaveRepository();
 
     void (async () => {
       try {

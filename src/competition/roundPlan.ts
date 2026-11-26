@@ -16,7 +16,7 @@ export function roundPlan(fixtures: CompetitionFixture[]): RoundPlan {
     fixtures.some(
       (fixture) => fixture.round === round && fixture.status !== "complete"
     );
-  const [next, ...upcoming] = rounds.filter(open);
+  const [next, ...upcoming] = rounds.filter((round) => open(round));
   return {
     ...(next !== undefined && { next }),
     upcoming,

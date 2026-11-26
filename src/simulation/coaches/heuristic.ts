@@ -410,11 +410,10 @@ export const heuristicCoach: Coach = {
   name: "heuristic",
   choose(context) {
     const scores = rankCandidates(context);
-    const best = scores.reduce(
-      (chosen, candidate) =>
-        candidate.score > chosen.score ? candidate : chosen,
-      { index: 0, score: -Infinity }
-    );
+    let best = { index: 0, score: -Infinity };
+    for (const candidate of scores) {
+      if (candidate.score > best.score) best = candidate;
+    }
     return Promise.resolve({ index: best.index });
   },
 };

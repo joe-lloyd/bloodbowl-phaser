@@ -365,7 +365,8 @@ async function setupCandidates(
   game: HeadlessGame,
   teamId: string
 ): Promise<Candidate[]> {
-  const legal = (await game.execute({ type: "legal-actions" })).legalActions;
+  const response = await game.execute({ type: "legal-actions" });
+  const legal = response.legalActions;
   const setup = legal?.setup;
   if (setup?.canChooseConcession) {
     return [
@@ -394,10 +395,11 @@ async function setupCandidates(
     const reserves = team.players.filter(
       (player) => !player.gridPosition && gs.isSetupEligible(player.id)
     );
-    for (const player of reserves.slice(
+    const toPlace = reserves.slice(
       0,
       swarm.maximumAdditionalPlayers - swarm.additionalPlayerCount
-    )) {
+    );
+    for (const player of toPlace) {
       const placement = firstLegalSquare(
         player.id,
         zone,
@@ -551,7 +553,8 @@ function declareCandidates(player: Player, entry: PlayerActions): Candidate[] {
       label: `${describePlayer(player)} declares ${action}`,
     });
   }
-  for (const replacement of entry.replacementActions ?? []) {
+  const replacements = entry.replacementActions ?? [];
+  for (const replacement of replacements) {
     if (!replacement.blitz) continue;
     out.push({
       kind: "declare",
@@ -580,9 +583,11 @@ async function playCandidates(game: HeadlessGame): Promise<Candidate[]> {
     return stepCandidates(game, actor, active);
   }
 
-  const legal = (await game.execute({ type: "legal-actions" })).legalActions;
+  const response = await game.execute({ type: "legal-actions" });
+  const legal = response.legalActions;
   const out: Candidate[] = [];
-  for (const entry of legal?.players ?? []) {
+  const entries = legal?.players ?? [];
+  for (const entry of entries) {
     const player = gs.getPlayerById(entry.playerId);
     if (redeclaring && player?.id !== active.id) continue;
     if (player) out.push(...declareCandidates(player, entry));

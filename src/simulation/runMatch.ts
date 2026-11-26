@@ -435,7 +435,9 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     key: string,
     message: string,
     snapshot: GameSnapshot
-  ) => findings.push(finding(kind, key, message, steps.length - 1, snapshot));
+  ) => {
+    findings.push(finding(kind, key, message, steps.length - 1, snapshot));
+  };
 
   while (steps.length < maxCommands) {
     keepMatchFormat(format);

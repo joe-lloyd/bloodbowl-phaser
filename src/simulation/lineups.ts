@@ -82,7 +82,7 @@ function lineupTemplates(
     pass++
   ) {
     for (const template of positionals) {
-      if (picked.length >= MAX_NON_LINEMEN) break;
+      if (picked.length >= MAX_NON_LINEMEN) continue;
       if (!withinRosterLimits(template, picked, roster.maxBigGuys)) continue;
       const linemenStillNeeded = Math.max(0, 7 - picked.length - 1);
       if (spent + template.cost + linemenStillNeeded * lineman.cost > budget)

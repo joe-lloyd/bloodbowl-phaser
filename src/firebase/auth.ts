@@ -28,14 +28,20 @@ export type ConfirmLink =
 
 type AuthListener = (user: AuthUser | null) => void;
 
-let currentUser: AuthUser | null = null;
-
-let confirmLink: ConfirmLink = { kind: "sent" };
-
-let linkAttempt = 0;
+const authState: {
+  currentUser: AuthUser | null;
+  confirmLink: ConfirmLink;
+  linkAttempt: number;
+  watching: boolean;
+  resolved: boolean;
+} = {
+  currentUser: null,
+  confirmLink: { kind: "sent" },
+  linkAttempt: 0,
+  watching: false,
+  resolved: false,
+};
 const listeners = new Set<AuthListener>();
-let watching = false;
-let resolved = false;
 
 function toAuthUser(user: User | null): AuthUser | null {
   if (!user) return null;
@@ -43,30 +49,30 @@ function toAuthUser(user: User | null): AuthUser | null {
 }
 
 function ensureWatching(): void {
-  if (watching || !isFirebaseConfigured()) return;
-  watching = true;
+  if (authState.watching || !isFirebaseConfigured()) return;
+  authState.watching = true;
   onAuthStateChanged(getFirebaseAuth(), (user) => {
-    resolved = true;
+    authState.resolved = true;
     const next = toAuthUser(user);
-    if (next?.uid !== currentUser?.uid) {
-      confirmLink = { kind: "sent" };
-      linkAttempt++;
+    if (next?.uid !== authState.currentUser?.uid) {
+      authState.confirmLink = { kind: "sent" };
+      authState.linkAttempt++;
     }
-    currentUser = next;
-    listeners.forEach((listener) => {
-      listener(currentUser);
-    });
+    authState.currentUser = next;
+    for (const listener of listeners) {
+      listener(authState.currentUser);
+    }
   });
 }
 
 async function sendLink(user: User, sent: ConfirmLink): Promise<void> {
-  const attempt = ++linkAttempt;
+  const attempt = ++authState.linkAttempt;
   const report = (next: ConfirmLink) => {
-    if (attempt !== linkAttempt) return;
-    confirmLink = next;
-    listeners.forEach((listener) => {
-      listener(currentUser);
-    });
+    if (attempt !== authState.linkAttempt) return;
+    authState.confirmLink = next;
+    for (const listener of listeners) {
+      listener(authState.currentUser);
+    }
   };
   await sendEmailVerification(user).then(
     () => {
@@ -79,23 +85,23 @@ async function sendLink(user: User, sent: ConfirmLink): Promise<void> {
 }
 
 export function getConfirmLink(): ConfirmLink {
-  return confirmLink;
+  return authState.confirmLink;
 }
 
 export function isAuthResolved(): boolean {
   ensureWatching();
-  return !isFirebaseConfigured() || resolved;
+  return !isFirebaseConfigured() || authState.resolved;
 }
 
 export function getCurrentUser(): AuthUser | null {
   ensureWatching();
-  return currentUser;
+  return authState.currentUser;
 }
 
 export function subscribeToAuth(listener: AuthListener): () => void {
   ensureWatching();
   listeners.add(listener);
-  listener(currentUser);
+  listener(authState.currentUser);
   return () => listeners.delete(listener);
 }
 

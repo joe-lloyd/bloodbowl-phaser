@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import * as path from "node:path";
+import path from "node:path";
 import { ChildProcess, fork } from "node:child_process";
 import { RosterName } from "../../types/Team";
 import { type Coach } from "../coach";
@@ -69,6 +69,8 @@ export async function tuneWorker(): Promise<number> {
   return 0;
 }
 
+const say = (line: string) => process.stdout.write(`${line}\n`);
+
 export async function runTune(options: TuneOptions): Promise<number> {
   const rng = createCoachRng(options.seed);
   let best: Weights = options.from
@@ -106,8 +108,6 @@ export async function runTune(options: TuneOptions): Promise<number> {
     });
     return child;
   });
-
-  const say = (line: string) => process.stdout.write(`${line}\n`);
 
   const play = async (
     a: Weights,
@@ -222,16 +222,15 @@ export async function runTune(options: TuneOptions): Promise<number> {
         (judged ? "" : ", but not on every roster") +
         (promoted ? ", promoted" : "")
     );
-    if (promoted) {
-      const changed = (Object.keys(best) as (keyof Weights)[]).filter(
-        (name) => best[name] !== topMutant[name]
-      );
-      say(
-        `  ${changed.map((n) => `${n} ${best[n].toFixed(2)} -> ${topMutant[n].toFixed(2)}`).join(", ")}`
-      );
-      best = topMutant;
-      saveWeights(best);
-    }
+    if (!promoted) continue;
+    const changed = (Object.keys(best) as (keyof Weights)[]).filter(
+      (name) => best[name] !== topMutant[name]
+    );
+    say(
+      `  ${changed.map((n) => `${n} ${best[n].toFixed(2)} -> ${topMutant[n].toFixed(2)}`).join(", ")}`
+    );
+    best = topMutant;
+    saveWeights(best);
   }
   saveWeights(best);
   for (const child of children) child.send({ done: true });
