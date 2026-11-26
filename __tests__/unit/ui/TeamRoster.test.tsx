@@ -236,7 +236,7 @@ describe("TeamRoster skill tooltips", () => {
     expect(tooltipPanels).toContain(blockText);
     expect(tooltipPanels).toContain(dodgeText);
 
-    expect(tooltipPanels.some((t) => t === `${blockText} ${dodgeText}`)).toBe(
+    expect(tooltipPanels.includes(`${blockText} ${dodgeText}`)).toBe(
       false
     );
   });

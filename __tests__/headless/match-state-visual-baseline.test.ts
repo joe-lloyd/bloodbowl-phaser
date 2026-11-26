@@ -26,7 +26,7 @@ function player({
     id,
     teamId,
     status,
-    ...(square ? { gridPosition: square } : {}),
+    ...(square && { gridPosition: square }),
   });
 }
 

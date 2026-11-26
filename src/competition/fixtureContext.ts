@@ -12,16 +12,12 @@ export function fixtureContext({
 }): CompetitionContext {
   return {
     ruleset: competition.ruleset ?? DEFAULT_SEVENS_RULESET,
-    ...(competition.gameType === undefined
-      ? {}
-      : { gameType: competition.gameType }),
+    ...(competition.gameType !== undefined && { gameType: competition.gameType }),
     competitionType: competition.type,
     competitionId: competition.id,
     fixtureId,
     playedVia,
     ...(competition.type === "tournament" &&
-    competition.format === "single-elimination"
-      ? { knockout: true }
-      : {}),
+    competition.format === "single-elimination" && { knockout: true }),
   };
 }

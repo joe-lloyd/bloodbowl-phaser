@@ -37,7 +37,7 @@ function team(id: string, activeCompetitionId?: string): Team {
     draws: 0,
     losses: 0,
     touchdowns: 0,
-    ...(activeCompetitionId ? { activeCompetitionId } : {}),
+    ...(activeCompetitionId && { activeCompetitionId }),
   } as unknown as Team;
 }
 

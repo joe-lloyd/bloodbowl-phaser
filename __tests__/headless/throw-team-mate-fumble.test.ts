@@ -30,13 +30,13 @@ function scenario(options: {
           playerIndex: 0,
           x: 4,
           y,
-          ...(options.throwerHasBall ? { hasBall: true } : {}),
+          ...(options.throwerHasBall && { hasBall: true }),
         },
         {
           playerIndex: options.troll ? 1 : 3,
           x: 5,
           y,
-          ...(options.carrier ? { hasBall: true } : {}),
+          ...(options.carrier && { hasBall: true }),
         },
         { playerIndex: options.troll ? 2 : 1, x: 1, y: 9 },
       ],
@@ -44,11 +44,9 @@ function scenario(options: {
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ...(options.carrier ||
-      options.throwerHasBall ||
-      options.opponents?.some((p) => p.hasBall)
-        ? {}
-        : { ballPosition: options.looseBall ?? { x: 15, y: 2 } }),
+      ...(!options.carrier &&
+        !options.throwerHasBall &&
+        !options.opponents?.some((p) => p.hasBall) && { ballPosition: options.looseBall ?? { x: 15, y: 2 } }),
     },
   };
 }

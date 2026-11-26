@@ -99,7 +99,7 @@ async function lurch(
       description: "",
       setup: {
         ...config.setup,
-        ...(team2Roster === undefined ? {} : { team2Roster: team2Roster }),
+        ...(team2Roster !== undefined && { team2Roster: team2Roster }),
         team2Placements: [
           at(0, 11, 4),
           at(1, 11, 5),
@@ -281,7 +281,7 @@ describe("a Ball & Chain lurch through a pile of players", () => {
             { playerIndex: 1, x: 19, y: 5 },
             { playerIndex: 2, x: 19, y: 6 },
           ],
-          ...(team2Roster === undefined ? {} : { team2Roster: team2Roster }),
+          ...(team2Roster !== undefined && { team2Roster: team2Roster }),
           team2Placements,
           ballPosition: { x: 18, y: 5 },
         },

@@ -39,7 +39,7 @@ function sideSession(
     myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
     peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
     hostTeamId: game.ctx.team1.id,
-    ...(onDesync === undefined ? {} : { onDesync: onDesync }),
+    ...(onDesync !== undefined && { onDesync: onDesync }),
   });
 }
 

@@ -33,7 +33,7 @@ function saveCurrent(
     rng: game.rng.captureState(),
     matchStats: game.matchStats.captureState(),
     turnManager: game.gameService.captureTurnManagerState(),
-    ...(competition === undefined ? {} : { competition: competition }),
+    ...(competition !== undefined && { competition: competition }),
     savedAt,
   });
 }

@@ -16,7 +16,7 @@ export async function freezeAnimation(page: Page): Promise<void> {
 
   await page.evaluate(() => {
     const game = (
-      window as unknown as {
+      globalThis as unknown as {
         game?: {
           loop?: { sleep(): void };
           scene?: {
@@ -68,9 +68,7 @@ export async function expectVisualCheckpoint(
     mask: [...volatileRegions(page), ...(options.mask ?? [])],
     animations: "disabled",
     caret: "hide",
-    ...(options.clip ? { clip: options.clip } : {}),
-    ...(options.maxDiffPixelRatio === undefined
-      ? {}
-      : { maxDiffPixelRatio: options.maxDiffPixelRatio }),
+    ...(options.clip && { clip: options.clip }),
+    ...(options.maxDiffPixelRatio !== undefined && { maxDiffPixelRatio: options.maxDiffPixelRatio }),
   });
 }

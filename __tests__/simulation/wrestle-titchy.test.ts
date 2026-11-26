@@ -24,7 +24,7 @@ function wrestleBoard(
         x: 8,
         y: 5,
         skills: attackerSkills,
-        ...(target.ours ? { hasBall: true as const } : {}),
+        ...(target.ours && { hasBall: true as const }),
       },
     ],
     team2Placements: [
@@ -33,13 +33,13 @@ function wrestleBoard(
         x: 9,
         y: 5,
         skills: target.skills,
-        ...(target.hasBall ? { hasBall: true as const } : {}),
+        ...(target.hasBall && { hasBall: true as const }),
       },
       {
         playerIndex: 1,
         x: 18,
         y: 1,
-        ...(target.hasBall || target.ours ? {} : { hasBall: true as const }),
+        ...(!(target.hasBall || target.ours) && { hasBall: true as const }),
       },
     ],
   });

@@ -44,19 +44,19 @@ function touchRules(rules: CSSRuleList): void {
 
 export function touchStyles(): void {
   for (const sheet of document.styleSheets) {
-    const own = !sheet.href || sheet.href.startsWith(window.location.origin);
+    const own = !sheet.href || sheet.href.startsWith(location.origin);
     if (own) touchRules(sheet.cssRules);
   }
 }
 
-export const frame = new URLSearchParams(window.location.search);
+export const frame = new URLSearchParams(location.search);
 
 function isolateFrame(): void {
   for (const name of ["localStorage", "sessionStorage"])
-    Object.defineProperty(window, name, { value: new FrameStorage() });
+    Object.defineProperty(globalThis, name, { value: new FrameStorage() });
   if (frame.get("size") !== "phone") return;
-  const real = window.matchMedia.bind(window);
-  window.matchMedia = (query) => real(touchQuery(query));
+  const real = matchMedia.bind(globalThis);
+  globalThis.matchMedia = (query) => real(touchQuery(query));
 }
 
 if (frame.has("v")) isolateFrame();

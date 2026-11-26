@@ -8,9 +8,7 @@ interface Beat {
 }
 
 declare global {
-  interface Window {
-    __turnoverPace: { beats: Beat[]; failedLandedAt: number; bannerAt: number };
-  }
+  var __turnoverPace: { beats: Beat[]; failedLandedAt: number; bannerAt: number };
 }
 
 test("a failed Rush with an armour roll hands over without a long wait", async ({
@@ -21,17 +19,17 @@ test("a failed Rush with an armour roll hands over without a long wait", async (
   await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: 1 });
   await page.evaluate(
     (names) => {
-      const pace: Window["__turnoverPace"] = {
+      const pace: typeof globalThis.__turnoverPace = {
         beats: [],
         failedLandedAt: 0,
         bannerAt: 0,
       };
-      window.__turnoverPace = pace;
+      globalThis.__turnoverPace = pace;
       const note = (what: string) =>
         pace.beats.push({ at: Math.round(performance.now()), what });
       let thrown = 0;
       let rushSeq = 0;
-      window.eventBus.on(
+      globalThis.eventBus.on(
         names.roll,
         (roll: { rollType: string; description: string }) => {
           note(`roll ${roll.rollType}: ${roll.description}`);
@@ -39,7 +37,7 @@ test("a failed Rush with an armour roll hands over without a long wait", async (
           if (roll.rollType.startsWith("Rush")) rushSeq = thrown;
         }
       );
-      window.eventBus.on(
+      globalThis.eventBus.on(
         names.tray,
         (tray: { thrown: number; landedThrough: number }) => {
           thrown = tray.thrown;
@@ -50,7 +48,7 @@ test("a failed Rush with an armour roll hands over without a long wait", async (
             pace.failedLandedAt = performance.now();
         }
       );
-      window.eventBus.on(names.moment, (moment: { kind: string } | null) => {
+      globalThis.eventBus.on(names.moment, (moment: { kind: string } | null) => {
         note(`moment ${moment?.kind ?? "none"}`);
         if (moment?.kind === "turn-started" && !pace.bannerAt)
           pace.bannerAt = performance.now();
@@ -68,10 +66,10 @@ test("a failed Rush with an armour roll hands over without a long wait", async (
   await app.pitch.clickSquare({ x: 19, y: 5 });
   await app.pitch.clickSquare({ x: 19, y: 5 });
 
-  await page.waitForFunction(() => window.__turnoverPace.bannerAt > 0, null, {
+  await page.waitForFunction(() => globalThis.__turnoverPace.bannerAt > 0, null, {
     timeout: 30_000,
   });
-  const pace = await page.evaluate(() => window.__turnoverPace);
+  const pace = await page.evaluate(() => globalThis.__turnoverPace);
   const start = pace.beats[0]?.at ?? 0;
   console.log(
     pace.beats

@@ -26,7 +26,7 @@ async function squaresUnderHud(app: GameApp, page: Page) {
   if (!box) throw new Error("the game canvas has no layout box");
 
   const corners = await page.evaluate(() => {
-    const bridge = (window as unknown as Record<string, BrowserTestBridge>)[
+    const bridge = (globalThis as unknown as Record<string, BrowserTestBridge>)[
       "__bbTestBridge"
     ];
     const edge = [

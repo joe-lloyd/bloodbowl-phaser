@@ -116,7 +116,7 @@ export async function playStudyGame(
     team2,
     startingPhase: GamePhase.SETUP,
     progressionEnabled: job.persistentInjuries ?? false,
-    ...(job.format ? { format: job.format } : {}),
+    ...(job.format && { format: job.format }),
   });
   const participants = [team1.players.slice(), team2.players.slice()];
   const initial = game.matchSave();
@@ -137,9 +137,7 @@ export async function playStudyGame(
     coaches,
     game,
     inducements: false,
-    ...(job.receivingSide === undefined
-      ? {}
-      : { kickingTeamId: job.receivingSide === 0 ? team2.id : team1.id }),
+    ...(job.receivingSide !== undefined && { kickingTeamId: job.receivingSide === 0 ? team2.id : team1.id }),
   });
   const recording = withLeadingSteps(played, bought);
   const observed = telemetry.snapshot();

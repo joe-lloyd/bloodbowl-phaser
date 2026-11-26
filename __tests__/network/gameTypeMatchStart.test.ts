@@ -37,7 +37,7 @@ const format = () => {
 
 describe("a friendly match on the local screen", () => {
   it("starts on the Beach Bowl sand when the coaches pick Beach Bowl", () => {
-    window.eventBus = new EventBus();
+    globalThis.eventBus = new EventBus();
     ensureMatchServices(
       resolveMatchStart({ ...teams(), gameType: "beach-bowl" }, "GameScene"),
       false
@@ -46,7 +46,7 @@ describe("a friendly match on the local screen", () => {
   });
 
   it("follows a competition fixture's game type over the friendly choice", () => {
-    window.eventBus = new EventBus();
+    globalThis.eventBus = new EventBus();
     ensureMatchServices(
       resolveMatchStart(
         {
@@ -67,7 +67,7 @@ describe("a friendly match on the local screen", () => {
   });
 
   it("keeps Sevens on the stadium with no format fields", () => {
-    window.eventBus = new EventBus();
+    globalThis.eventBus = new EventBus();
     ensureMatchServices(resolveMatchStart(teams(), "GameScene"), false);
     expect(format()).toEqual([undefined, undefined]);
   });

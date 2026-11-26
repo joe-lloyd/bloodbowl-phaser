@@ -82,9 +82,9 @@ async function run() {
   );
   if (!Number.isSafeInteger(workers) || workers < 1)
     throw new Error("workers must be a positive integer");
-  const cohorts = flag("cohorts", "league,calibration,hard,legend").split(",");
+  const cohorts = new Set(flag("cohorts", "league,calibration,hard,legend").split(","));
   const limit = Number(flag("limit", "0"));
-  let jobs = studySchedule().filter((job) => cohorts.includes(job.cohort));
+  let jobs = studySchedule().filter((job) => cohorts.has(job.cohort));
   if (jobs.length === 0)
     throw new Error("No jobs matched the requested cohorts");
   if (limit > 0) jobs = jobs.slice(0, limit);

@@ -270,7 +270,7 @@ export function gateContextOf(
     hostTeamId,
     phase: gameService.getState().phase,
     kickUnderWay: gameService.isKickUnderWay(),
-    ...(gameService.getState().weatherReady === undefined ? {} : { weatherReady: gameService.getState().weatherReady }),
+    ...(gameService.getState().weatherReady !== undefined && { weatherReady: gameService.getState().weatherReady }),
     inducementShopper: shoppingTeamId(
       gameService.getState().pregameInducements,
       [game.ctx.team1.id, game.ctx.team2.id]

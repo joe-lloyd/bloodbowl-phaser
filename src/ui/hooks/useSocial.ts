@@ -139,7 +139,7 @@ function watchActivity() {
     active = true;
   };
   for (const name of ACTIVITY_EVENTS) {
-    window.addEventListener(name, mark, { capture: true, passive: true });
+    addEventListener(name, mark, { capture: true, passive: true });
   }
   return {
     mark,
@@ -150,7 +150,7 @@ function watchActivity() {
     },
     stop: () => {
       for (const name of ACTIVITY_EVENTS) {
-        window.removeEventListener(name, mark, { capture: true });
+        removeEventListener(name, mark, { capture: true });
       }
     },
   };

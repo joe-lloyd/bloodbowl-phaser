@@ -97,7 +97,7 @@ export async function ensureCoachProfile(uid: string): Promise<CoachProfile> {
       uid,
       friendCode: await freeFriendCode(tx),
       lastSeen: Date.now(),
-      ...(coachName === undefined ? {} : { coachName }),
+      ...(coachName !== undefined && { coachName }),
     };
     tx.set(friendCodeRef(profile.friendCode), { uid });
     tx.set(coachRef(uid), profile);

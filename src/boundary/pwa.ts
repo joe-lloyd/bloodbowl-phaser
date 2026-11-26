@@ -49,12 +49,12 @@ export async function install(): Promise<void> {
 }
 
 export function startPwa(): void {
-  window.addEventListener("beforeinstallprompt", (event) => {
+  addEventListener("beforeinstallprompt", (event) => {
     if (!isInstallPrompt(event)) return;
     event.preventDefault();
     setOffer(event);
   });
-  window.addEventListener("appinstalled", () => {
+  addEventListener("appinstalled", () => {
     setOffer(null);
   });
   if (import.meta.env.MODE !== "production" || !("serviceWorker" in navigator))

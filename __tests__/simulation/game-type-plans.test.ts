@@ -156,7 +156,7 @@ function choose(game: HeadlessGame, pending: Choice): string | null {
             {
               type: "choose-inducement",
               playerId,
-              ...(skill === undefined ? {} : { skill }),
+              ...(skill !== undefined && { skill }),
             },
           ],
           label: `${playerId} ${skill ?? ""}`,

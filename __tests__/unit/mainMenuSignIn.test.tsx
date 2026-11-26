@@ -119,7 +119,7 @@ function Elsewhere() {
 
 function typeInto(input: HTMLInputElement, value: string) {
   fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
-    window.HTMLInputElement.prototype,
+    HTMLInputElement.prototype,
     "value"
   )).set).call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));

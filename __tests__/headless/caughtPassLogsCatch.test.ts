@@ -11,7 +11,7 @@ describe("a caught pass", () => {
     );
     const game = new HeadlessGame({
       scenario,
-      ...(scenario.seed === undefined ? {} : { seed: scenario.seed }),
+      ...(scenario.seed !== undefined && { seed: scenario.seed }),
     });
     const thrower = game.ctx.team1.players[0];
     await game.execute({

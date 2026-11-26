@@ -66,7 +66,7 @@ async function throwMate(
     teammateId,
     x: 8,
     y: 5,
-    ...(swoopFacing ? { swoopFacing } : {}),
+    ...(swoopFacing && { swoopFacing }),
   });
   const events = [...response.events];
   while (response.pendingDecision?.type === "reroll") {

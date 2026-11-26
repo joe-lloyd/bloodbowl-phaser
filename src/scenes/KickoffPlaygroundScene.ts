@@ -23,7 +23,7 @@ export class KickoffPlaygroundScene extends GameScene {
   }
 
   override init(data: GameSceneData): void {
-    const config = readPlayground(new URLSearchParams(window.location.search));
+    const config = readPlayground(new URLSearchParams(location.search));
     const { rosters, kicking, scene } = config;
     const team1 = sandboxTeam(rosters.team1, `Home ${rosters.team1}`, HOME_COLOR);
     const team2 = sandboxTeam(rosters.team2, `Away ${rosters.team2}`, AWAY_COLOR);
@@ -34,7 +34,7 @@ export class KickoffPlaygroundScene extends GameScene {
       ...scene.format,
     };
     ServiceContainer.initialize({
-      eventBus: window.eventBus,
+      eventBus: globalThis.eventBus,
       team1,
       team2,
       initialState,
@@ -60,7 +60,7 @@ export class KickoffPlaygroundScene extends GameScene {
       event: config.scene.event,
       isTeam1Kicking: config.kicking === "team1",
       landing: playgroundLanding(playgroundScenario(config), config.kicking),
-      ...(config.players === null ? {} : { selectionLimit: config.players }),
+      ...(config.players !== null && { selectionLimit: config.players }),
     });
   }
 }

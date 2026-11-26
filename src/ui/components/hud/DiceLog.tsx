@@ -70,7 +70,7 @@ const FONT_SCALE_DEFAULT = 1;
 
 function loadFontScale(): number {
   try {
-    const raw = window.localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+    const raw = localStorage.getItem(FONT_SCALE_STORAGE_KEY);
     const parsed = raw ? Number.parseFloat(raw) : NaN;
     if (!Number.isFinite(parsed)) return FONT_SCALE_DEFAULT;
     return clampFontScale(parsed);
@@ -81,7 +81,7 @@ function loadFontScale(): number {
 
 function saveFontScale(scale: number): void {
   try {
-    window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(scale));
+    localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(scale));
   } catch {
     return;
   }
@@ -267,9 +267,9 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     pushLogEntry({
       category: data.category,
       headline: data.headline,
-      ...(data.detail === undefined ? {} : { detail: data.detail }),
-      ...(data.roll === undefined ? {} : { roll: data.roll }),
-      ...(data.teamId === undefined ? {} : { teamId: data.teamId }),
+      ...(data.detail !== undefined && { detail: data.detail }),
+      ...(data.roll !== undefined && { roll: data.roll }),
+      ...(data.teamId !== undefined && { teamId: data.teamId }),
     });
   });
 
@@ -285,7 +285,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       category: "skill",
       headline: data.skill,
       detail: data.effect,
-      ...(teamId === undefined ? {} : { teamId }),
+      ...(teamId !== undefined && { teamId }),
     });
   });
   useEventBus(eventBus, GameEventNames.RerollUsed, (data) => {
@@ -296,7 +296,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       category: "reroll",
       headline: rerollHeadline(data.source, data.skill),
       detail: `${data.rollKind}: ${roll(data.before)} → ${roll(data.after)}`,
-      ...(teamId === undefined ? {} : { teamId }),
+      ...(teamId !== undefined && { teamId }),
     });
   });
 

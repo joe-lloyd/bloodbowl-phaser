@@ -69,9 +69,7 @@ function pairLegs(
       variantIds: [sides[0].id, sides[1].id],
       candidateSide: leg % 4 === 0 || leg % 4 === 3 ? 0 : 1,
       development: a.arm,
-      ...(options.receivingBalance
-        ? { receivingSide: leg < 4 ? (0 as const) : (1 as const) }
-        : {}),
+      ...(options.receivingBalance && { receivingSide: leg < 4 ? (0 as const) : (1 as const) }),
     });
   }
   return jobs;

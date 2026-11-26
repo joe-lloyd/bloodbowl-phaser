@@ -30,7 +30,7 @@ export function pitchGame({ format, team1 = [], team2 = [], ball }: Pitch) {
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ...(ball ? { ballPosition: ball } : {}),
+      ...(ball && { ballPosition: ball }),
     },
   };
   const game = new HeadlessGame({ scenario, seed: 1, format });

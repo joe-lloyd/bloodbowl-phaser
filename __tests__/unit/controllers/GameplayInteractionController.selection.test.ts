@@ -414,9 +414,7 @@ describe("explicit End activation camera intent", () => {
             id: player1.id,
             action: "move",
             committed: true,
-            ...(kind === "razzle"
-              ? { razzleDazzle: { actions: ["move"], awaitingSecond: true } }
-              : {}),
+            ...((kind === "razzle") && { razzleDazzle: { actions: ["move"], awaitingSecond: true } }),
           };
       });
       endFromUi();

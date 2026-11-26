@@ -125,7 +125,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
   const handleAction = (action: string, name?: string) => {
     eventBus.emit(GameEventNames.UI_SetupAction, {
       action,
-      ...(name === undefined ? {} : { name: name }),
+      ...(name !== undefined && { name: name }),
     });
   };
 

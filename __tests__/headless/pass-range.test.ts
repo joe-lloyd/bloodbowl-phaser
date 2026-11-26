@@ -48,7 +48,7 @@ async function passTo({
     playerId: passerId,
     x,
     y,
-    ...(hailMary === undefined ? {} : { hailMary }),
+    ...(hailMary !== undefined && { hailMary }),
   });
 }
 

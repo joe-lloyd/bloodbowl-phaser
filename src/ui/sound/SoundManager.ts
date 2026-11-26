@@ -175,7 +175,7 @@ function defaultCreateContext(): AudioContext {
   const browser: {
     AudioContext?: typeof AudioContext;
     webkitAudioContext?: typeof AudioContext;
-  } = window;
+  } = globalThis;
   const Ctor = browser.AudioContext ?? browser.webkitAudioContext;
   if (!Ctor) {
     throw new Error("Web Audio API is not available in this browser");

@@ -131,7 +131,7 @@ function setup(
     camera.renderedZoom = camera.zoom;
   };
   const controller = new CameraController(
-    { scene,pitch,world: { width: 5000,height: 3500 },dugoutPoints: [pitch.getPointPosition(0,-4),pitch.getPointPosition(21,15)],eventBus: bus,...(hudRects ? {hudRects} : {}) }  );
+    { scene,pitch,world: { width: 5000,height: 3500 },dugoutPoints: [pitch.getPointPosition(0,-4),pitch.getPointPosition(21,15)],eventBus: bus,...(hudRects && {hudRects}) }  );
   return {
     camera,
     controller,

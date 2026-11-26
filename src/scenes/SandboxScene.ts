@@ -92,7 +92,7 @@ export class SandboxScene extends GameScene {
   }
 
   private getBrowserEventBus(): IEventBus {
-    return (window as unknown as { eventBus: IEventBus }).eventBus;
+    return (globalThis as unknown as { eventBus: IEventBus }).eventBus;
   }
 
   override init(data: { team1?: Team; team2?: Team }): void {
@@ -161,7 +161,7 @@ export class SandboxScene extends GameScene {
     };
     this.eventBus.on(GameEventNames.PlayerMoved, this.playerMovedHandler);
 
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(location.search);
     const scenarioId = urlParams.get("scenario");
     if (scenarioId) {
       const seedParam = urlParams.get("seed");
@@ -278,10 +278,10 @@ export class SandboxScene extends GameScene {
     this.eventBus.emit(GameEventNames.ScenarioLoaded, {
       name: scenario.name,
       seed: effectiveSeed,
-      ...(shownOutcome === undefined ? {} : { expectedOutcome: shownOutcome }),
+      ...(shownOutcome !== undefined && { expectedOutcome: shownOutcome }),
     });
 
-    const newUrl = new URL(window.location.href);
+    const newUrl = new URL(location.href);
     newUrl.searchParams.set("scenario", scenarioId);
     newUrl.searchParams.set("seed", String(effectiveSeed));
     if (outcomeId && expectedOutcome) {
@@ -289,7 +289,7 @@ export class SandboxScene extends GameScene {
     } else {
       newUrl.searchParams.delete("outcome");
     }
-    window.history.replaceState({ path: newUrl.href }, "", newUrl.href);
+    history.replaceState({ path: newUrl.href }, "", newUrl.href);
   }
 
   private swapRosters(scenario: Scenario): void {

@@ -274,8 +274,8 @@ describe("Team Management seed actions while the library is not loaded", () => {
       setTeamLibraryStatus(label === "Seed All Rosters" ? "loading" : "failed");
     });
     const before = JSON.stringify({ ...localStorage });
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const confirmSpy = vi.spyOn(globalThis, "confirm").mockReturnValue(true);
+    const alertSpy = vi.spyOn(globalThis, "alert").mockImplementation(() => {});
 
     const seedButton = fixtureValue([...container.querySelectorAll("button")].find(
       (b) => b.textContent === label

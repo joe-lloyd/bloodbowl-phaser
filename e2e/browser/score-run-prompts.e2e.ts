@@ -15,31 +15,29 @@ interface ObservedMoment {
 }
 
 declare global {
-  interface Window {
-    __bbTestBridge: BrowserTestBridge;
-    __momentProof: {
+  var __bbTestBridge: BrowserTestBridge;
+  var __momentProof: {
       moments: ObservedMoment[];
       thrownAtTurnover: number;
       landedAtBanner: number;
     };
-  }
 }
 
 async function observeMoments(page: Page) {
   await page.evaluate(
     (names) => {
-      const proof: Window["__momentProof"] = {
+      const proof: typeof globalThis.__momentProof = {
         moments: [],
         thrownAtTurnover: 0,
         landedAtBanner: 0,
       };
-      window.__momentProof = proof;
+      globalThis.__momentProof = proof;
       let tray = { thrown: 0, landedThrough: 0 };
       let lastKind: string | null = null;
-      window.eventBus.on(names.dice, (data) => {
+      globalThis.eventBus.on(names.dice, (data) => {
         tray = data;
       });
-      window.eventBus.on(names.turnover, () => {
+      globalThis.eventBus.on(names.turnover, () => {
         proof.thrownAtTurnover = tray.thrown;
         proof.moments.length = 0;
       });
@@ -52,7 +50,7 @@ async function observeMoments(page: Page) {
         const kind = turnover
           ? "turnover"
           : (banner?.getAttribute("data-kind") ?? null);
-        const state = window.__bbTestBridge.phase();
+        const state = globalThis.__bbTestBridge.phase();
         if (kind && kind !== lastKind) {
           proof.moments.push({
             kind,
@@ -136,7 +134,7 @@ test("a score run plans the Dodge and the Rush, and scores at the end on Go", as
   await expect
     .poll(async () => (await app.bridge.phase()).phase, { timeout: 15_000 })
     .toBe("SETUP");
-  const moments = await page.evaluate(() => window.__momentProof.moments);
+  const moments = await page.evaluate(() => globalThis.__momentProof.moments);
   const scoredMoment = moments.find((moment) => moment.kind === "touchdown");
   const setupMoment = moments.find((moment) => moment.kind === "setup");
   expect(scoredMoment).toBeDefined();
@@ -167,12 +165,12 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
   });
   await page.screenshot({ path: test.info().outputPath("turnover.png") });
   await page.waitForFunction(() =>
-    window.__momentProof.moments.some(
+    globalThis.__momentProof.moments.some(
       (moment) => moment.kind === "turn-started"
     )
   );
   const { moments, thrownAtTurnover, landedAtBanner } = await page.evaluate(
-    () => window.__momentProof
+    () => globalThis.__momentProof
   );
 
   expect(moments.map((moment) => moment.kind)).toEqual([
@@ -196,7 +194,7 @@ test("on two Rushes in a row, the second Rush rolls only after every earlier die
   await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: SEED });
 
   await page.evaluate(() => {
-    const w = window as unknown as {
+    const w = globalThis as unknown as {
       eventBus: { on(name: string, fn: (d: never) => void): void };
       tray: { thrown: number; landedThrough: number };
       rollsSeen: number;
@@ -233,7 +231,7 @@ test("on two Rushes in a row, the second Rush rolls only after every earlier die
       () =>
         page.evaluate(
           () =>
-            (window as unknown as { trayAtRushRolls: unknown[] })
+            (globalThis as unknown as { trayAtRushRolls: unknown[] })
               .trayAtRushRolls.length
         ),
       { timeout: 30_000 }
@@ -242,7 +240,7 @@ test("on two Rushes in a row, the second Rush rolls only after every earlier die
   const [, second] = await page.evaluate(
     () =>
       (
-        window as unknown as {
+        globalThis as unknown as {
           trayAtRushRolls: { earlier: number; landed: number }[];
         }
       ).trayAtRushRolls

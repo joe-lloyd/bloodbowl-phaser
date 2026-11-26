@@ -280,7 +280,7 @@ export function addCondition(
   if (hasCondition(player, type)) return;
   (player.conditions ??= []).push({
     type,
-    ...(byPlayerId ? { byPlayerId } : {}),
+    ...(byPlayerId && { byPlayerId }),
   });
 }
 

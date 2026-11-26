@@ -111,10 +111,8 @@ function watch(game: HeadlessGame) {
       roll.context;
     dice.push({
       rollType: roll.rollType,
-      ...(context?.target === undefined ? {} : { target: context?.target }),
-      ...(context?.modifier === undefined
-        ? {}
-        : { modifier: context?.modifier }),
+      ...(context?.target !== undefined && { target: context?.target }),
+      ...(context?.modifier !== undefined && { modifier: context?.modifier }),
     });
   });
   return { plannedRolls, prompts, dice };

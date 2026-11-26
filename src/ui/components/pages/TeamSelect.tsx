@@ -143,7 +143,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     if (
       mode !== "sandbox" &&
       readMatchSave() &&
-      !window.confirm(
+      !confirm(
         "Starting a new match will replace your saved match. Continue?"
       )
     ) {
@@ -165,7 +165,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           computerTeamId: computerTeam.id,
           difficulty,
           gameType,
-          ...(venue ? { venue } : {}),
+          ...(venue && { venue }),
         },
       });
       return;
@@ -177,7 +177,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         team2: selectedTeam2,
         progressionEnabled,
         gameType,
-        ...(venue ? { venue } : {}),
+        ...(venue && { venue }),
       },
     });
   };

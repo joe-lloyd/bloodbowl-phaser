@@ -42,19 +42,19 @@ function pushDefault(
     : null;
 }
 
-const DECLINED_BY_DEFAULT: readonly InducementChoiceKind[] = [
+const DECLINED_BY_DEFAULT: ReadonlySet<InducementChoiceKind> = new Set([
   "sports-wizard",
   "magic-potion",
   "lesser-magic-potion",
   "superior-magic-potion",
   "souvenir",
   "novice-wizard",
-];
+]);
 
 function inducementDefault(
   pending: Decision<"inducement-choice">
 ): HeadlessCommand | null {
-  return DECLINED_BY_DEFAULT.includes(pending.kind)
+  return DECLINED_BY_DEFAULT.has(pending.kind)
     ? { type: "choose-inducement" }
     : null;
 }

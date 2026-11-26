@@ -443,7 +443,7 @@ describe("GameHUD match options menu wiring", () => {
       );
 
       const nativeValueSetter = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
+        HTMLInputElement.prototype,
         "value"
       )).set);
       await act(async () => {

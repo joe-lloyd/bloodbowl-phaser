@@ -220,7 +220,7 @@ const PROBE = `(() => {
 
 function resetProbe(page: Page) {
   return page.evaluate(() => {
-    const p = (window as unknown as { __perfProbe: Record<string, unknown> })
+    const p = (globalThis as unknown as { __perfProbe: Record<string, unknown> })
       .__perfProbe;
     p["drawCalls"] = 0;
     p["drawFrames"] = 0;
@@ -231,7 +231,7 @@ function resetProbe(page: Page) {
 
 function readProbe(page: Page): Promise<PageStats> {
   return page.evaluate(() => {
-    const p = (window as unknown as { __perfProbe: PageStats }).__perfProbe;
+    const p = (globalThis as unknown as { __perfProbe: PageStats }).__perfProbe;
     const memory = (
       performance as unknown as { memory?: { usedJSHeapSize: number } }
     ).memory;

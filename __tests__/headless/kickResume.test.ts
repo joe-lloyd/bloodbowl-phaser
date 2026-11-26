@@ -319,7 +319,7 @@ async function resynced(
 ): Promise<string> {
   const game = freshGame(table, 1, { onDelay: () => undefined });
   const state = (from: ReturnType<typeof momentOf>) => ({
-    snapshot: { ...structuredClone(from.save.snapshot), ...(from.save.turnManager ? { turnManager: from.save.turnManager } : {}) },
+    snapshot: { ...structuredClone(from.save.snapshot), ...(from.save.turnManager && { turnManager: from.save.turnManager }) },
     teams: structuredClone(from.save.teams),
     pending: structuredClone(from.pending),
     rng: structuredClone(from.save.rng),

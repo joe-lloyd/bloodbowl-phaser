@@ -48,7 +48,7 @@ async function replayScore(
         ok: response.ok,
         team: 0,
         label: "tactical trace",
-        ...(choice.note === undefined ? {} : { note: choice.note }),
+        ...(choice.note !== undefined && { note: choice.note }),
       });
     }
   }

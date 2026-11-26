@@ -94,7 +94,7 @@ function engine(page: Page): Promise<EngineView> {
         [team2.id]: gs.getTurnNumber(team2.id),
       },
       bribes: { ...state.bribes },
-      weather: String(state.weather),
+      weather: state.weather,
       owedAssists: { ...state.driveEffects?.owedAssists },
       freeRerolls: { ...state.driveEffects?.freeRerolls },
       modifiers: JSON.parse(
@@ -104,7 +104,7 @@ function engine(page: Page): Promise<EngineView> {
         id: p.id,
         name: p.playerName,
         teamId: p.teamId,
-        status: String(p.status),
+        status: p.status,
         at: p.gridPosition ? { ...p.gridPosition } : null,
         ma: effectiveMA(p, state),
         av: effectiveAV(p, state),
@@ -125,7 +125,7 @@ async function caption(
   await page.evaluate(
     ({ lines, card }) => {
       const id = card ? "kickoff-video-card" : "kickoff-video-caption";
-      document.getElementById("kickoff-video-card")?.remove();
+      document.querySelector("#kickoff-video-card")?.remove();
       let box = document.getElementById(id);
       if (!box) {
         box = document.createElement("div");
@@ -264,7 +264,7 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
     );
     await page.waitForTimeout(3500);
     await page.evaluate(() =>
-      document.getElementById("kickoff-video-card")?.remove()
+      document.querySelector("#kickoff-video-card")?.remove()
     );
     await caption(page, { title, body: [KICKOFF_EVENT_MEANING[clip.event]] });
     await app.pitch.waitForCameraToSettle();

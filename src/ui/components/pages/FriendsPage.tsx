@@ -110,7 +110,7 @@ function FriendsBody({ uid }: { uid: string }) {
           );
         }}
         onRemove={(row) => {
-          if (window.confirm(`Remove ${row.name} from your friends?`))
+          if (confirm(`Remove ${row.name} from your friends?`))
             act(removeFriendship(row.key));
         }}
       />

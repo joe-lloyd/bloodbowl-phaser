@@ -377,7 +377,7 @@ export class GameScene extends Phaser.Scene {
       [this.team2, dugouts.away, "n", gates.away],
     ] as const;
     for (const [team, squares, facing, gateX] of benches) {
-      const dugout = new Dugout({ scene: this, team: team, kit: this.kitOf(team.id), squares: squares, toWorld: toWorld, facing: facing, exit: { rows: GameConfig.PITCH_HEIGHT, ...(gateX === undefined ? {} : { gateX }) } }
+      const dugout = new Dugout({ scene: this, team: team, kit: this.kitOf(team.id), squares: squares, toWorld: toWorld, facing: facing, exit: { rows: GameConfig.PITCH_HEIGHT, ...(gateX !== undefined && { gateX }) } }
       );
       dugout.setDragCallbacks(
         (id) => {

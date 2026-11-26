@@ -64,8 +64,8 @@ const stored = (teamId: string) =>
   loadTeams().some((candidate) => candidate.id === teamId);
 
 it("deletes a computer team that is free", async () => {
-  const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
-  vi.spyOn(window, "confirm").mockReturnValue(true);
+  const alert = vi.spyOn(globalThis, "alert").mockImplementation(() => {});
+  vi.spyOn(globalThis, "confirm").mockReturnValue(true);
   const { team, remove } = await showTeam();
   await remove();
   expect(stored(team.id)).toBe(false);
@@ -73,8 +73,8 @@ it("deletes a computer team that is free", async () => {
 });
 
 it("keeps one entered from another tab after the page rendered", async () => {
-  const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
-  const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+  const alert = vi.spyOn(globalThis, "alert").mockImplementation(() => {});
+  const confirm = vi.spyOn(globalThis, "confirm").mockReturnValue(true);
   const { team, remove } = await showTeam();
   saveTeam({ ...team, activeCompetitionId: "league-1" });
   await remove();
@@ -84,9 +84,9 @@ it("keeps one entered from another tab after the page rendered", async () => {
 });
 
 it("keeps one entered while the confirmation was open", async () => {
-  const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+  const alert = vi.spyOn(globalThis, "alert").mockImplementation(() => {});
   const { team, remove } = await showTeam();
-  vi.spyOn(window, "confirm").mockImplementation(() => {
+  vi.spyOn(globalThis, "confirm").mockImplementation(() => {
     saveTeam({ ...team, activeCompetitionId: "league-1" });
     return true;
   });

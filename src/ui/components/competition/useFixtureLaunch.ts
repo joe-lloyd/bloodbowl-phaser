@@ -64,7 +64,7 @@ export function hostedFixture({
     awayTeam: teams.awayTeam,
     hostSide,
     competitionName: competition.name,
-    ...(reservedFor === undefined ? {} : { reservedFor }),
+    ...(reservedFor !== undefined && { reservedFor }),
   };
 }
 
@@ -125,7 +125,7 @@ export function useFixtureLaunch({
 
   const launch = async (fixture: CompetitionFixture, { local, route }: { local: boolean; route: Launcher }) => {
     const replaces = local && readMatchSave();
-    if (replaces && !window.confirm("Starting this fixture will replace your saved local match. Continue?"))
+    if (replaces && !confirm("Starting this fixture will replace your saved local match. Continue?"))
       return;
     setLaunching(true);
     try {

@@ -362,7 +362,7 @@ describe("PlayerPlacementController dugout drops", () => {
       _scene: {} as Phaser.Scene,
       pitch,
       validator: new SetupValidator(),
-      ...(isAvailable ? { isAvailable } : {}),
+      ...(isAvailable && { isAvailable }),
     });
     const sprite = dugoutSprite({ x: 900, y: 40 });
     const team = {

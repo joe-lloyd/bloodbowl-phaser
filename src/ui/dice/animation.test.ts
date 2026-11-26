@@ -62,7 +62,7 @@ beforeEach(() => {
     return seed / 4_294_967_296;
   });
   vi.spyOn(performance, "now").mockImplementation(() => now);
-  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+  vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((callback) => {
     pending = callback;
     return 1;
   });

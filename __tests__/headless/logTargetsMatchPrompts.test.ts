@@ -91,7 +91,7 @@ describe("dice log targets", () => {
 
     expect(armour).toMatch(
       new RegExp(
-        `: \\d \\+ \\d \\+1 = \\d+ \\(AV ${String(fixtureValue(victim).stats.AV)}\\+\\)$`
+        String.raw`: \d \+ \d \+1 = \d+ \(AV ${String(fixtureValue(victim).stats.AV)}\+\)$`
       )
     );
   });

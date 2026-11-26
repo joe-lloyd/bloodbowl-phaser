@@ -35,16 +35,12 @@ function fanaticGame(opts: {
       description: "",
       setup: {
         team1Roster: RosterName.GOBLIN,
-        ...(opts.team2Roster === undefined
-          ? {}
-          : { team2Roster: opts.team2Roster }),
+        ...(opts.team2Roster !== undefined && { team2Roster: opts.team2Roster }),
         team1Placements: [
           {
             playerIndex: FANATIC,
             ...(opts.at ?? { x: 10, y: 5 }),
-            ...(opts.fanaticSkills === undefined
-              ? {}
-              : { skills: opts.fanaticSkills }),
+            ...(opts.fanaticSkills !== undefined && { skills: opts.fanaticSkills }),
           },
 
           { playerIndex: 3, x: 1, y: 9 },
@@ -54,11 +50,9 @@ function fanaticGame(opts: {
         activeTeam: opts.activeTeam ?? "team1",
         phase: GamePhase.PLAY,
         subPhase: SubPhase.TURN_RECEIVING,
-        ...([...(opts.team1 ?? []), ...(opts.team2 ?? [])].some(
-          (p) => p.hasBall
-        )
-          ? {}
-          : { ballPosition: { x: 1, y: 1 } }),
+        ...([...(opts.team1 ?? []), ...(opts.team2 ?? [])].every(
+          (p) => !p.hasBall
+        ) && { ballPosition: { x: 1, y: 1 } }),
       },
     },
   });

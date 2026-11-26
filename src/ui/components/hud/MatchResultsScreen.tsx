@@ -161,13 +161,9 @@ export function MatchResultsScreen({
       homeScore: state.score[homeId] ?? 0,
       awayScore: state.score[awayId] ?? 0,
       progressedTeams: { home, away },
-      ...(state.result?.penalties
-        ? { penalties: homeAndAway(state.result.penalties, homeId, awayId) }
-        : {}),
+      ...(state.result?.penalties && { penalties: homeAndAway(state.result.penalties, homeId, awayId) }),
       options: {
-        ...(state.fanFactors
-          ? { fanFactors: homeAndAway(state.fanFactors, homeId, awayId) }
-          : {}),
+        ...(state.fanFactors && { fanFactors: homeAndAway(state.fanFactors, homeId, awayId) }),
         stalled: stalledSides(state.stallingPlayerIds, home, away),
       },
     })
@@ -438,14 +434,14 @@ export function MatchResultsScreen({
             opponent,
             {
               score: state.score,
-              ...(state.result === undefined ? {} : { result: state.result }),
+              ...(state.result !== undefined && { result: state.result }),
             },
             stats,
             {
               id,
               playedAt: Date.now(),
               kind,
-              ...(fixtureContext ? { fixture: id } : {}),
+              ...(fixtureContext && { fixture: id }),
             }
           )
         );

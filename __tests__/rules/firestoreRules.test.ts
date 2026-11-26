@@ -128,9 +128,7 @@ function dbFor(uid: string): Firestore {
           : {
               sub: uid,
               user_id: uid,
-              ...(uid === BOT || uid === SQUATTER
-                ? { email: HOUSE_BOT_EMAIL }
-                : {}),
+              ...((uid === BOT || uid === SQUATTER) && { email: HOUSE_BOT_EMAIL }),
             },
     }
   );
@@ -636,7 +634,7 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
         id: `league-${String(Date.now())}-${String(nextId++)}`,
         type: "league",
         name: "League",
-        ...(ruleset === undefined ? {} : { ruleset }),
+        ...(ruleset !== undefined && { ruleset }),
         organizerUid: ORGANIZER,
         participantUids: [HOST, GUEST, THIRD, ORGANIZER],
         status: "active",
@@ -661,7 +659,7 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
         id: `cup-${String(Date.now())}-${String(nextId++)}`,
         type: "tournament",
         name: "Cup",
-        ...(ruleset === undefined ? {} : { ruleset }),
+        ...(ruleset !== undefined && { ruleset }),
         organizerUid: ORGANIZER,
         participantUids: [HOST, GUEST, THIRD, ORGANIZER],
         status: "active",

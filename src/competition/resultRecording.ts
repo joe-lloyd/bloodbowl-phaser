@@ -174,8 +174,8 @@ async function updateEntrantRecords({
       fixtureKey,
       winnerEntrantId: result.winnerEntrantId,
       counts: !result.walkover,
-      ...(progressedTeam ? { progressedTeam } : {}),
-      ...(winnings === undefined ? {} : { winnings }),
+      ...(progressedTeam && { progressedTeam }),
+      ...(winnings !== undefined && { winnings }),
     });
   }
 }
@@ -295,8 +295,8 @@ function swapped<Value>(sides: { home: Value; away: Value }) {
 function swappedOptions(options: RecordFixtureOptions): RecordFixtureOptions {
   return {
     ...options,
-    ...(options.fanFactors ? { fanFactors: swapped(options.fanFactors) } : {}),
-    ...(options.stalled ? { stalled: swapped(options.stalled) } : {}),
+    ...(options.fanFactors && { fanFactors: swapped(options.fanFactors) }),
+    ...(options.stalled && { stalled: swapped(options.stalled) }),
   };
 }
 
@@ -312,8 +312,8 @@ export function orientToFixture(
     homeScore: request.awayScore,
     awayScore: request.homeScore,
     progressedTeams: swapped(teams),
-    ...(request.penalties ? { penalties: swapped(request.penalties) } : {}),
-    ...(request.options ? { options: swappedOptions(request.options) } : {}),
+    ...(request.penalties && { penalties: swapped(request.penalties) }),
+    ...(request.options && { options: swappedOptions(request.options) }),
   };
 }
 
@@ -351,7 +351,7 @@ function recordFixtureTransaction(
           fixtureId: context.fixtureId,
           homeScore,
           awayScore,
-          ...(penalties === undefined ? {} : { penalties }),
+          ...(penalties !== undefined && { penalties }),
         });
   applyFixtureWinnings(next, { competition: latest, fixture }, request);
   markPlayedVia(next, context);
@@ -396,7 +396,7 @@ export async function recordCompetitionFixture(
     competition: updated,
     fixture: recorded,
     result: recorded.result,
-    ...(progressedTeams ? { progressedTeams } : {}),
+    ...(progressedTeams && { progressedTeams }),
   });
   if (!progressedTeams) {
     try {

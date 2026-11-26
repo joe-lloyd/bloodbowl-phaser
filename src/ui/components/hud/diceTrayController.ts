@@ -121,8 +121,8 @@ export class DiceTrayController {
     this.eventBus.emit(GameEventNames.UI_DiceThrow, {
       seq: item.seq,
       rollType: item.rollType,
-      ...(item.teamId === undefined ? {} : { teamId: item.teamId }),
-      ...(item.total === undefined ? {} : { total: item.total }),
+      ...(item.teamId !== undefined && { teamId: item.teamId }),
+      ...(item.total !== undefined && { total: item.total }),
       stage,
     });
   };
@@ -206,7 +206,7 @@ export class DiceTrayController {
       title: event.rollType,
       result: event.description || event.rollType,
       rollType: event.rollType,
-      ...(event.teamId === undefined ? {} : { teamId: event.teamId }),
+      ...(event.teamId !== undefined && { teamId: event.teamId }),
       total: event.total,
       teamName: teamName(team.key),
       settled: false,

@@ -81,7 +81,7 @@ export function variantGame({ format, setup, weather, phase }: Omit<VariantKick,
       turn: 2,
       phase: phase ?? GamePhase.KICKOFF,
       subPhase: phase === GamePhase.PLAY ? SubPhase.TURN_KICKING : SubPhase.ROLL_KICKOFF,
-      ...(weather === undefined ? {} : { weather }),
+      ...(weather !== undefined && { weather }),
     },
   };
   const initialState = applyScenario(scenario, team1, team2);

@@ -41,7 +41,7 @@ export class PitchPage {
       (square) =>
         new Promise<{ projection: Projection | null }>((resolve) => {
           const bridge = (
-            window as unknown as { __bbTestBridge: BrowserTestBridge }
+            globalThis as unknown as { __bbTestBridge: BrowserTestBridge }
           ).__bbTestBridge;
           let previous = "";
           const check = () => {
@@ -118,7 +118,7 @@ export class PitchPage {
 
   async canvasSize(): Promise<{ width: number; height: number }> {
     return this.page.evaluate(() =>
-      ((window as unknown as Record<string, BrowserTestBridge>)[
+      ((globalThis as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
       ])!.canvasSize()
     );

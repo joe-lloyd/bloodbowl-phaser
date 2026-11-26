@@ -215,7 +215,7 @@ export function OnlineCompetitionBuilder({ type, uid, modeSwitch }: { type: Comp
       organizerUid: uid,
       team: library.find((team) => team.id === settings.teamId) ?? null,
       online: { places: settings.places, listed: settings.listed, roundDays: settings.roundDays, computerGames: settings.computerGames },
-      ...(profile ? { profile } : {}),
+      ...(profile && { profile }),
     })
       .then((competition) => navigate(competitionPath({ competitionType: competition.type, competitionId: competition.id })))
       .catch((reason: unknown) => {

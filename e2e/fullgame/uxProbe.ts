@@ -127,7 +127,7 @@ function inspect(): UxFinding[] {
   }
 
   const bridge = (
-    window as unknown as {
+    globalThis as unknown as {
       __bbTestBridge?: {
         phase(): { phase: string; activeTeamId: string | null };
         snapshot(): {

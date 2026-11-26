@@ -27,7 +27,7 @@ function scenario(opts: {
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
       ballPosition: { x: 7, y: 5 },
-      ...(opts.weather === undefined ? {} : { weather: opts.weather }),
+      ...(opts.weather !== undefined && { weather: opts.weather }),
     },
   };
 }

@@ -134,7 +134,7 @@ export function MainMenu() {
   };
 
   const discardLocal = () => {
-    if (!window.confirm("Discard this saved match? This cannot be undone.")) {
+    if (!confirm("Discard this saved match? This cannot be undone.")) {
       return;
     }
     clearMatchSave();

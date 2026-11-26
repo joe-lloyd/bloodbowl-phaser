@@ -24,7 +24,7 @@ async function injure(
   const d16 = vi.spyOn(dice, "rollD16");
 
   const op: GameOperation = new InjuryOperation(fixtureValue(player).id, {
-    ...(opts.modifier === undefined ? {} : { modifier: opts.modifier }),
+    ...(opts.modifier !== undefined && { modifier: opts.modifier }),
   });
   game.ctx.gameService.flowManager.add(op, true);
   for (let i = 0; i < 50 && !game.pendingDecision(); i++) {

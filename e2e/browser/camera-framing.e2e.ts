@@ -53,7 +53,7 @@ async function expectTeamFits(
         hint?.getBoundingClientRect().top ?? canvas.bottom
       );
       const bridge = (
-        window as unknown as {
+        globalThis as unknown as {
           __bbTestBridge: import("../../src/testing/browserBridge").BrowserTestBridge;
         }
       ).__bbTestBridge;
@@ -237,7 +237,7 @@ for (const afterMs of [250, 700]) {
     const square = await app.pitch.squareOf("team2:0");
     const point = await page.evaluate((s) => {
       const bridge = (
-        window as unknown as {
+        globalThis as unknown as {
           __bbTestBridge: import("../../src/testing/browserBridge").BrowserTestBridge;
         }
       ).__bbTestBridge;

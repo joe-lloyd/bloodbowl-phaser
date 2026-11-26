@@ -129,7 +129,7 @@ export function fillLog(fx: MatchFixture, rounds: number) {
         rollType,
         diceType,
         value,
-        total: Array.isArray(value) ? 0 : Number(value),
+        total: Array.isArray(value) ? 0 : value,
         description,
         resultState,
         teamId: team === 1 ? fx.team1.id : fx.team2.id,

@@ -31,9 +31,7 @@ function readyLobby(teamValue: TeamValueRange, fixture = false): LobbyDoc {
     seedCommits: { host: "a", guest: "b" },
     seedReveals: { host: "c", guest: "d" },
     createdAt: null,
-    ...(fixture
-      ? { competitionContext: { competitionType: "league" as const, competitionId: "cup", fixtureId: "round-1-match-1" } }
-      : {}),
+    ...(fixture && { competitionContext: { competitionType: "league" as const, competitionId: "cup", fixtureId: "round-1-match-1" } }),
   };
 }
 

@@ -3,11 +3,8 @@ import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
 
 declare global {
-  interface Window {
-    __handover: { turnStartedAt: number; bannerAt: number };
-
-    __tray: string[];
-  }
+  var __handover: { turnStartedAt: number; bannerAt: number };
+  var __tray: string[];
 }
 
 test("on a later drive the tray lands the kick-off and the turn banner follows the hand-over", async ({
@@ -39,23 +36,23 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
     .toBe("KICKOFF");
 
   await page.evaluate((turnStarted) => {
-    window.__handover = { turnStartedAt: 0, bannerAt: 0 };
-    window.__tray = [];
-    window.eventBus.on(turnStarted as never, () => {
-      window.__handover.turnStartedAt ||= performance.now();
+    globalThis.__handover = { turnStartedAt: 0, bannerAt: 0 };
+    globalThis.__tray = [];
+    globalThis.eventBus.on(turnStarted as never, () => {
+      globalThis.__handover.turnStartedAt ||= performance.now();
     });
     new MutationObserver(() => {
       const banner = document.querySelector('[data-testid="announcement"]');
       if (
-        window.__handover.turnStartedAt &&
-        !window.__handover.bannerAt &&
+        globalThis.__handover.turnStartedAt &&
+        !globalThis.__handover.bannerAt &&
         /'s? Turn/i.test(banner?.textContent ?? "")
       )
-        window.__handover.bannerAt = performance.now();
+        globalThis.__handover.bannerAt = performance.now();
       const tray = document.querySelector('[data-testid="dice-tray"]');
       const team = tray?.querySelector('[data-testid="dice-tray-team"]');
       const line = `${team?.textContent ?? ""} | ${tray?.textContent?.slice(team?.textContent?.length ?? 0) ?? ""}`;
-      if (window.__tray.at(-1) !== line) window.__tray.push(line);
+      if (globalThis.__tray.at(-1) !== line) globalThis.__tray.push(line);
     }).observe(document.body, {
       childList: true,
       subtree: true,
@@ -71,7 +68,7 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
     expect
       .poll(
         async () =>
-          (await page.evaluate(() => window.__tray)).find((line) =>
+          (await page.evaluate(() => globalThis.__tray)).find((line) =>
             pattern.test(line)
           ),
         { timeout: 15_000 }
@@ -79,7 +76,7 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
       .toBeTruthy();
   const [humans] = await app.bridge.teams();
   await landed(
-    new RegExp(`^${humans.name} \\| Kickoff Deviate Distance: \\d, \\d`)
+    new RegExp(String.raw`^${humans.name} \| Kickoff Deviate Distance: \d, \d`)
   );
   await page.screenshot({
     path: `${process.env["SHOTS"] ?? test.info().outputDir}/later-drive-kickoff-tray.png`,
@@ -87,11 +84,11 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
 
   await app.rollKickoff();
 
-  await page.waitForFunction(() => window.__handover?.bannerAt > 0, null, {
+  await page.waitForFunction(() => globalThis.__handover?.bannerAt > 0, null, {
     timeout: 30_000,
   });
   const { turnStartedAt, bannerAt } = await page.evaluate(
-    () => window.__handover
+    () => globalThis.__handover
   );
 
   expect(bannerAt - turnStartedAt).toBeLessThan(3000);

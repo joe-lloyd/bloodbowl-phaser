@@ -104,16 +104,16 @@ function LocalCompetitionBuilder({
 
   const profile = profileFrom(profileChoice);
 
-  const candidates: Candidate[] = [
-    ...localTeams
+  const candidates: Candidate[] =
+    localTeams
       .filter((team) => !team.computerCoached)
       .map((team) => ({
         id: `own:${team.id}`,
         label: `${team.name} (${team.rosterName}) · your team`,
         team,
         ownerUid: user?.uid,
-      })),
-  ];
+      }))
+  ;
 
   const toggle = (id: string) => {
     setSelected((current) =>
@@ -167,7 +167,7 @@ function LocalCompetitionBuilder({
             computerTemplateId: row.template.id,
           })),
         ],
-        ...(profile === undefined ? {} : { profile: profile }),
+        ...(profile !== undefined && { profile: profile }),
         computerDifficulty: difficulty,
       });
       navigate(

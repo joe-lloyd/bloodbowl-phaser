@@ -54,8 +54,8 @@ export function FixtureActions({
     <div className={className}>
       {renderActions({
         fixture,
-        ...(home === undefined ? {} : { home: home }),
-        ...(away === undefined ? {} : { away: away }),
+        ...(home !== undefined && { home: home }),
+        ...(away !== undefined && { away: away }),
         ready,
       })}
     </div>
@@ -82,8 +82,8 @@ function useBelowWidth(minWidth: number): boolean {
   const [below, setBelow] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const query = window.matchMedia(`(max-width: ${String(minWidth - 1)}px)`);
+    if (typeof window === "undefined" || !matchMedia) return;
+    const query = matchMedia(`(max-width: ${String(minWidth - 1)}px)`);
     const sync = () => {
       setBelow(query.matches);
     };

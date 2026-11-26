@@ -74,7 +74,7 @@ function remoteRenderer(host: string): Renderer {
       await sync(onLine);
       await inside(`(del /q stash-out-studio\\${key}__*.pkl 2>nul & rmdir /s /q out-studio\\layered\\${key} 2>nul & echo cleared)`, onLine);
       await inside(`powershell -NoProfile -ExecutionPolicy Bypass -File team_render.ps1 -Models ${key} -Out out-studio -Characters drafts`, onLine);
-      expectLine(await inside(`type logs-out-studio\\pack-${key}.log`, onLine), `DONE ${key} `);
+      expectLine(await inside(String.raw`type logs-out-studio\pack-${key}.log`, onLine), `DONE ${key} `);
       await inside(`tar -czf layered.tgz -C out-studio/layered ${key}`, onLine);
       await copy(`${host}:${REMOTE}/layered.tgz`, path.join(WORK, "layered.tgz"));
       const layered = path.join(WORK, "layered");

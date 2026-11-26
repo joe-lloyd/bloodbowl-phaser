@@ -271,7 +271,7 @@ export function view() {
         };
       }
     | undefined = (
-    window as unknown as {
+    globalThis as unknown as {
       game?: { scene: { getScene(key: string): Record<string, unknown> } };
     }
   ).game?.scene.getScene("GameScene");

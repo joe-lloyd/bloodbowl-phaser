@@ -12,13 +12,11 @@ interface HouseBotLogin {
 }
 
 declare global {
-  interface Window {
-    __houseBotLogin?: HouseBotLogin;
-  }
+  var __houseBotLogin: HouseBotLogin | undefined;
 }
 
 export async function signInHouseBot(): Promise<void> {
-  const login = window.__houseBotLogin;
+  const login = globalThis.__houseBotLogin;
   if (!login || !isFirebaseConfigured()) return;
   const auth = getFirebaseAuth();
   if (auth.currentUser?.email === login.email) return;

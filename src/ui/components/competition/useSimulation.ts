@@ -47,7 +47,7 @@ function simulatedRow(
     away: entrantName(before, fixture.awayEntrantId),
     homeScore: result?.homeScore ?? 0,
     awayScore: result?.awayScore ?? 0,
-    ...(result?.penalties ? { penalties: result.penalties } : {}),
+    ...(result?.penalties && { penalties: result.penalties }),
     casualties: outcome.casualties.map(
       ({ team, player }) =>
         `${playerLabel(player)} (${team.name}): ${injuryLabel(player) ?? "Casualty"}`

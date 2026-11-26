@@ -87,7 +87,7 @@ test("a coach resumes Swarming and places an eighth player through the canvas", 
   ).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("formation-menu")).toHaveCount(0);
   const square = await page.evaluate((id) => {
-    const scene = (window.game)!.scene
+    const scene = (globalThis.game)!.scene
       .getScenes(true)
       .find((scene) => scene.scene.key === "GameScene");
     if (!scene || !("dugouts" in scene) || !("getPitch" in scene))

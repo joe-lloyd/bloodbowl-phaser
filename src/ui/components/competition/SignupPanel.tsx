@@ -109,7 +109,7 @@ function OrganizerStart({ competition, onChange, onError }: SignupProps) {
         variant="primary"
         disabled={busy}
         onClick={() => {
-          if (window.confirm("Start now? Sign-ups close and the fixtures are drawn."))
+          if (confirm("Start now? Sign-ups close and the fixtures are drawn."))
             run(() => startOnlineCompetition({ competition }));
         }}
       >

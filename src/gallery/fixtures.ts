@@ -65,8 +65,8 @@ export function setupMatch(options: FixtureOptions = {}): MatchFixture {
         startingPhase: options.phase ?? GamePhase.PLAY,
       });
   Object.assign(state, {
-    ...(options.phase ? { phase: options.phase } : {}),
-    ...(options.subPhase ? { subPhase: options.subPhase } : {}),
+    ...(options.phase && { phase: options.phase }),
+    ...(options.subPhase && { subPhase: options.subPhase }),
   });
 
   setActiveOnlineMatch(null);
