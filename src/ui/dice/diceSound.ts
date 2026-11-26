@@ -1,5 +1,5 @@
 import { loadAudio } from "../../boundary/audio";
-import { soundSettings } from "../sound/settings";
+import { outputGain, soundSettings } from "../sound/settings";
 
 const CLACK_URLS = [1, 2, 3].map(
   (n) => `/assets/sounds/dice-clack-${String(n)}.mp3`
@@ -28,7 +28,7 @@ export function clack(strength: number) {
     src.buffer = buffer;
     src.playbackRate.value = 0.9 + Math.random() * 0.2;
     const gain = clackState.audio.createGain();
-    gain.gain.value = 0.6 * strength * soundSettings.get().volume;
+    gain.gain.value = 0.6 * strength * outputGain(soundSettings.get());
     src.connect(gain).connect(clackState.audio.destination);
     src.start();
   });
