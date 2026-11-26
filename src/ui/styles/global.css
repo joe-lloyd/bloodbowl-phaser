@@ -283,6 +283,11 @@
   left: calc((100vw - var(--column)) / 2);
   max-width: calc(100vw - var(--column) - 24px);
 }
+.phone-dice {
+  left: var(--edge-left);
+  top: calc(var(--edge-top) + 80px);
+  width: 176px;
+}
 .phone-card {
   --card-top: calc(var(--edge-top) + 52px);
   left: var(--edge-left);
@@ -334,6 +339,12 @@
     top: calc(var(--edge-top) + 140px);
     left: 50%;
     max-width: none;
+  }
+  .phone-dice {
+    top: calc(var(--edge-top) + 136px);
+  }
+  .phone-hud:has(.phone-dice:not([data-dice="empty"])) .phone-notice-bar {
+    top: calc(var(--edge-top) + 300px);
   }
 }
 

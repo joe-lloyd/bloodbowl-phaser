@@ -27,18 +27,18 @@ function PhoneBanner({ headline, subtitle, result }: RollBannerText) {
     <div
       data-testid="roll-banner"
       data-result={result ? "" : undefined}
-      className={`max-w-full border-y-2 bg-hud-ink/85 px-3 py-1 text-center ${
+      className={`border-t-2 px-2 py-1 text-center ${
         result ? "border-hud-gold" : "border-white/30"
       }`}
     >
       <p
-        className={`font-hud-display text-hud-lg uppercase leading-tight tracking-[0.04em] ${
+        className={`font-hud-display text-hud-base uppercase leading-tight tracking-[0.04em] ${
           result ? "text-hud-bone" : "text-hud-dim"
         }`}
       >
         {headline}
       </p>
-      <p className="font-hud-label text-hud-sm font-bold leading-tight text-hud-bone">
+      <p className="font-hud-label text-hud-xs font-bold leading-tight text-hud-bone">
         {subtitle}
       </p>
     </div>
