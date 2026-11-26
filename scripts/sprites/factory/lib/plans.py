@@ -22,6 +22,7 @@ class Model:
     height = 1.0             # target idle height as a factor of today's sprite (keep within 0.9 .. 1.1)
     lie = 0.2                # metres the figure is lifted when lying down (about half its body depth)
     lie_shift = 0.75         # metres it slides forward while falling, so the lying body stays on its square
+    ref_frame = 128          # frame size of a model with no reference sprite; a big one needs more
     animations = dict(anim.ANIMS)
 
     def unlined(self):

@@ -89,6 +89,7 @@ class Gorilla(Ape):
 class Silverback(Gorilla):
     """The biggest ape: a silver saddle down its back."""
     key = "ape_silverback"
+    ref_frame = 192
     knobs = dict(Gorilla.knobs, limb=1.65, shoulders=1.55, torso=1.45)
     target_px = 118
     lie, lie_shift = 0.3, 1.0
