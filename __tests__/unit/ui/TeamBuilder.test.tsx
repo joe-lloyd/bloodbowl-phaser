@@ -123,7 +123,7 @@ describe("post-match team management", () => {
   it("opens no player while a development save is pending", async () => {
     await renderPostMatch();
     const row = fixtureValue(
-      container.querySelector('[data-testid="roster-row-1"] td:nth-child(3)')
+      container.querySelector(':scope [data-testid="roster-row-1"] td:nth-child(3)')
     );
     const openPlayer = () =>
       act(async () => {
@@ -169,7 +169,7 @@ describe("post-match team management", () => {
   it("keeps the post-match destination when visiting a player", async () => {
     await renderPostMatch(30_000);
     const cell = container.querySelectorAll(
-      '[data-testid="roster-row-1"] td'
+      ':scope [data-testid="roster-row-1"] td'
     )[2];
     await act(async () =>
       fixtureValue(cell).dispatchEvent(new MouseEvent("click", { bubbles: true }))
@@ -471,7 +471,7 @@ describe("TeamBuilder opening a player", () => {
       );
     });
 
-    const hire = fixtureValue(Array.from(container.querySelectorAll("button")).find(
+    const hire = fixtureValue([...container.querySelectorAll("button")].find(
       (button) => button.textContent === "HIRE" && !button.disabled
     ));
     act(() => {
@@ -505,11 +505,9 @@ describe("TeamBuilder opening a player", () => {
       );
     });
     const modeButtons = () =>
-      Array.from(
-        container.querySelectorAll<HTMLButtonElement>(
-          '[aria-label="Advancement Mode"] button'
-        )
-      );
+      [...container.querySelectorAll<HTMLButtonElement>(
+          ':scope [aria-label="Advancement Mode"] button'
+        )];
     expect(modeButtons().length).toBeGreaterThan(0);
     expect(modeButtons().every((button) => !button.disabled)).toBe(true);
 

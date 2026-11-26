@@ -33,7 +33,7 @@ function hydrateAll(raw: unknown[]): Team[] {
 }
 
 function writeLocalTeams(teams: Team[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(teams.map(dehydrateTeam)));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(teams.map((team) => dehydrateTeam(team))));
 }
 
 const localRepository: TeamRepository = {

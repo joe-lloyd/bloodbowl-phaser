@@ -93,7 +93,7 @@ export function gutterSitsOut(team: Team): Player | undefined {
   if (!gutterSpecialist(team)) return undefined;
   const core = corePlayers(team);
   if (core.length < draftRulesFor(GUTTER_BOWL).maxPlayers) return undefined;
-  const linemen = core.filter(isLineman);
+  const linemen = core.filter((element) => isLineman(element));
   return (
     linemen.find((player) => player.id === team.club?.gutterSitsOutId) ??
     linemen.at(-1)
@@ -194,7 +194,7 @@ function positionRefusal(team: Team, template: PlayerTemplate): string | undefin
   if (
     maxBigGuys !== undefined &&
     bigGuy(template) &&
-    rostered.filter(bigGuy).length >= maxBigGuys
+    rostered.filter((element) => bigGuy(element)).length >= maxBigGuys
   )
     return `${team.rosterName} clubs may have at most ${String(maxBigGuys)} Big Guy${maxBigGuys === 1 ? "" : "s"}.`;
   return undefined;

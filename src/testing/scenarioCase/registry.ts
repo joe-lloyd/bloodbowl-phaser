@@ -16,9 +16,9 @@ function byId<T extends { id: string }>(a: T, b: T): number {
 }
 
 export function sortScenarioCases(cases: ScenarioCase[]): ScenarioCase[] {
-  return [...cases].sort(byId).map((scenarioCase) => ({
+  return cases.toSorted(byId).map((scenarioCase) => ({
     ...scenarioCase,
-    variants: [...scenarioCase.variants].sort(byId),
+    variants: scenarioCase.variants.toSorted(byId),
   }));
 }
 

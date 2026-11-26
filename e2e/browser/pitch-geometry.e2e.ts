@@ -94,7 +94,7 @@ test.describe("pitch geometry and the test bridge", () => {
       Object.keys(
         (globalThis as unknown as { __bbTestBridge: Record<string, unknown> })
           .__bbTestBridge
-      ).sort()
+      ).toSorted()
     );
     expect(surface).not.toContain("execute");
     expect(surface).toEqual([

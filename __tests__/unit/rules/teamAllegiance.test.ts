@@ -121,7 +121,7 @@ describe("saving the choices", () => {
     chooseFavouredOf(chosen, TeamSpecialRule.FAVOURED_OF_TZEENTCH);
 
     const reload = (team: ReturnType<typeof teamOf>) =>
-      readStoredTeam(JSON.parse(JSON.stringify(dehydrateTeam(team)))).team;
+      readStoredTeam(structuredClone(dehydrateTeam(team))).team;
 
     expect(reload(norse).league).toBe(League.CHAOS_CLASH);
     expect(reload(chosen).favouredOf).toBe(

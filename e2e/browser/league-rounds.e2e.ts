@@ -59,7 +59,7 @@ function season(allPlayed = false) {
   const name = (id: string | null) =>
     fixtureValue(entrants.find((entrant) => entrant.id === id)).name;
   return {
-    teams: teams.map(dehydrateTeam),
+    teams: teams.map((team) => dehydrateTeam(team)),
     league,
     left: {
       home: name(fixtureValue(fixtures[1]).homeEntrantId),

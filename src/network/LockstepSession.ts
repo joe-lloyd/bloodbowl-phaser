@@ -272,8 +272,8 @@ export class LockstepSession {
 
   private deliverSignal(envelope: Exclude<Envelope, { kind: "command" | "settled" | "resync-request" }>): void {
     if (envelope.kind === "chat") this.options.onChat?.(envelope.payload, envelope.from);
-    if (envelope.kind === "selection") this.options.onSelection?.(envelope.payload, envelope.from);
-    if (envelope.kind === "prompt") this.options.onPrompt?.(envelope.payload, envelope.from);
+    else if (envelope.kind === "selection") this.options.onSelection?.(envelope.payload, envelope.from);
+    else if (envelope.kind === "prompt") this.options.onPrompt?.(envelope.payload, envelope.from);
   }
 
   private async applyPeerCommand(

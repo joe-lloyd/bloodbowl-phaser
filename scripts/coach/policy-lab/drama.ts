@@ -121,7 +121,7 @@ async function main() {
   const rows = readdirSync(out)
     .filter((f) => f.endsWith(".json"))
     .map((f) => JSON.parse(readFileSync(join(out, f), "utf8")) as Drama)
-    .sort((a, b) => b.drama - a.drama || a.game.localeCompare(b.game));
+    .toSorted((a, b) => b.drama - a.drama || a.game.localeCompare(b.game));
   writeFileSync(join(run, "drama.json"), JSON.stringify(rows));
   console.log(JSON.stringify(rows.slice(0, 5)));
 }

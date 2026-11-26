@@ -234,7 +234,7 @@ describe("saving a match against the computer", () => {
 
       const { turnManager, ...resumed } = liveGame().snapshot();
       const { turnManager: _saved, ...saved } = save.snapshot;
-      expect(JSON.parse(JSON.stringify(resumed))).toEqual(saved);
+      expect(structuredClone(resumed)).toEqual(saved);
       expect(turnManager).toEqual(save.turnManager);
       expect(resumed.phase).toBe(GamePhase.PLAY);
       expect(resumed.activeTeamId).toBe("team1");

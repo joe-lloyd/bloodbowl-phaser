@@ -109,7 +109,8 @@ export function canScoreWithoutDice({
   let frontier = marked(start.x, start.y) ? [] : [start];
   for (let step = 1; step <= ma && frontier.length > 0; step++) {
     const next: Square[] = [];
-    for (const square of frontier.flatMap(neighbours)) {
+    const reachable = frontier.flatMap((square) => neighbours(square));
+    for (const square of reachable) {
       const key = `${String(square.x)},${String(square.y)}`;
       if (blocked(square, key)) continue;
       seen.add(key);

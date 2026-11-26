@@ -19,7 +19,7 @@ function couldPickUp(c: Context, player: Player): boolean {
 export function pickupPace(c: Context, player: Player): number {
   const quickest = Math.max(
     nextTurnReach(player),
-    ...c.board.ours.filter((p) => couldPickUp(c, p)).map(nextTurnReach)
+    ...c.board.ours.filter((p) => couldPickUp(c, p)).map((element) => nextTurnReach(element))
   );
   return paceWorth(
     c,

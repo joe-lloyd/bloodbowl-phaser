@@ -42,7 +42,7 @@ function statusOf(
   competition: CompetitionDoc
 ): LeagueTeamStatus {
   if (computerEntrant || team.computerCoached) return { kind: "computer" };
-  if (hasBlockingPendingDevelopment(team) || team.players.some(mustAdvance)) {
+  if (hasBlockingPendingDevelopment(team) || team.players.some((element) => mustAdvance(element))) {
     return {
       kind: "development",
       blocksNextGame:

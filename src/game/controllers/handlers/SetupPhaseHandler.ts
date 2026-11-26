@@ -206,13 +206,11 @@ export class SetupPhaseHandler implements PhaseHandler {
 
     const positions = activeTeam.players.flatMap((player, index) =>
       player.gridPosition
-        ? [
-            {
+        ? {
               playerId: String(index),
               x: player.gridPosition.x,
               y: player.gridPosition.y,
-            },
-          ]
+            }
         : []
     );
     if (positions.length === 0) {

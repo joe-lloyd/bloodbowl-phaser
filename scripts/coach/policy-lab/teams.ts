@@ -64,7 +64,7 @@ function rolePlayers(team: Team) {
   for (const role of ["handler", "passer", "receiver", "hitter"] as const) {
     const pick = candidates
       .filter((c) => players.every((used) => used.player !== c.player))
-      .sort(
+      .toSorted(
         (a, b) => fit[role](b.p) - fit[role](a.p) || a.player - b.player
       )[0];
     if (pick) players.push({ ...pick, role });
@@ -97,13 +97,13 @@ function chooseSkill(
       throw new Error("Unexpected advancement roll");
 
     skill = firstOf(
-      [...roll.candidates].sort(
+      roll.candidates.toSorted(
         (a, b) => preference(p, b.skill, role) - preference(p, a.skill, role)
       )
     ).skill;
   } else {
     skill = firstOf(
-      [...legal].sort(
+      legal.toSorted(
         (a, b) =>
           preference(p, b, role) - preference(p, a, role) || a.localeCompare(b)
       )

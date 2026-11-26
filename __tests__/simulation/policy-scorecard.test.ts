@@ -201,7 +201,7 @@ describe("policy-lab team scorecard", () => {
       { roster: "Skaven", opponent: "Dwarf", policy: "candidate", points: 1 },
     ];
     const forward = strengths(games);
-    const backward = strengths([...games].reverse());
+    const backward = strengths(games.toReversed());
     expect(
       [...fixtureValue(forward).strength].map(([r, s]) => [r, s + 0])
     ).toEqual([

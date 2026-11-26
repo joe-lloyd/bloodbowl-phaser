@@ -144,7 +144,7 @@ describe("a team's played games", () => {
       ...dehydrateTeam(team),
       playedGames: [...fixtureValue(team.playedGames), { id: 7, kind: "nonsense" }],
     };
-    const loaded = readStoredTeam(JSON.parse(JSON.stringify(stored))).team;
+    const loaded = readStoredTeam(structuredClone(stored)).team;
     expect(loaded.playedGames).toEqual(team.playedGames);
   });
 });

@@ -58,7 +58,7 @@ function rosterSlots(team: Team): number[] {
   const extra = team.players
     .map((player) => player.number)
     .filter((number) => number > 11)
-    .sort((a, b) => a - b);
+    .toSorted((a, b) => a - b);
   return [
     ...Array.from({ length: 11 }, (_, index) => index + 1),
     ...new Set(extra),

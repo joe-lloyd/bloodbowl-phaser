@@ -9,7 +9,7 @@ export function matchesKeyword(
   parameter?: string | number
 ): boolean {
   if (parameter === undefined || parameter === null) return false;
-  const kinds = String(parameter).split(",").map(kind).filter(Boolean);
+  const kinds = String(parameter).split(",").map((element) => kind(element)).filter(Boolean);
   if (kinds.includes("all")) return true;
   const names = new Set([...(player.keywords ?? []), player.positionName].map((name) =>
     kind(name)

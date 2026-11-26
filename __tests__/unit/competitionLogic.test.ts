@@ -152,7 +152,7 @@ describe("round robin and standings", () => {
     const fixtures = generateRoundRobin(entrants);
     expect(fixtures).toHaveLength(3);
     const pairs = fixtures.map((fixture) =>
-      [fixture.homeEntrantId, fixture.awayEntrantId].sort().join(":")
+      [fixture.homeEntrantId, fixture.awayEntrantId].toSorted().join(":")
     );
     expect(new Set(pairs)).toEqual(
       new Set(["one:two", "one:three", "three:two"])

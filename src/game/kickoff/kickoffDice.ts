@@ -64,7 +64,7 @@ export const onPitch = (team: Team): Player[] =>
   team.players.filter((player) => !!player.gridPosition);
 
 export const everyoneOnPitch = (ctx: KickoffEventResolverContext): Player[] =>
-  bothTeams(ctx).flatMap(onPitch);
+  bothTeams(ctx).flatMap((element) => onPitch(element));
 
 async function rollTeam(
   { diceController, eventBus, diceShown }: ResolverDeps,

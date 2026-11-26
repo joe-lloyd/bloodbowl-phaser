@@ -58,8 +58,8 @@ export async function loadRules(): Promise<void> {
 }
 
 export async function closeEmulatorApps(): Promise<void> {
-  await Promise.all([...dbs.values()].map(terminate));
-  await Promise.all(apps.map(deleteApp));
+  await Promise.all([...dbs.values()].map((element) => terminate(element)));
+  await Promise.all(apps.map((app) => deleteApp(app)));
 }
 
 export function uniqueUid(name: string): string {

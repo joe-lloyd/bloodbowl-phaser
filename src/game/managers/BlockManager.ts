@@ -350,7 +350,7 @@ export class BlockManager extends BlockPushChain {
           !!candidate.gridPosition &&
           PassController.rangeValue(from, candidate.gridPosition) === 0
       )
-      .sort((a, b) => nearestFirst(a.gridPosition!, b.gridPosition!))[0];
+      .toSorted((a, b) => nearestFirst(a.gridPosition!, b.gridPosition!))[0];
     if (receiver?.gridPosition) {
       return { receiver, square: { ...receiver.gridPosition } };
     }
@@ -368,7 +368,7 @@ export class BlockManager extends BlockPushChain {
         }
       }
     }
-    const square = emptyQuickPassSquares.sort(nearestFirst)[0];
+    const square = emptyQuickPassSquares.toSorted(nearestFirst)[0];
     if (!square) return null;
     return receiver ? { receiver, square } : { square };
   }

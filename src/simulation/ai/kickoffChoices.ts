@@ -62,7 +62,7 @@ function highKickPick(ground: KickoffGround, able: readonly Player[]): Pick[] {
       chance: catchChance(ground, player, landing),
     }))
     .filter(({ chance }) => chance > 0)
-    .sort((a, b) => b.chance - a.chance || away(a.player) - away(b.player));
+    .toSorted((a, b) => b.chance - a.chance || away(a.player) - away(b.player));
   return rated
     .slice(0, 1)
     .map(({ player }) => ({ player, what: UNDER_THE_BALL }));
@@ -83,7 +83,7 @@ function bestSteps(
         );
         return bestKickoffStep(ground, player, open) ?? [];
       })
-      .sort((a, b) => b.value - a.value);
+      .toSorted((a, b) => b.value - a.value);
     if (!best) break;
     chosen.push(best);
   }

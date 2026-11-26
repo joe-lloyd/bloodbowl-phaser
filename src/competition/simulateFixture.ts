@@ -149,7 +149,7 @@ export async function simulateFixture(
 
   const sittingOut = new Set(
     [game.ctx.team1, game.ctx.team2].flatMap((team) =>
-      team.players.filter(isOut).map((player) => player.id)
+      team.players.filter((element) => isOut(element)).map((player) => player.id)
     )
   );
   const coach = options.coach ?? plannerCoach;

@@ -253,7 +253,7 @@ export function renderIndexHtml(batch: {
     )
     .join("\n");
   const coverage = Object.entries(batch.commandCoverage)
-    .sort((a, b) => b[1] - a[1])
+    .toSorted((a, b) => b[1] - a[1])
     .map(([k, v]) => `<span>${escapeHtml(k)} <b>${String(v)}</b></span>`)
     .join(" ");
   const problems = batch.findings.length > 0

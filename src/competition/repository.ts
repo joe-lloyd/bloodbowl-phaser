@@ -217,8 +217,8 @@ export async function listCompetitions(
   for (const competition of [...local, ...remote]) combined.set(storageKey(competition.type, competition.id), competition)
   ;
   return [...combined.values()]
-    .map(normalizeCompetition)
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    .map((element) => normalizeCompetition(element))
+    .toSorted((a, b) => b.updatedAt - a.updatedAt);
 }
 
 function normalizeCompetition(competition: CompetitionDoc): CompetitionDoc {
@@ -245,9 +245,9 @@ export async function listOpenCompetitions(
     )
   );
   return readCompetitions(snapshot.docs.map((item) => item.data()))
-    .map(normalizeCompetition)
+    .map((element) => normalizeCompetition(element))
     .filter((competition) => competition.entrants.length < (competition.online?.places ?? 0))
-    .sort((a, b) => b.createdAt - a.createdAt);
+    .toSorted((a, b) => b.createdAt - a.createdAt);
 }
 
 export function subscribeCompetition({

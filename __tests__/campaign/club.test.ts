@@ -142,7 +142,7 @@ function hireSpecialists(where: string, clubIds: string[]): void {
     const positionals = getRosterByRosterName(team.rosterName)
       .playerTemplates.filter((template) => !template.keywords.includes(PositionKeyWord.LINEMAN))
       .filter((template) => gutterSpecialistRefusal(team, template) === undefined)
-      .sort((a, b) => b.cost - a.cost);
+      .toSorted((a, b) => b.cost - a.cost);
     const [best] = positionals;
     if (!best) continue;
     const result = hireGutterSpecialist(team, best);

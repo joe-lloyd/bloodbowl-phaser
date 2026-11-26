@@ -120,7 +120,7 @@ describe("KickoffTableDialog", () => {
         ?.textContent;
     await act(async () => {
       fixtureValue(
-        container.querySelector('[data-testid="kickoff-table"] li > span')
+        container.querySelector(':scope [data-testid="kickoff-table"] li > span')
       ).dispatchEvent(look);
       await Promise.resolve();
     });
@@ -145,7 +145,7 @@ describe("KickoffTableDialog", () => {
     await act(async () => {
       fixtureValue(
         container.querySelector<HTMLElement>(
-          '[data-testid="kickoff-table"] li > span'
+          ':scope [data-testid="kickoff-table"] li > span'
         )
       ).click();
       await Promise.resolve();

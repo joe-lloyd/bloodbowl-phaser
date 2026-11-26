@@ -80,7 +80,7 @@ describe("game plans", () => {
 
   it("varies between close plans, the closer the likelier, never a poor one", () => {
     const seen = counts(8, "balanced");
-    expect(Object.keys(seen).sort()).toEqual(["best", "close"]);
+    expect(Object.keys(seen).toSorted()).toEqual(["best", "close"]);
     expect(seen["best"]).toBeGreaterThan(fixtureValue(seen["close"]));
   });
 

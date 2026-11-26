@@ -35,7 +35,7 @@ function sent(commands: (keyof typeof serviceSpies)[], events: string[]): string
         call: `${event} ${JSON.stringify(payload ?? null)}`,
       });
   }
-  return entries.sort((a, b) => a.order - b.order).map((e) => e.call);
+  return entries.toSorted((a, b) => a.order - b.order).map((e) => e.call);
 }
 
 function clickAt(

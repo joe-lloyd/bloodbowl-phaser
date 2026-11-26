@@ -96,14 +96,14 @@ export function likelyReceivers({ c, landing }: KickoffGround): Player[] {
   const able = theirs.filter((p) => standing(p) && canCarry(p));
   if (!landing)
     return able
-      .sort((a, b) => b.stats.MA - a.stats.MA)
+      .toSorted((a, b) => b.stats.MA - a.stats.MA)
       .slice(0, LIKELY_RECEIVERS);
   const under = able.find((p) => key(p.gridPosition) === key(landing));
   if (under) return [under];
   const away = (p: Player) => distance(p.gridPosition, landing);
   return able
     .filter((p) => away(p) <= p.stats.MA)
-    .sort((a, b) => away(a) - away(b) || a.stats.AG - b.stats.AG)
+    .toSorted((a, b) => away(a) - away(b) || a.stats.AG - b.stats.AG)
     .slice(0, LIKELY_RECEIVERS);
 }
 

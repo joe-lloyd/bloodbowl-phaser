@@ -92,7 +92,7 @@ function blockMatches(
     return !options.blockResult || fixtureValue(blockResults[0]).type === options.blockResult;
   }
 
-  return blockResults.some(isPow);
+  return blockResults.some((blockResult) => isPow(blockResult));
 }
 
 function injuryChainMatches(

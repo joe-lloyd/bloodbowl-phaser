@@ -119,7 +119,7 @@ describe("advanced skill study", () => {
       expect(fixtureValue(jobs[i + 1]).seed).toBe(fixtureValue(jobs[i]).seed);
       expect(fixtureValue(jobs[i + 1]).pair).toBe(fixtureValue(jobs[i]).pair);
       expect(fixtureValue(jobs[i + 1]).variantIds).toEqual(
-        [...fixtureValue(jobs[i]).variantIds].reverse()
+        fixtureValue(jobs[i]).variantIds.toReversed()
       );
     }
     for (const arm of [

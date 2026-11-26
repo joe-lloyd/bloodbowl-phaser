@@ -37,7 +37,7 @@ function templateHasSkill(template: PlayerTemplate, skill: SkillType): boolean {
 }
 
 function orderedRosters(): RosterName[] {
-  return [...getAvailableRosterNames()].sort();
+  return getAvailableRosterNames().toSorted();
 }
 
 export function nativePositions(

@@ -229,7 +229,7 @@ export function serializeGameState(
       turnNumber: state.turn.turnNumber,
       isHalf2: state.turn.isHalf2,
       ...(state.turn.extraTime && { extraTime: true }),
-      activatedPlayerIds: Array.from(state.turn.activatedPlayerIds),
+      activatedPlayerIds: [...state.turn.activatedPlayerIds],
       hasBlitzed: state.turn.hasBlitzed,
       hasPassed: state.turn.hasPassed,
       hasHandedOff: state.turn.hasHandedOff,

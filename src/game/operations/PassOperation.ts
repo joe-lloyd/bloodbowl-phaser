@@ -146,7 +146,7 @@ function divingCatcherAt(
         hasSkill(candidate.skills, SkillType.DIVING_CATCH) &&
         distance(candidate.gridPosition, landingPos) === 1
     )
-    .sort(
+    .toSorted(
       (a, b) =>
         a.gridPosition!.y - b.gridPosition!.y ||
         a.gridPosition!.x - b.gridPosition!.x
@@ -165,7 +165,7 @@ function onTheBallReactors(
         player.status === PlayerStatus.ACTIVE &&
         hasSkill(player.skills, SkillType.ON_THE_BALL)
     )
-    .sort(
+    .toSorted(
       (a, b) =>
         a.gridPosition!.y - b.gridPosition!.y ||
         a.gridPosition!.x - b.gridPosition!.x

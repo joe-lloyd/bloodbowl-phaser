@@ -25,7 +25,7 @@ function decode(value: Value): unknown {
   if ("integerValue" in value) return Number(value.integerValue);
   if ("doubleValue" in value) return value.doubleValue;
   if ("stringValue" in value) return value.stringValue;
-  if ("arrayValue" in value) return (value.arrayValue.values ?? []).map(decode);
+  if ("arrayValue" in value) return (value.arrayValue.values ?? []).map((element) => decode(element));
   return decodeFields(value.mapValue.fields ?? {});
 }
 
@@ -68,7 +68,7 @@ const logs = (Array.isArray(rows) ? rows.filter(isRow) : []).flatMap((row) => {
   if (!row.document) return [];
   const log = decodeFields(row.document.fields);
   const started = typeof log["startedAt"] === "number" ? log["startedAt"] : 0;
-  return started >= startedAfter ? [{ ...log, path: row.document.name }] : [];
+  return started >= startedAfter ? { ...log, path: row.document.name } : [];
 });
 writeFileSync(out, JSON.stringify(logs));
 console.log(`wrote ${String(logs.length)} dice logs to ${out}`);

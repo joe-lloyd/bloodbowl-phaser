@@ -55,12 +55,12 @@ describe("development seed integration", () => {
   it("running the same seed version twice converges (no duplicates)", () => {
     seedDevelopmentData();
     const firstTeams = loadTeams();
-    const firstIds = firstTeams.map((t) => t.id).sort();
+    const firstIds = firstTeams.map((t) => t.id).toSorted();
     const firstCompetitions = readLocalCompetitions().length;
 
     seedDevelopmentData();
     const secondTeams = loadTeams();
-    expect(secondTeams.map((t) => t.id).sort()).toEqual(firstIds);
+    expect(secondTeams.map((t) => t.id).toSorted()).toEqual(firstIds);
     expect(secondTeams).toHaveLength(firstTeams.length);
     expect(readLocalCompetitions()).toHaveLength(firstCompetitions);
 

@@ -59,7 +59,7 @@ function inspect(): UxFinding[] {
     ...document.querySelectorAll(
       "button, [role=button], select, input:not([type=hidden]), a[href]"
     ),
-  ].filter(shown);
+  ].filter((element) => shown(element));
   for (const el of controls) {
     const r = el.getBoundingClientRect();
     const belowFold = r.bottom > vh + 1 || r.top < -1;

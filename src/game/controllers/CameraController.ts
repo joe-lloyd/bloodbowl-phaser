@@ -76,7 +76,7 @@ export function clearArea(
       right: p.right + PANEL_MARGIN_PX,
       bottom: p.bottom + PANEL_MARGIN_PX,
     }))
-    .sort((a, b) => size(b) - size(a));
+    .toSorted((a, b) => size(b) - size(a));
   const bands = padded.filter((p) => p.left <= 0 && p.right >= width);
   for (const p of [...bands, ...padded.filter((p) => !bands.includes(p))]) {
     const overlaps =

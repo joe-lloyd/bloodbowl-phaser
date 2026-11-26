@@ -8,11 +8,11 @@ const manifest = () => parseSpriteManifest(readFileSync(MANIFEST, "utf8"));
 
 function readFolder(folder: string): Character[] {
   const files = existsSync(folder) ? readdirSync(folder).filter((name) => name.endsWith(".json")) : [];
-  return files.sort().map((name) => parseCharacter(readFileSync(path.join(folder, name), "utf8")));
+  return files.toSorted().map((name) => parseCharacter(readFileSync(path.join(folder, name), "utf8")));
 }
 
 export function readCharacters(): Character[] {
-  const saved = [TREE_CHARACTERS, CHARACTERS].flatMap(readFolder);
+  const saved = [TREE_CHARACTERS, CHARACTERS].flatMap((element) => readFolder(element));
   return [...new Map(saved.map((character) => [character.key, character])).values()];
 }
 
@@ -41,7 +41,7 @@ function write(folder: string, character: Character): void {
 
 function valueProblem(value: LayoutValue, field: CatalogField | undefined): string | null {
   if (value === null) return field?.optional === false ? "always needs a value" : null;
-  const fraction = typeof value === "number" && !Number.isInteger(value);
+  const fraction = typeof value === "number" && !Number.isSafeInteger(value);
   return fraction && field?.kind === "number" && field.whole ? "needs a whole number" : null;
 }
 

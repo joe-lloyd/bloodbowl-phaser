@@ -641,7 +641,7 @@ export class BallManager {
             Math.abs(player.gridPosition.y - landing.y)
           ) === 1
       )
-      .sort(
+      .toSorted(
         (a, b) =>
           a.gridPosition!.y - b.gridPosition!.y ||
           a.gridPosition!.x - b.gridPosition!.x

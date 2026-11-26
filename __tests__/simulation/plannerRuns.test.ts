@@ -90,7 +90,7 @@ describe("the planner's dice maths", () => {
     const player = (av: number, ...skills: SkillType[]) =>
       createTestPlayer({
         stats: { ...createTestPlayer().stats, AV: av },
-        skills: skills.map(getSkill),
+        skills: skills.map((skill) => getSkill(skill)),
       });
 
     expect(casualtyChance(player(9), player(9))).toBeCloseTo(60 / 1296, 9);

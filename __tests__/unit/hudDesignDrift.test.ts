@@ -126,7 +126,7 @@ describe("the design rules", () => {
     expect(
       scan("x.tsx", sample)
         .map(({ line, rule, match }) => [line, rule, match])
-        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .toSorted((a, b) => Number(a[0]) - Number(b[0]))
     ).toEqual([
       [1, "arbitrary text size", "text-[12px]"],
       [1, "default Tailwind text size", "text-sm"],

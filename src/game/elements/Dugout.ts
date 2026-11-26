@@ -89,7 +89,7 @@ export class Dugout {
     }
 
     this.visibleBeforeRefresh = new Set(
-      Array.from(this.playerSprites)
+      [...this.playerSprites]
         .filter(([, sprite]) => sprite.visible)
         .map(([id]) => id)
     );
@@ -287,7 +287,7 @@ export class Dugout {
 
   public async animateCelebration(): Promise<void> {
     await Promise.all(
-      Array.from(this.playerSprites.values())
+      [...this.playerSprites.values()]
         .filter((sprite) => sprite.visible)
         .map((sprite) => sprite.playCelebrateAnimation())
     );

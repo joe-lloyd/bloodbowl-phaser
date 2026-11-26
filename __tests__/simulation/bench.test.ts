@@ -43,7 +43,7 @@ describe("coach benchmark", () => {
       jobs.map((job) => playBenchGame(job, heuristicCoach, heuristicCoach))
     );
     expect(fixtureValue(games[0]).score).toEqual(
-      [...fixtureValue(games[1]).score].reverse()
+      fixtureValue(games[1]).score.toReversed()
     );
     const report = benchReport(games);
     expect(report.wins).toBe(report.losses);

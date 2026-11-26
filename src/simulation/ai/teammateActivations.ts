@@ -155,8 +155,8 @@ function landedBoard({ board, mate, at, carrying }: LandedBoardArgs): {
     after: {
       ...board,
       occupant,
-      ours: board.ours.map(swap),
-      everyone: board.everyone.map(swap),
+      ours: board.ours.map((element) => swap(element)),
+      everyone: board.everyone.map((element) => swap(element)),
       ball,
     },
   };
@@ -388,7 +388,7 @@ function bestThrow(
   const ahead = (aim: Square) =>
     !carrying || toGoal(board, aim) < toGoal(board, mate.gridPosition);
   let best: Activation | null = null;
-  for (const aim of throwTeammateAims(thrower.gridPosition).filter(ahead)) {
+  for (const aim of throwTeammateAims(thrower.gridPosition).filter((element) => ahead(element))) {
     const plan = throwAt({
       c: c,
       thrower: thrower,

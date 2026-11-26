@@ -89,9 +89,7 @@ describe("PlayerPage after another window spends the roll", () => {
     });
     saveTeams([other]);
 
-    const stale = fixtureValue(Array.from(
-      container.querySelectorAll('[data-testid="random-candidate"]')
-    ).find(
+    const stale = fixtureValue([...container.querySelectorAll('[data-testid="random-candidate"]')].find(
       (button) => !button.textContent?.endsWith(roll.candidates[0].skill)
     ));
     await act(async () => {

@@ -62,7 +62,7 @@ async function lurchAll(
               const order =
                 pending.chooserTeamId === team
                   ? FANATIC_PRIORITY
-                  : [...FANATIC_PRIORITY].reverse();
+                  : FANATIC_PRIORITY.toReversed();
               const type = order.find((t) =>
                 pending.options.some((o) => o.type === t)
               );
@@ -137,22 +137,22 @@ async function lurch(
         e.name === GameEventNames.PlayerKnockedDown &&
         id !== fixtureValue(fanatic).id
       )
-        return [`down ${String(name(fixtureValue(id)))}`];
+        return `down ${String(name(fixtureValue(id)))}`;
       if (
         e.name === GameEventNames.PlayerMoved &&
         id !== fixtureValue(fanatic).id
       )
-        return [`pushed ${String(name(fixtureValue(id)))}`];
+        return `pushed ${String(name(fixtureValue(id)))}`;
       if (e.name !== GameEventNames.DiceRoll) return [];
       const roll = z
         .object({ description: z.string() })
         .parse(e.data).description;
 
       if (roll.startsWith("Ball & Chain Deviation"))
-        return [`lurch ${roll.slice(roll.indexOf(":") + 2)}`];
+        return `lurch ${roll.slice(roll.indexOf(":") + 2)}`;
       const match = /^(Armour|Injury) Roll \(([^)]+)\)/.exec(roll);
       return match
-        ? [`${fixtureValue(match[1]).toLowerCase()} ${String(match[2])}`]
+        ? `${fixtureValue(match[1]).toLowerCase()} ${String(match[2])}`
         : [];
     });
   return {

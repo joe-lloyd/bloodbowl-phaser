@@ -116,8 +116,8 @@ function isSquare(value: unknown): boolean {
     value !== null &&
     "x" in value &&
     "y" in value &&
-    Number.isInteger(value.x) &&
-    Number.isInteger(value.y)
+    Number.isSafeInteger(value.x) &&
+    Number.isSafeInteger(value.y)
   );
 }
 
@@ -125,7 +125,7 @@ function isNonEmptyArrayOf(
   value: unknown,
   isEntry: (entry: unknown) => boolean
 ): boolean {
-  return Array.isArray(value) && value.length > 0 && value.every(isEntry);
+  return Array.isArray(value) && value.length > 0 && value.every((element) => isEntry(element));
 }
 
 function isFormationPosition(position: unknown): boolean {
@@ -156,7 +156,7 @@ const FIELD_CHECKS: Record<
   },
   integer: { valid: Number.isInteger, must: "must be a whole number" },
   "integer?": {
-    valid: (v) => v === undefined || Number.isInteger(v),
+    valid: (v) => v === undefined || Number.isSafeInteger(v),
     must: "must be a whole number when given",
   },
   path: {

@@ -186,7 +186,7 @@ export async function runTune(options: TuneOptions): Promise<number> {
         )
       )
     );
-    const shares = screened.map(standards ? standardsShare : pointShare);
+    const shares = screened.map(standards ? (element) => standardsShare(element) : (element) => pointShare(element));
     const top = shares.indexOf(Math.max(...shares));
     const topMutant = mutants[top];
     const topShare = shares[top];
@@ -210,7 +210,7 @@ export async function runTune(options: TuneOptions): Promise<number> {
     } else {
       [share = 0] = common([
         await play(topMutant, best, options.confirmGames, nextSeed),
-      ]).map(pointShare);
+      ]).map((element) => pointShare(element));
 
       bar = 0.5 + 0.75 / Math.sqrt(options.confirmGames);
     }

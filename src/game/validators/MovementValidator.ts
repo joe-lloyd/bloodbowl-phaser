@@ -52,8 +52,8 @@ function invalidResult(): MovementResult {
 
 function pitchSquare(square: MovementSquare): boolean {
   return (
-    Number.isInteger(square.x) &&
-    Number.isInteger(square.y) &&
+    Number.isSafeInteger(square.x) &&
+    Number.isSafeInteger(square.y) &&
     isStandableSquare(square)
   );
 }

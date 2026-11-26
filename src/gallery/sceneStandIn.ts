@@ -87,7 +87,7 @@ function setupActions({ bus, fx, active }: SetupDesk) {
     },
     save: (name = "") => {
       const positions = active().players.flatMap(({ id, gridPosition }) =>
-        gridPosition ? [{ playerId: id, ...gridPosition }] : []
+        gridPosition ? { playerId: id, ...gridPosition } : []
       );
       manager.saveFormation(GALLERY_FORMATIONS, positions, name);
       list();

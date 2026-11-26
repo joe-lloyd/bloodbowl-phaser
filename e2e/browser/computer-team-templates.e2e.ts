@@ -178,7 +178,7 @@ test("the same template enters two leagues as different teams with the league mo
     (team) => team.computerTemplateId === "human-reroll-mix-roster"
   );
   expect(copies).toHaveLength(2);
-  expect(copies.map((team) => team.advancementMode).sort()).toEqual([
+  expect(copies.map((team) => team.advancementMode).toSorted()).toEqual([
     "advanced-league",
     "sevens-skill-selection",
   ]);

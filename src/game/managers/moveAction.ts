@@ -210,7 +210,7 @@ export async function movePlayer(
 
     enterSquare(run, step);
     if (crossing === "safe") run.stepsTaken += SAFE_CROSSING_EXTRA;
-    if (crossing === "reckless") carryBallOver(run, step);
+    else if (crossing === "reckless") carryBallOver(run, step);
     if (crossing === "reckless" && !(await clearBarricade(run))) {
       end = fallOverBarricade(run);
       break;

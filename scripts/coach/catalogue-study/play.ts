@@ -118,7 +118,7 @@ export async function playStudyGame(
     progressionEnabled: job.persistentInjuries ?? false,
     ...(job.format && { format: job.format }),
   });
-  const participants = [team1.players.slice(), team2.players.slice()];
+  const participants = [[...team1.players], [...team2.players]];
   const initial = game.matchSave();
   const telemetry = createTelemetry(game);
   const freeAtStart =

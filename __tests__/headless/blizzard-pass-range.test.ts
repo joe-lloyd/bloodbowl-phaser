@@ -79,7 +79,7 @@ describe("passing in a Blizzard", () => {
     const { candidates } = await enumerateDecision(game, null);
     const ranges = candidates.flatMap(({ commands: [command] }) =>
       command.type === "pass"
-        ? [PassController.rangeValue({ x: 4, y: 5 }, command)]
+        ? PassController.rangeValue({ x: 4, y: 5 }, command)
         : []
     );
 

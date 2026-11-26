@@ -176,7 +176,7 @@ export function TournamentBracket({
   const columns = Array.from({ length: layout.columns }, (_, column) =>
     layout.nodes
       .filter((node) => node.column === column)
-      .sort((a, b) => a.row - b.row)
+      .toSorted((a, b) => a.row - b.row)
   );
   const sideOf = new Map(
     layout.nodes.map((node) => [node.fixture.id, node.side])

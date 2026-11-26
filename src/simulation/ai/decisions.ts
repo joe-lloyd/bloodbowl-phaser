@@ -36,7 +36,7 @@ function first(
   candidates: readonly Candidate[],
   test: (c: Candidate) => boolean
 ): number | null {
-  const index = candidates.findIndex(test);
+  const index = candidates.findIndex((candidate) => test(candidate));
   return index === -1 ? null : index;
 }
 

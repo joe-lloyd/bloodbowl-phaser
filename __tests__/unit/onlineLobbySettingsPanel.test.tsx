@@ -42,7 +42,7 @@ describe("OnlineLobby SettingsPanel — turn timer", () => {
 
   it("offers a 'No time limit' option alongside the existing durations", async () => {
     await render(DEFAULT_SETTINGS, () => {});
-    const labels = Array.from(turnTimerSelect().querySelectorAll("option")).map(
+    const labels = [...turnTimerSelect().querySelectorAll("option")].map(
       (o) => o.textContent
     );
     expect(labels).toEqual([

@@ -266,7 +266,7 @@ async function play(
     const phase = game.snapshot().kick?.stage ?? "selecting kicker";
     atRest?.(`${phase} before ${command.type}`, script);
     if (command.type === "kick-ball") script.kicks++;
-    if (command.type === "kickoff-reselect") script.reselected = true;
+    else if (command.type === "kickoff-reselect") script.reselected = true;
     const response = await game.execute(command);
     if (!response.ok) throw new Error(`${command.type}: ${String(response.reason)}`);
   }

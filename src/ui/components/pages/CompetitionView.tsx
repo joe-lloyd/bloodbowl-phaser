@@ -78,7 +78,7 @@ function RoundList({
           <div className="space-y-3">
             {competition.fixtures
               .filter((fixture) => fixture.round === round)
-              .map(renderCard)}
+              .map((element) => renderCard(element))}
           </div>
         </div>
       ))}

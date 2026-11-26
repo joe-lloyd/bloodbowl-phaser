@@ -63,7 +63,7 @@ function flankRunner(c: Context, carrier: Player): Player | undefined {
   const wide = (p: Player) => Math.abs(p.gridPosition.y - at.y) >= 3;
   return c.board.ours
     .filter((p) => p.id !== carrier.id && standing(p) && canCarry(p))
-    .sort(
+    .toSorted(
       (a, b) =>
         b.stats.MA - a.stats.MA ||
         Number(wide(b)) - Number(wide(a)) ||
@@ -130,7 +130,7 @@ function deepReceiver(c: Context, carrier: Player): Player | undefined {
         !!c.available.get(p.id)?.has("move") &&
         canGo(p)
     )
-    .sort(
+    .toSorted(
       (a, b) =>
         hands(a) - hands(b) ||
         b.stats.MA - a.stats.MA ||
@@ -149,7 +149,7 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
     standing(p) &&
     !c.available.get(p.id)?.has("move") &&
     isDeep({ c: c, from: at, s: p.gridPosition, receiver: p });
-  if (board.ours.some(wentDeep)) return;
+  if (board.ours.some((element) => wentDeep(element))) return;
   const receiver = deepReceiver(c, carrier);
   if (!receiver) return;
   for (let x = 0; x < pitchWidth(); x++)

@@ -23,7 +23,7 @@ type RankedCandidate = ReturnType<typeof rankCandidates>[number];
 type RequestOptions = Required<JevCoachOptions>;
 
 function shortlistFor(context: CoachContext): RankedCandidate[] {
-  const ranked = rankCandidates(context).sort((a, b) => b.score - a.score);
+  const ranked = rankCandidates(context).toSorted((a, b) => b.score - a.score);
   const shortlist = ranked.slice(0, SHORTLIST);
   const endTurn = ranked.find((entry) => entry.candidate.kind === "end-turn");
   if (endTurn && !shortlist.includes(endTurn)) shortlist.push(endTurn);

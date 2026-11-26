@@ -35,7 +35,7 @@ export function renderMatchStateBaseline(input: BaselineInput): string {
 
   const marks: string[] = [];
 
-  const sorted = [...players].sort((a, b) => a.id.localeCompare(b.id));
+  const sorted = players.toSorted((a, b) => a.id.localeCompare(b.id));
   for (const player of sorted) {
       const location = resolvePlayerLocation(player);
       if (location.kind !== "pitch") {

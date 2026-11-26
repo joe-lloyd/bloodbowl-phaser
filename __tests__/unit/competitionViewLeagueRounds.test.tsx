@@ -111,13 +111,13 @@ async function reload() {
 }
 
 const sectionTitles = () =>
-  [...container.querySelectorAll("section h2")].map((h2) => h2.textContent);
+  [...container.querySelectorAll(":scope section h2")].map((h2) => h2.textContent);
 const section = (title: string) =>
   [...container.querySelectorAll("section")].find(
     (candidate) => candidate.querySelector("h2")?.textContent === title
   );
 const nextRound = () =>
-  container.querySelector('[data-testid="next-round"] h3')?.textContent;
+  container.querySelector(':scope [data-testid="next-round"] h3')?.textContent;
 const featured = () => [
   ...container.querySelectorAll<HTMLElement>(
     '[data-testid="next-round-fixture"]'
@@ -129,7 +129,7 @@ const upcomingRounds = () =>
   );
 const completedToggles = () => [
   ...container.querySelectorAll<HTMLButtonElement>(
-    '[data-testid="completed-round"] button'
+    ':scope [data-testid="completed-round"] button'
   ),
 ];
 const panelOf = (toggle: HTMLButtonElement) =>

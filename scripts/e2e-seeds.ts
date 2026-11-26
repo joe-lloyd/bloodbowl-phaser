@@ -43,7 +43,7 @@ function outcomesToSeed() {
 
 function writeSeeds(seeds: CommittedSeedMap): void {
   const ordered: CommittedSeedMap = {};
-  for (const key of Object.keys(seeds).sort()) {
+  for (const key of Object.keys(seeds).toSorted()) {
     const seed = seeds[key];
     if (seed !== undefined) ordered[key] = seed;
   }

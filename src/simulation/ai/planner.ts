@@ -448,7 +448,7 @@ function kickChoice(
   const kicks = candidates.flatMap((c, index) => {
     const command = c.commands[0];
     return command.type === "kick-ball"
-      ? [{ index, x: command.x, y: command.y }]
+      ? { index, x: command.x, y: command.y }
       : [];
   });
   if (kicks.length === 0) return null;

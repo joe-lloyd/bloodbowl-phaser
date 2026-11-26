@@ -148,7 +148,7 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
           choice: { playerId, stat },
         }));
       }
-      return [{ label: name(playerId), choice: { playerId } }];
+      return { label: name(playerId), choice: { playerId } };
     });
 
   return (

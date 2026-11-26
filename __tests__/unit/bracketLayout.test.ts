@@ -127,7 +127,7 @@ describe("layoutBracket", () => {
     );
 
     const semis = layout.nodes.filter((n) => n.fixture.round === 2);
-    expect(semis.map((n) => n.column).sort()).toEqual([1, 3]);
+    expect(semis.map((n) => n.column).toSorted()).toEqual([1, 3]);
   });
 
   it("centres a parent on the midpoint of the fixtures feeding it", () => {
@@ -150,7 +150,7 @@ describe("layoutBracket", () => {
       const rows = layout.nodes
         .filter((n) => n.fixture.round === 1 && n.side === side)
         .map((n) => n.row)
-        .sort((a, b) => a - b);
+        .toSorted((a, b) => a - b);
       expect(rows).toEqual([0, 1, 2, 3]);
     }
     expect(layout.rows).toBe(4);
@@ -175,7 +175,7 @@ describe("layoutBracket", () => {
       const from = nodeOf(connector.fromFixtureId);
       const to = nodeOf(connector.toFixtureId);
       if (from.side === "left") expect(to.column).toBeGreaterThan(from.column);
-      if (from.side === "right") expect(to.column).toBeLessThan(from.column);
+      else if (from.side === "right") expect(to.column).toBeLessThan(from.column);
     }
   });
 
@@ -214,7 +214,7 @@ describe("layoutBracket", () => {
   });
 
   it("falls back to round/order pairing when linkage is missing", () => {
-    const stripped: CompetitionFixture[] = bracketFor(8).map(stripLinkage);
+    const stripped: CompetitionFixture[] = bracketFor(8).map((element) => stripLinkage(element));
     const withLinkage = layoutBracket(bracketFor(8));
     const withoutLinkage = layoutBracket(stripped);
 
@@ -263,7 +263,7 @@ describe("repairBracketLinkage", () => {
 
   it("restores linkage stripped from a legacy document", () => {
     const original = bracketFor(8);
-    const stripped: CompetitionFixture[] = original.map(stripLinkage);
+    const stripped: CompetitionFixture[] = original.map((element) => stripLinkage(element));
 
     expect(repairBracketLinkage(stripped)).toBe(true);
     for (const fixture of stripped) {
@@ -280,7 +280,7 @@ describe("repairBracketLinkage", () => {
     const entered = entrants(8);
     const stripped: CompetitionFixture[] = generateSingleElimination(
       entered
-    ).map(stripLinkage);
+    ).map((element) => stripLinkage(element));
     repairBracketLinkage(stripped);
 
     const tournament: TournamentDoc = {
@@ -354,7 +354,7 @@ describe("a tournament played through to a champion", () => {
 
       const played = playedTies(current.fixtures);
       for (const tie of played) seen.add(tie.id);
-      expect(eliminated).toEqual(new Set(played.map(loserOf)));
+      expect(eliminated).toEqual(new Set(played.map((element) => loserOf(element))));
 
       expectWinnersAdvanced(current.fixtures);
 

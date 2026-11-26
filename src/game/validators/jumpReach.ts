@@ -24,14 +24,14 @@ function takeoffFilter({ player, others }: JumpSearch) {
   if (mayJumpAnything(player)) return () => true;
   const downed = others.filter((p) => p.status !== PlayerStatus.ACTIVE);
   const beside = new Set(
-    squaresOf(downed).flatMap((at) => movementNeighbors(at).map(keyOf))
+    squaresOf(downed).flatMap((at) => movementNeighbors(at).map((element) => keyOf(element)))
   );
   return (square: MovementSquare) => beside.has(keyOf(square));
 }
 
 function stepsFrom(search: JumpSearch): (at: ReachableSquare) => ReachableSquare[] {
   const { player, others } = search;
-  const blocked = new Set(squaresOf(others).map(keyOf));
+  const blocked = new Set(squaresOf(others).map((element) => keyOf(element)));
   const maySpring = takeoffFilter(search);
   return (at) => {
     const walks = movementNeighbors(at)
@@ -58,7 +58,7 @@ export function reachWithJumps(search: JumpSearch): ReachableSquare[] {
     const current = frontier[cost] ?? [];
     for (const next of current
       .filter((at) => best.get(keyOf(at)) === at)
-      .flatMap(onward)) {
+      .flatMap((element) => onward(element))) {
       const known = best.get(keyOf(next));
       if (next.cost > allowance || (known && known.cost <= next.cost)) continue;
       best.set(keyOf(next), next);

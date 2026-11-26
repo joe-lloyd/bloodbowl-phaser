@@ -105,7 +105,7 @@ export class CastNoviceWizardOperation extends TeamOperation {
     const { gameService } = context;
     const state = gameService.getState();
     if (!holdsNoviceWizard(state, this.teamId)) return;
-    const targets = gameService.getOpponents(this.teamId).filter(onPitch);
+    const targets = gameService.getOpponents(this.teamId).filter((element) => onPitch(element));
     if (targets.length === 0) return;
     const answer = await chooseForInducement(context, {
       kind: "novice-wizard",

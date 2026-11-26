@@ -69,6 +69,7 @@ const UNICORN_OFF = [
   "no-null", "filename-case", "name-replacements", "consistent-boolean-name",
   "consistent-arrow-return-style", "no-nested-ternary", "prefer-switch", "prefer-ternary",
   "prefer-combined-guards", "require-css-escape", "prefer-await", "prefer-simple-condition-first",
+  "consistent-class-member-order",
   ...NEWER_THAN_ES2023,
 ];
 

@@ -59,7 +59,7 @@ export function kickoffOnTheBallReactor(
         !!player.gridPosition &&
         !isMarkedAt(player.gridPosition, opponents)
     )
-    .sort(
+    .toSorted(
       (a, b) =>
         a.gridPosition!.y - b.gridPosition!.y ||
         a.gridPosition!.x - b.gridPosition!.x

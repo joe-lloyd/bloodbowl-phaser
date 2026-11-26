@@ -70,7 +70,7 @@ export function answerFoulAssists(
 ): boolean {
   const pending = decisions.pending();
   if (pending?.type !== "foul-assists") return false;
-  if (!Number.isInteger(count) || count < 0 || count > pending.available)
+  if (!Number.isSafeInteger(count) || count < 0 || count > pending.available)
     return false;
   return decisions.answer({ count });
 }

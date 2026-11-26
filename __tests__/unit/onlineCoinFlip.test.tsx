@@ -283,7 +283,7 @@ describe("online weather", () => {
     expect(coins.length).toBe(1);
     expect(container.querySelector('[data-testid="weather-result"]')).toBeNull();
     const blizzard = container.querySelector(
-      '[data-testid="weather-table"] li:last-child > span'
+      ':scope [data-testid="weather-table"] li:last-child > span'
     );
     const preview = () =>
       container.querySelector('[data-testid="weather-table-detail"]')

@@ -33,7 +33,7 @@ describe("rule coverage gate", () => {
     const cov = SkillRegistry.coverage();
     const implemented = Object.values(SkillType)
       .filter((type) => SkillRegistry.has(type))
-      .sort();
+      .toSorted();
     expect(implemented).toEqual(
       [
         SkillType.ACCURATE,
@@ -144,7 +144,7 @@ describe("rule coverage gate", () => {
         SkillType.UNSTEADY,
         SkillType.VIOLENT_INNOVATOR,
         SkillType.WRESTLE,
-      ].sort()
+      ].toSorted()
     );
     expect(cov.implemented).toBe(108);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);

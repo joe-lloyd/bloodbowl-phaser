@@ -98,5 +98,5 @@ export function scenarioCaseFromLegacy(scenario: Scenario): ScenarioCase {
 }
 
 export function scenarioCasesFromLegacy(scenarios: Scenario[]): ScenarioCase[] {
-  return scenarios.map(scenarioCaseFromLegacy);
+  return scenarios.map((scenario) => scenarioCaseFromLegacy(scenario));
 }

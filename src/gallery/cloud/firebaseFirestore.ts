@@ -150,13 +150,13 @@ function documentSnapshot(path: string) {
 function querySnapshot(source: CollectionRef | CloudQuery) {
   const wanted = asQuery(source);
   const docs = documentPaths()
-    .filter(wanted.matches)
+    .filter((element) => wanted.matches(element))
     .filter((path) => {
       const data = readDocument(path) ?? {};
       return wanted.keeps.every((keep) => keep(data));
     })
     .slice(0, wanted.most)
-    .map(documentSnapshot);
+    .map((element) => documentSnapshot(element));
   return {
     docs,
     empty: docs.length === 0,

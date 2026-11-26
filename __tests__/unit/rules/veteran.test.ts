@@ -103,7 +103,7 @@ describe("Veteran persistence (D8)", () => {
     chooseVeteran(team, fixtureValue(team.players[2]).id);
 
     const { team: loaded } = readStoredTeam(
-      JSON.parse(JSON.stringify(dehydrateTeam(team)))
+      structuredClone(dehydrateTeam(team))
     );
 
     expect(fixtureValue(loaded.players[2]).veteran).toBe(true);

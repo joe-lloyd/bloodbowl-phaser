@@ -184,6 +184,6 @@ export async function dismissCompetitionInvites({
         (invite) =>
           invite.kind === "competition" && invite.competitionId === competitionId
       )
-      .map(dismissInvite)
+      .map((element) => dismissInvite(element))
   );
 }

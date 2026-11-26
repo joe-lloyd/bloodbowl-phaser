@@ -68,7 +68,7 @@ const option = (name: string): string | undefined => {
 };
 const CONFIGS: ConfigName[] = ["swiftshader", "gpu"];
 const runs = Number(option("runs") ?? 3);
-if (!Number.isInteger(runs) || runs < 1)
+if (!Number.isSafeInteger(runs) || runs < 1)
   throw new Error(
     `--runs must be a positive whole number, not ${String(runs)}`
   );
@@ -260,7 +260,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
+  const sorted = values.toSorted((a, b) => a - b);
   return (
     sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0
   );
@@ -389,7 +389,7 @@ async function oneRun(
 }
 
 function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
+  const sorted = values.toSorted((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   const at = (index: number) => sorted[index] ?? NaN;
   return sorted.length % 2 ? at(mid) : (at(mid - 1) + at(mid)) / 2;
@@ -404,7 +404,7 @@ function summarise(results: RunResult[]) {
         .map((r) => r.windows[name]);
       if (ws.length === 0) continue;
       const m = (pick: (w: WindowResult) => number) =>
-        Number(median(ws.map(pick)).toFixed(2));
+        Number(median(ws.map((w) => pick(w))).toFixed(2));
 
       const heap = ws.map((w) => w.heapMb);
 

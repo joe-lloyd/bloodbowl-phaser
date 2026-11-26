@@ -568,7 +568,7 @@ describe.runIf(process.env["CAMPAIGN"] === "1")(
 
       const finalTeams = [...teamsByMode.values()]
         .flat()
-        .map(mustLoad)
+        .map((element) => mustLoad(element))
         .map((team) => ({
           name: team.name,
           mode: team.advancementMode,

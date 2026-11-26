@@ -338,7 +338,7 @@ function rollIndexes(
       z.object({ rollType: z.string().exactOptional() }).parse(e.data)
         .rollType ?? ""
     )
-      ? [i]
+      ? i
       : []
   );
 }

@@ -261,7 +261,7 @@ export function rollTakeableSkill(
   canTake: (skill: SkillType) => boolean,
   rng: Pick<IRNGService, "rollDie">
 ): RandomSkillCandidate {
-  if (!SKILL_ROLL_TABLE[category].some(canTake)) {
+  if (SKILL_ROLL_TABLE[category].every((skill) => !canTake(skill))) {
     throw new Error(`No ${category} skill is left that this player can take`);
   }
   for (let attempt = 0; attempt < MAX_SKILL_ROLLS; attempt++) {

@@ -113,8 +113,7 @@ export function feedActivations(c: Context, player: Player): Activation[] {
   return feedSquares(c).flatMap((at) => {
     const route = routes.get(key(at));
     return route
-      ? [
-          {
+      ? {
             player: player,
             action: "move" as const,
             intent: {
@@ -125,8 +124,7 @@ export function feedActivations(c: Context, player: Player): Activation[] {
             tier: "support" as const,
             value: gamble(c, route.chance, c.turnover),
             rolls: route.rolls,
-          },
-        ]
+          }
       : [];
   });
 }

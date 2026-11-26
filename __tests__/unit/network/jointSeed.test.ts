@@ -44,7 +44,7 @@ describe("joint seed", () => {
     expect(seedReady(lobby)).toBe(true);
     const seed = await seedFor(lobby);
     expect(seed).toBe(await seedFor(structuredClone(lobby)));
-    expect(Number.isInteger(seed)).toBe(true);
+    expect(Number.isSafeInteger(seed)).toBe(true);
     expect(seed).toBeGreaterThanOrEqual(0);
 
     expect(await seedFor(await lobbyWith("aaaa", "cccc"))).not.toBe(seed);

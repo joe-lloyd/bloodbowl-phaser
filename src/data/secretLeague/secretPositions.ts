@@ -96,7 +96,7 @@ export function secretPosition(
     primary: categories(blueprint.primary),
     secondary: categories(blueprint.secondary),
   };
-  const skills = blueprint.traitsAndSkills.map(secretSkill);
+  const skills = blueprint.traitsAndSkills.map((element) => secretSkill(element));
   const { cost: price, stats, primary, secondary } = parts;
   if (
     !price.ok ||

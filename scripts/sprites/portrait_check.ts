@@ -46,7 +46,7 @@ function draw(art: LayeredModel, look: Look, read: (body: string, name: string) 
   const resolved = resolveLook(art, look.appearance);
   const layer = (name: string) => read(resolved.body, name);
   return buildLookAtlas({
-    look: { layers: resolved.layers.map(layer), shades: resolved.shades.map(layer) },
+    look: { layers: resolved.layers.map((element) => layer(element)), shades: resolved.shades.map((element) => layer(element)) },
     names: idleNames(art),
     size: art.frame,
     palette: art.layered.palette,

@@ -149,7 +149,7 @@ function playFixtures(
   count: number
 ): LeagueDoc | TournamentDoc {
   let current = doc;
-  const fixtures = [...doc.fixtures].sort((a, b) => a.id.localeCompare(b.id));
+  const fixtures = doc.fixtures.toSorted((a, b) => a.id.localeCompare(b.id));
   for (const fixture of fixtures.slice(0, count)) {
     if (fixture.status === "complete") continue;
     const { homeScore, awayScore } = scoreFor(plan, fixture);
@@ -163,7 +163,7 @@ function playFixtures(
 
 function normalizeTimestamps(doc: CompetitionDoc): void {
   doc.createdAt = SEED_EPOCH;
-  const sorted = [...doc.fixtures].sort((a, b) => a.id.localeCompare(b.id));
+  const sorted = doc.fixtures.toSorted((a, b) => a.id.localeCompare(b.id));
   for (const [index, fixture] of sorted.entries()) {
     if (fixture.result) {
       fixture.result.completedAt = SEED_EPOCH + (index + 1) * 60_000;

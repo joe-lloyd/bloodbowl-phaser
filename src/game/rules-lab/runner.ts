@@ -71,7 +71,7 @@ function interceptionAnswer(
   if (!(policy.acceptInterceptions ?? true)) {
     return { type: "choose-interception" };
   }
-  const best = [...pending.candidates].sort(
+  const best = pending.candidates.toSorted(
     (a, b) => b.modifier - a.modifier
   )[0];
   return {

@@ -159,7 +159,7 @@ function addLinemen(
   linemen: PlayerTemplate[]
 ): void {
   while (picks.length < TARGET_SQUAD_SIZE) {
-    const insignificant = picks.filter(isInsignificantTemplate).length;
+    const insignificant = picks.filter((pick) => isInsignificantTemplate(pick)).length;
     const significant = picks.length - insignificant;
     const next =
       insignificant < significant
@@ -177,7 +177,7 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
   const templates = roster.playerTemplates;
   const linemen = templates
     .filter((t) => isLinemanPosition(t.keywords))
-    .sort((a, b) => a.cost - b.cost);
+    .toSorted((a, b) => a.cost - b.cost);
   const positionals = templates.filter((t) => !isLinemanPosition(t.keywords));
 
   const picks: PlayerTemplate[] = [];
@@ -200,7 +200,7 @@ function swapDearestFor(
   lineman: PlayerTemplate | undefined,
   picks: PlayerTemplate[]
 ): boolean {
-  const dearest = [...picks].sort((a, b) => b.cost - a.cost)[0];
+  const dearest = picks.toSorted((a, b) => b.cost - a.cost)[0];
   if (!lineman || !dearest || dearest.cost <= lineman.cost) return false;
   picks.splice(picks.indexOf(dearest), 1, lineman);
   return true;
@@ -222,13 +222,13 @@ function trimToBudget(
     (apothecary ? APOTHECARY_COST : 0);
 
   const insignificantOk = (squad: PlayerTemplate[]) => {
-    const insignificant = squad.filter(isInsignificantTemplate).length;
+    const insignificant = squad.filter((element) => isInsignificantTemplate(element)).length;
     return insignificant <= squad.length - insignificant;
   };
 
   while (totalCost() > DRAFT_BUDGET) {
     if (picks.length > 7) {
-      const byCostDesc = [...picks].sort((a, b) => b.cost - a.cost);
+      const byCostDesc = picks.toSorted((a, b) => b.cost - a.cost);
       const removed = byCostDesc.find((candidate) =>
         insignificantOk(picks.filter((t) => t !== candidate))
       );

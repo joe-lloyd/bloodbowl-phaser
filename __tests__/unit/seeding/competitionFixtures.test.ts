@@ -22,7 +22,7 @@ describe("competitionFixtures", () => {
       const states = competitions
         .filter((d) => d.type === type)
         .map((d) => d.status)
-        .sort();
+        .toSorted();
       expect(states).toEqual(["active", "complete", "draft"]);
     }
   });
@@ -48,8 +48,8 @@ describe("competitionFixtures", () => {
     expect(final.result).toBeUndefined();
 
     const winners = semis.map((f) => fixtureValue(f.result).winnerEntrantId);
-    expect([final.homeEntrantId, final.awayEntrantId].sort()).toEqual(
-      winners.sort()
+    expect([final.homeEntrantId, final.awayEntrantId].toSorted()).toEqual(
+      winners.toSorted()
     );
     expect(active.championEntrantId).toBeUndefined();
   });

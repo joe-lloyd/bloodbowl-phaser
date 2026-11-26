@@ -75,7 +75,7 @@ function potionPatients(
   const order = (player: Player) => STREET_PATIENTS.indexOf(player.status);
   return team.players
     .filter((player) => mayDrink(state, player, kind))
-    .sort((a, b) => order(a) - order(b));
+    .toSorted((a, b) => order(a) - order(b));
 }
 
 function choiceAnswer(answer: DecisionAnswer): InducementChoiceDecisionAnswer {
@@ -133,7 +133,7 @@ const readyToPlay = (player: Player) =>
 async function offerSouvenirs(context: FlowContext, team: Team): Promise<void> {
   const state = context.gameService.getState();
   for (const held of unassignedSouvenirs(state, team.id)) {
-    const options = team.players.filter(readyToPlay);
+    const options = team.players.filter((element) => readyToPlay(element));
     if (options.length === 0) return;
     const answer = await chooseForInducement(context, {
       kind: "souvenir",

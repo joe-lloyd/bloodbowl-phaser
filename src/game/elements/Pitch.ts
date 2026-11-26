@@ -484,7 +484,7 @@ export class Pitch {
       const highlighted =
         child.name === "highlight" || child.name === BITE_TARGET_LAYER;
       return square && highlighted && "visible" in child && child.visible
-        ? [{ ...square }]
+        ? { ...square }
         : [];
     });
   }

@@ -30,7 +30,7 @@ export function enterActionMode(
   c.interactionSeq++;
 
   if (action === "multipleBlock") c.multipleBlockFirstTargetId = null;
-  if (action === "throwTeamMate") c.ttmTeammateId = null;
+  else if (action === "throwTeamMate") c.ttmTeammateId = null;
   c.actionSteps = actionStepsFor(action, blockReplacement);
 
   const defaultStep = c.actionSteps[0]?.id ?? "move";

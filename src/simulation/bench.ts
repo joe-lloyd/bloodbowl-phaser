@@ -197,5 +197,5 @@ export function rosterReport(games: readonly BenchGame[]): RosterRow[] {
         meets: sppPerGame >= standard.spp,
       };
     })
-    .sort((a, b) => a.roster.localeCompare(b.roster));
+    .toSorted((a, b) => a.roster.localeCompare(b.roster));
 }

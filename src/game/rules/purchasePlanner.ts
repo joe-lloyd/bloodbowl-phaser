@@ -90,7 +90,7 @@ export function draftReserve(team: Team): number {
     0,
     ...draftListPlayers(team)
       .filter((player) => addedSkillCount(player) >= 1)
-      .map(draftedPlayerPrice)
+      .map((element) => draftedPlayerPrice(element))
   );
 }
 
@@ -296,6 +296,6 @@ function cheapestHire(team: Team, budget: number): PlayerTemplate | undefined {
 
       return hireRefusal(team, template) === undefined;
     })
-    .sort((a, b) => a.template.cost - b.template.cost || a.index - b.index)[0]
+    .toSorted((a, b) => a.template.cost - b.template.cost || a.index - b.index)[0]
     ?.template;
 }

@@ -22,7 +22,7 @@ export const playerSchema: z.ZodType<Player> = z.looseObject({
     .transform((items) =>
       items.flatMap((item) => {
         const known = keyWordSchema.safeParse(item);
-        return known.success ? [known.data] : [];
+        return known.success ? known.data : [];
       })
     ),
   teamId: z.string(),

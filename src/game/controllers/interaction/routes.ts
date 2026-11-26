@@ -103,8 +103,8 @@ export function rerollSources(
   }
   const team = arbiter.nextTeamReroll(player.teamId);
   if (team === "free") sources.push("Brilliant Coaching");
-  if (team === "leader") sources.push("Leader");
-  if (team === "team")
+  else if (team === "leader") sources.push("Leader");
+  else if (team === "team")
     sources.push(
       `team ${String(arbiter.teamRerollsLeftFor(player.teamId))} left`
     );

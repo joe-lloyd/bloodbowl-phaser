@@ -66,7 +66,7 @@ describe("die relabelling", () => {
       for (let value = 1; value <= 6; value++) {
         const labels = labelling(up, value);
         expect(labels[up]).toBe(value);
-        expect([...labels].sort()).toEqual([1, 2, 3, 4, 5, 6]);
+        expect(labels.toSorted()).toEqual([1, 2, 3, 4, 5, 6]);
         expect(fixtureValue(labels[0]) + fixtureValue(labels[1])).toBe(7);
         expect(fixtureValue(labels[2]) + fixtureValue(labels[3])).toBe(7);
         expect(fixtureValue(labels[4]) + fixtureValue(labels[5])).toBe(7);

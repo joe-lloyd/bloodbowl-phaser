@@ -53,15 +53,13 @@ export function openGames({
     const host = lobby.players[lobby.hostUid];
     if (!host || !waitingForAnyone(lobby, me)) return [];
     if (!hostSeenWithin(lobby, now, HOST_GONE_MS)) return [];
-    return [
-      {
+    return {
         code: lobby.code,
         hostName: host.displayName,
         teamName: host.team?.name ?? null,
         rosterName: host.team?.rosterName ?? null,
         turnSeconds: lobby.settings.turnSeconds,
-      },
-    ];
+      };
   });
 }
 

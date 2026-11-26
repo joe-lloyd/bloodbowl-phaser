@@ -140,8 +140,8 @@ describe("a knockout tie", () => {
         fixtureValue(penalties)[home],
         fixtureValue(penalties)[away],
       ]
-        .sort()
-        .reverse();
+        .toSorted()
+        .toReversed();
       const winner =
         fixtureValue(fixtureValue(penalties)[home]) >
         fixtureValue(fixtureValue(penalties)[away])

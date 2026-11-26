@@ -477,7 +477,7 @@ describe("carrier pace", () => {
       ...secureBallActivations(c, picker),
     ].map((a) => a.value);
     expect(values.length).toBeGreaterThan(0);
-    expect(values.every(Number.isFinite)).toBe(true);
+    expect(values.every((element) => Number.isFinite(element))).toBe(true);
   });
 
   it("measures a picker only against team-mates who can carry", () => {

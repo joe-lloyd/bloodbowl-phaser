@@ -29,12 +29,12 @@ describe("generated rule cases", () => {
           (candidate) => candidate.id === ruleCaseId(config.id)
         ));
         expect(
-          scenarioCase.variants.map((v) => v.id).sort(),
+          scenarioCase.variants.map((v) => v.id).toSorted(),
           config.id
-        ).toEqual(config.outcomes.map((o) => o.id).sort());
+        ).toEqual(config.outcomes.map((o) => o.id).toSorted());
         for (const variant of scenarioCase.variants) {
           expect(
-            Number.isInteger(variant.seed),
+            Number.isSafeInteger(variant.seed),
             `${config.id}/${variant.id} has no committed seed — run 'pnpm e2e:seeds'`
           ).toBe(true);
         }

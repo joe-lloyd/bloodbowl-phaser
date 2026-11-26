@@ -114,9 +114,9 @@ function main() {
   const rows = readRows(files);
   const held = (r: Row) => r.seed % 5 === 0;
   const train = rows.filter((r) => !held(r));
-  const test = rows.filter(held);
+  const test = rows.filter((row) => held(row));
   const solved = fit(
-    train.map(vector),
+    train.map((element) => vector(element)),
     train.map((r) => r.y)
   );
   const weights = Object.fromEntries([

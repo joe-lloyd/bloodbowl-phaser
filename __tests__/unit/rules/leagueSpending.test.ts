@@ -171,7 +171,7 @@ describe("roster slots and player identity", () => {
     ];
     for (let hire = 0; hire < 4; hire++)
       expect(hirePlayer(team, position("Human Lineman")).amount).toBe(50_000);
-    expect(team.players.map((p) => p.number).sort((a, b) => a - b)).toEqual([
+    expect(team.players.map((p) => p.number).toSorted((a, b) => a - b)).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
     ]);
     const fifth = hirePlayer(team, position("Human Lineman"));

@@ -117,7 +117,7 @@ export function driveEffectText(state: GameState, team: Team): string[] {
         ]
           .filter(Boolean)
           .join(", ") + " this drive";
-    return [`#${String(player.number)}: ${detail}`];
+    return `#${String(player.number)}: ${detail}`;
   });
   if (modifiers.length > 0) text.push(`Dodgy Snack ${modifiers.join("; ")}`);
   return text;

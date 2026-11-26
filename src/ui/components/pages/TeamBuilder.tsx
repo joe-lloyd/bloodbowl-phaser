@@ -137,7 +137,7 @@ function restoreAdvancementLock(
 
 function developmentPending(team: Team): boolean {
   return (
-    stepsBeforeExpensiveMistakes(team) > 0 || team.players.some(mustAdvance)
+    stepsBeforeExpensiveMistakes(team) > 0 || team.players.some((element) => mustAdvance(element))
   );
 }
 

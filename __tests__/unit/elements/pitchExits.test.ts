@@ -198,7 +198,7 @@ describe("pitch exits", () => {
       expect(fixtureValue(chains[0]).targets).not.toContain(sprite);
       expect(props[0]).toMatchObject(fixtureValue(route.at(-1)));
       expect(fixtureValue(chains[0]).tweens.map(({ x, y }) => ({ x, y }))).toEqual(
-        [...route].reverse().slice(1)
+        route.toReversed().slice(1)
       );
       expect(sprite).toMatchObject({ ...route[0], visible: true });
 
