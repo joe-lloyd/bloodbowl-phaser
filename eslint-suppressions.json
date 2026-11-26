@@ -4666,9 +4666,6 @@
   "e2e/browser/phone-dice.e2e.ts": {
     "unicorn/no-await-expression-member": {
       "count": 1
-    },
-    "unicorn/prefer-logical-operator-over-ternary": {
-      "count": 1
     }
   },
   "e2e/browser/phone-kickoff.e2e.ts": {
@@ -8771,11 +8768,6 @@
       "count": 1
     }
   },
-  "src/game/presentation/actionRects.ts": {
-    "unicorn/no-top-level-assignment-in-function": {
-      "count": 2
-    }
-  },
   "src/game/presentation/boardState.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
@@ -12330,17 +12322,6 @@
       "count": 1
     }
   },
-  "src/ui/components/hud/PhoneDice.tsx": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    },
-    "unicorn/prefer-query-selector": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/PlayerDevelopment.tsx": {
     "@typescript-eslint/no-confusing-void-expression": {
       "count": 1
@@ -12524,11 +12505,6 @@
       "count": 1
     },
     "unicorn/prefer-single-call": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/dicePlacement.ts": {
-    "unicorn/no-array-reduce": {
       "count": 1
     }
   },

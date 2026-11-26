@@ -42,26 +42,13 @@ async function openBlock(page: Page): Promise<GameApp> {
   return app;
 }
 
-async function expectDiceClear(page: Page, app: GameApp): Promise<void> {
-  const tray = page.getByTestId("dice-tray");
-  await expect
-    .poll(async () => {
-      const dice = fixtureValue(await tray.boundingBox());
-      const prompt = await page.getByTestId("decision-dock").boundingBox();
-      return prompt ? overlaps(dice, prompt) : false;
-    })
-    .toBe(false);
-  const dice = fixtureValue(await tray.boundingBox());
-  for (const ref of ["team2:0", "team1:3"]) {
-    const at = await app.pitch.viewportPoint(await app.pitch.squareOf(ref));
-    expect(
-      at.x > dice.x &&
-        at.x < dice.x + dice.width &&
-        at.y > dice.y &&
-        at.y < dice.y + dice.height,
-      `${ref} is under the dice`
-    ).toBe(false);
+async function expectPinnedClear(page: Page): Promise<Box> {
+  const dice = fixtureValue(await page.getByTestId("dice-tray").boundingBox());
+  for (const id of ["decision-dock", "dice-log-toggle"]) {
+    const other = await page.getByTestId(id).boundingBox();
+    expect(other && overlaps(dice, other), `dice cover ${id}`).toBeFalsy();
   }
+  return dice;
 }
 
 for (const viewport of [
@@ -73,7 +60,7 @@ for (const viewport of [
   test.describe(`${String(viewport.width)}x${String(viewport.height)}`, () => {
     test.use({ viewport });
 
-    test("dice roll clear of the block prompt and the players, and the zoom holds", async ({
+    test("dice roll in a pinned box clear of the block prompt, and the zoom holds", async ({
       page,
     }) => {
       test.setTimeout(180_000);
@@ -87,13 +74,13 @@ for (const viewport of [
         timeout: 20_000,
       });
       await expect(page.getByTestId("block-die-0")).toBeVisible();
-      await expectDiceClear(page, app);
+      const pinned = await expectPinnedClear(page);
       expect(
         await tray
           .locator("canvas")
           .evaluate((canvas) => getComputedStyle(canvas).pointerEvents)
       ).toBe("none");
-      await expect(tray).not.toHaveClass(/hud-slab/);
+      await expect(tray).toHaveClass(/hud-slab/);
 
       await page.locator('[data-block-result="pow"]').first().tap();
       await expect(page.getByTestId("push-choice-prompt")).toBeVisible();
@@ -103,6 +90,12 @@ for (const viewport of [
       await page.touchscreen.tap(at.x, at.y);
       await expect(tray.getByTestId("roll-banner")).toContainText("Armour", {
         timeout: 20_000,
+      });
+      const { x, y, width } = fixtureValue(await tray.boundingBox());
+      expect({ x, y, width }).toEqual({
+        x: pinned.x,
+        y: pinned.y,
+        width: pinned.width,
       });
       await expect(tray.getByTestId("roll-banner")).toContainText("Injury", {
         timeout: 20_000,
