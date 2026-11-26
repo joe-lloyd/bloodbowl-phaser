@@ -18,18 +18,10 @@ function sharedModels(): [string, string, number][] {
 }
 
 const STILL_SHARED: [string, string, number][] = [
-  ["Barrow King", "wraith", 2],
-  ["Danse Macabre", "skeleton", 2],
-  ["Danse Macabre", "zombie", 2],
   ["Dryad", "treeman_loren", 2],
-  ["Ethereal", "wraith", 3],
-  ["Flesh Golem", "zombie", 2],
-  ["Lybaras", "skeleton", 3],
-  ["Mahrak", "anointed_blitzer", 2],
   ["Ogre Kingdom", "ogre_blocker", 2],
   ["Savage Orc", "troll", 2],
   ["Troll", "troll", 2],
-  ["Zandri", "skeleton", 2],
 ];
 
 describe("Secret League models", () => {
