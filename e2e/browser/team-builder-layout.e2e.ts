@@ -134,6 +134,14 @@ test("the roster picker animates lineups and browses extra rosters", async ({
     .getByRole("searchbox", { name: "Find a Secret League team" })
     .fill("Eonir");
   await expect(page.getByRole("status")).toHaveText("1 of 115 rosters");
+  await expect(
+    page.getByRole("heading", { name: "Ready to play 0" })
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Not ready yet" })
+      .getByText(/Not ready: .*Soul Weave/)
+  ).toBeVisible();
   await page
     .locator("summary")
     .filter({ hasText: /^Eonir/ })

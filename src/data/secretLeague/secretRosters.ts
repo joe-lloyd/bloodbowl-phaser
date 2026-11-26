@@ -15,6 +15,7 @@ import { secretPosition } from "./secretPositions";
 import { SECRET_ROSTER_NAMES } from "./secretRosterNames";
 
 const SEVENS_REROLL_COST = 100_000;
+const ROSTER_LIST_PROBLEM = "not listed in SECRET_ROSTER_NAMES";
 
 type TeamRule =
   | { readonly kind: "league"; readonly league: League }
@@ -98,7 +99,7 @@ function lineup(id: string, blueprint: SecretTeamBlueprint): Parsed<Lineup> {
   const problems = [
     ...problemsOf([...templates, ...rules]),
     ...teamProblems(blueprint, leagues),
-    ...(rosterName ? [] : ["not listed in SECRET_ROSTER_NAMES"]),
+    ...(rosterName ? [] : [ROSTER_LIST_PROBLEM]),
   ];
   if (problems.length > 0 || !rosterName) return { ok: false, problems };
   return found({
@@ -144,5 +145,18 @@ export const SECRET_POSITION_MODELS: Readonly<
 export const SECRET_CATALOGUE_NAMES: ReadonlyMap<RosterName, string> = new Map(
   PLAYABLE.flatMap(({ name, catalogueName }) =>
     catalogueName ? [[name, catalogueName]] : []
+  )
+);
+
+export const SECRET_NOT_READY: ReadonlyMap<string, readonly string[]> = new Map(
+  SECRET_TEAMS.flatMap((team) =>
+    team.lineup.ok
+      ? []
+      : [
+          [
+            team.catalogueName ?? team.name,
+            team.lineup.problems.filter((p) => p !== ROSTER_LIST_PROBLEM),
+          ],
+        ]
   )
 );
