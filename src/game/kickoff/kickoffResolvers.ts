@@ -45,7 +45,7 @@ export function kickoffEventResolvers(
       resolveGetTheRef(deps, ctx);
     },
     [KickoffEvent.TIME_OUT]: (ctx) => {
-      resolveTimeOut(deps, ctx);
+      resolveTimeout(deps, ctx);
     },
     [KickoffEvent.ALERT_DEFENCE]: () => undefined,
     [KickoffEvent.HIGH_KICK]: () => undefined,
@@ -76,7 +76,7 @@ function resolveGetTheRef(
   }
 }
 
-function resolveTimeOut(
+function resolveTimeout(
   { getTurnNumber, moveTurnMarkers }: ResolverDeps,
   ctx: KickoffEventResolverContext
 ): void {

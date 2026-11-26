@@ -42,7 +42,7 @@ function isSpeck(grid: Grid, p: Point, fill: number): boolean {
 
 function despeckle(grid: Grid, palette: LayeredPalette): Int16Array {
   const keep = new Set(palette.keep);
-  const out = grid.idx.slice();
+  const out = new Int16Array(grid.idx);
   for (let y = 0; y < grid.height; y += 1) {
     for (let x = 0; x < grid.width; x += 1) {
       const p = y * grid.width + x;
@@ -62,7 +62,7 @@ function meets(grid: Grid, code: Int16Array, pair: { a: number; b: number }): bo
 }
 
 function innerLines(grid: Grid, code: Int16Array, palette: LayeredPalette): Int16Array {
-  const out = grid.idx.slice();
+  const out = new Int16Array(grid.idx);
   for (let y = 0; y < grid.height; y += 1) {
     for (let x = 0; x < grid.width; x += 1) {
       const a = y * grid.width + x;
@@ -77,8 +77,8 @@ function innerLines(grid: Grid, code: Int16Array, palette: LayeredPalette): Int1
 
 function edgeColour(grid: Grid, p: Point, palette: LayeredPalette): number {
   const left = { x: p.x - 1, y: p.y };
-  const below = { x: p.x, y: p.y + 1 };
   if (solidAt(grid, left)) return palette.rampDark[at(grid, left, 0)] ?? palette.outline;
+  const below = { x: p.x, y: p.y + 1 };
   if (solidAt(grid, below)) return palette.rampDark[at(grid, below, 0)] ?? palette.outline;
   return palette.outline;
 }

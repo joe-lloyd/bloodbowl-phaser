@@ -171,8 +171,8 @@ export class PlayerActionManager {
     playerId: string
   ): "hasThrownTeamMate" | "hasKickedTeamMate" | null {
     const player = this.getPlayer(playerId);
-    const turn = this.state.turn;
     if (!player) return null;
+    const turn = this.state.turn;
     if (
       hasSkill(player.skills, SkillType.THROW_TEAM_MATE) &&
       !turn.hasThrownTeamMate

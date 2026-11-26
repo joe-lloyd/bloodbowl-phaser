@@ -161,13 +161,12 @@ function addLinemen(
   while (picks.length < TARGET_SQUAD_SIZE) {
     const insignificant = picks.filter((pick) => isInsignificantTemplate(pick)).length;
     const significant = picks.length - insignificant;
-    const next =
-      insignificant < significant
-        ? linemen.find((t) => canTake(roster, picks, t))
-        : linemen.find(
-            (t) =>
-              canTake(roster, picks, t) && !isInsignificantTemplate(t)
-          );
+    const preferSignificant = insignificant < significant;
+    const next = linemen.find(
+      (t) =>
+        canTake(roster, picks, t) &&
+        (preferSignificant || !isInsignificantTemplate(t))
+    );
     if (!next) break;
     picks.push(next);
   }
@@ -202,7 +201,7 @@ function swapDearestFor(
 ): boolean {
   const dearest = [...picks].sort((a, b) => b.cost - a.cost)[0];
   if (!lineman || !dearest || dearest.cost <= lineman.cost) return false;
-  picks.splice(picks.indexOf(dearest), 1, lineman);
+  picks[picks.indexOf(dearest)] = lineman;
   return true;
 }
 

@@ -82,7 +82,8 @@ async function resolveRiot(
   for (const team of losers) {
     const count = deps.diceController.rollD3(`Riot: D3 ${team.name} players`, team.id);
     await deps.diceShown();
-    for (const player of await randomPlayers(deps, team, { event: "Riot", count })) {
+    const riotPlayers = await randomPlayers(deps, team, { event: "Riot", count });
+    for (const player of riotPlayers) {
       placeProneAndStunned(deps.eventBus, player);
       grantEffect(ctx.outcome, team.id, `${player.playerName} is Placed Prone and Stunned by the riot`);
     }

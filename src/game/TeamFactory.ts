@@ -135,7 +135,8 @@ export const TeamFactory = {
       }
     };
 
-    for (const line of compositionFor(rosterName) ?? []) {
+    const composition = compositionFor(rosterName) ?? [];
+    for (const line of composition) {
       hire(line.position, line.count);
     }
 

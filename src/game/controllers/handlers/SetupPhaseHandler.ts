@@ -229,10 +229,9 @@ export class SetupPhaseHandler implements PhaseHandler {
   }
 
   private loadFormation(
-{ rawName,activeTeam,key,isTeam1 }: { rawName: string|undefined; activeTeam: Team; key: string; isTeam1: boolean; }  ): void {
+{ rawName: name = "Balanced",activeTeam,key,isTeam1 }: { rawName: string|undefined; activeTeam: Team; key: string; isTeam1: boolean; }  ): void {
     const placementController =
       this.scene.placementController;
-    const name = rawName ?? "Balanced";
     const positions = this.scene.formationManager.getFormation(key, name, isTeam1);
     if (!positions || positions.length === 0) {
       this.eventBus.emit(

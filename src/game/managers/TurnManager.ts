@@ -54,6 +54,16 @@ interface TurnCallbacks {
   onKickoffTurnEnded?: (event: KickoffEvent, teamId: string) => void;
 }
 
+const activatePlayers = (team: Team) => {
+  for (const p of team.players) {
+    if (p.gridPosition && p.status === PlayerStatus.RESERVE) {
+      p.status = PlayerStatus.ACTIVE;
+    } else if (!p.status) {
+      p.status = PlayerStatus.RESERVE;
+    }
+  }
+};
+
 export class TurnManager {
   private handoverPending = false;
 
@@ -129,16 +139,6 @@ export class TurnManager {
 
     this.state.subPhase = SubPhase.TURN_RECEIVING;
     this.state.activeTeamId = receivingTeamId;
-
-    const activatePlayers = (team: Team) => {
-      for (const p of team.players) {
-        if (p.gridPosition && p.status === PlayerStatus.RESERVE) {
-          p.status = PlayerStatus.ACTIVE;
-        } else if (!p.status) {
-          p.status = PlayerStatus.RESERVE;
-        }
-      }
-    };
 
     activatePlayers(this.team1);
     activatePlayers(this.team2);
@@ -378,13 +378,12 @@ export class TurnManager {
       this.state.turn
     );
 
-    if (!hasActions) {
-      const turn = this.state.turn;
-      this.delay(500).then(() => {
-        if (this.state.turn === turn && isTurnRunning(this.state))
-          this.endTurn();
-      });
-    }
+    if (hasActions) return;
+    const turn = this.state.turn;
+    this.delay(500).then(() => {
+      if (this.state.turn === turn && isTurnRunning(this.state))
+        this.endTurn();
+    });
   }
 
   public checkTurnover(

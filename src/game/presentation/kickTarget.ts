@@ -17,7 +17,9 @@ export function kickTargetColor(
   const avoid = [...teamColors, SURFACE_COLOR[surface]];
   const clearance = (color: number) =>
     Math.min(...avoid.map((other) => colorDistance(color, other)));
-  return KICK_TARGET_COLORS.reduce((best, color) =>
-    clearance(color) > clearance(best) ? color : best
-  );
+  let best: number = KICK_TARGET_COLORS[0];
+  for (const color of KICK_TARGET_COLORS) {
+    if (clearance(color) > clearance(best)) best = color;
+  }
+  return best;
 }

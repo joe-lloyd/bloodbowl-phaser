@@ -42,5 +42,5 @@ export function shoppingTeamId(
   const offer = pregame?.offer;
   if (!offer || pregame.complete) return null;
   const order = pregame.buyOrder ?? teamIds;
-  return order.find((teamId) => !offer.confirmed[teamId]) ?? null;
+  return order.find((teamId) => offer.confirmed[teamId] !== true) ?? null;
 }

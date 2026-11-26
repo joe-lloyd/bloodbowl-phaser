@@ -103,7 +103,7 @@ function isProductionBuild(): boolean {
   const viteEnv = (import.meta).env;
   if (viteEnv?.PROD === true) return true;
   return (
-    typeof process !== "undefined" && process.env?.["NODE_ENV"] === "production"
+    typeof process !== "undefined" && process.env["NODE_ENV"] === "production"
   );
 }
 

@@ -152,7 +152,7 @@ function assertCompleteCatalog(
   definitions: Partial<Record<SkillType, SkillDefinition>>
 ): asserts definitions is Record<SkillType, SkillDefinition> {
   for (const type of Object.values(SkillType)) {
-    if (!definitions[type])
+    if (definitions[type] === undefined)
       throw new Error(`Missing skill definition: ${type}`);
   }
 }

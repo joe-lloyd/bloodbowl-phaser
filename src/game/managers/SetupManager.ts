@@ -405,7 +405,7 @@ export class SetupManager {
 
     if (captain && this.isEligible(captain) && !used.has(captain.id)) {
       for (let index = picks.length - 1; index >= 0; index--) {
-        if (picks[index]) {
+        if (picks[index] !== undefined) {
           picks[index] = captain;
           break;
         }
@@ -456,7 +456,7 @@ export class SetupManager {
     const setup = this.ensureSetupState();
     if (setup.swarming) {
       if (
-        !setup.swarming.teams[teamId] ||
+        setup.swarming.teams[teamId] === undefined ||
         !this.updateStatus(teamId).canConfirm
       ) {
         return this.refuse("The Swarming formation is not legal.");

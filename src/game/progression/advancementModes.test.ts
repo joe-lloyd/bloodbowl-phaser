@@ -34,14 +34,14 @@ import { SKILL_ROLL_TABLE } from "./progression";
 
 const baseStats: PlayerStats = { MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 };
 
-function player(id: string, teamId = "team-1"): Player {
+function player(id: string): Player {
   return {
     id,
     playerName: id,
     positionName: "Lineman",
     number: 1,
     keywords: [],
-    teamId,
+    teamId: "team-1",
     stats: { ...baseStats },
     baseStats: { ...baseStats },
     skills: [],
@@ -62,8 +62,7 @@ function player(id: string, teamId = "team-1"): Player {
 
 function withAddedSkill(
   target: Player,
-  skill: SkillType,
-  value: number
+  skill: SkillType
 ): Player {
   target.skills.push(getSkill(skill));
   fixtureValue(target.advancements).push({
@@ -71,9 +70,9 @@ function withAddedSkill(
     type: "primary-skill",
     name: skill,
     sppCost: 0,
-    valueIncrease: value,
+    valueIncrease: 10_000,
   });
-  target.teamValue += value;
+  target.teamValue += 10_000;
   return target;
 }
 
@@ -344,7 +343,7 @@ describe("Sevens Skill Selection, Primary route (A2, A4, A5)", () => {
   });
 
   it("charges 20,000 for a Primary skill after the player's first", () => {
-    const p1 = withAddedSkill(player("p1"), SkillType.DODGE, 10_000);
+    const p1 = withAddedSkill(player("p1"), SkillType.DODGE);
     const team = teamOf([p1]);
     createPendingSkillSelection(team, "match-2", ["p1"]);
     const entry = onlySelection(team);
@@ -494,7 +493,7 @@ describe("Sevens Skill Selection, Secondary route (A3, A4, A5)", () => {
   });
 
   it("charges 30,000 for a Secondary skill after the player's first", () => {
-    const p1 = withAddedSkill(player("p1"), SkillType.DODGE, 10_000);
+    const p1 = withAddedSkill(player("p1"), SkillType.DODGE);
     const team = teamOf([p1]);
     createPendingSkillSelection(team, "match-1", ["p1"]);
     const entry = onlySelection(team);
@@ -532,7 +531,7 @@ describe("Sevens Skill Selection, Secondary route (A3, A4, A5)", () => {
   });
 
   it("re-rolls a skill the player already has or cannot have", () => {
-    const p1 = withAddedSkill(player("p1"), SkillType.GUARD, 10_000);
+    const p1 = withAddedSkill(player("p1"), SkillType.GUARD);
     p1.skills.push(getSkill(SkillType.FRENZY));
     const team = teamOf([p1]);
     createPendingSkillSelection(team, "match-1", ["p1"]);
@@ -556,7 +555,7 @@ describe("Sevens Skill Selection, Secondary route (A3, A4, A5)", () => {
 
 describe("Drafted Players (A6)", () => {
   it("makes no offer when the D6 beats the player's added skills", () => {
-    const p1 = withAddedSkill(player("p1"), SkillType.BLOCK, 10_000);
+    const p1 = withAddedSkill(player("p1"), SkillType.BLOCK);
     const team = teamOf([p1], 500_000);
     expect(rollDraftOffers(team, fakeRng([2]), "m1")).toEqual({
       offers: [],
@@ -566,7 +565,7 @@ describe("Drafted Players (A6)", () => {
   });
 
   it("lets the coach keep an offered player by paying their current value", () => {
-    const p1 = withAddedSkill(player("p1"), SkillType.BLOCK, 10_000);
+    const p1 = withAddedSkill(player("p1"), SkillType.BLOCK);
     const team = teamOf([p1], 100_000);
     rollDraftOffers(team, fakeRng([1]), "m1");
     const [offer] = draftOffers(team);
@@ -585,7 +584,7 @@ describe("Drafted Players (A6)", () => {
   });
 
   it("removes a released player without paying the team anything", () => {
-    const p1 = withAddedSkill(player("p1"), SkillType.BLOCK, 10_000);
+    const p1 = withAddedSkill(player("p1"), SkillType.BLOCK);
     const team = teamOf([p1], 100_000);
     rollDraftOffers(team, fakeRng([1]), "m1");
     releaseDraftedPlayer(team, fixtureValue(draftOffers(team)[0]));
@@ -607,7 +606,7 @@ describe("Drafted Players (A6)", () => {
   });
 
   it("releases a player at once when the Treasury cannot pay their value", () => {
-    const p1 = withAddedSkill(player("p1"), SkillType.BLOCK, 10_000);
+    const p1 = withAddedSkill(player("p1"), SkillType.BLOCK);
     const team = teamOf([p1], 59_000);
     const outcome = rollDraftOffers(team, fakeRng([1]), "m1");
     expect(outcome.offers).toEqual([]);
@@ -617,8 +616,8 @@ describe("Drafted Players (A6)", () => {
   });
 
   it("refuses to keep a player once the Treasury can no longer pay", () => {
-    const p1 = withAddedSkill(player("p1"), SkillType.BLOCK, 10_000);
-    const p2 = withAddedSkill(player("p2"), SkillType.DODGE, 10_000);
+    const p1 = withAddedSkill(player("p1"), SkillType.BLOCK);
+    const p2 = withAddedSkill(player("p2"), SkillType.DODGE);
     const team = teamOf([p1, p2], 100_000);
     rollDraftOffers(team, fakeRng([1, 1]), "m1");
     const [first, second] = draftOffers(team);
@@ -629,7 +628,7 @@ describe("Drafted Players (A6)", () => {
   });
 
   it("never rolls for a player with no added skills or who died", () => {
-    const dead = withAddedSkill(player("dead"), SkillType.BLOCK, 10_000);
+    const dead = withAddedSkill(player("dead"), SkillType.BLOCK);
     dead.status = PlayerStatus.DEAD;
     const team = teamOf([player("p1"), dead], 500_000);
     expect(rollDraftOffers(team, fakeRng([]), "m1")).toEqual({
@@ -639,7 +638,7 @@ describe("Drafted Players (A6)", () => {
   });
 
   it("rolls the Draft as soon as the game's skill is learned", () => {
-    const p1 = withAddedSkill(player("p1"), SkillType.DODGE, 10_000);
+    const p1 = withAddedSkill(player("p1"), SkillType.DODGE);
     const team = teamOf([p1], 0);
     createPendingSkillSelection(team, "match-1", ["p1"]);
     const entry = onlySelection(team);

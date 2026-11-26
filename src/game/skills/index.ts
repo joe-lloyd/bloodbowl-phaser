@@ -125,11 +125,11 @@ import { OnTheBallRule } from "./rules/OnTheBallRule";
 import { PuntRule } from "./rules/PuntRule";
 import { LethalFlightRule } from "./rules/LethalFlightRule";
 
-let registered = false;
+const builtinRegistration = { registered: false };
 
 function registerBuiltinSkills(): void {
-  if (registered) return;
-  registered = true;
+  if (builtinRegistration.registered) return;
+  builtinRegistration.registered = true;
   SkillRegistry.register(SkillType.BLOCK, BlockRule);
   SkillRegistry.register(SkillType.DODGE, DodgeRule);
   SkillRegistry.register(SkillType.TACKLE, TackleRule);

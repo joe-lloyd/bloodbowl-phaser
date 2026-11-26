@@ -42,31 +42,30 @@ function drawThrowAim(
   c.pitch.clearPath();
 
   const selectedPlayer = plannedPlayer(c, selectedId);
-  if (selectedPlayer?.gridPosition) {
-    const ranges = c.passController.getAllRanges(
-      selectedPlayer.gridPosition,
-      weatherEffects(c.gameService.getState().weather).passTypes
-    );
-    c.pitch.drawPassZones(ranges);
+  if (!selectedPlayer?.gridPosition) return;
+  const ranges = c.passController.getAllRanges(
+    selectedPlayer.gridPosition,
+    weatherEffects(c.gameService.getState().weather).passTypes
+  );
+  c.pitch.drawPassZones(ranges);
 
-    const passRange = c.passController.measureRange(
-      selectedPlayer.gridPosition,
-      { x, y }
-    );
-    c.pitch.drawPassLine(selectedPlayer.gridPosition, { x, y }, passRange.type);
+  const passRange = c.passController.measureRange(
+    selectedPlayer.gridPosition,
+    { x, y }
+  );
+  c.pitch.drawPassLine(selectedPlayer.gridPosition, { x, y }, passRange.type);
 
-    const opponents = c.gameService.getOpponents(selectedPlayer.teamId);
-    const zone = c.passController.getInterceptionSquares(
-      selectedPlayer.gridPosition,
-      { x, y }
-    );
-    const threats = c.passController
-      .checkInterceptions(
-        { from: selectedPlayer.gridPosition,target: { x,y },opponents,isAccurate: true }      )
-      .map((i) => i.position);
-    c.pitch.drawInterceptZone(selectedPlayer.gridPosition, { x, y }, { zoneSquares: zone, threatSquares: threats }
-    );
-  }
+  const opponents = c.gameService.getOpponents(selectedPlayer.teamId);
+  const zone = c.passController.getInterceptionSquares(
+    selectedPlayer.gridPosition,
+    { x, y }
+  );
+  const threats = c.passController
+    .checkInterceptions(
+      { from: selectedPlayer.gridPosition,target: { x,y },opponents,isAccurate: true }      )
+    .map((i) => i.position);
+  c.pitch.drawInterceptZone(selectedPlayer.gridPosition, { x, y }, { zoneSquares: zone, threatSquares: threats }
+  );
 }
 
 function drawHandoffAim(
@@ -76,13 +75,12 @@ function drawHandoffAim(
   c.pitch.clearPath();
   c.pitch.clearPassVisualization();
   const selectedPlayer = plannedPlayer(c, selectedId);
-  if (selectedPlayer) {
-    const teammates = c.gameService.getTeammates(selectedPlayer.id);
-    const targets = legalHandoffTargets(selectedPlayer, teammates).flatMap(
-      (t) => (t.gridPosition ? [t.gridPosition] : [])
-    );
-    c.pitch.drawHandoffTargets(targets);
-  }
+  if (!selectedPlayer) return;
+  const teammates = c.gameService.getTeammates(selectedPlayer.id);
+  const targets = legalHandoffTargets(selectedPlayer, teammates).flatMap(
+    (t) => (t.gridPosition ? [t.gridPosition] : [])
+  );
+  c.pitch.drawHandoffTargets(targets);
 }
 
 function drawTeamMateAim(
@@ -165,8 +163,8 @@ function drawThrowStep(input: { c: GameplayInteractionController; selectedId: st
 function drawActionAim(input: Parameters<typeof drawThrowStep>[0]): boolean {
   const { c, selectedId, x, y } = input;
   const mode = c.currentActionMode;
-  const step = c.currentStepId;
   if (mode === "pass" || mode === "throwBomb") return drawThrowStep({ c, selectedId, x, y });
+  const step = c.currentStepId;
   if (mode === "handoff" && step === "handoff") { drawHandoffAim(c, selectedId); return true; }
   if (mode === "throwTeamMate" && step === "throw") { drawTeamMateAim({ c, selectedId, x, y }); return true; }
   if (mode === "foul" && step === "foul") { drawFoulTargets(c, selectedId); return true; }
@@ -237,8 +235,9 @@ export function interceptions(
   const passingTeam = [actor, ...c.gameService.getTeammates(actor.id)];
   const lines: string[] = [];
   const rolls: { square: Square; target: number }[] = [];
-  for (const attempt of c.passController.checkInterceptions(
-    { from,target: square,opponents,isAccurate: true }  )) {
+  const attempts = c.passController.checkInterceptions(
+    { from,target: square,opponents,isAccurate: true }  );
+  for (const attempt of attempts) {
     const interceptor = c.gameService.getPlayerById(attempt.playerId);
     if (!interceptor) continue;
     if (

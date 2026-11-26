@@ -186,8 +186,8 @@ function checkSetupCommand(
   senderTeamId: string,
   ctx: GateContext
 ): GateVerdict | undefined {
-  const owns = (playerId: string) => ownsPlayer(ctx, senderTeamId, playerId);
   if (!isCommandOf(command, ["place-player", "remove-player", "swap-players", "confirm-setup", "apply-formation", "setup-concession"])) return undefined;
+  const owns = (playerId: string) => ownsPlayer(ctx, senderTeamId, playerId);
   switch (command.type) {
     case "place-player":
     case "remove-player":

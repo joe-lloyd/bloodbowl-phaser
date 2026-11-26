@@ -99,10 +99,10 @@ export function dropOldestDiceLog(
 }
 
 type Uploader = (log: DiceLog) => Promise<void>;
-let uploader: Uploader | null = null;
+const uploadTarget: { upload: Uploader | null } = { upload: null };
 
 export function setDiceLogUploader(upload: Uploader | null): void {
-  uploader = upload;
+  uploadTarget.upload = upload;
 }
 
 function logFor(input: {
@@ -134,9 +134,9 @@ export function startMatchDiceLog(input: {
   let uploaded = -1;
   const upload = () => {
     const log = recorder.log;
-    if (!uploader || log.entries.length === uploaded) return;
+    if (!uploadTarget.upload || log.entries.length === uploaded) return;
     uploaded = log.entries.length;
-    uploader(log).catch((error: unknown) => {
+    uploadTarget.upload(log).catch((error: unknown) => {
       uploaded = -1;
       console.warn("Could not upload the dice log:", error);
     });

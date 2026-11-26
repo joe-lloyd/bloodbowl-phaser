@@ -122,7 +122,9 @@ export class LocalStorageMatchSaveRepository implements MatchSaveRepository {
 }
 
 const localRepository = new LocalStorageMatchSaveRepository();
-let activeRepository: MatchSaveRepository = localRepository;
+const repositoryState: { active: MatchSaveRepository } = {
+  active: localRepository,
+};
 const listeners = new Set<() => void>();
 
 function notify(): void {
@@ -139,7 +141,7 @@ export function subscribeToMatchSaveChanges(listener: () => void): () => void {
 export function setMatchSaveRepository(
   repository: MatchSaveRepository | null
 ): void {
-  activeRepository = repository ?? localRepository;
+  repositoryState.active = repository ?? localRepository;
   notify();
 }
 
@@ -148,21 +150,21 @@ export function getLocalMatchSaveRepository(): MatchSaveRepository {
 }
 
 export function readMatchSave(): MatchSave | null {
-  return activeRepository.read();
+  return repositoryState.active.read();
 }
 
 export function writeMatchSave(save: MatchSave): void {
-  activeRepository.write(save);
+  repositoryState.active.write(save);
   notify();
 }
 
 export function clearMatchSave(): void {
-  activeRepository.clear();
+  repositoryState.active.clear();
   notify();
 }
 
 export function getMatchSaveDescription(): MatchSaveDescription | null {
-  return activeRepository.describe();
+  return repositoryState.active.describe();
 }
 
 export function chooseNewestMatchSave(

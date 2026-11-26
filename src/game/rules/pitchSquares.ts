@@ -12,9 +12,9 @@ const obstacleGrids = new WeakMap<PitchLayout, (ObstacleKind | undefined)[]>();
 function obstacleGrid(layout: PitchLayout): (ObstacleKind | undefined)[] {
   const cached = obstacleGrids.get(layout);
   if (cached) return cached;
-  const grid: (ObstacleKind | undefined)[] = new Array<
-    ObstacleKind | undefined
-  >(layout.cols * layout.rows);
+  const grid = Array.from<ObstacleKind | undefined>({
+    length: layout.cols * layout.rows,
+  });
   for (const obstacle of layout.obstacles)
     grid[obstacle.y * layout.cols + obstacle.x] = obstacle.kind;
   obstacleGrids.set(layout, grid);

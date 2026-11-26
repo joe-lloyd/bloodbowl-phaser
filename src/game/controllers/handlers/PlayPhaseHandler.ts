@@ -164,12 +164,12 @@ export class PlayPhaseHandler implements PhaseHandler {
       .get(data.playerId)
       ?.animateKickGesture(facingDirection(data.direction.x));
 
-    const ballSprite = this.scene.ballSprite;
-    const pitch = this.scene.pitch;
-    if (!ballSprite) {
+    if (!this.scene.ballSprite) {
       acknowledge();
       return;
     }
+    const ballSprite = this.scene.ballSprite;
+    const pitch = this.scene.pitch;
 
     const target = pitch.getPixelPosition(data.landing.x, data.landing.y);
     void ballSprite.flyTo(target, { duration: 900, apex: 7 }).then(acknowledge);

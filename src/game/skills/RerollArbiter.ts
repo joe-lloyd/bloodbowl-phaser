@@ -156,17 +156,16 @@ export class RerollArbiter {
     }
     const team = this.getTeam(teamId);
     if (team && spendTeamReroll(this.state, team)) return;
-    if (this.state.leaderRerolls && this.leaderRerollAvailable(teamId)) {
-      this.state.leaderRerolls.teamIds =
-        this.state.leaderRerolls.teamIds.filter((id) => id !== teamId);
-      const leader = this.onPitchLeader(teamId);
-      if (leader) {
-        this.eventBus?.emit(GameEventNames.SkillTriggered, {
-          playerId: leader.id,
-          skill: SkillType.LEADER,
-          effect: "Leader: spent the team's Leader Re-roll",
-        });
-      }
+    if (!this.state.leaderRerolls || !this.leaderRerollAvailable(teamId)) return;
+    this.state.leaderRerolls.teamIds =
+      this.state.leaderRerolls.teamIds.filter((id) => id !== teamId);
+    const leader = this.onPitchLeader(teamId);
+    if (leader) {
+      this.eventBus?.emit(GameEventNames.SkillTriggered, {
+        playerId: leader.id,
+        skill: SkillType.LEADER,
+        effect: "Leader: spent the team's Leader Re-roll",
+      });
     }
   }
 }

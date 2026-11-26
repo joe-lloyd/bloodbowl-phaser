@@ -44,8 +44,8 @@ function stripStaff(team: Team): Restaff[] {
 
 function moveBudget(team: Team, from: GameType, to: GameType): void {
   const before = draftRulesFor(from).budget;
-  const after = draftRulesFor(to).budget;
   if (team.startingTreasury !== before) return;
+  const after = draftRulesFor(to).budget;
   team.startingTreasury = after;
   team.treasury += after - before;
 }

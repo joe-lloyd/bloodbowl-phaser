@@ -32,10 +32,11 @@ export const tick: () => Promise<void> =
       ? () =>
           new Promise((resolve) => {
             const { port1, port2 } = new MessageChannel();
-            port1.onmessage = () => {
+            port1.addEventListener("message", () => {
               port1.close();
               resolve();
-            };
+            });
+            port1.start();
             port2.postMessage(null);
           })
       : () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -237,9 +238,9 @@ export class HeadlessGame {
 
     this.eventLog = [];
     this.decisionWaiters = [];
-    const raised = new Promise<void>((resolve) =>
-      this.decisionWaiters.push(resolve)
-    );
+    const raised = new Promise<void>((resolve) => {
+      this.decisionWaiters.push(resolve);
+    });
 
     const prior = this.inFlight;
     this.inFlight = null;
@@ -252,10 +253,9 @@ export class HeadlessGame {
     })();
 
     const outcome = await Promise.race([
-      run.then(
-        () => ({ kind: "done" as const }),
-        (error: unknown) => ({ kind: "error" as const, err: error })
-      ),
+      run
+        .then(() => ({ kind: "done" as const }))
+        .catch((error: unknown) => ({ kind: "error" as const, err: error })),
       raised.then(() => ({ kind: "decision" as const })),
     ]);
 

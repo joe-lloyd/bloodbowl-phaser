@@ -63,15 +63,15 @@ function lookFileClass() {
   };
 }
 
-let LookFileClass: ReturnType<typeof lookFileClass> | null = null;
+const lookFileClassCache: { current: ReturnType<typeof lookFileClass> | null } = { current: null };
 
 function lookFile(
   loader: Phaser.Loader.LoaderPlugin,
   key: string,
   request: LookRequest
 ): Phaser.Loader.File {
-  LookFileClass ??= lookFileClass();
-  return new LookFileClass(loader, key, request);
+  lookFileClassCache.current ??= lookFileClass();
+  return new lookFileClassCache.current(loader, key, request);
 }
 
 export function preloadLooks(

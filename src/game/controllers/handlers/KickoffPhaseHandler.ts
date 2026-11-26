@@ -9,7 +9,7 @@ import { KickTargetMarker } from "./KickTargetMarker";
 import { ballInTheAir } from "../../rules/ballInTheAir";
 
 export class KickoffPhaseHandler implements PhaseHandler {
-  private removeHandlers: (() => void)[] = [];
+  private handlerRemovers: (() => void)[] = [];
   private ballIsAirborne = false;
   private actions: ActionPresentation | null = null;
 
@@ -46,16 +46,16 @@ export class KickoffPhaseHandler implements PhaseHandler {
     handler: (data: GameEventMap[K]) => void
   ): void {
     this.eventBus.on(event, handler);
-    this.removeHandlers.push(() => {
+    this.handlerRemovers.push(() => {
       this.eventBus.off(event, handler);
     });
   }
 
   private removeListeners(): void {
-    for (const remove of this.removeHandlers) {
+    for (const remove of this.handlerRemovers) {
       remove();
     }
-    this.removeHandlers = [];
+    this.handlerRemovers = [];
   }
 
   private static readonly HANG_HEIGHT = 9;
@@ -76,7 +76,7 @@ export class KickoffPhaseHandler implements PhaseHandler {
   }
 
   private setupListeners(): void {
-    this.removeHandlers.push(
+    this.handlerRemovers.push(
       registerActionCommands(this.gameService, this.eventBus)
     );
 

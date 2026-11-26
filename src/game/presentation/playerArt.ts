@@ -29,14 +29,14 @@ const FALLBACK_MODEL = "human_lineman";
 
 export function modelFor(rosterName: string, positionName: string): string {
   const model = POSITIONS[rosterName]?.[positionName];
-  if (model && MODELS[model]) return model;
+  if (model && MODELS[model] !== undefined) return model;
 
   const roster = Object.values(POSITIONS[rosterName] ?? {});
   return roster.find((m) => MODELS[m]) ?? FALLBACK_MODEL;
 }
 
 export function hasModelArt(model: string): boolean {
-  return model in MODELS;
+  return MODELS[model] !== undefined;
 }
 
 export function modelArt(model: string): ModelArt {

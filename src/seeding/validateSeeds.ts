@@ -103,7 +103,8 @@ function skillAccessViolations(
   subject: string
 ): SeedViolation[] {
   const violations: SeedViolation[] = [];
-  for (const advancement of player.advancements ?? []) {
+  const advancements = player.advancements ?? [];
+  for (const advancement of advancements) {
     if (advancement.type === "characteristic") continue;
     const category = SKILL_DEFINITIONS[advancement.name as SkillType]?.category;
     const access =
@@ -244,8 +245,10 @@ function validatePlayerProgression(player: Player): SeedViolation[] {
       detail: `level ${String(player.level)} inconsistent with ${String(advancements.length)} advancements (cap 6)`,
     });
   }
-  violations.push(...skillAccessViolations(player, subject));
-  violations.push(...duplicateSkillViolations(player, subject));
+  violations.push(
+    ...skillAccessViolations(player, subject),
+    ...duplicateSkillViolations(player, subject)
+  );
   for (const stat of ["MA", "ST", "AG", "PA", "AV"] as const) {
     violations.push(...statViolations(player, stat, subject));
   }
@@ -469,11 +472,11 @@ function validateCompetition(doc: CompetitionDoc): SeedViolation[] {
   const completed = doc.fixtures.filter((f) => f.status === "complete");
   const incomplete = doc.fixtures.filter((f) => f.status !== "complete");
   violations.push(
-    ...lifecycleViolations(doc, completed.length, incomplete.length)
+    ...lifecycleViolations(doc, completed.length, incomplete.length),
+    ...resultViolations(doc),
+    ...(isElimination(doc) ? bracketViolations(doc, completed) : []),
+    ...standingsViolations(doc)
   );
-  violations.push(...resultViolations(doc));
-  if (isElimination(doc)) violations.push(...bracketViolations(doc, completed));
-  violations.push(...standingsViolations(doc));
   return violations;
 }
 
@@ -520,7 +523,8 @@ export function validateDevelopmentSeedData(
 ): SeedViolation[] {
   const violations: SeedViolation[] = [];
 
-  for (const team of teams.filter(isSeedOwned)) {
+  for (const team of teams) {
+    if (!isSeedOwned(team)) continue;
     const subject = team.seedMetadata?.fixtureKey ?? team.id;
     try {
       const roster = getRosterByRosterName(team.rosterName);
@@ -548,7 +552,8 @@ export function validateDevelopmentSeedData(
     }
   }
 
-  for (const doc of competitions.filter(isSeedOwned)) {
+  for (const doc of competitions) {
+    if (!isSeedOwned(doc)) continue;
     violations.push(...validateCompetition(doc));
   }
   violations.push(

@@ -116,31 +116,42 @@ function missesTheRestOfTheMatch(context: FlowContext, player: Player): void {
   movePlayerToBox(player, { box: "sent-off" }, context.eventBus);
 }
 
+type AfterDriveRule = ReturnType<typeof activeRules>["secretWeaponsAfterDrive"];
+
+async function applyAfterDriveRule(
+  context: FlowContext,
+  player: Player,
+  rule: AfterDriveRule
+): Promise<void> {
+  switch (rule) {
+    case "referee":
+      secretWeaponLog(
+        context,
+        player,
+        "Secret Weapon: Sent-off at the end of the Drive"
+      );
+      await resolveSendOff(context, player, "secret-weapon");
+      return;
+    case "one-drive":
+      missesTheRestOfTheMatch(context, player);
+      return;
+    case "street-crowd":
+      streetCrowd(context, player);
+      return;
+    case "gutter-crowd":
+      await gutterCrowd(context, player);
+      return;
+  }
+}
+
 export async function secretWeaponsAfterDrive(
   context: FlowContext,
   players: readonly Player[]
 ): Promise<void> {
   const rule = activeRules().secretWeaponsAfterDrive;
   const gone = rule === "referee" ? OFF_THE_PITCH : GONE;
-  for (const player of players.filter((p) => playedTheDrive(p, gone))) {
-    switch (rule) {
-      case "referee":
-        secretWeaponLog(
-          context,
-          player,
-          "Secret Weapon: Sent-off at the end of the Drive"
-        );
-        await resolveSendOff(context, player, "secret-weapon");
-        break;
-      case "one-drive":
-        missesTheRestOfTheMatch(context, player);
-        break;
-      case "street-crowd":
-        streetCrowd(context, player);
-        break;
-      case "gutter-crowd":
-        await gutterCrowd(context, player);
-        break;
-    }
+  const drivers = players.filter((p) => playedTheDrive(p, gone));
+  for (const player of drivers) {
+    await applyAfterDriveRule(context, player, rule);
   }
 }

@@ -56,9 +56,10 @@ export function reachWithJumps(search: JumpSearch): ReachableSquare[] {
   const frontier: ReachableSquare[][] = [[start]];
   for (let cost = 0; cost < allowance; cost++) {
     const current = frontier[cost] ?? [];
-    for (const next of current
+    const expanded = current
       .filter((at) => best.get(keyOf(at)) === at)
-      .flatMap((element) => onward(element))) {
+      .flatMap((element) => onward(element));
+    for (const next of expanded) {
       const known = best.get(keyOf(next));
       if (next.cost > allowance || (known && known.cost <= next.cost)) continue;
       best.set(keyOf(next), next);
