@@ -91,7 +91,7 @@ function fireball(
 
   if (dropped) operations.push(new BounceOperation({ ...ball! }));
 
-  for (const operation of operations.toReversed()) {
+  for (const operation of [...operations].reverse()) {
     flowManager.add(operation, true);
   }
 }

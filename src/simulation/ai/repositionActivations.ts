@@ -63,7 +63,7 @@ function flankRunner(c: Context, carrier: Player): Player | undefined {
   const wide = (p: Player) => Math.abs(p.gridPosition.y - at.y) >= 3;
   return c.board.ours
     .filter((p) => p.id !== carrier.id && standing(p) && canCarry(p))
-    .toSorted(
+    .sort(
       (a, b) =>
         b.stats.MA - a.stats.MA ||
         Number(wide(b)) - Number(wide(a)) ||
@@ -130,7 +130,7 @@ function deepReceiver(c: Context, carrier: Player): Player | undefined {
         !!c.available.get(p.id)?.has("move") &&
         canGo(p)
     )
-    .toSorted(
+    .sort(
       (a, b) =>
         hands(a) - hands(b) ||
         b.stats.MA - a.stats.MA ||

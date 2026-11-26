@@ -162,7 +162,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     expect(
       (await app.bridge.pitchLayers())
         .filter((name) => name.startsWith("setup_zone_"))
-        .toSorted()
+        .sort()
     ).toEqual(["setup_zone_highlight", "setup_zone_markings"]);
     await expect(page.getByTestId("setup-checklist")).toContainText(
       "Line of scrimmage 0/3"

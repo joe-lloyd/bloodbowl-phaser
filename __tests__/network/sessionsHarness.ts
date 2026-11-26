@@ -281,7 +281,7 @@ export async function playNetworkedMatch(seed: number): Promise<{
             Math.abs(t.x - fixtureValue(me.position).x) <= 1 &&
             Math.abs(t.y - fixtureValue(me.position).y) <= 1
         )
-        .toSorted((a, b) => (goalRight ? b.x - a.x : a.x - b.x));
+        .sort((a, b) => (goalRight ? b.x - a.x : a.x - b.x));
 
       if (adjacent.length === 0) {
         await exec({ type: "end-activation", playerId: fixtureValue(actor).playerId });

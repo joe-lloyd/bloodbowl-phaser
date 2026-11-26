@@ -187,5 +187,5 @@ export function buildInventory(): InventoryEntry[] {
     });
   }
 
-  return entries.toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return [...entries].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }

@@ -240,11 +240,6 @@
       "count": 1
     }
   },
-  "__tests__/headless/gutterBarricades.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 2
-    }
-  },
   "__tests__/headless/inducements-pregame.test.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 1
@@ -289,9 +284,6 @@
     }
   },
   "__tests__/headless/kickoff-events.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
       "count": 1
     },
@@ -1668,9 +1660,6 @@
     }
   },
   "__tests__/unit/controllers/GameplayInteractionController.kickoff.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/require-array-sort-compare": {
       "count": 2
     }
@@ -2690,9 +2679,6 @@
     "no-restricted-syntax": {
       "count": 4
     },
-    "unicorn/no-array-sort": {
-      "count": 4
-    },
     "unicorn/prefer-single-call": {
       "count": 1
     },
@@ -3665,9 +3651,6 @@
     "unicorn/no-array-callback-reference": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/no-await-expression-member": {
       "count": 4
     }
@@ -4073,9 +4056,6 @@
     },
     "unicorn/consistent-function-scoping": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 4
     },
     "unicorn/no-break-in-nested-loop": {
       "count": 7
@@ -4940,9 +4920,6 @@
     "unicorn/no-array-callback-reference": {
       "count": 2
     },
-    "unicorn/no-array-sort": {
-      "count": 4
-    },
     "unicorn/no-new-array": {
       "count": 2
     },
@@ -4982,9 +4959,6 @@
     },
     "unicorn/import-style": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
     },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
@@ -5102,9 +5076,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 3
     },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
@@ -5378,16 +5349,6 @@
       "count": 3
     }
   },
-  "src/competition/bracketIndex.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    }
-  },
-  "src/competition/bracketPositions.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    }
-  },
   "src/competition/computerTeamTemplates.ts": {
     "complexity": {
       "count": 1
@@ -5429,9 +5390,6 @@
     }
   },
   "src/competition/logic.ts": {
-    "unicorn/no-array-sort": {
-      "count": 3
-    },
     "unicorn/no-object-as-default-parameter": {
       "count": 1
     },
@@ -5452,15 +5410,9 @@
   "src/competition/roundPlan.ts": {
     "unicorn/no-array-callback-reference": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "src/competition/schedule.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/prefer-array-flat-map": {
       "count": 1
     }
@@ -7752,9 +7704,6 @@
     }
   },
   "src/simulation/ai/chance.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-computed-property-existence-check": {
       "count": 1
     },
@@ -8430,9 +8379,6 @@
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 3
-    },
     "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
     },
@@ -8444,9 +8390,6 @@
     }
   },
   "src/testing/coverage/observed.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     },
@@ -8463,9 +8406,6 @@
     },
     "unicorn/no-array-callback-reference": {
       "count": 2
-    },
-    "unicorn/no-array-sort": {
-      "count": 3
     },
     "unicorn/prefer-simple-sort-comparator": {
       "count": 1
@@ -9656,9 +9596,6 @@
     }
   },
   "src/ui/hooks/useSocial.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/require-array-sort-compare": {
       "count": 1
     }

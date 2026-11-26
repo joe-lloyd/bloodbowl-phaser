@@ -306,7 +306,7 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
           );
         const receiver = view.players
           .filter((p) => p.teamId === receiving && p.at)
-          .toSorted((a, b) => gap(a) - gap(b))[0];
+          .sort((a, b) => gap(a) - gap(b))[0];
         await page.waitForTimeout(1200);
         await app.pitch.clickSquare(fixtureValue(fixtureValue(receiver).at));
         await expect

@@ -75,7 +75,7 @@ function potionPatients(
   const order = (player: Player) => STREET_PATIENTS.indexOf(player.status);
   return team.players
     .filter((player) => mayDrink(state, player, kind))
-    .toSorted((a, b) => order(a) - order(b));
+    .sort((a, b) => order(a) - order(b));
 }
 
 function choiceAnswer(answer: DecisionAnswer): InducementChoiceDecisionAnswer {

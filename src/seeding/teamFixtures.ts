@@ -177,7 +177,7 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
   const templates = roster.playerTemplates;
   const linemen = templates
     .filter((t) => isLinemanPosition(t.keywords))
-    .toSorted((a, b) => a.cost - b.cost);
+    .sort((a, b) => a.cost - b.cost);
   const positionals = templates.filter((t) => !isLinemanPosition(t.keywords));
 
   const picks: PlayerTemplate[] = [];
@@ -200,7 +200,7 @@ function swapDearestFor(
   lineman: PlayerTemplate | undefined,
   picks: PlayerTemplate[]
 ): boolean {
-  const dearest = picks.toSorted((a, b) => b.cost - a.cost)[0];
+  const dearest = [...picks].sort((a, b) => b.cost - a.cost)[0];
   if (!lineman || !dearest || dearest.cost <= lineman.cost) return false;
   picks.splice(picks.indexOf(dearest), 1, lineman);
   return true;
@@ -228,7 +228,7 @@ function trimToBudget(
 
   while (totalCost() > DRAFT_BUDGET) {
     if (picks.length > 7) {
-      const byCostDesc = picks.toSorted((a, b) => b.cost - a.cost);
+      const byCostDesc = [...picks].sort((a, b) => b.cost - a.cost);
       const removed = byCostDesc.find((candidate) =>
         insignificantOk(picks.filter((t) => t !== candidate))
       );

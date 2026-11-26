@@ -183,7 +183,7 @@ function developedVariants({
             )
       )
       .filter((o) => o.score > -500)
-      .toSorted(
+      .sort(
         (a, b) =>
           b.score - a.score ||
           a.skill.localeCompare(b.skill) ||

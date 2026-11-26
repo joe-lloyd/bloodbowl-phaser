@@ -62,7 +62,7 @@ async function lurchAll(
               const order =
                 pending.chooserTeamId === team
                   ? FANATIC_PRIORITY
-                  : FANATIC_PRIORITY.toReversed();
+                  : [...FANATIC_PRIORITY].reverse();
               const type = order.find((t) =>
                 pending.options.some((o) => o.type === t)
               );

@@ -130,7 +130,7 @@ export async function next(dialogOpen = false) {
   heuristicCoach;
   const top = point.candidates
     .map((c, i) => `${fixtureValue(scores[i]).toFixed(1)} ${c.label}`)
-    .toSorted((a, b) => Number.parseFloat(b) - Number.parseFloat(a))
+    .sort((a, b) => Number.parseFloat(b) - Number.parseFloat(a))
     .slice(0, 4);
   const candidate = runTo(
     g,

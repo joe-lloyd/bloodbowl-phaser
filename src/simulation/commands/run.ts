@@ -151,7 +151,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
         message: g.example.message,
       },
     }))
-    .toSorted(
+    .sort(
       (a, b) => Number(b.blocking) - Number(a.blocking) || b.matches - a.matches
     );
 
@@ -174,7 +174,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
     commandCoverage: commandCounts,
     ...((jevStats.length > 0) && { jev: jevStats }),
     findings: grouped,
-    perMatch: matches.toSorted((a, b) => a.seed - b.seed),
+    perMatch: [...matches].sort((a, b) => a.seed - b.seed),
   };
   if (options.html) {
     fs.writeFileSync(
@@ -281,7 +281,7 @@ function printSummary(
     `${String(summary.completed)}/${String(summary.matches)} matches reached full time, ${String(summary.touchdowns)} touchdowns, ` +
       `${String(summary.averageCommands)} commands and ${String(summary.averageMs)} ms per match on average.`,
     `Commands exercised: ${Object.entries(summary.commandCoverage)
-      .toSorted((a, b) => b[1] - a[1])
+      .sort((a, b) => b[1] - a[1])
       .map(([k, v]) => `${k} ${String(v)}`)
       .join(", ")}`,
   ];

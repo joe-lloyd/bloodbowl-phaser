@@ -166,7 +166,7 @@ function scoreActivation(
   const success = (r: Route) =>
     r.chance *
     (1 - unfedChance({ c: c, player: carrier, action: "move", at: r.to }));
-  const bestScore = scoring.toSorted(
+  const bestScore = [...scoring].sort(
     (a, b) => success(b) - success(a) || a.path.length - b.path.length
   )[0];
   if (!bestScore) return null;
@@ -347,7 +347,7 @@ export function deepReceiverActivations(
       rolls: best.rolls,
     });
   }
-  return out.toSorted((a, b) => b.value - a.value).slice(0, 1);
+  return [...out].sort((a, b) => b.value - a.value).slice(0, 1);
 }
 
 function approachTo(
@@ -359,7 +359,7 @@ function approachTo(
   return neighbours(mate.gridPosition)
     .map((s) => routes.get(key(s)))
     .filter((r): r is Route => !!r)
-    .toSorted((a, b) => b.chance - a.chance)[0];
+    .sort((a, b) => b.chance - a.chance)[0];
 }
 
 interface TransferChanceArgs {

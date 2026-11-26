@@ -127,7 +127,7 @@ describe("layoutBracket", () => {
     );
 
     const semis = layout.nodes.filter((n) => n.fixture.round === 2);
-    expect(semis.map((n) => n.column).toSorted()).toEqual([1, 3]);
+    expect(semis.map((n) => n.column).sort()).toEqual([1, 3]);
   });
 
   it("centres a parent on the midpoint of the fixtures feeding it", () => {
@@ -150,7 +150,7 @@ describe("layoutBracket", () => {
       const rows = layout.nodes
         .filter((n) => n.fixture.round === 1 && n.side === side)
         .map((n) => n.row)
-        .toSorted((a, b) => a - b);
+        .sort((a, b) => a - b);
       expect(rows).toEqual([0, 1, 2, 3]);
     }
     expect(layout.rows).toBe(4);

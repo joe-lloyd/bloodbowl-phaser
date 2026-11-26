@@ -260,7 +260,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
-  const sorted = values.toSorted((a, b) => a - b);
+  const sorted = [...values].sort((a, b) => a - b);
   return (
     sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0
   );
@@ -389,7 +389,7 @@ async function oneRun(
 }
 
 function median(values: number[]): number {
-  const sorted = values.toSorted((a, b) => a - b);
+  const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   const at = (index: number) => sorted[index] ?? NaN;
   return sorted.length % 2 ? at(mid) : (at(mid - 1) + at(mid)) / 2;

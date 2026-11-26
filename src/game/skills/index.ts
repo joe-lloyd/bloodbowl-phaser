@@ -271,7 +271,7 @@ export function gatherParticipants(
 ): Player[] {
   const byPosition = [...others]
     .filter((p) => p.gridPosition)
-    .toSorted(
+    .sort(
       (a, b) =>
         a.gridPosition!.y - b.gridPosition!.y ||
         a.gridPosition!.x - b.gridPosition!.x

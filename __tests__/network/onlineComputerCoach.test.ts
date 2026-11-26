@@ -238,7 +238,7 @@ describe("the online computer coach", () => {
         sent
           .map((command) => command.type)
           .filter((type) => type.endsWith("inducements") || type.endsWith("inducement"))
-          .toSorted((left, right) => left.localeCompare(right))
+          .sort((left, right) => left.localeCompare(right))
           .slice(0, 1)
       ).toEqual(side === "host" ? ["confirm-inducements"] : []);
       if (side === "host")

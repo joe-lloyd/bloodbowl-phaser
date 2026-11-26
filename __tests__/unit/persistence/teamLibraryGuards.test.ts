@@ -20,7 +20,7 @@ function localTeam() {
 function storageSnapshot(): string {
   return JSON.stringify(
     Object.keys(localStorage)
-      .toSorted()
+      .sort()
       .map((key) => [key, localStorage.getItem(key)])
   );
 }

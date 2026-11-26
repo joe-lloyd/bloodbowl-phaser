@@ -40,7 +40,7 @@ test("a charger under the airborne ball rolls no Pick up, then Catches it", asyn
         Math.abs(fixtureValue(p.position).y - landing.y)
       ),
     }))
-    .toSorted((a, b) => a.steps - b.steps);
+    .sort((a, b) => a.steps - b.steps);
   console.log(
     `landing ${JSON.stringify(landing)}; nearest ${JSON.stringify(reach[0])}`
   );

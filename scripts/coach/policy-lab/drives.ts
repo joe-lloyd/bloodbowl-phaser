@@ -213,7 +213,7 @@ async function main() {
     }
   }
   writeFileSync(join(run, out), JSON.stringify(byRoster, null, 2));
-  for (const [roster, t] of Object.entries(byRoster).toSorted(
+  for (const [roster, t] of Object.entries(byRoster).sort(
     (a, b) => b[1].scored / b[1].turns - a[1].scored / a[1].turns
   ))
     console.log(

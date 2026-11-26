@@ -218,7 +218,7 @@ export async function listCompetitions(
   ;
   return [...combined.values()]
     .map((element) => normalizeCompetition(element))
-    .toSorted((a, b) => b.updatedAt - a.updatedAt);
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 function normalizeCompetition(competition: CompetitionDoc): CompetitionDoc {
@@ -247,7 +247,7 @@ export async function listOpenCompetitions(
   return readCompetitions(snapshot.docs.map((item) => item.data()))
     .map((element) => normalizeCompetition(element))
     .filter((competition) => competition.entrants.length < (competition.online?.places ?? 0))
-    .toSorted((a, b) => b.createdAt - a.createdAt);
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function subscribeCompetition({

@@ -294,7 +294,7 @@ function adjacentStandingPlayers(player: Player, others: Player[]): Player[] {
         ? { other, at: other.gridPosition }
         : []
     )
-    .toSorted((a, b) => a.at.y - b.at.y || a.at.x - b.at.x)
+    .sort((a, b) => a.at.y - b.at.y || a.at.x - b.at.x)
     .map(({ other }) => other);
 }
 

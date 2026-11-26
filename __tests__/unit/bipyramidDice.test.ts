@@ -39,7 +39,7 @@ describe.each([
       for (let value = 1; value <= sides; value++) {
         const labels = bipyramidLabelling(solid, up, value);
         expect(labels[up]).toBe(value);
-        expect(labels.toSorted((a, b) => a - b)).toEqual(
+        expect([...labels].sort((a, b) => a - b)).toEqual(
           Array.from({ length: sides }, (_, i) => i + 1)
         );
         for (const [i, normal] of normals.entries()) {

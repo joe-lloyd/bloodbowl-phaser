@@ -22,7 +22,7 @@ test.afterAll(() => {
     : {};
   manifest[basename(DIR)] = readdirSync(DIR)
     .filter((f) => f.endsWith(".jpg"))
-    .toSorted();
+    .sort();
   writeFileSync(file, JSON.stringify(manifest, null, 2));
 });
 

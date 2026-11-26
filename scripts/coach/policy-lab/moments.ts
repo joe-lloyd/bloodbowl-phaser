@@ -19,7 +19,7 @@ function usageRows(summary: Summary): string {
     ...new Set([...Object.keys(candidate), ...Object.keys(frozen)]),
   ]
     .filter((p) => !p.startsWith("unplanned:"))
-    .toSorted((a, b) => (candidate[b]?.plays ?? 0) - (candidate[a]?.plays ?? 0));
+    .sort((a, b) => (candidate[b]?.plays ?? 0) - (candidate[a]?.plays ?? 0));
   const cell = (t: Tally | undefined) =>
     `<td class="n">${perGame(t?.plays ?? 0, summary.games)}</td>` +
     `<td class="n">${String(t?.scoredThisTurn ?? 0)}</td>` +

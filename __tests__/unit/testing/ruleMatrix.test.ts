@@ -29,9 +29,9 @@ describe("generated rule cases", () => {
           (candidate) => candidate.id === ruleCaseId(config.id)
         ));
         expect(
-          scenarioCase.variants.map((v) => v.id).toSorted(),
+          scenarioCase.variants.map((v) => v.id).sort(),
           config.id
-        ).toEqual(config.outcomes.map((o) => o.id).toSorted());
+        ).toEqual(config.outcomes.map((o) => o.id).sort());
         for (const variant of scenarioCase.variants) {
           expect(
             Number.isSafeInteger(variant.seed),

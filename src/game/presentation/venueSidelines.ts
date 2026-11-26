@@ -34,7 +34,7 @@ function side(
 ): DugoutSquares {
   const box = (name: DugoutBox) =>
     benchSquares(
-      HOME_COLUMNS[name].map((element) => place(element)).toSorted((a, b) => a - b),
+      HOME_COLUMNS[name].map((element) => place(element)).sort((a, b) => a - b),
       rows
     );
   return {

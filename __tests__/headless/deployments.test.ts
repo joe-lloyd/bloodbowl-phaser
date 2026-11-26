@@ -162,7 +162,7 @@ describe("deployments", () => {
     return game.ctx.team1.players
       .filter((p) => p.gridPosition?.x === los)
       .map((p) => p.positionName)
-      .toSorted();
+      .sort();
   }
 
   it("stands the Blitz line's flankers on the inner row of each Wide Zone", () => {
@@ -175,7 +175,7 @@ describe("deployments", () => {
         )
           .positions.filter((p) => p.role === "flank")
           .map((p) => p.y)
-          .toSorted((a, b) => a - b)
+          .sort((a, b) => a - b)
       );
     expect({
       sevens: flankRows({ gameType: "sevens", venue: "stadium" }),

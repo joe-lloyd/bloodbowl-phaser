@@ -113,7 +113,7 @@ export class BloodlustBiteOperation extends GameOperation {
       );
     }
 
-    for (const op of followUps.toReversed()) flowManager.add(op, true);
+    for (const op of [...followUps].reverse()) flowManager.add(op, true);
   }
 
   private async chooseThrall(
@@ -133,7 +133,7 @@ export class BloodlustBiteOperation extends GameOperation {
             Math.abs(p.gridPosition.y - from.y)
           ) === 1
       )
-      .toSorted(
+      .sort(
         (a, b) =>
           a.gridPosition!.y - b.gridPosition!.y ||
           a.gridPosition!.x - b.gridPosition!.x

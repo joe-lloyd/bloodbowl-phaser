@@ -3,7 +3,7 @@ import { HeadlessGame } from "./HeadlessGame";
 function sortedKeys(inner: unknown): unknown {
   if (!inner || typeof inner !== "object" || Array.isArray(inner)) return inner;
   return Object.fromEntries(
-    Object.entries(inner).toSorted(([a], [b]) => (a < b ? -1 : 1))
+    Object.entries(inner).sort(([a], [b]) => (a < b ? -1 : 1))
   );
 }
 

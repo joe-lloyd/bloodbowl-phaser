@@ -33,7 +33,7 @@ function gapsOf(result: CoverageResult): string[] {
         .filter((layer) => layer.status === "missing")
         .map((layer) => `${entry.entry.id}@${layer.layer}`)
     )
-    .toSorted();
+    .sort();
 }
 
 function loadShards(dir: string): CoverageResult[] {
@@ -69,8 +69,8 @@ function compareBaseline(result: CoverageResult): void {
   };
   const before = new Set(baseline.gaps);
   const now = new Set(gapsOf(result));
-  const added = [...now].filter((gap) => !before.has(gap)).toSorted();
-  const closed = [...before].filter((gap) => !now.has(gap)).toSorted();
+  const added = [...now].filter((gap) => !before.has(gap)).sort();
+  const closed = [...before].filter((gap) => !now.has(gap)).sort();
 
   console.log("");
   console.log(

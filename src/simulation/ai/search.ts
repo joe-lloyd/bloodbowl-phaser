@@ -238,8 +238,8 @@ function betterHalf<T>(
   alive: ScoredOption<T>[],
   baseline: ScoredOption<T>
 ): ScoredOption<T>[] {
-  const kept = alive
-    .toSorted((a, b) => mean(b) - mean(a))
+  const kept = [...alive]
+    .sort((a, b) => mean(b) - mean(a))
     .slice(0, Math.max(1, alive.length >> 1));
   if (!kept.includes(baseline) && kept.length > 0) kept.push(baseline);
   return kept;
@@ -307,7 +307,7 @@ async function searchAmong<T extends SearchOption>(
     alive = betterHalf(alive, baseline);
     if (alive.length === 2 && round > 0) break;
   }
-  const rival = alive.toSorted((a, b) => mean(b) - mean(a))[0] ?? baseline;
+  const rival = [...alive].sort((a, b) => mean(b) - mean(a))[0] ?? baseline;
   return mean(rival) > mean(baseline) ? rival.option : baseline.option;
 }
 

@@ -35,7 +35,7 @@ async function expectTargetsMarked(app: GameApp) {
     .poll(async () =>
       (await app.bridge.pitchHighlights())
         .map(({ x, y }) => `${String(x)},${String(y)}`)
-        .toSorted()
+        .sort()
     )
     .toEqual(expect.arrayContaining(["10,6", "11,5"]));
 }

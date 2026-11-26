@@ -115,7 +115,7 @@ describe("buildLookAtlas", () => {
   it("packs a figure into one 4096 wide page with a rect for every frame", () => {
     const { atlas, names } = fullAtlas("thrall");
     expect(atlas.pages.map((page) => page.width)).toEqual([4096]);
-    expect(Object.keys(atlas.frames).toSorted()).toEqual(names.toSorted());
+    expect(Object.keys(atlas.frames).sort()).toEqual([...names].sort());
     expect(outsideTheirPage(atlas)).toEqual([]);
   });
 
@@ -123,7 +123,7 @@ describe("buildLookAtlas", () => {
     const { atlas, names } = fullAtlas("treeman");
     expect(atlas.pages.length).toBe(2);
     expect(atlas.pages.every((page) => page.width === 4096 && page.height <= 4096)).toBe(true);
-    expect(Object.keys(atlas.frames).toSorted()).toEqual(names.toSorted());
+    expect(Object.keys(atlas.frames).sort()).toEqual([...names].sort());
     expect(outsideTheirPage(atlas)).toEqual([]);
   });
 });
@@ -141,7 +141,7 @@ function portraitMismatches(model: string): string[] {
       const small = `${base}/portrait/${name}`;
       if (!existsSync(`${small}.json`) || !existsSync(`${small}.bin`)) return `${small} is missing`;
       const full = readIndex(`${base}/${name}`).frames;
-      const wanted = Object.keys(full).filter((frame) => frame.startsWith("idle/se/")).toSorted();
+      const wanted = Object.keys(full).filter((frame) => frame.startsWith("idle/se/")).sort();
       const got = readIndex(small).frames;
       const same = wanted.every((frame) => got[frame]?.slice(0, 4).join(',') === full[frame]?.slice(0, 4).join(','));
       return same && Object.keys(got).length === wanted.length ? [] : `${small} does not hold the idle/se frames`;

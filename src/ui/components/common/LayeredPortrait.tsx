@@ -27,7 +27,7 @@ interface Sheet {
 
 function toSheet(atlas: LookAtlas): Sheet {
   const images = atlas.pages.map((element) => pageCanvas(element));
-  const names = Object.keys(atlas.frames).toSorted((a, b) => Number(a.split("/", 3)[2]) - Number(b.split("/", 3)[2]));
+  const names = Object.keys(atlas.frames).sort((a, b) => Number(a.split("/", 3)[2]) - Number(b.split("/", 3)[2]));
   return { atlas, images, names };
 }
 

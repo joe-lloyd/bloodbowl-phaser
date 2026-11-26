@@ -42,7 +42,7 @@ function computerShopping(
       return session
         .getSelection("computer")
         .map((line) => `${line.inducement} x${String(line.quantity)}`)
-        .toSorted();
+        .sort();
     if (command?.type !== "select-inducement")
       throw new Error(`Unexpected ${String(command?.type)}`);
     const inducement = Object.values(Inducement).find(

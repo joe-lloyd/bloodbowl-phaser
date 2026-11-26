@@ -425,5 +425,5 @@ export function assignPlayers({
     placed.push({ ...slot, playerId: player.id });
     mask &= ~(1 << s);
   }
-  return placed.toReversed();
+  return [...placed].reverse();
 }

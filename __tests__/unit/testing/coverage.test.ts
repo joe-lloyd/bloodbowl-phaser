@@ -187,7 +187,7 @@ describe("coverage claims", () => {
 describe("coverage report", () => {
   it("never blends engine and visual coverage into one number", () => {
     const result = buildCoverage([sampleCase()], { generatedAt: "t" });
-    expect(Object.keys(result.totals).toSorted()).toEqual([
+    expect(Object.keys(result.totals).sort()).toEqual([
       "browser",
       "engine",
       "visual",

@@ -296,6 +296,6 @@ function cheapestHire(team: Team, budget: number): PlayerTemplate | undefined {
 
       return hireRefusal(team, template) === undefined;
     })
-    .toSorted((a, b) => a.template.cost - b.template.cost || a.index - b.index)[0]
+    .sort((a, b) => a.template.cost - b.template.cost || a.index - b.index)[0]
     ?.template;
 }

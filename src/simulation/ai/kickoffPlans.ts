@@ -74,7 +74,7 @@ export function playerPlans(args: PlanArgs): Activation[] {
     rawPlans(args).map((plan) => pricedHit(args.ground, plan))
   )
     .filter((plan) => plan.value > 0)
-    .toSorted((a, b) => b.value - a.value);
+    .sort((a, b) => b.value - a.value);
 }
 
 const isHit = ({ action }: Activation) => action !== "move";
@@ -109,7 +109,7 @@ export function teamPlans(ground: KickoffGround, limit: number): Activation[] {
     const taken = endSquare(best);
     squares = squares.filter(({ at }) => key(at) !== taken);
   }
-  return chosen.toSorted((a, b) => Number(isHit(a)) - Number(isHit(b)));
+  return [...chosen].sort((a, b) => Number(isHit(a)) - Number(isHit(b)));
 }
 
 function sharesSquare(a: Activation, b: Activation): boolean {

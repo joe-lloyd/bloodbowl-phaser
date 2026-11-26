@@ -183,7 +183,7 @@ export async function runBench(options: BenchOptions): Promise<number> {
         rosters,
         puzzles,
         errors,
-        games: games.toSorted(
+        games: [...games].sort(
           (a, b) => a.seed - b.seed || a.candidateSide - b.candidateSide
         ),
       },

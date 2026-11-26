@@ -286,7 +286,7 @@ function pathTo(cell: number, steps: number): Square[] {
   const { parentAt } = routeGrid();
   for (let k = steps, c = cell; k > 0; c = parentAt.get(k, c), k--)
     path.push(square(c));
-  return path.toReversed();
+  return [...path].reverse();
 }
 
 function bestStepCount(cell: number, steps: number): number {

@@ -104,7 +104,7 @@ export function planIdentity(plan: Activation): string {
   if ("targets" in intent)
     return `${prefix}/${intent.targets
       .map((player) => player.id)
-      .toSorted()
+      .sort()
       .join(",")}`;
   if ("route" in intent)
     return `${prefix}/${String(intent.route.to.x)},${String(intent.route.to.y)}`;
@@ -112,7 +112,7 @@ export function planIdentity(plan: Activation): string {
 }
 
 function sortActivations(list: Activation[]): Activation[] {
-  return list.toSorted(
+  return [...list].sort(
     (a, b) =>
       b.value - a.value ||
       TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) ||

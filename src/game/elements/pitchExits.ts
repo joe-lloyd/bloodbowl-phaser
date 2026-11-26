@@ -127,7 +127,7 @@ async function runPitchExit(journey: PatientJourney): Promise<void> {
     return;
   }
   const transport = prepareCarrier(journey);
-  await moveCarrier(transport, route.toReversed());
+  await moveCarrier(transport, [...route].reverse());
   if (lifetime.isStopped()) return;
   for (const medic of transport.medics) {
     medic.stand();

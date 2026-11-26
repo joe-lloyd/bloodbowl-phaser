@@ -28,7 +28,7 @@ describe("the house bot's team", () => {
     const picks = [0, 0.99].map((roll) =>
       houseBotTeam({ gameType: "sevens", teamValue: { min: 450_000, max: 500_000 }, random: () => roll })
     );
-    expect(picks.map((team) => team?.name).toSorted()).toEqual([
+    expect(picks.map((team) => team?.name).sort()).toEqual([
       "Second Breakfast Club",
       "Weapons of Pass Destruction",
     ]);

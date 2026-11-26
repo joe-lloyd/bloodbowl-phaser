@@ -102,7 +102,7 @@ function representatives(players: readonly PlayerTemplate[]): PlayerTemplate[] {
     players.find((player) =>
       player.keywords.includes(PositionKeyWord.LINEMAN)
     ) ?? players[0];
-  const biggest = players.toSorted((a, b) => b.stats.ST - a.stats.ST)[0];
+  const biggest = [...players].sort((a, b) => b.stats.ST - a.stats.ST)[0];
   if (!lineman || !biggest)
     throw new Error("Cannot illustrate an empty roster");
   const unique = [...new Set([lineman, biggest, ...players])].slice(0, 7);
@@ -122,7 +122,7 @@ function lineupOf(models: readonly string[], colors: TeamColors): Character[] {
       cache.set(model, figure);
       return figure;
     })
-    .toSorted((a, b) => b.height - a.height);
+    .sort((a, b) => b.height - a.height);
 }
 
 const SECRET_COLORS: TeamColors = { primary: 0x5a2a7a, secondary: 0xc8a04a };
@@ -140,7 +140,7 @@ function secretLineup(
   };
   const [first, ...rest] = roster.positions;
   if (!first) throw new Error(`Cannot illustrate an empty roster`);
-  const dearest = rest.toSorted((a, b) => b.cost - a.cost);
+  const dearest = [...rest].sort((a, b) => b.cost - a.cost);
   const picks = [first, ...dearest].slice(0, 7).map((p) => modelOf(p.name));
   const filler = modelOf(first.name);
   return lineupOf(

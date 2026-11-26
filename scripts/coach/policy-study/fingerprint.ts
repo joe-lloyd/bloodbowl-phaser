@@ -28,7 +28,7 @@ export function policySourceDigest(root: string, lab: boolean): string {
 export function treeDigest(base: string, paths: string[]): string {
   const hash = createHash("sha256");
   function visit(path: string) {
-    for (const item of readdirSync(path, { withFileTypes: true }).toSorted(
+    for (const item of [...readdirSync(path, { withFileTypes: true })].sort(
       (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
     )) {
       const file = join(path, item.name);

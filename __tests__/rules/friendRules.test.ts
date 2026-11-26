@@ -211,7 +211,7 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
         setDoc(
           doc(dbFor(carol), "friendships", friendshipKey(alice, carol)),
           {
-            uids: [alice, carol].toSorted(),
+            uids: [alice, carol].sort(),
             requesterUid: alice,
             status: "accepted",
             createdAt: Date.now(),

@@ -63,7 +63,7 @@ function matchKey(
   const online = getActiveOnlineMatch();
   if (online?.kind === "online") return `online:${online.code}`;
   const seed = container?.rngService.getInitialSeed() ?? 0;
-  return `match:${String(seed)}:${teamIds.toSorted().join(":")}`;
+  return `match:${String(seed)}:${[...teamIds].sort().join(":")}`;
 }
 
 function ownedTeams(teams: Team[]): Team[] {

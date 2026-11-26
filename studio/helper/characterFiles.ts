@@ -8,7 +8,7 @@ const manifest = () => parseSpriteManifest(readFileSync(MANIFEST, "utf8"));
 
 function readFolder(folder: string): Character[] {
   const files = existsSync(folder) ? readdirSync(folder).filter((name) => name.endsWith(".json")) : [];
-  return files.toSorted().map((name) => parseCharacter(readFileSync(path.join(folder, name), "utf8")));
+  return [...files].sort().map((name) => parseCharacter(readFileSync(path.join(folder, name), "utf8")));
 }
 
 export function readCharacters(): Character[] {
