@@ -2,18 +2,26 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   type HomeLeague,
+  type PlayOffFinish,
   type SeasonRecord,
   type Team,
   hasBlockingPendingDevelopment,
 } from "../../../types/Team";
 import {
-  finishSeason,
   homeLeagueOf,
   SEASON_GAME_TYPES,
+  type SeasonPhase,
   seasonPhase,
   startSeason,
 } from "../../../competition/homeLeague";
-import type { LeagueDoc } from "../../../competition/types";
+import {
+  finishSeason,
+  PLAY_OFF_CLUBS,
+  PLAY_OFF_PRIZES,
+  startPlayOffs,
+} from "../../../competition/seasonEnd";
+import { thousands } from "../../../game/rules/club";
+import type { CompetitionDoc, LeagueDoc } from "../../../competition/types";
 import { SEASON_RIVALS } from "../../../game/rules/homeLeague";
 import { getTeamById } from "../../../game/managers/TeamManager";
 import {
@@ -104,7 +112,7 @@ function PostGameSteps({ club }: { club: Team }) {
     <Notice tone="warn" title="Post-game steps are waiting" className="mb-4">
       <p>
         Finish {club.name}&apos;s post-game steps on its team sheet, such as
-        advancements and Expensive Mistakes, before the next season starts.
+        advancements and Expensive Mistakes, before it plays on.
       </p>
       <HudButton
         size="sm"
@@ -165,52 +173,35 @@ function StartSeason({ club, onStarted }: { club: Team; onStarted: () => void })
   );
 }
 
-function SeasonUnderWay({
-  competition,
-  onOpen,
+function ActionStep({
+  title,
+  text,
+  label,
+  blocked = false,
+  run,
 }: {
-  competition: LeagueDoc;
-  onOpen: () => void;
-}) {
-  return (
-    <>
-      <Notice tone="gold" title="Season under way" className="mb-4">
-        Play your fixtures and simulate the computer games from the league
-        page. Come back here when the last game is done.
-      </Notice>
-      <HudButton variant="primary" className="mb-4" onClick={onOpen}>
-        Open the league
-      </HudButton>
-      <StandingsTable competition={competition} />
-    </>
-  );
-}
-
-function SeasonOver({
-  club,
-  competition,
-  onFinished,
-}: {
-  club: Team;
-  competition: LeagueDoc;
-  onFinished: (record: SeasonRecord) => void;
+  title: string;
+  text: string;
+  label: string;
+  blocked?: boolean;
+  run: () => Promise<void> | void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const finish = async () => {
+  const act = async () => {
     setBusy(true);
     try {
-      onFinished(await finishSeason(club.id));
+      await run();
     } catch (cause) {
       setError(errorText(cause));
+    } finally {
       setBusy(false);
     }
   };
   return (
     <>
-      <Notice tone="gold" title="The last game is played" className="mb-4">
-        Finish the season to record where {club.name} ended and to see who
-        comes back next season.
+      <Notice tone="gold" title={title} className="mb-4">
+        {text}
       </Notice>
       {error && (
         <Notice tone="bad" role="alert" className="mb-4">
@@ -220,15 +211,97 @@ function SeasonOver({
       <HudButton
         variant="primary"
         className="mb-4"
-        disabled={busy}
-        onClick={() => void finish()}
+        disabled={busy || blocked}
+        onClick={() => void act()}
       >
-        Finish season
+        {label}
       </HudButton>
-      <StandingsTable competition={competition} />
     </>
   );
 }
+
+function qualifies(club: Team, regular: LeagueDoc): boolean {
+  const entrant = regular.entrants.find((each) => each.teamId === club.id);
+  return regular.standings
+    .slice(0, PLAY_OFF_CLUBS)
+    .some((standing) => standing.entrantId === entrant?.id);
+}
+
+interface PhaseProps {
+  club: Team;
+  regular: LeagueDoc;
+  playOffs: CompetitionDoc | null;
+  onFinished: (record: SeasonRecord) => void;
+  reload: () => void;
+}
+
+function PlayOffsDue({ club, regular, reload }: PhaseProps) {
+  const { user } = useAuth();
+  const waiting = qualifies(club, regular) && hasBlockingPendingDevelopment(club);
+  return (
+    <>
+      <ActionStep
+        title="The regular season is over"
+        text={`The top four play semi-finals, a final and a third-place game, all with extra time and penalties. The champion wins ${thousands(PLAY_OFF_PRIZES.champion)} and holds the trophy re-roll for a season, the runner-up wins ${thousands(PLAY_OFF_PRIZES["runner-up"])} and third place ${thousands(PLAY_OFF_PRIZES.third)}.`}
+        label="Start the play-offs"
+        blocked={waiting}
+        run={async () => {
+          await startPlayOffs(club.id, user?.uid ?? null);
+          reload();
+        }}
+      />
+      {waiting && <PostGameSteps club={club} />}
+    </>
+  );
+}
+
+function SeasonPhaseView({ phase, ...props }: PhaseProps & { phase: SeasonPhase }) {
+  const navigate = useNavigate();
+  const { club, regular, playOffs, onFinished, reload } = props;
+  switch (phase) {
+    case "ready":
+      return null;
+    case "playing":
+      return (
+        <ActionStep
+          title="Season under way"
+          text="Play your fixtures and simulate the computer games from the league page. Come back here when the last game is done."
+          label="Open the league"
+          run={() => void navigate(`/leagues/${regular.id}`)}
+        />
+      );
+    case "play-offs-due":
+      return <PlayOffsDue {...props} />;
+    case "play-offs":
+      return (
+        <ActionStep
+          title="Play-offs under way"
+          text="Play or simulate the semi-finals, the final and the third-place game from the play-offs page."
+          label="Open the play-offs"
+          run={() => void navigate(`/tournaments/${playOffs?.id ?? ""}`)}
+        />
+      );
+    case "finished":
+      return (
+        <ActionStep
+          title="The play-offs are over"
+          text="Finish the season to pay the prizes, pass on the trophy and see who comes back next season."
+          label="Finish season"
+          run={async () => {
+            onFinished(await finishSeason(club.id));
+            reload();
+          }}
+        />
+      );
+  }
+}
+
+const PLAY_OFF_LABELS: Record<PlayOffFinish, string> = {
+  champion: "Champion",
+  "runner-up": "Runner-up",
+  third: "Third",
+  fourth: "Fourth",
+};
 
 function History({ history }: { history: SeasonRecord[] }) {
   if (history.length === 0) return null;
@@ -241,6 +314,7 @@ function History({ history }: { history: SeasonRecord[] }) {
             <th>Game type</th>
             <th>Finish</th>
             <th>W-D-L</th>
+            <th>Play-offs</th>
             <th>Champion</th>
           </tr>
         </thead>
@@ -253,6 +327,7 @@ function History({ history }: { history: SeasonRecord[] }) {
               <td>
                 {record.wins}-{record.draws}-{record.losses}
               </td>
+              <td>{record.playOff ? PLAY_OFF_LABELS[record.playOff] : "Out"}</td>
               <td>{record.champion}</td>
             </tr>
           ))}
@@ -262,13 +337,21 @@ function History({ history }: { history: SeasonRecord[] }) {
   );
 }
 
+function playOffText(finish: PlayOffFinish | undefined): string {
+  if (!finish) return "out of the play-offs";
+  return finish === "champion"
+    ? "champion of the play-offs"
+    : `${PLAY_OFF_LABELS[finish].toLowerCase()} in the play-offs`;
+}
+
 function FinishedNotice({ record }: { record: SeasonRecord | null }) {
   if (!record) return null;
   return (
     <Notice tone="good" role="status" className="mb-4">
       Season {record.season} is in the books: {placing(record.position)} of{" "}
-      {SEASON_RIVALS + 1}, {record.wins}-{record.draws}-{record.losses}.{" "}
-      {record.champion} took the title.
+      {SEASON_RIVALS + 1} in the table, {record.wins}-{record.draws}-
+      {record.losses}, {playOffText(record.playOff)}. {record.champion} took the
+      title.
     </Notice>
   );
 }
@@ -276,10 +359,11 @@ function FinishedNotice({ record }: { record: SeasonRecord | null }) {
 function SeasonBody({ club, reload }: { club: Team; reload: () => void }) {
   const navigate = useNavigate();
   const league = homeLeagueOf(club);
-  const { competition } = useCompetitionDoc("league", league.leagueId);
+  const regular = useCompetitionDoc("league", league.leagueId).competition;
+  const playOffs = useCompetitionDoc("tournament", league.playOffsId).competition;
   const [finished, setFinished] = useState<SeasonRecord | null>(null);
-  const current = competition?.type === "league" ? competition : null;
-  const phase = seasonPhase(league, current);
+  const current = regular?.type === "league" ? regular : null;
+  const phase = seasonPhase(league, current, playOffs);
   return (
     <PageShell width="wide">
       <PageHeader
@@ -298,21 +382,18 @@ function SeasonBody({ club, reload }: { club: Team; reload: () => void }) {
           <StartSeason club={club} onStarted={reload} />
         </>
       )}
-      {phase === "playing" && current && (
-        <SeasonUnderWay
-          competition={current}
-          onOpen={() => void navigate(`/leagues/${current.id}`)}
-        />
-      )}
-      {phase === "finished" && current && (
-        <SeasonOver
-          club={club}
-          competition={current}
-          onFinished={(record) => {
-            setFinished(record);
-            reload();
-          }}
-        />
+      {phase !== "ready" && current && (
+        <>
+          <SeasonPhaseView
+            phase={phase}
+            club={club}
+            regular={current}
+            playOffs={playOffs}
+            onFinished={setFinished}
+            reload={reload}
+          />
+          <StandingsTable competition={current} />
+        </>
       )}
       <History history={league.history} />
     </PageShell>

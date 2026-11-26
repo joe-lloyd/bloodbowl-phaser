@@ -11,6 +11,7 @@ import type { Difficulty } from "../simulation/ai/difficulty";
 import { type Team } from "../types/Team";
 import {
   computeStandings,
+  generatePlayOffs,
   generateRoundRobin,
   generateSingleElimination,
   seedEntrants,
@@ -57,6 +58,8 @@ export interface CompetitionRules {
   format?: TournamentFormat;
   profile?: RosterRuleProfile;
   computerDifficulty?: Difficulty;
+
+  playOffs?: boolean;
 }
 
 export interface NewCompetition extends CompetitionRules {
@@ -173,9 +176,10 @@ export async function assertTeamsCanEnter({
 }
 
 export function competitionFixtures(
-  rules: Pick<CompetitionRules, "type" | "format">,
+  rules: Pick<CompetitionRules, "type" | "format" | "playOffs">,
   entrants: CompetitionEntrant[]
 ): CompetitionFixture[] {
+  if (rules.playOffs) return generatePlayOffs(entrants);
   return rules.type === "league" || rules.format === "round-robin"
     ? generateRoundRobin(entrants)
     : generateSingleElimination(entrants);

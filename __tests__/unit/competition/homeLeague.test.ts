@@ -5,15 +5,12 @@ vi.mock("../../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-import {
-  finishSeason,
-  homeLeagueOf,
-  startSeason,
-} from "../../../src/competition/homeLeague";
+import { homeLeagueOf, startSeason } from "../../../src/competition/homeLeague";
+import { finishSeason, startPlayOffs } from "../../../src/competition/seasonEnd";
 import { fixtureContext } from "../../../src/competition/fixtureContext";
 import { getCompetition } from "../../../src/competition/repository";
 import { recordCompetitionFixture } from "../../../src/competition/resultRecording";
-import type { LeagueDoc } from "../../../src/competition/types";
+import type { CompetitionDoc, CompetitionType } from "../../../src/competition/types";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { getTeamById, saveTeam } from "../../../src/game/managers/TeamManager";
 import { foundClub } from "../../../src/game/rules/club";
@@ -55,21 +52,20 @@ async function saveTeamSheet(clubId: string): Promise<void> {
   await saveTeam(club);
 }
 
-async function playOut(leagueId: string, clubId: string): Promise<LeagueDoc> {
+async function playOut(type: CompetitionType, id: string, clubId: string): Promise<CompetitionDoc> {
   for (let guard = 0; guard < 60; guard++) {
-    const league = fixtureValue(await getCompetition("league", leagueId));
+    const league = fixtureValue(await getCompetition(type, id));
     const fixture = league.fixtures.find(
-      (candidate) => candidate.status !== "complete"
+      (candidate) => candidate.status === "ready"
     );
-    if (!fixture && league.type === "league") return league;
-    if (!fixture) throw new Error("The season is not a league.");
+    if (!fixture) return league;
     const homeTeam = league.entrants.find(
       (entrant) => entrant.id === fixture.homeEntrantId
     )?.teamId;
     const awayTeam = league.entrants.find(
       (entrant) => entrant.id === fixture.awayEntrantId
     )?.teamId;
-    const score = { home: 1, away: 1 };
+    const score = { home: 1, away: type === "league" ? 1 : 0 };
     if (homeTeam === clubId) score.home = 2;
     if (awayTeam === clubId) score.away = 2;
     await recordCompetitionFixture({
@@ -115,13 +111,25 @@ describe("a club's league seasons", () => {
   it("refuses to finish a season before its last game", async () => {
     const club = await foundHumanClub();
     await startSeason(club.id, setup, seeded(2));
-    await expect(finishSeason(club.id)).rejects.toThrow("Season 1 is not over yet.");
+    await expect(finishSeason(club.id)).rejects.toThrow(
+      "Season 1's regular season is not over yet."
+    );
   });
 
   it("records the finish, frees every club and rotates the rivals into season 2", async () => {
     const club = await foundHumanClub();
     const first = await startSeason(club.id, setup, seeded(3));
-    await playOut(first.id, club.id);
+    await playOut("league", first.id, club.id);
+    await expect(finishSeason(club.id)).rejects.toThrow(
+      "Season 1's play-offs have not started."
+    );
+
+    const playOffs = await startPlayOffs(club.id, null);
+    expect(playOffs.name).toBe("Club League, season 1 play-offs");
+    expect(playOffs.entrants.map((entrant) => entrant.teamId)[0]).toBe(club.id);
+    expect(playOffs.fixtures.some((fixture) => fixture.thirdPlace)).toBe(true);
+    await playOut("tournament", playOffs.id, club.id);
+    const before = fixtureValue(getTeamById(club.id));
 
     const record = await finishSeason(club.id, seeded(4));
     expect(record).toEqual({
@@ -133,14 +141,20 @@ describe("a club's league seasons", () => {
       draws: 0,
       losses: 0,
       champion: "Altdorf Anvils",
+      playOff: "champion",
     });
-    for (const entrant of first.entrants)
+    const after = fixtureValue(getTeamById(club.id));
+    expect(after.treasury - before.treasury).toBe(100_000);
+    expect(after.rerolls - before.rerolls).toBe(1);
+    for (const entrant of [...first.entrants, ...playOffs.entrants])
       expect(getTeamById(entrant.teamId)?.activeCompetitionId).toBeUndefined();
 
     const between = homeLeagueOf(fixtureValue(getTeamById(club.id)));
     expect(between.season).toBe(2);
     expect(between.leagueId).toBeUndefined();
     expect(between.history).toEqual([record]);
+    expect(between.trophyHolderId).toBe(club.id);
+    expect(between.playOffsId).toBeUndefined();
     expect(between.rivalIds).toHaveLength(4);
     expect(between.benchIds).toHaveLength(3);
 

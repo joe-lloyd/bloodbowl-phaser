@@ -55,6 +55,23 @@ function allCompetitionsLink(type: CompetitionType) {
   };
 }
 
+function ThirdPlaceGame({
+  competition,
+  renderCard,
+}: {
+  competition: CompetitionDoc;
+  renderCard: (fixture: CompetitionFixture) => React.ReactNode;
+}) {
+  const fixture = competition.fixtures.find((candidate) => candidate.thirdPlace);
+  if (!fixture) return null;
+  return (
+    <div className="mt-6">
+      <h3 className="hud-label mb-2">Third-place game</h3>
+      {renderCard(fixture)}
+    </div>
+  );
+}
+
 function isBracket(competition: CompetitionDoc): boolean {
   return (
     competition.type === "tournament" &&
@@ -123,13 +140,16 @@ function Season({ competition, setCompetition, setError, uid }: CompetitionProps
         <Section title={isBracket(competition) ? "Bracket" : "Schedule"}>
           {simulateTools}
           {isBracket(competition) ? (
-            <TournamentBracket
-              fixtures={competition.fixtures}
-              entrants={competition.entrants}
-              championEntrantId={competition.championEntrantId}
-              renderActions={renderActions}
-              fallback={<RoundList competition={competition} renderCard={renderCard} />}
-            />
+            <>
+              <TournamentBracket
+                fixtures={competition.fixtures.filter((fixture) => !fixture.thirdPlace)}
+                entrants={competition.entrants}
+                championEntrantId={competition.championEntrantId}
+                renderActions={renderActions}
+                fallback={<RoundList competition={competition} renderCard={renderCard} />}
+              />
+              <ThirdPlaceGame competition={competition} renderCard={renderCard} />
+            </>
           ) : (
             <RoundList competition={competition} renderCard={renderCard} />
           )}

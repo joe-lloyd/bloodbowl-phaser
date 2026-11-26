@@ -11,6 +11,9 @@ const seasonRecordSchema: z.ZodType<SeasonRecord> = z.object({
   draws: z.number().int().nonnegative(),
   losses: z.number().int().nonnegative(),
   champion: z.string(),
+  playOff: z
+    .enum(["champion", "runner-up", "third", "fourth"])
+    .exactOptional(),
 });
 
 const homeLeagueSchema: z.ZodType<HomeLeague> = z.object({
@@ -18,6 +21,8 @@ const homeLeagueSchema: z.ZodType<HomeLeague> = z.object({
   rivalIds: z.string().array(),
   benchIds: z.string().array(),
   leagueId: z.string().exactOptional(),
+  playOffsId: z.string().exactOptional(),
+  trophyHolderId: z.string().exactOptional(),
   history: seasonRecordSchema.array(),
 });
 

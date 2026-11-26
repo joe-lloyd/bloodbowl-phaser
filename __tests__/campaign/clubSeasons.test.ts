@@ -11,14 +11,18 @@ vi.mock("../../src/firebase/config", () => ({
 
 import { createComputerTeam } from "../fixtures/computerTeam";
 import {
-  finishSeason,
   homeLeagueOf,
   SEASON_GAME_TYPES,
   startSeason,
 } from "../../src/competition/homeLeague";
+import {
+  finishSeason,
+  playOffPlaces,
+  startPlayOffs,
+} from "../../src/competition/seasonEnd";
 import { getCompetition } from "../../src/competition/repository";
 import { simulateFixture } from "../../src/competition/simulateFixture";
-import type { LeagueDoc } from "../../src/competition/types";
+import type { CompetitionDoc, LeagueDoc } from "../../src/competition/types";
 import { getTeamById, saveTeam } from "../../src/game/managers/TeamManager";
 import { RNGService } from "../../src/services/rng/RNGService";
 import { RosterName, type SeasonRecord, type Team, calculateTeamValue } from "../../src/types/Team";
@@ -36,6 +40,7 @@ interface SeasonReport {
   rivals: { name: string; roster: string; arrival: "returning" | "back" | "new"; teamValue: number }[];
   club: { teamValue: number; treasury: number; players: number; spp: number };
   table: { name: string; points: number; played: number }[];
+  playOffs: { name: string; finish: string }[];
 }
 
 const findings: Finding[] = [];
@@ -65,10 +70,9 @@ function foundPlayerClub(): Team {
   return club;
 }
 
-async function playSeason(league: LeagueDoc): Promise<LeagueDoc> {
+async function playOut(competition: CompetitionDoc): Promise<CompetitionDoc> {
   for (let guard = 0; guard < 80; guard++) {
-    const latest = fixtureValue(await getCompetition("league", league.id));
-    if (latest.type !== "league") throw new Error("The season is not a league.");
+    const latest = fixtureValue(await getCompetition(competition.type, competition.id));
     const fixture = latest.fixtures.find((candidate) => candidate.status === "ready");
     if (!fixture) {
       const open = latest.fixtures.filter((candidate) => candidate.status !== "complete");
@@ -86,8 +90,8 @@ async function playSeason(league: LeagueDoc): Promise<LeagueDoc> {
       return latest;
     }
   }
-  note(league.name, "season-stuck", "fixtures never finished");
-  return league;
+  note(competition.name, "season-stuck", "fixtures never finished");
+  return competition;
 }
 
 function arrivals(previousRivals: Set<string>, everSeen: Set<string>, rivalIds: string[]): SeasonReport["rivals"] {
@@ -107,7 +111,7 @@ function checkSeasonStart(where: string, league: LeagueDoc, clubId: string): voi
   if (!ids.has(clubId)) note(where, "club-missing", "the club is not in its own league");
 }
 
-function checkSeasonEnd(where: string, league: LeagueDoc, clubId: string): void {
+function checkSeasonEnd(where: string, league: CompetitionDoc, clubId: string): void {
   if (league.status !== "complete") note(where, "not-complete", league.status);
   for (const entrant of league.entrants) {
     const team = mustLoad(entrant.teamId);
@@ -132,10 +136,20 @@ describe.runIf(env["CLUB_SEASONS"] === "1")("club league seasons", () => {
       const rivals = arrivals(previousRivals, everSeen, rivalIds);
       if (season > 1 && rivals.filter((rival) => rival.arrival === "returning").length !== 4)
         note(where, "returning", `${String(rivals.filter((rival) => rival.arrival === "returning").length)} returning rivals`);
-      const finished = await playSeason(league);
-      checkSeasonEnd(where, finished, club.id);
-      if (finished.status !== "complete") break;
+      const finished = await playOut(league);
+      if (finished.status !== "complete") {
+        note(where, "not-complete", finished.status);
+        break;
+      }
+      const playOffs = await playOut(await startPlayOffs(club.id, null));
+      if (playOffs.type !== "tournament" || playOffs.status !== "complete") {
+        note(where, "play-offs-unfinished", playOffs.status);
+        break;
+      }
+      const places = playOffPlaces(playOffs);
       const record = await finishSeason(club.id, random);
+      checkSeasonEnd(where, finished, club.id);
+      checkSeasonEnd(`${where} play-offs`, playOffs, club.id);
       const team = mustLoad(club.id);
       seasons.push({
         record,
@@ -151,7 +165,11 @@ describe.runIf(env["CLUB_SEASONS"] === "1")("club league seasons", () => {
           points: standing.points,
           played: standing.played,
         })),
+        playOffs: [...places].map(([teamId, finish]) => ({ name: mustLoad(teamId).name, finish })),
       });
+      const champion = [...places].find(([, finish]) => finish === "champion")?.[0];
+      if (homeLeagueOf(team).trophyHolderId !== champion)
+        note(where, "trophy", `held by ${String(homeLeagueOf(team).trophyHolderId)}, champion ${String(champion)}`);
       if (homeLeagueOf(team).history.length !== season) note(where, "history", `${String(homeLeagueOf(team).history.length)} seasons recorded`);
       previousRivals = new Set(rivalIds);
       for (const id of rivalIds) everSeen.add(id);
