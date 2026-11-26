@@ -38,6 +38,10 @@ function toPlainDoc(team: Team): Record<string, unknown> {
   return firebaseDocument(dehydrateTeam(team));
 }
 
+function documentText(team: Team): string {
+  return JSON.stringify(toPlainDoc(team));
+}
+
 async function fetchCloudTeams(uid: string): Promise<Team[]> {
   const snapshot = await getDocs(teamsCollection(uid));
   return readEach(snapshot.docs, (d) => {
@@ -117,11 +121,15 @@ async function deleteCloudTeam(uid: string, teamId: string): Promise<void> {
 export class CloudTeamRepository implements TeamRepository {
   private cache: Team[];
   private writing: Promise<unknown> = Promise.resolve();
+  private readonly lastWritten = new Map<string, string>();
 
   private readonly uid: string;
   constructor(uid: string, initialTeams: Team[]) {
     this.uid = uid;
     this.cache = [...initialTeams];
+    initialTeams.forEach((team) => {
+      this.lastWritten.set(team.id, documentText(team));
+    });
   }
 
   loadTeams(): Team[] {
@@ -145,8 +153,10 @@ export class CloudTeamRepository implements TeamRepository {
   ): Promise<void> {
     try {
       const written = await writeCloudTeam(this.uid, copy);
+      this.lastWritten.set(copy.id, documentText(written));
       if (written !== copy) this.replace(cached, written);
     } catch (cause) {
+      this.lastWritten.delete(copy.id);
       this.replace(
         cached,
         before.find(({ id }) => id === copy.id)
@@ -155,17 +165,28 @@ export class CloudTeamRepository implements TeamRepository {
     }
   }
 
+  private claimWrite(team: Team): boolean {
+    const text = documentText(team);
+    if (this.lastWritten.get(team.id) === text) return false;
+    this.lastWritten.set(team.id, text);
+    return true;
+  }
+
   async saveTeams(teams: Team[]): Promise<void> {
     const previousIds = new Set(this.cache.map((t) => t.id));
     const nextIds = new Set(teams.map((t) => t.id));
     const before = this.cache;
     this.cache = [...teams];
 
-    const copies = structuredClone(teams);
+    const changed = teams.filter((team) => this.claimWrite(team));
+    const copies = structuredClone(changed);
     const removed = [...previousIds].filter((id) => !nextIds.has(id));
+    removed.forEach((id) => this.lastWritten.delete(id));
     const written = this.writing.then(() =>
       Promise.allSettled([
-        ...copies.map((team, index) => this.write(team, teams[index], before)),
+        ...copies.map((team, index) =>
+          this.write(team, changed[index], before)
+        ),
         ...removed.map((id) => deleteCloudTeam(this.uid, id)),
       ])
     );

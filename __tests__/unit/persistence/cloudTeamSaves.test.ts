@@ -73,3 +73,54 @@ describe("cloud team save acknowledgement", () => {
     expect(repository.loadTeams()).toEqual([accepted]);
   });
 });
+
+function activeTeam(id: string, treasury: number) {
+  const team = new TeamBuilder().withId(id).withTreasury(treasury).build();
+  team.firstMatchPlayedAt = 1;
+  return team;
+}
+
+describe("cloud team writes", () => {
+  it("writes only the team that changed when the library is saved", async () => {
+    const library = [
+      activeTeam("first", 10_000),
+      activeTeam("second", 20_000),
+      activeTeam("third", 30_000),
+    ];
+    const repository = new CloudTeamRepository("coach", library);
+    const edited = structuredClone(library);
+    edited[1] = { ...activeTeam("second", 20_000), treasury: 5_000 };
+
+    await repository.saveTeams(edited);
+
+    expect(setDoc).toHaveBeenCalledTimes(1);
+    expect(setDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ id: "second", treasury: 5_000 })
+    );
+  });
+
+  it("writes nothing when no team changed", async () => {
+    const library = [activeTeam("first", 10_000), activeTeam("second", 20_000)];
+    const repository = new CloudTeamRepository("coach", library);
+
+    await repository.saveTeams(structuredClone(library));
+
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+
+  it("writes a team again after its last write was refused", async () => {
+    const repository = new CloudTeamRepository("coach", [
+      activeTeam("first", 10_000),
+    ]);
+    const changed = [activeTeam("first", 2_000)];
+    vi.mocked(setDoc).mockRejectedValueOnce(new Error("Cloud offline"));
+    await expect(repository.saveTeams(changed)).rejects.toThrow(
+      "Cloud offline"
+    );
+
+    await repository.saveTeams(structuredClone(changed));
+
+    expect(setDoc).toHaveBeenCalledTimes(2);
+  });
+});
