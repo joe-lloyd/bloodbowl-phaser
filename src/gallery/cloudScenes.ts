@@ -7,6 +7,10 @@ import { seedDevelopmentData } from "../seeding/runner";
 import type { PendingAdvancementRoll } from "../types/Player";
 import { SkillCategory, SkillType } from "../types/Skills";
 import type { Team } from "../types/Team";
+import { getRosterByRosterName } from "../data/RosterTemplates";
+import { isLinemanPosition } from "../game/rules/rosterLegality";
+import { hireWithIdentity } from "../game/names/playerIdentity";
+import { clubSheetHandlers } from "../ui/components/club/clubSheet";
 import { putDocument, signIn } from "./cloud/cloudData";
 
 const ME = "gallery-me";
@@ -233,6 +237,30 @@ export function withClubs(): void {
       ROSTERS.slice(0, 2).includes(team.rosterName)
         ? { ...team, club: {} }
         : team
+    )
+  );
+}
+
+function gutterClub(team: Team): Team {
+  const club: Team = { ...team, club: {}, treasury: 1_000_000 };
+  const { playerTemplates } = getRosterByRosterName(club.rosterName);
+  const lineman = playerTemplates.find((template) =>
+    isLinemanPosition(template.keywords)
+  );
+  for (let count = club.players.length; count < 11 && lineman; count++)
+    hireWithIdentity(club, lineman);
+  const positional = playerTemplates.find(
+    (template) => !isLinemanPosition(template.keywords)
+  );
+  if (positional) clubSheetHandlers(club, () => undefined).onHireSpecialist?.(positional);
+  return club;
+}
+
+export function withGutterClub(): void {
+  signedIn();
+  void saveTeams(
+    loadTeams().map((team) =>
+      team.rosterName === ROSTERS[0] ? gutterClub(team) : team
     )
   );
 }

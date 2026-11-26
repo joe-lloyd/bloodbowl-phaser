@@ -15,7 +15,6 @@ import { OnlineLobby } from "./components/pages/OnlineLobby";
 import { SharedTeamBrowser } from "./components/pages/SharedTeamBrowser";
 import { ClubHub } from "./components/club/ClubHub";
 import { ClubFounding } from "./components/club/ClubFounding";
-import { ClubPage } from "./components/club/ClubPage";
 import { CompetitionHub } from "./components/pages/CompetitionHub";
 import { CompetitionBuilder } from "./components/pages/CompetitionBuilder";
 import { CompetitionView } from "./components/pages/CompetitionView";
@@ -92,7 +91,7 @@ export function App({ eventBus }: AppProps) {
         />
         <Route
           path="/clubs/:teamId"
-          element={<AdminRoute>{withTeamLibrary(<ClubPage />)}</AdminRoute>}
+          element={<AdminRoute>{withTeamLibrary(<TeamBuilder />)}</AdminRoute>}
         />
         <Route path="/shared-teams" element={<SharedTeamBrowser />} />
         <Route path="/friends" element={<FriendsPage />} />

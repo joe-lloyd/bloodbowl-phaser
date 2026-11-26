@@ -75,6 +75,8 @@ import {
   useTeamSaving,
 } from "../../hooks/teamSaveLock";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
+import { ClubNotice } from "../club/ClubNotice";
+import { clubSheetHandlers } from "../club/clubSheet";
 import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 
 const MODE_EYEBROWS: Record<TeamMode, string> = {
@@ -168,14 +170,15 @@ function readSearch(search: string, teamId: string | undefined) {
   return {
     searchParams,
     postMatch: searchParams.get("postMatch") === "1",
-    destination: /^\/(leagues|clubs)\/[^/?#]+$/.test(returnTo)
+    requested: /^\/(leagues|clubs)\/[^/?#]+$/.test(returnTo)
       ? returnTo
-      : "/build-team",
+      : undefined,
     matchWinnings: searchParams.get(`winnings-${teamId ?? ""}`),
   };
 }
 
 function returnLabelFor(destination: string): string | undefined {
+  if (destination === "/clubs") return "Back to Clubs";
   if (destination.startsWith("/clubs/")) return "Back to the club";
   if (destination.startsWith("/leagues/")) return "Back to the league";
   return undefined;
@@ -243,10 +246,11 @@ export function TeamBuilder() {
   const navigate = useNavigate();
   const { teamId } = useParams<{ teamId: string }>();
   const { search } = useLocation();
-  const { searchParams, postMatch, destination, matchWinnings } = readSearch(
+  const { searchParams, postMatch, requested, matchWinnings } = readSearch(
     search,
     teamId
   );
+  const destination = requested ?? (team?.club ? "/clubs" : "/build-team");
 
   const returnLabel = returnLabelFor(destination);
   const [completion, setCompletion] = useState("");
@@ -643,7 +647,7 @@ export function TeamBuilder() {
       }
     >
       <PageHeader
-        eyebrow={`${MODE_EYEBROWS[mode]} · ${team.rosterName}`}
+        eyebrow={`${team.club ? "Club" : MODE_EYEBROWS[mode]} · ${team.rosterName}`}
         title="TEAM BUILDER"
         subtitle={MODE_SUBTITLES[mode]}
       />
@@ -655,6 +659,7 @@ export function TeamBuilder() {
         matchWinnings={matchWinnings}
         waitingForDevelopment={waitingForDevelopment}
       />
+      <ClubNotice team={team} />
       {captainVacancyCandidates(team).length > 0 && (
         <Notice tone="info" title="No Team Captain" className="mb-4">
           This team has no Team Captain. You may appoint one in the pre-game of
@@ -738,6 +743,7 @@ export function TeamBuilder() {
             onFirePlayer={handleFirePlayer}
             onReorderPlayers={handleReorderPlayers}
             onOpenPlayer={handleOpenPlayer}
+            {...clubSheetHandlers(team, setTeam)}
             onChooseVeteran={
               active || !teamDraftRules(team).veteran
                 ? undefined
