@@ -16,8 +16,8 @@ import {
   hireRefusal,
   positionAllowance,
   purchase,
+  refund,
 } from "../../../game/rules/teamPricing";
-import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
 import { chooseVeteran } from "../../../game/rules/veteran";
 import { teamDraftRules } from "../../../game/rules/draftRules";
 import { withDraftGameType } from "../../../game/rules/gameTypeChange";
@@ -69,7 +69,11 @@ import {
 import { RNGService } from "../../../services/rng/RNGService";
 import { RosterPicker } from "../TeamBuilder/RosterPicker";
 import { PlayedGames } from "../TeamManagement/PlayedGames";
-import { isTeamSaving, onTeamSaveSettled, useTeamSaving } from "../../hooks/teamSaveLock";
+import {
+  isTeamSaving,
+  onTeamSaveSettled,
+  useTeamSaving,
+} from "../../hooks/teamSaveLock";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 
@@ -447,15 +451,18 @@ export function TeamBuilder() {
     }
   };
 
-  const handleBuy = (item: StaffItem) => {
-    if (!team) return;
-    const result = purchase(team, item);
-    if (result.amount == null) {
-      alert(result.reason);
-      return;
-    }
-    setTeam({ ...team });
-  };
+  const staffChange =
+    (change: typeof purchase | typeof refund) => (item: StaffItem) => {
+      if (!team) return;
+      const result = change(team, item);
+      if (result.amount == null) {
+        alert(result.reason);
+        return;
+      }
+      setTeam({ ...team });
+    };
+  const handleBuy = staffChange(purchase);
+  const handleRefund = staffChange(refund);
 
   const rosterViolations = (): string[] => {
     if (!team) return [];
@@ -567,16 +574,8 @@ export function TeamBuilder() {
   };
 
   const handleApothecaryToggle = () => {
-    if (!team) return;
-    if (!team.apothecary) {
-      handleBuy({ type: "apothecary" });
-      return;
-    }
-
-    if (isActiveTeam(team)) return;
-    team.treasury += APOTHECARY_COST;
-    team.apothecary = false;
-    setTeam({ ...team });
+    if (team?.apothecary) handleRefund({ type: "apothecary" });
+    else handleBuy({ type: "apothecary" });
   };
 
   if (!team) {
@@ -756,10 +755,15 @@ export function TeamBuilder() {
           team={team}
           active={active}
           onBuy={handleBuy}
+          onRefund={handleRefund}
           onApothecaryToggle={handleApothecaryToggle}
         />
 
-        <DraftInducementsSection team={team} onBuy={handleBuy} />
+        <DraftInducementsSection
+          team={team}
+          onBuy={handleBuy}
+          onRefund={handleRefund}
+        />
       </fieldset>
 
       <PlayedGames games={team.playedGames ?? []} />

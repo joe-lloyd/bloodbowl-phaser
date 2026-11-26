@@ -1,4 +1,9 @@
-import { type Team, isLeagueMode, isPendingRecruit } from "../../types/Team";
+import {
+  type Team,
+  isLeagueMode,
+  isPendingRecruit,
+  startingDedicatedFans,
+} from "../../types/Team";
 import {
   type Player,
   type PlayerTemplate,
@@ -186,30 +191,103 @@ export function purchase(team: Team, item: StaffItem): PriceResult {
     return { amount: null, reason: "Not enough gold in the treasury." };
   }
   team.treasury -= price.amount;
+  holding(team, item).add(1);
+  return price;
+}
+
+interface Holding {
+  bought: number;
+  unitPrice: number;
+  add: (delta: 1 | -1) => void;
+}
+
+function changeInducement(
+  team: Team,
+  inducement: Inducement,
+  delta: 1 | -1
+): void {
+  const lines = (team.draftInducements ??= []);
+  const line = lines.find((l) => l.inducement === inducement);
+  if (!line) {
+    if (delta > 0) lines.push({ inducement, quantity: 1 });
+    return;
+  }
+  line.quantity += delta;
+  if (line.quantity <= 0) {
+    team.draftInducements = lines.filter((l) => l !== line);
+  }
+}
+
+function inducementHolding(team: Team, inducement: Inducement): Holding {
+  const entry = inducementCatalog(team, teamGameType(team)).find(
+    (line) => line.inducement === inducement
+  );
+  return {
+    bought: draftInducementCount(team, inducement),
+    unitPrice: entry?.price ?? 0,
+    add: (delta) => {
+      changeInducement(team, inducement, delta);
+    },
+  };
+}
+
+function holding(team: Team, item: StaffItem): Holding {
   switch (item.type) {
     case "reroll":
-      team.rerolls++;
-      break;
+      return {
+        bought: team.rerolls,
+        unitPrice: teamRerollPrice(team),
+        add: (delta) => (team.rerolls += delta),
+      };
     case "dedicated-fan":
-      team.dedicatedFans++;
-      break;
+      return {
+        bought:
+          team.dedicatedFans - startingDedicatedFans(team.advancementMode),
+        unitPrice: dedicatedFanPrice(teamDraftRules(team)),
+        add: (delta) => (team.dedicatedFans += delta),
+      };
     case "apothecary":
-      team.apothecary = true;
-      break;
+      return {
+        bought: team.apothecary ? 1 : 0,
+        unitPrice: APOTHECARY_COST,
+        add: (delta) => (team.apothecary = delta > 0),
+      };
     case "coach":
-      team.coaches++;
-      break;
+      return {
+        bought: team.coaches,
+        unitPrice: ASSISTANT_COACH_COST,
+        add: (delta) => (team.coaches += delta),
+      };
     case "cheerleader":
-      team.cheerleaders++;
-      break;
-    case "inducement": {
-      const lines = (team.draftInducements ??= []);
-      const line = lines.find((l) => l.inducement === item.inducement);
-      if (line) line.quantity++;
-      else lines.push({ inducement: item.inducement, quantity: 1 });
-      break;
-    }
+      return {
+        bought: team.cheerleaders,
+        unitPrice: CHEERLEADER_COST,
+        add: (delta) => (team.cheerleaders += delta),
+      };
+    case "inducement":
+      return inducementHolding(team, item.inducement);
   }
+}
+
+export function refundOf(team: Team, item: StaffItem): PriceResult {
+  if (isActiveTeam(team)) {
+    return {
+      amount: null,
+      reason: "Purchases are refunded only before the first match.",
+    };
+  }
+  const held = holding(team, item);
+  if (held.bought <= 0) {
+    return { amount: null, reason: "There is nothing bought to remove." };
+  }
+  return { amount: held.unitPrice };
+}
+
+export function refund(team: Team, item: StaffItem): PriceResult {
+  const price = refundOf(team, item);
+  if (price.amount == null) return price;
+  team.treasury += price.amount;
+  holding(team, item).add(-1);
   return price;
 }
 

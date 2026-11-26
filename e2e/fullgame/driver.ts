@@ -42,10 +42,7 @@ export async function buildTeam(
     await page.waitForTimeout(150);
   }
   await page.getByRole("button", { name: "Make Veteran" }).first().click();
-  const reroll = page
-    .locator("div.flex.flex-col.gap-1")
-    .filter({ has: page.locator("span", { hasText: /^Re-Rolls/ }) })
-    .getByRole("button", { name: "+" });
+  const reroll = page.getByLabel("Add one Re-Rolls");
   while (await reroll.isEnabled()) await reroll.click();
   await page.mouse.wheel(0, 3000);
   await page.waitForTimeout(800);

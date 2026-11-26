@@ -1,8 +1,10 @@
 import { type Team } from "../../../types/Team";
 import {
+  type PriceResult,
   type StaffItem,
   draftInducementCount,
   priceOf,
+  refundOf,
 } from "../../../game/rules/teamPricing";
 import { inducementCatalog } from "../../../game/inducements/catalog";
 import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
@@ -14,15 +16,18 @@ export function SidelineStaffSection({
   team,
   active,
   onBuy,
+  onRefund,
   onApothecaryToggle,
 }: {
   team: Team;
   active: boolean;
   onBuy: (item: StaffItem) => void;
+  onRefund: (item: StaffItem) => void;
   onApothecaryToggle: () => void;
 }) {
   const apothecaryPrice = priceOf(team, { type: "apothecary" });
   const draft = teamDraftRules(team);
+  const refundable = active ? undefined : onRefund;
   return (
     <Section title="Sideline staff" aside={`Gold ${formatGold(team.treasury)}`}>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
@@ -33,6 +38,7 @@ export function SidelineStaffSection({
           item={{ type: "reroll" }}
           locked={active}
           onBuy={onBuy}
+          onRefund={refundable}
         />
         {draft.apothecary && (
           <label className="flex flex-col gap-1">
@@ -65,6 +71,7 @@ export function SidelineStaffSection({
           item={{ type: "dedicated-fan" }}
           locked={active}
           onBuy={onBuy}
+          onRefund={refundable}
         />
         {draft.assistantCoaches && (
           <StaffCounter
@@ -73,6 +80,7 @@ export function SidelineStaffSection({
             team={team}
             item={{ type: "coach" }}
             onBuy={onBuy}
+            onRefund={refundable}
           />
         )}
         {draft.cheerleaders && (
@@ -82,6 +90,7 @@ export function SidelineStaffSection({
             team={team}
             item={{ type: "cheerleader" }}
             onBuy={onBuy}
+            onRefund={refundable}
           />
         )}
       </div>
@@ -92,9 +101,11 @@ export function SidelineStaffSection({
 export function DraftInducementsSection({
   team,
   onBuy,
+  onRefund,
 }: {
   team: Team;
   onBuy: (item: StaffItem) => void;
+  onRefund: (item: StaffItem) => void;
 }) {
   if (team.advancementMode !== "matched-play") return null;
   return (
@@ -108,6 +119,7 @@ export function DraftInducementsSection({
             team={team}
             item={{ type: "inducement", inducement: entry.inducement }}
             onBuy={onBuy}
+            onRefund={onRefund}
           />
         ))}
       </div>
@@ -122,6 +134,7 @@ function StaffCounter({
   item,
   locked = false,
   onBuy,
+  onRefund,
 }: {
   label: string;
   count: number;
@@ -129,9 +142,11 @@ function StaffCounter({
   item: StaffItem;
   locked?: boolean;
   onBuy: (item: StaffItem) => void;
+  onRefund?: ((item: StaffItem) => void) | undefined;
 }) {
   const price = priceOf(team, item);
   const affordable = price.amount != null && team.treasury >= price.amount;
+  const refundPrice = refundOf(team, item);
 
   return (
     <div className="flex flex-col gap-1">
@@ -141,21 +156,59 @@ function StaffCounter({
       </span>
       <div className="flex h-11 items-center justify-between rounded-hud border border-white/10 bg-black/35 pl-3 pr-1">
         <span className="font-hud-display text-hud-lg">{count}</span>
-        {!locked && (
-          <HudButton
-            size="sm"
-            variant="secondary"
-            className="w-9 !px-0"
-            onClick={() => {
-              onBuy(item);
-            }}
-            disabled={!affordable}
-            title={price.reason}
-          >
-            +
-          </HudButton>
-        )}
+        <span className="flex gap-1">
+          {onRefund && (
+            <CounterButton
+              sign="−"
+              label={`Remove one ${label}`}
+              price={refundPrice}
+              enabled={refundPrice.amount != null}
+              onClick={() => {
+                onRefund(item);
+              }}
+            />
+          )}
+          {!locked && (
+            <CounterButton
+              sign="+"
+              label={`Add one ${label}`}
+              price={price}
+              enabled={affordable}
+              onClick={() => {
+                onBuy(item);
+              }}
+            />
+          )}
+        </span>
       </div>
     </div>
+  );
+}
+
+function CounterButton({
+  sign,
+  label,
+  price,
+  enabled,
+  onClick,
+}: {
+  sign: string;
+  label: string;
+  price: PriceResult;
+  enabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <HudButton
+      size="sm"
+      variant="secondary"
+      className="w-9 !px-0"
+      onClick={onClick}
+      disabled={!enabled}
+      title={price.reason}
+      aria-label={label}
+    >
+      {sign}
+    </HudButton>
   );
 }
