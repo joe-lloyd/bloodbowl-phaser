@@ -20,7 +20,7 @@ async function filesUnder(root: string): Promise<string[]> {
     .filter((entry) => entry.isFile() && !entry.name.startsWith("."))
     .map((entry) => path.relative(root, path.join(entry.parentPath, entry.name)).split(path.sep).join("/"))
     .filter((file) => !SKIPPED.has(file))
-    .toSorted((a, b) => a.localeCompare(b));
+    .sort((a, b) => a.localeCompare(b));
 }
 
 async function hashOf(file: string): Promise<string> {
