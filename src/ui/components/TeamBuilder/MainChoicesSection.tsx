@@ -24,6 +24,10 @@ export function MainChoicesSection({
   onRaceChange,
   onChange,
 }: Props) {
+  const standard = getAvailableRosterNames();
+  const races = standard.includes(selectedRace)
+    ? standard
+    : [...standard, selectedRace];
   return (
     <Section title="Main choices">
       <div className="grid gap-x-6 gap-y-5 lg:grid-cols-2">
@@ -37,7 +41,7 @@ export function MainChoicesSection({
               onRaceChange(e.target.value as RosterName);
             }}
           >
-            {getAvailableRosterNames().map((race) => (
+            {races.map((race) => (
               <option key={race} value={race}>
                 {race}
               </option>

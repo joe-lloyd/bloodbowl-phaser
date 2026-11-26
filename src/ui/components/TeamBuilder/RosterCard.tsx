@@ -1,4 +1,5 @@
 import { getRosterByRosterName } from "../../../data/RosterTemplates";
+import { SECRET_CATALOGUE_NAMES } from "../../../data/secretLeague/secretRosters";
 import { Title } from "../componentWarehouse/HudTitle";
 import { type RosterName, TeamSpecialRule } from "../../../types/Team";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
@@ -12,7 +13,10 @@ export function RosterCard({
   readonly onChoose: (roster: RosterName) => void;
 }) {
   const roster = getRosterByRosterName(name);
-  const art = `/assets/roster-picker/${encodeURIComponent(name)}`;
+  const secret = SECRET_CATALOGUE_NAMES.get(name);
+  const art = secret
+    ? `/assets/roster-picker/secret/${encodeURIComponent(secret)}`
+    : `/assets/roster-picker/${encodeURIComponent(name)}`;
   const rules = roster.specialRules.map((rule) =>
     rule === TeamSpecialRule.FAVOURED_OF ? "Favoured of a Chaos god" : rule
   );

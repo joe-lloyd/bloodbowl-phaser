@@ -3,6 +3,7 @@ import manifest from "./spriteManifest.json";
 import { ISO } from "../elements/GridUtils";
 import { MATCH_STYLE } from "./matchStyle";
 import { layeredArt } from "./layered/layeredModels";
+import { SECRET_POSITION_MODELS } from "../../data/secretLeague/secretRosters";
 
 const FACINGS = ["s", "se", "e", "ne", "n", "nw", "w", "sw"] as const;
 export type Facing = (typeof FACINGS)[number];
@@ -19,7 +20,10 @@ export interface ModelArt {
 }
 
 const MODELS = manifest.models as unknown as Record<string, ModelArt>;
-const POSITIONS: Record<string, Record<string, string>> = manifest.positions;
+const POSITIONS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  ...manifest.positions,
+  ...SECRET_POSITION_MODELS,
+};
 
 const FALLBACK_MODEL = "human_lineman";
 

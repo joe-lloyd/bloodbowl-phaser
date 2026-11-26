@@ -9,8 +9,13 @@ import {
   type TeamRoster,
   TeamSpecialRule,
   RosterName,
+  type SecretRosterName,
+  type StandardRosterName,
+  isStandardRosterName,
 } from "../types/Team";
 import { SkillCategory, SkillType, getSkill } from "../types/Skills";
+import { SECRET_ROSTERS } from "./secretLeague/secretRosters";
+import { SECRET_ROSTER_NAMES } from "./secretLeague/secretRosterNames";
 
 const TRAINED_TROLL: PlayerTemplate = {
   positionName: "Trained Troll",
@@ -3096,6 +3101,12 @@ const WOOD_ELF_ROSTER: TeamRoster = {
 };
 
 export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
+  return isStandardRosterName(rosterName)
+    ? standardRoster(rosterName)
+    : secretRoster(rosterName);
+}
+
+function standardRoster(rosterName: StandardRosterName): TeamRoster {
   switch (rosterName) {
     case RosterName.AMAZON:
       return AMAZON_ROSTER;
@@ -3166,6 +3177,12 @@ export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
   }
 }
 
+function secretRoster(rosterName: SecretRosterName): TeamRoster {
+  const roster = SECRET_ROSTERS.get(rosterName);
+  if (!roster) throw new Error(`Invalid roster name: ${rosterName}`);
+  return roster;
+}
+
 export function getAvailableRosterNames(): RosterName[] {
   return [
     RosterName.AMAZON,
@@ -3203,14 +3220,23 @@ export function getAvailableRosterNames(): RosterName[] {
   ];
 }
 
-const SECRET_ROSTER_NAMES: readonly RosterName[] = [RosterName.WITCH_ELF];
+const SECRET_ROSTERS_PLAYABLE: readonly RosterName[] = [
+  RosterName.WITCH_ELF,
+  ...SECRET_ROSTER_NAMES,
+];
 
 export function getSecretRosterNames(): readonly RosterName[] {
-  return SECRET_ROSTER_NAMES;
+  return SECRET_ROSTERS_PLAYABLE;
 }
 
 export function getStandardRosterNames(): RosterName[] {
   return getAvailableRosterNames().filter(
-    (name) => !SECRET_ROSTER_NAMES.includes(name)
+    (name) => !SECRET_ROSTERS_PLAYABLE.includes(name)
+  );
+}
+
+export function findRosterName(value: unknown): RosterName | undefined {
+  return [...getAvailableRosterNames(), ...SECRET_ROSTER_NAMES].find(
+    (name) => name === value
   );
 }

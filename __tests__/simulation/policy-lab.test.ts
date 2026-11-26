@@ -50,7 +50,7 @@ describe("repeatable Sevens policy lab", () => {
 
   it("accounts for every catalogue skill without treating rule scripts as AI evidence", () => {
     const inventory = coverageInventory();
-    expect(inventory).toHaveLength(110);
+    expect(inventory).toHaveLength(111);
     expect(inventory.find((s) => s.skill === "Pass")).toMatchObject({
       status: "bounded-contract",
     });

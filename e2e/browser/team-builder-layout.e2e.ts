@@ -132,14 +132,14 @@ test("the roster picker animates lineups and browses extra rosters", async ({
   await expect(page.getByRole("status")).toHaveText("115 of 115 rosters");
   await page
     .getByRole("searchbox", { name: "Find a Secret League team" })
-    .fill("Four Nations");
+    .fill("Eonir");
   await expect(page.getByRole("status")).toHaveText("1 of 115 rosters");
   await page
     .locator("summary")
-    .filter({ hasText: /^Four Nations/ })
+    .filter({ hasText: /^Eonir/ })
     .click();
   await expect(
-    page.getByText("Nerves of Steel", { exact: false }).first()
+    page.getByText("Give and Go", { exact: false }).first()
   ).toBeVisible();
   await page.getByRole("tab", { name: "Standard rosters" }).click();
   await card.click();
@@ -159,4 +159,21 @@ test("Witch Elves are built from the secret rosters", async ({ page }) => {
   await expect(
     page.getByRole("combobox", { name: "Roster", exact: true })
   ).toHaveValue("Witch Elf");
+});
+
+test("a Secret League team is built from its stat file", async ({ page }) => {
+  await page.goto("/build-team/new-team");
+  await page.getByRole("tab", { name: "Secret team rosters" }).click();
+  const card = page.getByTestId("roster-choice-Albion");
+  await expect(card.locator("img")).toHaveJSProperty("naturalWidth", 1760);
+  await card.click();
+  await expect(
+    page.getByRole("combobox", { name: "Roster", exact: true })
+  ).toHaveValue("Albion");
+  const hires = page
+    .locator(".hud-slab")
+    .filter({ has: page.getByRole("heading", { name: "AVAILABLE HIRES" }) });
+  await expect(
+    hires.getByRole("row", { name: /Woad Berserker/ })
+  ).toBeVisible();
 });

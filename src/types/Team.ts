@@ -16,6 +16,7 @@ import {
   CHEERLEADER_COST,
 } from "../game/rules/sevensPrices";
 import { rerollPrice, teamDraftRules } from "../game/rules/draftRules";
+import type { SECRET_ROSTER_NAMES } from "../data/secretLeague/secretRosterNames";
 
 export type TeamAdvancementMode =
   | "matched-play"
@@ -140,7 +141,17 @@ export const RosterName = {
   WITCH_ELF: "Witch Elf",
   WOOD_ELF: "Wood Elf",
 } as const;
-export type RosterName = (typeof RosterName)[keyof typeof RosterName];
+export type StandardRosterName = (typeof RosterName)[keyof typeof RosterName];
+export type SecretRosterName = (typeof SECRET_ROSTER_NAMES)[number];
+export type RosterName = StandardRosterName | SecretRosterName;
+
+const STANDARD_ROSTER_NAMES: readonly RosterName[] = Object.values(RosterName);
+
+export function isStandardRosterName(
+  name: RosterName
+): name is StandardRosterName {
+  return STANDARD_ROSTER_NAMES.includes(name);
+}
 
 export const League = {
   BADLANDS_BRAWL: "Badlands Brawl",
@@ -170,6 +181,7 @@ export const TeamSpecialRule = {
   FAVOURED_OF_UNDIVIDED: "Favoured of Undivided",
   LOW_COST_LINEMEN: "Low Cost Linemen",
   SWARMING: "Swarming",
+  MASTER_CHEF: "Master Chef",
 } as const;
 export type TeamSpecialRule =
   (typeof TeamSpecialRule)[keyof typeof TeamSpecialRule];
