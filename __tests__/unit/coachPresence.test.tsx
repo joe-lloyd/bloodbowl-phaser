@@ -60,10 +60,47 @@ describe("coach presence", () => {
     expect(coaches.ensureCoachProfile).toHaveBeenCalledTimes(2);
     expect(coaches.touchPresence).not.toHaveBeenCalled();
 
+    window.dispatchEvent(new Event("pointerdown"));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(PRESENCE_INTERVAL_MS);
     });
     expect(coaches.ensureCoachProfile).toHaveBeenCalledTimes(2);
     expect(coaches.touchPresence).toHaveBeenCalledWith("coach");
+  });
+
+  it("marks the coach present only after they used the page since the last mark", async () => {
+    coaches.ensureCoachProfile.mockResolvedValue(undefined);
+    coaches.touchPresence.mockResolvedValue(undefined);
+    await act(async () => {
+      root.render(<Presence uid="coach" />);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PRESENCE_INTERVAL_MS * 5);
+    });
+    expect(coaches.touchPresence).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PRESENCE_INTERVAL_MS * 3);
+    });
+    expect(coaches.touchPresence).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the house bot present without any input", async () => {
+    localStorage.setItem("bb-house-bot", "1");
+    coaches.ensureCoachProfile.mockResolvedValue(undefined);
+    coaches.touchPresence.mockResolvedValue(undefined);
+    await act(async () => {
+      root.render(<Presence uid="bot" />);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PRESENCE_INTERVAL_MS * 3);
+    });
+    localStorage.removeItem("bb-house-bot");
+    expect(coaches.touchPresence).toHaveBeenCalledTimes(3);
   });
 });
