@@ -60,10 +60,21 @@ export function startPwa(): void {
   if (import.meta.env.MODE !== "production" || !("serviceWorker" in navigator))
     return;
   window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js", { updateViaCache: "none" })
-      .catch((error: unknown) => {
-        console.warn("[PWA] service worker did not register", error);
-      });
+    void startWorker();
   });
+}
+
+async function startWorker(): Promise<void> {
+  try {
+    await navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" });
+    await keepOfflineFiles();
+  } catch (error: unknown) {
+    console.warn("[PWA] service worker did not register", error);
+  }
+}
+
+async function keepOfflineFiles(): Promise<void> {
+  const registration = await navigator.serviceWorker.ready;
+  registration.active?.postMessage({ type: "keep", models: [] });
+  if (runsInstalled) await navigator.storage.persist();
 }
