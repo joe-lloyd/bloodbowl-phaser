@@ -106,9 +106,15 @@ def lin(h):
     c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
     return tuple((x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4) for x in c)
 
+MAX_COLOURS = 255        # layered output stores a pixel's palette index plus one in a single byte (0 = empty)
+
 def all_colours():
     """The master palette as a sorted list of hex strings."""
-    return sorted({h for r in RAMPS.values() for h in r} | set(FLAT.values()) | {OUTLINE})
+    cols = sorted({h for r in RAMPS.values() for h in r} | set(FLAT.values()) | {OUTLINE})
+    if len(cols) > MAX_COLOURS:
+        raise ValueError("the palette has %d colours, more than the %d a layered pixel can index; reuse an existing ramp"
+                         % (len(cols), MAX_COLOURS))
+    return cols
 
 def clear():
     for m in list(MATS.values()):
