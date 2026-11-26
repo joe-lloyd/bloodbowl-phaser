@@ -22,7 +22,10 @@ import {
 } from "../../../competition/resultRecording";
 import { earnsWinnings, stalledSides } from "../../../game/rules/winnings";
 import { carriesInjuries } from "../../../game/rules/injuryRules";
-import { keepPreMatchInjuries } from "../../../game/rules/leagueRoster";
+import {
+  keepPreMatchInjuries,
+  keepPreMatchSquad,
+} from "../../../game/rules/leagueRoster";
 import { careerCounts } from "../../../game/rules/club";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import {
@@ -69,6 +72,31 @@ function matchKey(
 function ownedTeams(teams: Team[]): Team[] {
   const online = getActiveOnlineMatch();
   return online ? teams.filter((team) => team.id === online.myTeamId) : teams;
+}
+
+interface DevelopmentRecord {
+  key: string;
+  friendly: boolean;
+  raisedDead: Record<string, string> | undefined;
+  leagueFixture: boolean;
+}
+
+function recordTeamDevelopment(
+  team: Team,
+  match: DevelopmentRecord,
+  playedIds: ReadonlySet<string>
+): void {
+  recordPendingDevelopment(
+    team,
+    match.key,
+    match.friendly ? undefined : match.raisedDead?.[team.id],
+    { leagueFixture: match.leagueFixture, playedIds }
+  );
+  keepRecordedResult(team);
+  const before = getTeamById(team.id);
+  if (!carriesInjuries(team, !match.friendly))
+    keepPreMatchInjuries(team, before);
+  if (match.friendly) keepPreMatchSquad(team, before);
 }
 
 function savedTeams(teams: Team[]): Team[] {
@@ -393,24 +421,23 @@ export function MatchResultsScreen({
 
   const recordDevelopment = async () => {
     const gameState = container?.gameService.getState();
+    const friendly = !state.competition;
     const managed = savedTeams(teams).filter((team) =>
-      careerCounts(team, !!state.competition || progressionEnabled)
+      careerCounts(team, !friendly || progressionEnabled)
     );
     if (!developmentRecorded.current) {
+      const match = {
+        key: matchKey(container, teamIds, fixtureContext),
+        friendly,
+        raisedDead: gameState?.raisedDead,
+        leagueFixture: !!gameState?.paysWinnings,
+      };
       for (const team of managed) {
-        recordPendingDevelopment(
+        recordTeamDevelopment(
           team,
-          matchKey(container, teamIds, fixtureContext),
-          gameState?.raisedDead?.[team.id],
-          {
-            leagueFixture: !!gameState?.paysWinnings,
-            playedIds: new Set(tracker.getEligibleMvpPlayers(team.id)),
-          }
+          match,
+          new Set(tracker.getEligibleMvpPlayers(team.id))
         );
-        keepRecordedResult(team);
-        if (!carriesInjuries(team, !!state.competition)) {
-          keepPreMatchInjuries(team, getTeamById(team.id));
-        }
       }
       developmentRecorded.current = true;
     }
