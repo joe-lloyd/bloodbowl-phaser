@@ -75,9 +75,9 @@ export function setup(progressionEnabled: boolean) {
     .withName("Bad Badgers")
     .withPlayers(2)
     .build();
-  [...team1.players, ...team2.players].forEach((p) => {
+  for (const p of [...team1.players, ...team2.players]) {
     p.playerName = `Player ${String(p.number)}`;
-  });
+  }
   const eventBus = new EventBus();
   const services = ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2, progressionEnabled: progressionEnabled });
   const state = services.gameService.getState();
@@ -110,7 +110,7 @@ export async function leagueOf(teams: Team[]): Promise<LeagueDoc> {
     updatedAt: 1,
   };
   await saveCompetition(league);
-  teams.forEach((team) => (team.activeCompetitionId = league.id));
+  for (const team of teams) (team.activeCompetitionId = league.id);
   saveTeams(teams.map((team) => structuredClone(team)));
   return league;
 }

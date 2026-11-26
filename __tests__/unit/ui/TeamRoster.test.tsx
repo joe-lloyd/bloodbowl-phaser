@@ -263,7 +263,7 @@ describe("TeamRoster skill tooltips", () => {
     );
     expect(triggers.length).toBe(2);
 
-    triggers.forEach((trigger) => {
+    for (const trigger of triggers) {
       const describedBy = trigger.getAttribute("aria-describedby");
       expect(describedBy).toBeTruthy();
       const panel = document.getElementById(fixtureValue(describedBy));
@@ -281,7 +281,7 @@ describe("TeamRoster skill tooltips", () => {
         (trigger as HTMLElement).blur();
       });
       expect(panel?.className).toContain("hidden");
-    });
+    }
   });
 });
 

@@ -176,13 +176,13 @@ describe("FormationManager", () => {
       for (const isTeam1 of [true, false]) {
         const presets = manager.getBuiltInFormations(isTeam1);
         expect(presets.length).toBeGreaterThanOrEqual(3);
-        presets.forEach((preset) => {
+        for (const preset of presets) {
           expect(preset.positions).toHaveLength(7);
           const unique = new Set(
             preset.positions.map((p) => `${String(p.x)},${String(p.y)}`)
           );
           expect(unique.size).toBe(7);
-          preset.positions.forEach((p) => {
+          for (const p of preset.positions) {
             if (isTeam1) {
               expect(p.x).toBeGreaterThanOrEqual(0);
               expect(p.x).toBeLessThanOrEqual(6);
@@ -192,12 +192,12 @@ describe("FormationManager", () => {
             }
             expect(p.y).toBeGreaterThanOrEqual(0);
             expect(p.y).toBeLessThanOrEqual(10);
-          });
+          }
           expect(
             new SetupValidator().validateFormation({ positions: preset.positions, isTeam1: isTeam1, availablePlayerCount: 7 })
               .valid
           ).toBe(true);
-        });
+        }
       }
     });
 
@@ -250,18 +250,18 @@ describe("FormationManager", () => {
 
     it("should place Team 1 players on left side (x: 0-6)", () => {
       const formation = manager.getDefaultFormation(true);
-      formation.forEach((pos) => {
+      for (const pos of formation) {
         expect(pos.x).toBeGreaterThanOrEqual(0);
         expect(pos.x).toBeLessThanOrEqual(6);
-      });
+      }
     });
 
     it("should place Team 2 players on right side (x: 13-16)", () => {
       const formation = manager.getDefaultFormation(false);
-      formation.forEach((pos) => {
+      for (const pos of formation) {
         expect(pos.x).toBeGreaterThanOrEqual(13);
         expect(pos.x).toBeLessThanOrEqual(16);
-      });
+      }
     });
 
     it("should have unique positions", () => {

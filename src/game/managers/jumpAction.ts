@@ -79,9 +79,9 @@ export async function jumpPlayer(
   if (!jumpCtx.escapeCancelled) {
     await foldTrigger("onJumpDeclared", [player], jumpCtx);
   }
-  jumpCtx.triggers.forEach((t) => {
+  for (const t of jumpCtx.triggers) {
     eventBus.emit(GameEventNames.SkillTriggered, t);
-  });
+  }
 
   if (jumpCtx.escapeCancelled) {
     deps.callbacks.onActivationFinished(playerId);
@@ -99,9 +99,9 @@ export async function jumpPlayer(
 
   const resolvedCtx = jumpResolvedContext(jump, rolled, modifier);
   await foldTrigger("onJumpResolved", leftMarkers, resolvedCtx);
-  resolvedCtx.triggers.forEach((t) => {
+  for (const t of resolvedCtx.triggers) {
     eventBus.emit(GameEventNames.SkillTriggered, t);
-  });
+  }
   diveIntoVacated(eventBus, {
     diverId: resolvedCtx.proneInVacated,
     opponents: jump.opponents,

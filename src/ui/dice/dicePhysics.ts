@@ -88,15 +88,15 @@ export function upFace(
 ): { face: number; dot: number } {
   let face = 0;
   let dot = -2;
-  normals(kind).forEach((normal, index) => {
+  for (const [index, normal] of normals(kind).entries()) {
     const y = new THREE.Vector3(...normal).applyQuaternion(q).y;
     if (!(y > dot)) {
-      return;
+      continue;
     }
 
     dot = y;
     face = index;
-  });
+  }
   return { face, dot };
 }
 

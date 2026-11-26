@@ -78,10 +78,10 @@ export interface HeadlessGameContext {
 
 export function stabilizeIds(team: Team, stableId: string): Team {
   team.id = stableId;
-  team.players.forEach((p) => {
+  for (const p of team.players) {
     p.teamId = stableId;
     p.id = `${stableId}-player-${String(p.number)}`;
-  });
+  }
   return team;
 }
 

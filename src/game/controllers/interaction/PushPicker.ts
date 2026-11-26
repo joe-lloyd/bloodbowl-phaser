@@ -58,9 +58,9 @@ export class PushPicker {
       this.eventBus.emit(GameEventNames.UI_Notification, "Chain push!");
     }
 
-    this.validDirections.forEach((dir) => {
+    for (const dir of this.validDirections) {
       this.highlightManager.addPushHighlight(dir.x, dir.y, color);
-    });
+    }
   }
 
   reset(): void {

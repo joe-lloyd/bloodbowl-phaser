@@ -179,13 +179,13 @@ function validateSteps(
   const add = (field: string, message: string) =>
     issues.push({ caseId: scenarioCase.id, field, message });
 
-  scenarioCase.steps.forEach((step, index) => {
+  for (const [index, step] of scenarioCase.steps.entries()) {
     const where = `steps[${String(index)}]`;
     const command = step.command;
 
     if (!command || typeof command.type !== "string") {
       add(where, "step has no protocol command");
-      return;
+      continue;
     }
     if (!KNOWN_COMMAND_TYPES.has(command.type)) {
       add(
@@ -212,7 +212,7 @@ function validateSteps(
     }
 
     if (support) checkStepLayers(scenarioCase, step, support, where, add);
-  });
+  }
 }
 
 function checkLayers(scenarioCase: ScenarioCase, add: Add): void {
@@ -237,7 +237,7 @@ function checkVariants(scenarioCase: ScenarioCase, add: Add): void {
     add("variants", "case must declare at least one seeded variant");
   }
   const variantIds = new Set<string>();
-  scenarioCase.variants.forEach((variant, index) => {
+  for (const [index, variant] of scenarioCase.variants.entries()) {
     const where = `variants[${String(index)}]`;
     if (variantIds.has(variant.id)) {
       add(`${where}.id`, `duplicate variant id '${variant.id}'`);
@@ -256,7 +256,7 @@ function checkVariants(scenarioCase: ScenarioCase, add: Add): void {
         `variant '${variant.id}' must say what its seed proves`
       );
     }
-  });
+  }
 }
 
 function checkCheckpoints(scenarioCase: ScenarioCase, add: Add): void {

@@ -52,9 +52,9 @@ export class KickoffPhaseHandler implements PhaseHandler {
   }
 
   private removeListeners(): void {
-    this.removeHandlers.forEach((remove) => {
+    for (const remove of this.removeHandlers) {
       remove();
-    });
+    }
     this.removeHandlers = [];
   }
 

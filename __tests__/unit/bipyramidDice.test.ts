@@ -42,11 +42,11 @@ describe.each([
         expect([...labels].sort((a, b) => a - b)).toEqual(
           Array.from({ length: sides }, (_, i) => i + 1)
         );
-        normals.forEach((normal, i) => {
+        for (const [i, normal] of normals.entries()) {
           expect(
             fixtureValue(labels[i]) + fixtureValue(labels[opposite(normal)])
           ).toBe(sides + 1);
-        });
+        }
       }
     }
   });

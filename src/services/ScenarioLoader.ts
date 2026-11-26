@@ -80,7 +80,7 @@ export class ScenarioLoader {
   }
 
   private emitPlacements(team: Team): void {
-    team.players.forEach((p) => {
+    for (const p of team.players) {
       if (p.gridPosition) {
         this.eventBus.emit(GameEventNames.PlayerPlaced, {
           playerId: p.id,
@@ -88,6 +88,6 @@ export class ScenarioLoader {
           y: p.gridPosition.y,
         });
       }
-    });
+    }
   }
 }

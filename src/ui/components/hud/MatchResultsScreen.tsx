@@ -215,10 +215,10 @@ export function MatchResultsScreen({
     if (tracker.applied) setConfirmed(true);
     const summary = tracker.summary();
     const seeded: Record<string, { playerId: string; roll: number }> = {};
-    summary.players.forEach((stats) => {
+    for (const stats of summary.players) {
       if (stats.mvps > 0)
         seeded[stats.teamId] = { playerId: stats.playerId, roll: -1 };
-    });
+    }
     if (Object.keys(seeded).length > 0) {
       setMvpResults((previous) => ({ ...seeded, ...previous }));
     }
@@ -401,7 +401,7 @@ export function MatchResultsScreen({
       careerCounts(team, !!state.competition)
     );
     if (!developmentRecorded.current) {
-      managed.forEach((team) => {
+      for (const team of managed) {
         recordPendingDevelopment(
           team,
           matchKey(container, teamIds, fixtureContext),
@@ -415,7 +415,7 @@ export function MatchResultsScreen({
         if (!carriesInjuries(team, !!state.competition)) {
           keepPreMatchInjuries(team, getTeamById(team.id));
         }
-      });
+      }
       developmentRecorded.current = true;
     }
     for (const team of managed) await saveTeam(team);
@@ -489,13 +489,13 @@ export function MatchResultsScreen({
     const [first, ...next] = managed;
     if (!first) return false;
     const params = new URLSearchParams({ postMatch: "1", returnTo: leaveTo });
-    next.forEach((team) => {
+    for (const team of next) {
       params.append("nextTeam", team.id);
-    });
-    managed.forEach((team) => {
+    }
+    for (const team of managed) {
       const gold = winnings?.gold[team.id];
       if (gold !== undefined) params.set(`winnings-${team.id}`, String(gold));
-    });
+    }
     finishWithMatch();
     navigate(`/build-team/${first.id}?${params}`, { replace: true });
     return true;

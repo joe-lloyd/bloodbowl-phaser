@@ -37,9 +37,9 @@ const RAIDER: Character = {
 
 function catalogWith(...characters: readonly object[]) {
   const folder = mkdtempSync(path.join(tmpdir(), "characters-"));
-  characters.forEach((character, index) => {
+  for (const [index, character] of characters.entries()) {
     writeFileSync(path.join(folder, `${String(index)}.json`), JSON.stringify(character));
-  });
+  }
   return parseCatalog(execFileSync("python3", ["scripts/sprites/factory/catalog.py", "--characters", folder], { encoding: "utf8" }));
 }
 

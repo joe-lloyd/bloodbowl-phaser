@@ -70,18 +70,18 @@ export function nativeFixtures(skill: SkillType): FixtureCandidate[] {
     const roster = getRosterByRosterName(rosterName);
     if (!roster) continue;
     const positions = positionByPlayerIndex(rosterName);
-    positions.forEach((positionName, playerIndex) => {
+    for (const [playerIndex, positionName] of positions.entries()) {
       const template = roster.playerTemplates.find(
         (candidate) => candidate.positionName === positionName
       );
-      if (!template || !templateHasSkill(template, skill)) return;
+      if (!template || !templateHasSkill(template, skill)) continue;
 
       if (
         found.some(
           (f) => f.roster === rosterName && f.positionName === positionName
         )
       ) {
-        return;
+        continue;
       }
       found.push({
         source: "native",
@@ -89,7 +89,7 @@ export function nativeFixtures(skill: SkillType): FixtureCandidate[] {
         positionName,
         playerIndex,
       });
-    });
+    }
   }
   return found;
 }
@@ -105,23 +105,23 @@ export function advancementFixtures(skill: SkillType): FixtureCandidate[] {
     const roster = getRosterByRosterName(rosterName);
     if (!roster) continue;
     const positions = positionByPlayerIndex(rosterName);
-    positions.forEach((positionName, playerIndex) => {
+    for (const [playerIndex, positionName] of positions.entries()) {
       const template = roster.playerTemplates.find(
         (candidate) => candidate.positionName === positionName
       );
-      if (!template || templateHasSkill(template, skill)) return;
+      if (!template || templateHasSkill(template, skill)) continue;
       const access = template.primary.includes(category)
         ? "primary"
         : template.secondary.includes(category)
           ? "secondary"
           : null;
-      if (!access) return;
+      if (!access) continue;
       if (
         found.some(
           (f) => f.roster === rosterName && f.positionName === positionName
         )
       ) {
-        return;
+        continue;
       }
       found.push({
         source: "advancement",
@@ -130,7 +130,7 @@ export function advancementFixtures(skill: SkillType): FixtureCandidate[] {
         playerIndex,
         access,
       });
-    });
+    }
   }
   return found;
 }

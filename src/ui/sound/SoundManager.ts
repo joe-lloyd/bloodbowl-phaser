@@ -44,7 +44,7 @@ export class SoundManager {
       this.attachGestureUnlock();
 
       const ctx = this.ctx;
-      SAMPLE_URLS.forEach((url) => this.samples.set(url, loadSample(ctx, url)));
+      for (const url of SAMPLE_URLS) this.samples.set(url, loadSample(ctx, url));
 
       this.isInitialized = true;
       resolve();

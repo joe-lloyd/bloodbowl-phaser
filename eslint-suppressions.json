@@ -29,18 +29,12 @@
     "unicorn/no-array-sort": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
     }
   },
   "__tests__/headless/HeadlessGame.test.ts": {
     "unicorn/explicit-length-check": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/prefer-array-some": {
@@ -177,16 +171,10 @@
     "unicorn/consistent-function-scoping": {
       "count": 3
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-array-sort": {
       "count": 2
     },
     "unicorn/no-await-expression-member": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/require-array-sort-compare": {
@@ -215,9 +203,6 @@
     }
   },
   "__tests__/headless/driveTransition.test.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-unnecessary-parameters": {
       "count": 1
     }
@@ -383,9 +368,6 @@
   "__tests__/headless/kickBlockers.test.ts": {
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/headless/kickResume.test.ts": {
@@ -396,9 +378,6 @@
       "count": 1
     },
     "unicorn/no-declarations-before-early-exit": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/no-return-array-push": {
@@ -548,9 +527,6 @@
   "__tests__/headless/matchStateVisualBaseline.ts": {
     "unicorn/no-array-sort": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/headless/pass-range.test.ts": {
@@ -569,15 +545,9 @@
   "__tests__/headless/pregame-purchases.test.ts": {
     "unicorn/no-await-expression-member": {
       "count": 17
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/headless/push-chain.test.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-spread": {
       "count": 1
     }
@@ -659,9 +629,6 @@
     "unicorn/no-await-expression-member": {
       "count": 6
     },
-    "unicorn/no-for-each": {
-      "count": 3
-    },
     "unicorn/no-unnecessary-parameters": {
       "count": 2
     }
@@ -678,9 +645,6 @@
   },
   "__tests__/headless/skill-triggers.test.ts": {
     "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/no-return-array-push": {
@@ -1019,9 +983,6 @@
     }
   },
   "__tests__/network/gameTypeMatchStart.test.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-global-object-property-assignment": {
       "count": 3
     },
@@ -1186,9 +1147,6 @@
     },
     "unicorn/no-await-expression-member": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/network/onlineHostResume.test.ts": {
@@ -1211,9 +1169,6 @@
     },
     "@typescript-eslint/require-await": {
       "count": 4
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     },
     "unicorn/prefer-set-has": {
       "count": 1
@@ -1400,9 +1355,6 @@
     "no-restricted-syntax": {
       "count": 3
     },
-    "unicorn/no-for-each": {
-      "count": 4
-    },
     "unicorn/no-global-object-property-assignment": {
       "count": 1
     },
@@ -1456,9 +1408,6 @@
     },
     "unicorn/no-duplicate-loops": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "__tests__/simulation/bench.test.ts": {
@@ -1757,9 +1706,6 @@
   "__tests__/unit/bipyramidDice.test.ts": {
     "unicorn/no-array-sort": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/unit/biteTargetPrompt.test.tsx": {
@@ -1836,9 +1782,6 @@
   "__tests__/unit/characterStudio.test.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/unit/coachPresence.test.tsx": {
@@ -1987,13 +1930,7 @@
     "@typescript-eslint/unbound-method": {
       "count": 1
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/prefer-query-selector": {
@@ -2119,9 +2056,6 @@
   "__tests__/unit/controllers/DiceController.test.ts": {
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 6
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "__tests__/unit/controllers/FoulController.test.ts": {
@@ -2154,12 +2088,6 @@
     },
     "unicorn/no-array-sort": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 2
-    },
-    "unicorn/no-return-array-push": {
-      "count": 1
     }
   },
   "__tests__/unit/controllers/GameplayInteractionController.resume.test.ts": {
@@ -2167,9 +2095,6 @@
       "count": 2
     },
     "unicorn/no-computed-property-existence-check": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -2185,11 +2110,6 @@
     },
     "unicorn/consistent-function-scoping": {
       "count": 4
-    }
-  },
-  "__tests__/unit/controllers/GameplayInteractionController.setup.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/unit/controllers/KickoffPhaseHandler.test.ts": {
@@ -2219,9 +2139,6 @@
     }
   },
   "__tests__/unit/controllers/TouchGestures.test.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 6
     }
@@ -2507,9 +2424,6 @@
     "unicorn/consistent-function-scoping": {
       "count": 2
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 1
     }
@@ -2578,7 +2492,7 @@
       "count": 1
     },
     "@typescript-eslint/no-unsafe-return": {
-      "count": 2
+      "count": 1
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
@@ -2587,9 +2501,6 @@
       "count": 1
     },
     "unicorn/no-array-reverse": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/no-return-array-push": {
@@ -2664,9 +2575,6 @@
     },
     "@typescript-eslint/require-await": {
       "count": 7
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/unit/hotkeys.test.tsx": {
@@ -3045,9 +2953,6 @@
     },
     "@typescript-eslint/require-await": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "__tests__/unit/matchResultsScreenLeaving.test.tsx": {
@@ -3305,9 +3210,6 @@
     "unicorn/no-array-sort": {
       "count": 4
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-single-call": {
       "count": 1
     },
@@ -3440,9 +3342,6 @@
     "max-params": {
       "count": 3
     },
-    "unicorn/no-for-each": {
-      "count": 2
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
@@ -3499,9 +3398,6 @@
     },
     "unicorn/no-array-callback-reference": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/unit/rules/leagueSpending.test.ts": {
@@ -3516,11 +3412,6 @@
   },
   "__tests__/unit/rules/rollPreview.test.ts": {
     "unicorn/no-unnecessary-parameters": {
-      "count": 1
-    }
-  },
-  "__tests__/unit/rules/rosterLegality.test.ts": {
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -3539,9 +3430,6 @@
     "unicorn/consistent-function-scoping": {
       "count": 2
     },
-    "unicorn/no-for-each": {
-      "count": 2
-    },
     "unicorn/prefer-structured-clone": {
       "count": 2
     }
@@ -3558,12 +3446,6 @@
   },
   "__tests__/unit/rules/veteran.test.ts": {
     "no-restricted-syntax": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
-    "unicorn/no-return-array-push": {
       "count": 1
     },
     "unicorn/prefer-structured-clone": {
@@ -3640,9 +3522,6 @@
   "__tests__/unit/services/BlockResolutionService.test.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/unit/services/EventBus.test.ts": {
@@ -3704,9 +3583,6 @@
     },
     "@typescript-eslint/no-unsafe-member-access": {
       "count": 4
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "__tests__/unit/sevensRuleset.test.ts": {
@@ -3737,22 +3613,12 @@
       "count": 1
     }
   },
-  "__tests__/unit/sidelineRoutes.test.ts": {
-    "unicorn/no-for-each": {
-      "count": 3
-    }
-  },
   "__tests__/unit/sidelineStaff.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
     },
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 4
-    }
-  },
-  "__tests__/unit/simulation/sevenASide.test.ts": {
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "__tests__/unit/skill-catalog.test.ts": {
@@ -3881,9 +3747,6 @@
   "__tests__/unit/turnCatchUpCard.test.tsx": {
     "@typescript-eslint/require-await": {
       "count": 12
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "__tests__/unit/turnClockNoTimeLimit.test.tsx": {
@@ -4201,9 +4064,6 @@
     "unicorn/consistent-function-scoping": {
       "count": 3
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 2
     },
@@ -4333,9 +4193,6 @@
       "count": 1
     },
     "max-params": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -4577,9 +4434,6 @@
       "count": 1
     },
     "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -4658,9 +4512,6 @@
   "e2e/browser/parity.e2e.ts": {
     "unicorn/no-await-expression-member": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 4
     }
   },
   "e2e/browser/phone-dice.e2e.ts": {
@@ -4696,9 +4547,6 @@
     },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     },
     "unicorn/no-return-array-push": {
       "count": 1
@@ -5013,9 +4861,6 @@
       "count": 1
     },
     "unicorn/no-array-sort": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/prefer-await": {
@@ -5542,12 +5387,6 @@
     "unicorn/no-array-sort": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
-    "unicorn/no-return-array-push": {
-      "count": 1
-    },
     "unicorn/prefer-set-has": {
       "count": 4
     }
@@ -5703,11 +5542,6 @@
       "count": 1
     }
   },
-  "scripts/coach/catalogue-study/workers.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    }
-  },
   "scripts/coach/fit-evaluation.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
@@ -5726,9 +5560,6 @@
     },
     "unicorn/no-array-callback-reference": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 5
     },
     "unicorn/no-new-array": {
       "count": 1
@@ -6008,9 +5839,6 @@
     "unicorn/no-array-sort": {
       "count": 4
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-new-array": {
       "count": 2
     },
@@ -6039,9 +5867,6 @@
     },
     "unicorn/no-array-sort": {
       "count": 3
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "scripts/coach/policy-lab/usage.ts": {
@@ -6072,9 +5897,6 @@
       "count": 1
     },
     "unicorn/no-array-sort": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
@@ -6146,13 +5968,7 @@
     "max-params": {
       "count": 1
     },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    },
     "unicorn/consistent-conditional-object-spread": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -6215,9 +6031,6 @@
     },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     },
     "unicorn/require-array-sort-compare": {
       "count": 3
@@ -6426,9 +6239,6 @@
   "scripts/sprites/roster_picker_cards.ts": {
     "unicorn/no-array-sort": {
       "count": 3
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "scripts/sprites/spriteFiles.ts": {
@@ -6571,9 +6381,6 @@
     },
     "unicorn/no-array-sort": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/competition/computerTeamTemplates.ts": {
@@ -6666,9 +6473,6 @@
     },
     "unicorn/no-array-sort": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     },
     "unicorn/prefer-await": {
       "count": 1
@@ -6914,9 +6718,6 @@
     "unicorn/no-await-expression-member": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 3
-    },
     "unicorn/prefer-await": {
       "count": 1
     },
@@ -6997,11 +6798,6 @@
       "count": 1
     }
   },
-  "src/gallery/afterVariants.tsx": {
-    "unicorn/no-for-each": {
-      "count": 2
-    }
-  },
   "src/gallery/cloud/cloudData.ts": {
     "unicorn/no-top-level-assignment-in-function": {
       "count": 2
@@ -7033,9 +6829,6 @@
     "unicorn/max-nested-calls": {
       "count": 2
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
     }
@@ -7062,9 +6855,6 @@
   "src/gallery/kickoffVariants.tsx": {
     "unicorn/no-array-reduce": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/gallery/main.tsx": {
@@ -7083,19 +6873,11 @@
     }
   },
   "src/gallery/sceneStandIn.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
-    }
-  },
-  "src/gallery/setupVariants.tsx": {
-    "unicorn/no-for-each": {
-      "count": 3
     }
   },
   "src/gallery/variantHelpers.tsx": {
@@ -7130,17 +6912,11 @@
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
     },
-    "complexity": {
-      "count": 1
-    },
     "unicorn/consistent-conditional-object-spread": {
       "count": 2
     },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 4
     }
   },
   "src/game/controllers/BallMovementController.ts": {
@@ -7159,9 +6935,6 @@
       "count": 1
     },
     "unicorn/no-array-sort": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/no-unreadable-array-destructuring": {
@@ -7202,9 +6975,6 @@
     "unicorn/consistent-class-member-order": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 3
-    },
     "unicorn/prefer-number-coercion": {
       "count": 1
     },
@@ -7236,9 +7006,6 @@
     "unicorn/consistent-class-member-order": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-non-function-verb-prefix": {
       "count": 1
     },
@@ -7252,16 +7019,10 @@
     },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/game/controllers/handlers/SetupPhaseHandler.ts": {
     "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/no-unnecessary-array-flat-map": {
@@ -7302,16 +7063,6 @@
       "count": 1
     }
   },
-  "src/game/controllers/interaction/Confirmations.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    }
-  },
-  "src/game/controllers/interaction/PushPicker.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    }
-  },
   "src/game/controllers/interaction/actionModes.ts": {
     "unicorn/consistent-conditional-object-spread": {
       "count": 3
@@ -7327,9 +7078,6 @@
     }
   },
   "src/game/controllers/interaction/kickoffInteraction.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
     }
@@ -7418,9 +7166,6 @@
     "unicorn/consistent-class-member-order": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 3
-    },
     "unicorn/no-return-array-push": {
       "count": 2
     },
@@ -7443,9 +7188,6 @@
     "unicorn/consistent-class-member-order": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-direct-iteration": {
       "count": 1
     },
@@ -7456,9 +7198,6 @@
   "src/game/elements/Pitch.ts": {
     "unicorn/consistent-class-member-order": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 11
     },
     "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
@@ -7478,9 +7217,6 @@
     }
   },
   "src/game/elements/SidelineTerrace.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-early-return": {
       "count": 1
     },
@@ -7490,9 +7226,6 @@
   },
   "src/game/elements/Stadium.ts": {
     "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/no-unnecessary-array-flat-map": {
@@ -7508,9 +7241,6 @@
     },
     "unicorn/no-array-reverse": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 5
     },
     "unicorn/prefer-await": {
       "count": 1
@@ -7771,9 +7501,6 @@
     "unicorn/no-array-sort": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-await": {
       "count": 1
     },
@@ -7853,9 +7580,6 @@
     "unicorn/no-array-sort": {
       "count": 2
     },
-    "unicorn/no-for-each": {
-      "count": 3
-    },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
     }
@@ -7887,9 +7611,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/game/managers/BlockOperations.ts": {
@@ -8055,19 +7776,13 @@
       "count": 1
     },
     "max-statements": {
-      "count": 6
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
+      "count": 5
     },
     "unicorn/consistent-class-member-order": {
       "count": 1
     },
     "unicorn/no-computed-property-existence-check": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 8
     },
     "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
@@ -8105,10 +7820,7 @@
       "count": 1
     },
     "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 4
+      "count": 1
     },
     "unicorn/no-top-level-assignment-in-function": {
       "count": 4
@@ -8143,9 +7855,6 @@
       "count": 3
     },
     "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/prefer-await": {
@@ -8187,9 +7896,6 @@
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 3
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
     }
@@ -8218,9 +7924,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 5
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     },
     "unicorn/no-useless-promise-resolve-reject": {
       "count": 1
@@ -8256,9 +7959,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 5
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     },
     "unicorn/no-useless-promise-resolve-reject": {
       "count": 1
@@ -8347,9 +8047,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 3
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/game/operations/BallAndChainOperation.ts": {
@@ -8453,9 +8150,6 @@
     },
     "unicorn/max-nested-calls": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/game/operations/CatchOperation.ts": {
@@ -8470,9 +8164,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 3
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     },
     "unicorn/no-non-function-verb-prefix": {
       "count": 1
@@ -8540,9 +8231,6 @@
   "src/game/operations/HandoffOperation.ts": {
     "unicorn/consistent-class-member-order": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/game/operations/InjuryOperation.ts": {
@@ -8554,9 +8242,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 6
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/game/operations/PassOperation.ts": {
@@ -8605,9 +8290,6 @@
     "unicorn/no-break-in-nested-loop": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 2
-    },
     "unicorn/no-non-function-verb-prefix": {
       "count": 1
     },
@@ -8623,9 +8305,6 @@
       "count": 1
     },
     "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -8747,9 +8426,6 @@
     },
     "unicorn/consistent-class-member-order": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "src/game/persistence/MatchSaveRepository.ts": {
@@ -8760,9 +8436,6 @@
   "src/game/persistence/diceLogStore.ts": {
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 3
     },
     "unicorn/no-top-level-assignment-in-function": {
       "count": 1
@@ -8787,9 +8460,6 @@
   "src/game/presentation/diceWatch.ts": {
     "unicorn/consistent-class-member-order": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "src/game/presentation/hudRects.ts": {
@@ -8810,16 +8480,8 @@
       "count": 1
     }
   },
-  "src/game/presentation/layered/compose.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    }
-  },
   "src/game/presentation/layered/finish.ts": {
     "unicorn/no-declarations-before-early-exit": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/prefer-spread": {
@@ -8850,11 +8512,6 @@
       "count": 1
     }
   },
-  "src/game/presentation/layered/paint.ts": {
-    "unicorn/no-for-each": {
-      "count": 2
-    }
-  },
   "src/game/presentation/momentQueue.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 2
@@ -8870,9 +8527,6 @@
     },
     "unicorn/consistent-class-member-order": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     },
     "unicorn/no-return-array-push": {
       "count": 1
@@ -8973,9 +8627,6 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 3
-    },
     "unicorn/prefer-early-return": {
       "count": 1
     },
@@ -9011,11 +8662,6 @@
       "count": 1
     }
   },
-  "src/game/progression/careerStats.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    }
-  },
   "src/game/progression/matchHistory.ts": {
     "@typescript-eslint/no-base-to-string": {
       "count": 1
@@ -9042,16 +8688,10 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/game/progression/progression.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -9321,11 +8961,6 @@
       "count": 2
     }
   },
-  "src/game/rules/teamCaptain.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    }
-  },
   "src/game/rules/teamLifecycle.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 3
@@ -9343,11 +8978,6 @@
     },
     "max-params": {
       "count": 1
-    }
-  },
-  "src/game/rules/veteran.ts": {
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "src/game/rules/weather.ts": {
@@ -9370,9 +9000,6 @@
     "unicorn/no-array-reverse": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 2
-    },
     "unicorn/no-unnecessary-parameters": {
       "count": 1
     },
@@ -9382,9 +9009,6 @@
   },
   "src/game/skills/DecisionService.ts": {
     "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/no-return-array-push": {
@@ -9577,11 +9201,6 @@
       "count": 1
     }
   },
-  "src/game/validators/AssistValidator.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    }
-  },
   "src/game/validators/MovementPathSearch.ts": {
     "unicorn/consistent-class-member-order": {
       "count": 1
@@ -9596,11 +9215,6 @@
     },
     "unicorn/prefer-number-is-safe-integer": {
       "count": 2
-    }
-  },
-  "src/game/validators/SetupValidator.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/game/validators/jumpReach.ts": {
@@ -9653,9 +9267,6 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 3
     },
-    "unicorn/no-for-each": {
-      "count": 3
-    },
     "unicorn/no-return-array-push": {
       "count": 1
     },
@@ -9684,9 +9295,6 @@
     }
   },
   "src/headless/cli.ts": {
-    "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
     },
@@ -9705,40 +9313,19 @@
     "@typescript-eslint/use-unknown-in-catch-callback-variable": {
       "count": 1
     },
-    "complexity": {
-      "count": 1
-    },
-    "max-depth": {
-      "count": 1
-    },
     "max-params": {
       "count": 1
-    },
-    "max-statements": {
-      "count": 2
     },
     "no-restricted-syntax": {
       "count": 3
     },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    },
-    "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
     "unicorn/no-break-in-nested-loop": {
       "count": 7
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     },
     "unicorn/no-useless-coercion": {
       "count": 1
     },
     "unicorn/prefer-await": {
-      "count": 1
-    },
-    "unicorn/prefer-simple-condition-first": {
       "count": 1
     },
     "unicorn/prefer-top-level-await": {
@@ -9806,9 +9393,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 4
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/headless/legalActions.ts": {
@@ -9874,9 +9458,6 @@
     },
     "unicorn/no-computed-property-existence-check": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
@@ -9954,9 +9535,6 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 13
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-number-coercion": {
       "count": 1
     },
@@ -9972,9 +9550,6 @@
       "count": 5
     },
     "unicorn/no-computed-property-existence-check": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/no-top-level-assignment-in-function": {
@@ -10068,9 +9643,6 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 5
-    },
     "unicorn/prefer-spread": {
       "count": 1
     }
@@ -10143,9 +9715,6 @@
     },
     "max-params": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 3
     }
   },
   "src/scenes/matchCamera.ts": {
@@ -10194,9 +9763,6 @@
     "unicorn/no-array-sort": {
       "count": 2
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-simple-condition-first": {
       "count": 2
     }
@@ -10238,19 +9804,13 @@
     }
   },
   "src/seeding/teamFixtures.ts": {
-    "max-statements": {
-      "count": 1
-    },
     "unicorn/no-array-callback-reference": {
-      "count": 3
+      "count": 2
     },
     "unicorn/no-array-sort": {
       "count": 3
     },
     "unicorn/no-confusing-array-splice": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/prefer-minimal-ternary": {
@@ -10310,9 +9870,6 @@
     },
     "unicorn/consistent-conditional-object-spread": {
       "count": 3
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/services/ServiceContainer.ts": {
@@ -10340,9 +9897,6 @@
   "src/services/gameService/blockActions.ts": {
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/services/gameService/decisionAnswers.ts": {
@@ -10368,18 +9922,12 @@
     "unicorn/consistent-conditional-object-spread": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
   },
   "src/services/gameService/inducements.ts": {
     "unicorn/no-computed-property-existence-check": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -10492,9 +10040,6 @@
       "count": 1
     },
     "unicorn/no-array-reduce": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
@@ -10673,9 +10218,6 @@
     "unicorn/no-array-sort": {
       "count": 2
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     },
@@ -10727,9 +10269,6 @@
   "src/simulation/ai/workerSearchCoach.ts": {
     "unicorn/consistent-conditional-object-spread": {
       "count": 4
-    },
-    "unicorn/no-for-each": {
-      "count": 3
     }
   },
   "src/simulation/bench.ts": {
@@ -10785,12 +10324,6 @@
     },
     "unicorn/no-await-expression-member": {
       "count": 2
-    },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
-    "unicorn/no-return-array-push": {
-      "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 3
@@ -10869,9 +10402,6 @@
   },
   "src/simulation/coaches/random.ts": {
     "unicorn/no-array-reduce": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -11025,9 +10555,6 @@
     "unicorn/no-array-callback-reference": {
       "count": 3
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-await": {
       "count": 1
     },
@@ -11084,9 +10611,6 @@
     },
     "unicorn/no-break-in-nested-loop": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "src/simulation/puzzles.ts": {
@@ -11163,9 +10687,6 @@
     "unicorn/no-break-in-nested-loop": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 1
     }
@@ -11188,9 +10709,6 @@
     },
     "unicorn/no-duplicate-loops": {
       "count": 3
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     },
     "unicorn/no-return-array-push": {
       "count": 1
@@ -11489,9 +11007,6 @@
     "unicorn/no-array-sort": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 2
-    },
     "unicorn/require-array-sort-compare": {
       "count": 1
     }
@@ -11548,9 +11063,6 @@
       "count": 1
     },
     "max-params": {
-      "count": 2
-    },
-    "unicorn/no-for-each": {
       "count": 2
     },
     "unicorn/no-return-array-push": {
@@ -11859,9 +11371,6 @@
     "react-hooks/set-state-in-effect": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-add-event-listener": {
       "count": 1
     },
@@ -12014,12 +11523,6 @@
   },
   "src/ui/components/hud/Announcer.tsx": {
     "unicorn/consistent-conditional-object-spread": {
-      "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     },
     "unicorn/prefer-simple-condition-first": {
@@ -12282,9 +11785,6 @@
     "unicorn/no-declarations-before-early-exit": {
       "count": 2
     },
-    "unicorn/no-for-each": {
-      "count": 4
-    },
     "unicorn/prefer-continue": {
       "count": 1
     },
@@ -12309,9 +11809,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     },
     "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
@@ -12442,9 +11939,6 @@
     },
     "sonarjs/no-duplicate-string": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "src/ui/components/hud/SentOffCard.tsx": {
@@ -12571,9 +12065,6 @@
     "react-hooks/set-state-in-effect": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 2
-    },
     "unicorn/prefer-simple-condition-first": {
       "count": 1
     }
@@ -12583,9 +12074,6 @@
       "count": 1
     },
     "unicorn/consistent-conditional-object-spread": {
-      "count": 1
-    },
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -12609,9 +12097,6 @@
     }
   },
   "src/ui/components/hud/usePlayerInfo.ts": {
-    "unicorn/no-for-each": {
-      "count": 2
-    },
     "unicorn/prefer-global-this": {
       "count": 2
     }
@@ -12854,9 +12339,6 @@
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 2
-    },
     "unicorn/no-useless-spread": {
       "count": 1
     },
@@ -13028,11 +12510,6 @@
       "count": 1
     }
   },
-  "src/ui/dice/bipyramid.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    }
-  },
   "src/ui/dice/coinAnimation.ts": {
     "unicorn/consistent-class-member-order": {
       "count": 1
@@ -13041,9 +12518,6 @@
   "src/ui/dice/diceAnimation.ts": {
     "unicorn/consistent-class-member-order": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 5
     }
   },
   "src/ui/dice/diceFaces.ts": {
@@ -13054,15 +12528,9 @@
   "src/ui/dice/dicePhysics.ts": {
     "unicorn/no-array-callback-reference": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
     }
   },
   "src/ui/dice/diceScene.ts": {
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 1
     },
@@ -13100,9 +12568,6 @@
     "unicorn/no-array-sort": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 3
-    },
     "unicorn/prefer-await": {
       "count": 2
     },
@@ -13110,11 +12575,6 @@
       "count": 2
     },
     "unicorn/require-array-sort-compare": {
-      "count": 1
-    }
-  },
-  "src/ui/hooks/useTeamLibrary.ts": {
-    "unicorn/no-for-each": {
       "count": 1
     }
   },
@@ -13317,9 +12777,6 @@
     "unicorn/consistent-class-member-order": {
       "count": 1
     },
-    "unicorn/no-for-each": {
-      "count": 1
-    },
     "unicorn/prefer-await": {
       "count": 3
     },
@@ -13336,14 +12793,6 @@
     },
     "unicorn/consistent-class-member-order": {
       "count": 1
-    },
-    "unicorn/no-for-each": {
-      "count": 1
-    }
-  },
-  "src/ui/sound/synth.ts": {
-    "unicorn/no-for-each": {
-      "count": 2
     }
   },
   "src/vite-env.d.ts": {

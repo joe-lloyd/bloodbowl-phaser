@@ -292,9 +292,9 @@ describe("crowd surf", () => {
       const second = expectPushDecision(chained.pendingDecision);
       expect(second.defenderId).toBe(fixtureValue(teammate).id);
 
-      second.options.forEach((o) => {
+      for (const o of second.options) {
         expect(o.y).toBe(-1);
-      });
+      }
 
       const surfed = await game.execute({
         type: "choose-push-direction",

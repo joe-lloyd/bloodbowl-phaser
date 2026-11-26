@@ -562,7 +562,7 @@ class OnlineSession {
 
   private close(): void {
     this.computerCoach?.close();
-    this.subscriptions.forEach((unsubscribe) => { unsubscribe(); });
+    for (const unsubscribe of this.subscriptions) { unsubscribe(); }
     this.eventBus.detach();
     this.session.close();
     this.transport.close();

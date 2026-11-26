@@ -98,9 +98,9 @@ export class SidelineTerrace {
   }
 
   public destroy(): void {
-    this.objects.forEach((object) => {
+    for (const object of this.objects) {
       object.destroy();
-    });
+    }
     this.objects = [];
   }
 }

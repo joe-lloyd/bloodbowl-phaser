@@ -53,9 +53,9 @@ function answerStep(fx: MatchFixture, step: Step): void {
   fx.bus.emit(GameEventNames.KickoffEventStepChanged, undefined);
   if (!play) return;
   gameService.confirmKickoffEventStep();
-  chosen.slice(0, finished).forEach((id) => {
+  for (const id of chosen.slice(0, finished)) {
     gameService.finishActivation(id);
-  });
+  }
 }
 
 const rehearse = (step: Step = {}) =>

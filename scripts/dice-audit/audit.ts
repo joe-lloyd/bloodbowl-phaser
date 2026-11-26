@@ -123,7 +123,7 @@ const exactChance = (faces: string[]) =>
 
 function anyOrderChance(faces: string[]): number {
   const counts = new Map<string, number>();
-  faces.forEach((f) => counts.set(f, (counts.get(f) ?? 0) + 1));
+  for (const f of faces) counts.set(f, (counts.get(f) ?? 0) + 1);
   const orders =
     factorial(faces.length) /
     [...counts.values()].reduce((p, c) => p * factorial(c), 1);
@@ -254,7 +254,7 @@ for (const n of [...blockExact.keys()].sort()) {
 console.log(line(`D6 re-roll, same dice`, d6Repeat));
 if (repeated.length > 0 && repeated.length <= 50) {
   console.log(`\nEvery repeated re-roll`);
-  repeated.forEach((r) => {
+  for (const r of repeated) {
     console.log(`  ${r}`);
-  });
+  }
 }

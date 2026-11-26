@@ -229,7 +229,7 @@ async function playCompetition(competition: CompetitionDoc, gameType: GameType, 
     for (const finding of outcome.recording.findings)
       engineFindings.push({ where, rule: `match-${finding.kind}`, detail: `${finding.key}: ${finding.message}` });
     const result = fixtureValue(outcome.fixture.result);
-    [homeId, awayId].forEach((id, index) => {
+    for (const [index, id] of [homeId, awayId].entries()) {
       const team = mustLoad(id);
       const specialistId = specialists[index];
       if (specialistId && team.players.every((player) => player.id !== specialistId) && gameType !== "gutter-bowl")
@@ -242,7 +242,7 @@ async function playCompetition(competition: CompetitionDoc, gameType: GameType, 
         winnings: (home ? result.winnings?.home : result.winnings?.away) ?? 0,
         sppEarned: team.players.reduce((sum, player) => sum + (outcome.sppEarned[player.id] ?? 0), 0),
       });
-    });
+    }
     hireSpecialists(where, clubIds);
   }
 }

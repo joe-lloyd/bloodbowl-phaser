@@ -220,13 +220,13 @@ describe("match SPP tracking", () => {
     const journeyman = player("p2", "team-1", "journeyman");
     const roster = team("team-1", [star, journeyman]);
     const tracker = new MatchStats(bus, [roster], true);
-    [star, journeyman].forEach((subject) => {
+    for (const subject of [star, journeyman]) {
       bus.emit(GameEventNames.Touchdown, {
         teamId: roster.id,
         score: 1,
         scorerId: subject.id,
       });
-    });
+    }
 
     tracker.applySpp([roster]);
     expect(star.spp).toBe(0);

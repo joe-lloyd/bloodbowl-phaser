@@ -356,9 +356,9 @@ export class PassOperation extends GameOperation {
       ]),
       passCtx
     );
-    passCtx.triggers.forEach((t) => {
+    for (const t of passCtx.triggers) {
       eventBus.emit(GameEventNames.SkillTriggered, t);
-    });
+    }
 
     if (passCtx.refused) {
       eventBus.emit(
@@ -393,9 +393,9 @@ export class PassOperation extends GameOperation {
       triggers: [],
     };
     await foldTrigger("onPassResult", [passer], resultCtx);
-    resultCtx.triggers.forEach((t) => {
+    for (const t of resultCtx.triggers) {
       eventBus.emit(GameEventNames.SkillTriggered, t);
-    });
+    }
 
     const from = { ...passer.gridPosition };
     const target = { x: this.targetX, y: this.targetY };

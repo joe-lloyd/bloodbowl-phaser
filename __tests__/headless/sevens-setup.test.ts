@@ -162,9 +162,8 @@ describe("Sevens setup through the headless protocol", () => {
 
   it("requires a three-or-fewer concession choice, then relaxes only impossible rules", async () => {
     const game = new HeadlessGame({ seed: 74 });
-    game.ctx.team1.players
-      .slice(2)
-      .forEach((player) => (player.status = PlayerStatus.REMOVED));
+    for (const player of game.ctx.team1.players
+      .slice(2)) (player.status = PlayerStatus.REMOVED);
     await begin(game);
 
     const before = await game.execute({ type: "legal-actions" });
@@ -209,9 +208,8 @@ describe("Sevens setup through the headless protocol", () => {
 
   it("gives the receivers a touchback when the kicking team has nobody on the pitch", async () => {
     const game = new HeadlessGame({ seed: 77 });
-    game.ctx.team1.players.forEach(
-      (player) => (player.status = PlayerStatus.REMOVED)
-    );
+    for (const player of game.ctx.team1.players) (player.status = PlayerStatus.REMOVED)
+    ;
     await begin(game);
     const [team1, team2] = [game.ctx.team1.id, game.ctx.team2.id];
     expect(
@@ -255,9 +253,8 @@ describe("Sevens setup through the headless protocol", () => {
 
   it("ends the match on a penalty-free pre-setup concession", async () => {
     const game = new HeadlessGame({ seed: 75 });
-    game.ctx.team1.players
-      .slice(3)
-      .forEach((player) => (player.status = PlayerStatus.REMOVED));
+    for (const player of game.ctx.team1.players
+      .slice(3)) (player.status = PlayerStatus.REMOVED);
     await begin(game);
 
     const response = await game.execute({

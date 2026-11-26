@@ -66,9 +66,9 @@ export function writeDiceLog(
   if (!storage) return;
   const ids = [...readIndex(storage).filter((id) => id !== log.id), log.id];
   const dropOldest = (count: number) => {
-    ids.splice(0, count).forEach((id) => {
+    for (const id of ids.splice(0, count)) {
       storage.removeItem(KEY_PREFIX + id);
-    });
+    }
   };
   dropOldest(Math.max(0, ids.length - KEEP_LOCAL));
   const raw = JSON.stringify(log);
@@ -154,14 +154,14 @@ export function startMatchDiceLog(input: {
     GameEventNames.DriveEnded,
     GameEventNames.PhaseChanged,
   ] as const;
-  boundaries.forEach((event) => {
+  for (const event of boundaries) {
     eventBus.on(event, upload);
-  });
+  }
   return {
     dispose() {
-      boundaries.forEach((event) => {
+      for (const event of boundaries) {
         eventBus.off(event, upload);
-      });
+      }
       recorder.dispose();
       upload();
     },

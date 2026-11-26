@@ -90,9 +90,9 @@ describe("GameplayInteractionController", () => {
   describe("a Bloodlust bite with a choice of Thralls", () => {
     const handler = eventHandler;
     const restored = () => {
-      eventBusSpies.on.mock.calls
-        .filter(([event]) => event === GameEventNames.GameStateRestored)
-        .forEach(([, h]) => { h(); });
+      for (const [event, h] of eventBusSpies.on.mock.calls) {
+        if (event === GameEventNames.GameStateRestored) h();
+      }
     };
     const thralls: Record<string, { x: number; y: number }> = {
       t1: { x: 6, y: 5 },

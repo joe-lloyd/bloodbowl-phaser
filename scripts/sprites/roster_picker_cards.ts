@@ -212,7 +212,7 @@ function makeStrip(lineup: readonly Character[]): Buffer {
   const stride = WIDTH * IDLE_FRAMES * 4;
   const bytes = Buffer.alloc(stride * HEIGHT);
   for (let frame = 0; frame < IDLE_FRAMES; frame++) {
-    lineup.forEach((figure, i) => {
+    for (const [i, figure] of lineup.entries()) {
       const placement = POSITIONS[i];
       if (!placement) throw new Error("Lineup has too many players");
       paint(
@@ -220,7 +220,7 @@ function makeStrip(lineup: readonly Character[]): Buffer {
         { figure, placement },
         (frame + i * 3) % IDLE_FRAMES
       );
-    });
+    }
   }
   return encodePng({ pixels: bytes, width: WIDTH * IDLE_FRAMES, height: HEIGHT });
 }

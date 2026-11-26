@@ -51,7 +51,7 @@ beforeEach(async () => {
   const { team1, team2 } = game.ctx;
   team1.name = "Reikland Reavers";
   team2.name = "Gouged Eye";
-  team1.players.forEach((p) => (p.playerName = `Human ${String(p.number)}`));
+  for (const p of team1.players) (p.playerName = `Human ${String(p.number)}`);
   const lobby: LobbyDoc = {
     code: "CARDS",
     hostUid: "host-uid",

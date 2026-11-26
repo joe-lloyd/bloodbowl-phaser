@@ -30,9 +30,9 @@ function saveCage(): void {
 }
 
 const placeSome = (fx: MatchFixture, squares: [number, number][]) => {
-  squares.forEach(([x, y], index) => {
+  for (const [index, [x, y]] of squares.entries()) {
     fx.services.gameService.placePlayer(fx.player(1, index).id, x, y);
-  });
+  }
 };
 
 function hireReserves(fx: MatchFixture): void {
@@ -42,9 +42,9 @@ function hireReserves(fx: MatchFixture): void {
     positionName.includes("Lineman")
   );
   if (!lineman) return;
-  [8, 9, 10].forEach((number) => {
+  for (const number of [8, 9, 10]) {
     fx.team1.players.push(createPlayer(lineman, fx.team1.id, number));
-  });
+  }
 }
 
 const receiving: Opener = (fx) => {
@@ -104,9 +104,9 @@ export const SETUP_VARIANTS: Variant[] = rows(
       title: "Short-handed: concede or play on",
       fixture: { phase: GamePhase.SETUP, ...LONG },
       drive: soon((fx) => {
-        fx.team1.players.slice(3).forEach((player) => {
+        for (const player of fx.team1.players.slice(3)) {
           player.status = PlayerStatus.INJURED;
-        });
+        }
         fx.services.gameService.startSetup(fx.team1.id);
       }),
     },

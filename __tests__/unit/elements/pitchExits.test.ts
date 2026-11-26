@@ -138,9 +138,8 @@ function fakeScene() {
       const chain = fixtureValue(chains.shift());
       for (const step of chain.tweens) {
         step.onStart?.();
-        chain.targets.forEach((target) =>
-          target["setPosition"](step.x, step.y)
-        );
+        for (const target of chain.targets) target["setPosition"](step.x, step.y)
+        ;
         step.onUpdate?.();
       }
       chain.onComplete();

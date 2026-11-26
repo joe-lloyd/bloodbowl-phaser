@@ -142,10 +142,10 @@ export class SetupValidator {
     );
     const uniquePositionCount = new Set(positionKeys).size;
     const wideCounts = { top: 0, bottom: 0 };
-    positions.forEach((pos) => {
+    for (const pos of positions) {
       const zone = getWideZone(pos.y);
       if (zone) wideCounts[zone]++;
-    });
+    }
     const onCentreLos = positions.filter((pos) =>
       this.isOnCentreLineOfScrimmage(pos.x, pos.y, isTeam1)
     ).length;

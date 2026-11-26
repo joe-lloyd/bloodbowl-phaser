@@ -116,9 +116,9 @@ export function bipyramidGeometry({
       2
     )
   );
-  faces.forEach((_, i) => {
+  for (const i of faces.keys()) {
     geometry.addGroup(i * 3, 3, i);
-  });
+  }
   geometry.computeVertexNormals();
   return geometry;
 }

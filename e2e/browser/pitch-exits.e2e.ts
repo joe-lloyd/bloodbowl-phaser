@@ -30,12 +30,12 @@ test("a scenario reload during players' exits raises no page error", async ({
     const players = scene.gameService
       .getTeam(scene.gameService.getState().activeTeamId)
       .players.filter((player) => player.gridPosition);
-    ["Removed", "KO", "Injured", "Dead"].forEach((status, i) => {
+    for (const [i, status] of ["Removed", "KO", "Injured", "Dead"].entries()) {
       const player = players[i + 1];
       (player)!.status = status;
       delete (player)!.gridPosition;
       scene.eventBus.emit("playerStatusChanged", player);
-    });
+    }
   });
   await page.waitForTimeout(300);
   await app.sandbox.coreScenarioSelect().selectOption("pickup-fumble-seeded");

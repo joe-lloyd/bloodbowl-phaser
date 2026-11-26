@@ -131,13 +131,13 @@ export class TurnManager {
     this.state.activeTeamId = receivingTeamId;
 
     const activatePlayers = (team: Team) => {
-      team.players.forEach((p) => {
+      for (const p of team.players) {
         if (p.gridPosition && p.status === PlayerStatus.RESERVE) {
           p.status = PlayerStatus.ACTIVE;
         } else if (!p.status) {
           p.status = PlayerStatus.RESERVE;
         }
-      });
+      }
     };
 
     activatePlayers(this.team1);

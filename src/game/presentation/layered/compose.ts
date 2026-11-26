@@ -90,10 +90,10 @@ export function composeFrame(look: LookLayers, name: string): FrameBuffers {
     depth: new Uint16Array(count).fill(256),
     fromBase: new Uint8Array(count),
   };
-  look.layers.forEach((layer, n) => {
+  for (const [n, layer] of look.layers.entries()) {
     const rect = layer.frames[name];
     if (rect) eachRow(layer, rect, { target, op: blitRow, base: n === 0 });
-  });
+  }
   for (const shade of look.shades) {
     const rect = shade.frames[name];
     if (rect) eachRow(shade, rect, { target, op: shadeRow, base: false });

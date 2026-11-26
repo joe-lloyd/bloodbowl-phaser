@@ -17,12 +17,12 @@ import {
 function draft(rosterName: RosterName, positions: string[]) {
   const roster = getRosterByRosterName(rosterName);
   const team = createTeam("Test", rosterName, { primary: 0, secondary: 0 }, 0);
-  positions.forEach((position, index) => {
+  for (const [index, position] of positions.entries()) {
     const template = fixtureValue(roster.playerTemplates.find(
       (t) => t.positionName === position
     ));
     team.players.push(createPlayer(template, team.id, index + 1));
-  });
+  }
   return team;
 }
 
@@ -100,7 +100,7 @@ describe("naming the Team Captain", () => {
 describe("loading a stored Team Captain", () => {
   function loadFlagged(team: ReturnType<typeof draft>, flagged: number[]) {
     const stored = dehydrateTeam(team);
-    flagged.forEach((index) => (fixtureValue(stored.players[index]).teamCaptain = true));
+    for (const index of flagged) (fixtureValue(stored.players[index]).teamCaptain = true);
     return readStoredTeam(JSON.parse(JSON.stringify(stored))).team;
   }
 

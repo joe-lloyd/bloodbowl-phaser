@@ -49,11 +49,11 @@ function knockOutAllBut(
 ): string[] {
   const team = teamIndex === 0 ? game.ctx.team1 : game.ctx.team2;
   const knockedOut: string[] = [];
-  team.players.slice(keep).forEach((player) => {
+  for (const player of team.players.slice(keep)) {
     player.status = PlayerStatus.KO;
     delete player.gridPosition;
     knockedOut.push(player.id);
-  });
+  }
   return knockedOut;
 }
 

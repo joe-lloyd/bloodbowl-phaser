@@ -108,13 +108,13 @@ function fitOptionExists(team: Team): boolean {
   const templates = getRosterByRosterName(team.rosterName).playerTemplates;
   for (let mask = 0; mask < 1 << offers.length; mask++) {
     const trial = structuredClone(team);
-    offers.forEach((offer, index) => {
-      if (!(mask & (1 << index))) return;
+    for (const [index, offer] of offers.entries()) {
+      if (!(mask & (1 << index))) continue;
       const own = fixtureValue(journeymanOffers(trial).find(
         (entry) => entry.id === offer.id
       ));
       releaseJourneyman(trial, own);
-    });
+    }
     for (const template of templates)
       if (hirePlayer(structuredClone(trial), template).amount != null)
         return true;
@@ -301,9 +301,8 @@ describe("making room for a fit player", () => {
     for (const { roster, listed, missing, offers, treasury } of cases) {
       const team = legalShortTeam(roster, listed, missing, treasury);
       if (!team) continue;
-      offers.forEach((offer, index) =>
-        waitingJourneyman(team, listed + 1 + index, offer)
-      );
+      for (const [index, offer] of offers.entries()) waitingJourneyman(team, listed + 1 + index, offer)
+      ;
       const label = `${roster} ${String(listed)}/${String(missing)} ${JSON.stringify(offers)} ${String(treasury)}`;
       const plan = planPurchases(team);
       expect(planPurchases(structuredClone(team)), label).toEqual(plan);

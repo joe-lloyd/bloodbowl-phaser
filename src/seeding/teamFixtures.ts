@@ -116,6 +116,63 @@ function isInsignificantTemplate(template: PlayerTemplate): boolean {
   return hasSkill(template.skills, SkillType.INSIGNIFICANT);
 }
 
+function countOf(picks: PlayerTemplate[], t: PlayerTemplate): number {
+  return picks.filter((p) => p.positionName === t.positionName).length;
+}
+
+function canTake(
+  roster: TeamRoster,
+  picks: PlayerTemplate[],
+  t: PlayerTemplate
+): boolean {
+  const bigGuyRoom =
+    roster.maxBigGuys === undefined ||
+    !isBigGuy(t.keywords) ||
+    picks.filter((p) => isBigGuy(p.keywords)).length < roster.maxBigGuys;
+  return (
+    (t.maxAllowed === undefined || countOf(picks, t) < t.maxAllowed) &&
+    bigGuyRoom
+  );
+}
+
+function addPositionals(
+  roster: TeamRoster,
+  picks: PlayerTemplate[],
+  positionals: PlayerTemplate[]
+): void {
+  let nonLinemanCap = 4;
+  for (const template of positionals) {
+    while (
+      nonLinemanCap > 0 &&
+      canTake(roster, picks, template) &&
+      countOf(picks, template) < 2
+    ) {
+      picks.push(template);
+      nonLinemanCap--;
+    }
+  }
+}
+
+function addLinemen(
+  roster: TeamRoster,
+  picks: PlayerTemplate[],
+  linemen: PlayerTemplate[]
+): void {
+  while (picks.length < TARGET_SQUAD_SIZE) {
+    const insignificant = picks.filter(isInsignificantTemplate).length;
+    const significant = picks.length - insignificant;
+    const next =
+      insignificant < significant
+        ? linemen.find((t) => canTake(roster, picks, t))
+        : linemen.find(
+            (t) =>
+              canTake(roster, picks, t) && !isInsignificantTemplate(t)
+          );
+    if (!next) break;
+    picks.push(next);
+  }
+}
+
 function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
   const templates = roster.playerTemplates;
   const linemen = templates
@@ -124,37 +181,8 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
   const positionals = templates.filter((t) => !isLinemanPosition(t.keywords));
 
   const picks: PlayerTemplate[] = [];
-  const counts = new Map<string, number>();
-  const countOf = (t: PlayerTemplate) => counts.get(t.positionName) ?? 0;
-  const bigGuyRoom = (t: PlayerTemplate) =>
-    roster.maxBigGuys === undefined ||
-    !isBigGuy(t.keywords) ||
-    picks.filter((p) => isBigGuy(p.keywords)).length < roster.maxBigGuys;
-  const canTake = (t: PlayerTemplate) =>
-    (t.maxAllowed === undefined || countOf(t) < t.maxAllowed) && bigGuyRoom(t);
-  const take = (t: PlayerTemplate) => {
-    picks.push(t);
-    counts.set(t.positionName, countOf(t) + 1);
-  };
-
-  let nonLinemanCap = 4;
-  for (const template of positionals) {
-    while (nonLinemanCap > 0 && canTake(template) && countOf(template) < 2) {
-      take(template);
-      nonLinemanCap--;
-    }
-  }
-
-  while (picks.length < TARGET_SQUAD_SIZE) {
-    const insignificant = picks.filter(isInsignificantTemplate).length;
-    const significant = picks.length - insignificant;
-    const next =
-      insignificant < significant
-        ? linemen.find(canTake)
-        : linemen.find((t) => canTake(t) && !isInsignificantTemplate(t));
-    if (!next) break;
-    take(next);
-  }
+  addPositionals(roster, picks, positionals);
+  addLinemen(roster, picks, linemen);
 
   if (picks.length < 7) {
     throw new SeedFixtureError(fixtureKey, [
@@ -230,6 +258,24 @@ export function teamFixtureKey(rosterName: RosterName): string {
   return rosterSlug(rosterName);
 }
 
+function hirePicks(
+  team: Team,
+  picks: PlayerTemplate[],
+  fixtureKey: string
+): void {
+  for (const [index, template] of picks.entries()) {
+    const player = createPlayer(template, team.id, index + 1);
+    if (!addPlayerToTeam(team, player)) {
+      throw new SeedFixtureError(fixtureKey, [
+        {
+          rule: "budget",
+          detail: `cannot afford ${template.positionName} (${String(template.cost)})`,
+        },
+      ]);
+    }
+  }
+}
+
 export function buildSeedTeam(rosterName: RosterName): Team {
   const fixtureKey = teamFixtureKey(rosterName);
   const roster = getRosterByRosterName(rosterName);
@@ -247,17 +293,7 @@ export function buildSeedTeam(rosterName: RosterName): Team {
   team.seedMetadata = seedMetadata(fixtureKey);
   lockAdvancementMode(team);
 
-  plan.picks.forEach((template, index) => {
-    const player = createPlayer(template, team.id, index + 1);
-    if (!addPlayerToTeam(team, player)) {
-      throw new SeedFixtureError(fixtureKey, [
-        {
-          rule: "budget",
-          detail: `cannot afford ${template.positionName} (${String(template.cost)})`,
-        },
-      ]);
-    }
-  });
+  hirePicks(team, plan.picks, fixtureKey);
   for (let i = 0; i < plan.rerolls; i++) purchase(team, { type: "reroll" });
   if (plan.apothecary) purchase(team, { type: "apothecary" });
   chooseFirstLinemanAsVeteran(team);

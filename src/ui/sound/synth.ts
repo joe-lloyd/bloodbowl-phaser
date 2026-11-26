@@ -57,9 +57,9 @@ function getNoiseBuffer(ctx: AudioContext): AudioBuffer {
 export function combine(units: PlaybackUnit[]): PlaybackUnit {
   return {
     stop: () => {
-      units.forEach((unit) => {
+      for (const unit of units) {
         unit.stop();
-      });
+      }
     },
   };
 }
@@ -122,9 +122,9 @@ function cleanup(
 ): () => void {
   return () => {
     try {
-      nodes.forEach((node) => {
+      for (const node of nodes) {
         node.disconnect();
-      });
+      }
     } catch {
       onEnded?.();
       return;

@@ -80,13 +80,13 @@ export function ScoreBoard({
       GameEventNames.RefereeCall,
     ] as const;
 
-    events.forEach((e) => {
+    for (const e of events) {
       eventBus.on(e, refresh);
-    });
+    }
     return () => {
-      events.forEach((e) => {
+      for (const e of events) {
         eventBus.off(e, refresh);
-      });
+      }
     };
   }, [eventBus]);
 

@@ -234,7 +234,7 @@ export async function runTune(options: TuneOptions): Promise<number> {
     }
   }
   saveWeights(best);
-  children.forEach((child) => child.send({ done: true }));
+  for (const child of children) child.send({ done: true });
   say(`Best weights: ${options.out}`);
   return 0;
 }

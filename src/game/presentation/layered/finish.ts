@@ -109,15 +109,15 @@ function figureWindow(frame: FrameBuffers): Window | null {
   let y0 = frame.height;
   let x1 = -1;
   let y1 = -1;
-  frame.idx.forEach((value, p) => {
-    if (value < 0) return;
+  for (const [p, value] of frame.idx.entries()) {
+    if (value < 0) continue;
     const x = p % frame.width;
     const y = (p - x) / frame.width;
     x0 = Math.min(x0, x);
     y0 = Math.min(y0, y);
     x1 = Math.max(x1, x);
     y1 = Math.max(y1, y);
-  });
+  }
   if (x1 < 0) return null;
   return { x: x0 - 1, y: y0 - 1, width: x1 - x0 + 3, height: y1 - y0 + 3 };
 }

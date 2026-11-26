@@ -52,10 +52,10 @@ export function bothDownRolls(
     }
     return rolls;
   }
-  [defender, attacker].forEach((p) => {
+  for (const p of [defender, attacker]) {
     if (hasSkill(p.skills, SkillType.BALL_AND_CHAIN)) {
       rolls.push(new InjuryOperation(p.id, { stunnedIsKnockedOut: true }));
     }
-  });
+  }
   return rolls;
 }

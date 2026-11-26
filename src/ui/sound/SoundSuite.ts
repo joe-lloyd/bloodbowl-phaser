@@ -65,9 +65,9 @@ export class SoundSuite {
   }
 
   dispose(): void {
-    this.unsubs.forEach((unsub) => {
+    for (const unsub of this.unsubs) {
       unsub();
-    });
+    }
     this.unsubs = [];
   }
 

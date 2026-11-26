@@ -72,9 +72,9 @@ class ExitLifetime {
   private clear(): void {
     if (this.cleaned) return;
     this.cleaned = true;
-    this.cleanups.forEach((cleanup) => {
+    for (const cleanup of this.cleanups) {
       cleanup();
-    });
+    }
   }
 
   private onDestroy = (): void => {
@@ -129,9 +129,9 @@ async function runPitchExit(journey: PatientJourney): Promise<void> {
   const transport = prepareCarrier(journey);
   await moveCarrier(transport, [...route].reverse());
   if (lifetime.isStopped()) return;
-  transport.medics.forEach((medic) => {
+  for (const medic of transport.medics) {
     medic.stand();
-  });
+  }
   if (exit === "dead") sprite.setVisible(false);
   await moveCarrier(
     { ...transport, patient: sprite, coffinOnly: exit === "dead" },
@@ -184,9 +184,9 @@ function destroyCarrier({
 }: CarrierTransport): void {
   scene.tweens.killTweensOf(carrier.prop);
   carrier.prop.destroy();
-  medics.forEach((medic) => {
+  for (const medic of medics) {
     medic.destroy();
-  });
+  }
   if (!stars) {
     return;
   }
@@ -203,10 +203,10 @@ function placeMedics(
     carrier: { prop },
     medics,
   } = transport;
-  medics.forEach((medic, index) => {
+  for (const [index, medic] of medics.entries()) {
     const offset = project(index === 0 ? -48 : 48, 0);
     medic.setPosition(prop.x + offset.x, prop.y + offset.y);
-  });
+  }
 }
 
 function updateCarrier(
@@ -250,9 +250,9 @@ function carrierStep(
         return;
       }
 
-      medics.forEach((medic) => {
+      for (const medic of medics) {
         medic.walk(facing);
-      });
+      }
       patient?.setFacing(facing);
     },
     onUpdate: () => {

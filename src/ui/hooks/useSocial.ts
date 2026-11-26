@@ -71,9 +71,9 @@ export function useCoachProfiles(
       .split(",")
       .map((uid) => followProfile(uid, setProfiles));
     return () => {
-      stops.forEach((stop) => {
+      for (const stop of stops) {
         stop();
-      });
+      }
     };
   }, [watched]);
   return profiles;
@@ -138,9 +138,9 @@ function watchActivity() {
   const mark = () => {
     active = true;
   };
-  ACTIVITY_EVENTS.forEach((name) => {
+  for (const name of ACTIVITY_EVENTS) {
     window.addEventListener(name, mark, { capture: true, passive: true });
-  });
+  }
   return {
     mark,
     take: () => {
@@ -149,9 +149,9 @@ function watchActivity() {
       return was;
     },
     stop: () => {
-      ACTIVITY_EVENTS.forEach((name) => {
+      for (const name of ACTIVITY_EVENTS) {
         window.removeEventListener(name, mark, { capture: true });
-      });
+      }
     },
   };
 }

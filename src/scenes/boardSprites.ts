@@ -1,4 +1,5 @@
 import type { GameScene } from "./GameScene";
+import type { Player } from "../types/Player";
 import { PlayerSprite } from "../game/elements/PlayerSprite";
 import { BallSprite, CARRIED_HEIGHT } from "../game/elements/BallSprite";
 import {
@@ -15,6 +16,30 @@ const allPlayers = (scene: GameScene) => [
   ...scene.team2.players,
 ];
 
+function placePlayerSprite(scene: GameScene, player: Player): void {
+  const sprites = scene.playerSprites;
+  const pos = scene.pitch.getPixelPosition(
+    player.gridPosition!.x,
+    player.gridPosition!.y
+  );
+
+  if (sprites.has(player.id)) {
+    const sprite = sprites.get(player.id)!;
+    sprite.setPosition(pos.x, pos.y);
+    sprite.setVisible(true);
+  } else {
+    const isTeam1 = player.teamId === scene.team1.id;
+    const team = isTeam1 ? scene.team1 : scene.team2;
+
+    const sprite = new PlayerSprite({ scene: scene, x: pos.x, y: pos.y, player: player, look: {
+      rosterName: team.rosterName,
+      colors: scene.kitOf(team.id),
+      facing: isTeam1 ? "e" : "w",
+    } });
+    sprites.set(player.id, sprite);
+  }
+}
+
 export function placePlayersOnPitch(scene: GameScene): void {
   if (!scene.isSceneLive("placePlayersOnPitch")) return;
   const sprites = scene.playerSprites;
@@ -24,34 +49,13 @@ export function placePlayersOnPitch(scene: GameScene): void {
     ...scene.team2.players.filter((p) => p.gridPosition),
   ];
 
-  onPitch.forEach((player) => {
-    const pos = scene.pitch.getPixelPosition(
-      player.gridPosition!.x,
-      player.gridPosition!.y
-    );
+  for (const player of onPitch) placePlayerSprite(scene, player);
 
-    if (sprites.has(player.id)) {
-      const sprite = sprites.get(player.id)!;
-      sprite.setPosition(pos.x, pos.y);
-      sprite.setVisible(true);
-    } else {
-      const isTeam1 = player.teamId === scene.team1.id;
-      const team = isTeam1 ? scene.team1 : scene.team2;
-
-      const sprite = new PlayerSprite({ scene: scene, x: pos.x, y: pos.y, player: player, look: {
-        rosterName: team.rosterName,
-        colors: scene.kitOf(team.id),
-        facing: isTeam1 ? "e" : "w",
-      } });
-      sprites.set(player.id, sprite);
-    }
-  });
-
-  allPlayers(scene).forEach((player) => {
+  for (const player of allPlayers(scene)) {
     if (!player.gridPosition && sprites.has(player.id)) {
       sprites.get(player.id)!.setVisible(false);
     }
-  });
+  }
 
   if (scene.isSetupActive && scene.repositionTeam) {
     applyPitchRepositioning(scene);
@@ -137,9 +141,9 @@ export function reconcileBallVisual(scene: GameScene): void {
 }
 
 function reconcilePlayerLocations(scene: GameScene): void {
-  allPlayers(scene).forEach((player) => {
+  for (const player of allPlayers(scene)) {
     scene.reconcilePlayerLocation(player.id, true);
-  });
+  }
   scene.dugouts.forEach((dugout) => {
     dugout.refresh();
   });

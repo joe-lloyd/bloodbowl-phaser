@@ -59,9 +59,9 @@ describe("jumpTargets", () => {
       ])
     );
 
-    targets.forEach((t) => {
+    for (const t of targets) {
       expect(t.over).toEqual({ x: 1, y: 1 });
-    });
+    }
   });
 
   it("skips a Standing middle player without Leap/Pogo, allows it with", () => {

@@ -266,7 +266,7 @@ describe("a league's rounds", () => {
 
   it("shows a finished league's history without a next round", async () => {
     await league((fixtures) => {
-      fixtures.forEach(played);
+      for (const fixture of fixtures) played(fixture);
     });
     await show();
 

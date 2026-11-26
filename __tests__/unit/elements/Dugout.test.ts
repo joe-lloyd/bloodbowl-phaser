@@ -263,9 +263,9 @@ describe("Dugout", () => {
     expect(sprites.size).toBe(1);
 
     withArrivals.destroy();
-    exits.finish.forEach((finish) => {
+    for (const finish of exits.finish) {
       finish();
-    });
+    }
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(sprites.size).toBe(0);
   });

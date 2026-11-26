@@ -77,22 +77,23 @@ export class SetupManager {
     this.setupReady.clear();
     this.syncPlacedPlayers(this.team1);
     this.syncPlacedPlayers(this.team2);
-    this.state.setup?.confirmedTeamIds.forEach((id) => this.setupReady.add(id));
+    const confirmedTeamIds = this.state.setup?.confirmedTeamIds ?? [];
+    for (const id of confirmedTeamIds) this.setupReady.add(id);
   }
 
   private syncPlacedPlayers(team: Team): void {
-    team.players.forEach((player) => {
+    for (const player of team.players) {
       if (player.gridPosition) {
         this.placedPlayers.set(player.id, { ...player.gridPosition });
       }
-    });
+    }
   }
 
   public static sanitizeTeam(team: Team, readiness: GameReadiness = {}): void {
-    team.players.forEach((player) => {
+    for (const player of team.players) {
       movePlayerToBox(player, { box: "reserves" });
       player.hasActed = false;
-    });
+    }
     readyForLeagueGame(team, readiness);
   }
 
@@ -297,14 +298,7 @@ export class SetupManager {
       if (position) this.placedPlayers.set(playerId, position);
       else this.placedPlayers.delete(playerId);
     }
-    for (const player of [player1, player2]) {
-      const position = this.placedPlayers.get(player.id);
-      if (position) {
-        movePlayerToBox(player, { box: "pitch", position });
-      } else {
-        this.returnToDugout(player);
-      }
-    }
+    for (const player of [player1, player2]) this.restoreSwappedPlayer(player);
     this.updateStatus(player1.teamId);
     this.eventBus.emit(GameEventNames.PlayersSwapped, {
       player1Id,
@@ -312,6 +306,41 @@ export class SetupManager {
     });
     this.emitStatus(player1.teamId);
     return true;
+  }
+
+  private restoreSwappedPlayer(player: Player): void {
+    const position = this.placedPlayers.get(player.id);
+    if (position) {
+      movePlayerToBox(player, { box: "pitch", position });
+    } else {
+      this.returnToDugout(player);
+    }
+  }
+
+  private placeFormationSlots(
+    slots: FormationPosition[],
+    picks: (Player | undefined)[]
+  ): Pick<SetupFormationResult, "placedPlayerIds" | "skipped"> {
+    const placedPlayerIds: string[] = [];
+    const skipped: SetupFormationResult["skipped"] = [];
+    for (const [index, position] of slots.entries()) {
+      const player = picks[index];
+      if (!player) {
+        skipped.push({
+          reason: "No available player for this preset square.",
+        });
+        continue;
+      }
+      if (this.placePlayer(player.id, position.x, position.y)) {
+        placedPlayerIds.push(player.id);
+      } else {
+        skipped.push({
+          playerId: player.id,
+          reason: this.lastError ?? "Illegal preset placement.",
+        });
+      }
+    }
+    return { placedPlayerIds, skipped };
   }
 
   public applyFormation(
@@ -357,8 +386,6 @@ export class SetupManager {
 
     this.clearTeamPlacements(team);
     const eligible = this.getEligiblePlayers(team);
-    const placedPlayerIds: string[] = [];
-    const skipped: { playerId?: string; reason: string }[] = [];
     const used = new Set<string>();
 
     const captain = teamCaptain(team);
@@ -385,23 +412,10 @@ export class SetupManager {
       }
     }
 
-    slots.forEach((position, index) => {
-      const player = picks[index];
-      if (!player) {
-        skipped.push({
-          reason: "No available player for this preset square.",
-        });
-        return;
-      }
-      if (this.placePlayer(player.id, position.x, position.y)) {
-        placedPlayerIds.push(player.id);
-      } else {
-        skipped.push({
-          playerId: player.id,
-          reason: this.lastError ?? "Illegal preset placement.",
-        });
-      }
-    });
+    const { placedPlayerIds, skipped } = this.placeFormationSlots(
+      slots,
+      picks
+    );
 
     this.updateStatus(teamId);
     this.emitStatus(teamId);
@@ -465,9 +479,9 @@ export class SetupManager {
     }
 
     const team = this.getTeam(teamId)!;
-    this.getEligiblePlayers(team).forEach((player) => {
+    for (const player of this.getEligiblePlayers(team)) {
       if (!player.gridPosition) movePlayerToBox(player, { box: "reserves" });
-    });
+    }
     this.setupReady.add(teamId);
     setup.confirmedTeamIds = Array.from(this.setupReady);
     this.eventBus.emit(GameEventNames.SetupConfirmed, teamId);
@@ -629,13 +643,13 @@ export class SetupManager {
     this.setupReady.clear();
     this.reportedNoAvailablePlayers.clear();
     delete this.state.setup;
-    [this.team1, this.team2].forEach((team) => {
-      team.players.forEach((player) => {
+    for (const team of [this.team1, this.team2]) {
+      for (const player of team.players) {
         player.hasActed = false;
 
         this.returnToDugout(player);
-      });
-    });
+      }
+    }
   }
 
   public setPlacedPlayer(playerId: string, x: number, y: number): void {
@@ -729,14 +743,14 @@ export class SetupManager {
   }
 
   private clearTeamPlacements(team: Team): void {
-    team.players.forEach((player) => {
+    for (const player of team.players) {
       if (!this.placedPlayers.delete(player.id)) {
-        return;
+        continue;
       }
 
       this.returnToDugout(player);
       this.eventBus.emit(GameEventNames.PlayerRemoved, player.id);
-    });
+    }
   }
 
   private isSquareOccupiedByOther(

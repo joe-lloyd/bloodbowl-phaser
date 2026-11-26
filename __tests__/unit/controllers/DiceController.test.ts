@@ -193,10 +193,10 @@ describe("DiceController", () => {
 
     it("should return values between 1 and 6", () => {
       const rolls = controller.rollMultipleD6("Test", 5);
-      rolls.forEach((roll) => {
+      for (const roll of rolls) {
         expect(roll).toBeGreaterThanOrEqual(1);
         expect(roll).toBeLessThanOrEqual(6);
-      });
+      }
     });
 
     it("should emit DiceRoll event with total", () => {
@@ -230,11 +230,11 @@ describe("DiceController", () => {
         "pow-dodge",
       ] as const;
 
-      results.forEach((result) => {
+      for (const result of results) {
         expect(validTypes).toContain(result.type);
         expect(result.icon).toBeTruthy();
         expect(result.label).toBeTruthy();
-      });
+      }
     });
 
     it("should emit DiceRoll event with block results", () => {

@@ -46,15 +46,15 @@ function best(
 ): number | null {
   let pick: number | null = null;
   let pickScore = -Infinity;
-  candidates.forEach((c, i) => {
+  for (const [i, c] of candidates.entries()) {
     const value = score(c);
     if (value === undefined || !(value > pickScore)) {
-      return;
+      continue;
     }
 
     pickScore = value;
     pick = i;
-  });
+  }
   return pick;
 }
 

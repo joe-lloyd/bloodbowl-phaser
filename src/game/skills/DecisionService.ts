@@ -30,9 +30,9 @@ export class DecisionService {
   private close(answered: boolean): void {
     const closers = this.closers;
     this.closers = [];
-    closers.forEach((close) => {
+    for (const close of closers) {
       close(answered);
-    });
+    }
   }
 
   public pending(): DecisionRequest | null {

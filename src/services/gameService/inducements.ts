@@ -253,7 +253,7 @@ export function skipUnaffordableInducements(parts: GameParts): void {
       )
   );
   if (broke.length === 0) return;
-  broke.forEach((teamId) => negotiation.confirm(teamId));
+  for (const teamId of broke) negotiation.confirm(teamId);
   recordConfirmations(parts, negotiation);
 }
 

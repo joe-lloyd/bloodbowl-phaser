@@ -63,9 +63,9 @@ export function playRoll(
     if (stopped) return roll.kind === "coin" ? [roll.side] : roll.values;
     const hooks = {
       pick: (index: number) => {
-        pickers.forEach((listener) => {
+        for (const listener of pickers) {
           listener(index);
-        });
+        }
       },
       ready: (c: Control) => {
         control = c;

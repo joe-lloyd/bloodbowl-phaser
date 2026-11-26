@@ -72,17 +72,17 @@ export class DiceWatch {
     this.backstop = undefined;
     const all = this.waiters;
     this.waiters = [];
-    all.forEach((waiter) => {
+    for (const waiter of all) {
       waiter.done();
-    });
+    }
   }
 
   private release(): void {
     const ready = this.waiters.filter((w) => this.landedThrough >= w.until);
     this.waiters = this.waiters.filter((w) => this.landedThrough < w.until);
-    ready.forEach((waiter) => {
+    for (const waiter of ready) {
       waiter.done();
-    });
+    }
     if (this.waiters.length === 0) clearTimeout(this.backstop);
   }
 }

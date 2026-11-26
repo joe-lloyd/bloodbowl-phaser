@@ -247,7 +247,7 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    skills.forEach((skill) => give(fixtureValue(attacker), skill));
+    for (const skill of skills) give(fixtureValue(attacker), skill);
     const declared = await game.execute({
       type: "declare-action",
       playerId: fixtureValue(attacker).id,

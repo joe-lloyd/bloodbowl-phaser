@@ -147,31 +147,9 @@ export class BlockManager extends BlockPushChain {
     const results = this.diceController.rollBlockDice(numDice, teamId);
 
     if (attacker && defender) {
-      const ctx: BlockDiceRolledContext = {
-        attacker,
-        defender,
+      await this.announceBlockDiceRolled(attacker, defender, {
         results,
         isAttackerChoice,
-        ...this.triggerServices(),
-        dice: this.diceController,
-        triggers: [],
-        rerolls: [],
-      };
-      await foldTrigger(
-        "onBlockDiceRolled",
-        this.blockParticipants(attacker, defender),
-        ctx
-      );
-      this.announce(ctx.triggers);
-      ctx.rerolls.forEach(({ skill, before, after }) => {
-        this.eventBus.emit(GameEventNames.RerollUsed, {
-          playerId: attacker.id,
-          source: "skill",
-          skill,
-          rollKind: "block",
-          before,
-          after,
-        });
       });
     }
 
@@ -187,6 +165,42 @@ export class BlockManager extends BlockPushChain {
     rollData.choiceStage = blockChoiceStage(rollData);
     this.pendingBlockRoll = rollData;
     this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(rollData));
+  }
+
+  private async announceBlockDiceRolled(
+    attacker: Player,
+    defender: Player,
+    roll: {
+      results: BlockDiceRolledContext["results"];
+      isAttackerChoice: boolean;
+    }
+  ): Promise<void> {
+    const ctx: BlockDiceRolledContext = {
+      attacker,
+      defender,
+      results: roll.results,
+      isAttackerChoice: roll.isAttackerChoice,
+      ...this.triggerServices(),
+      dice: this.diceController,
+      triggers: [],
+      rerolls: [],
+    };
+    await foldTrigger(
+      "onBlockDiceRolled",
+      this.blockParticipants(attacker, defender),
+      ctx
+    );
+    this.announce(ctx.triggers);
+    for (const { skill, before, after } of ctx.rerolls) {
+      this.eventBus.emit(GameEventNames.RerollUsed, {
+        playerId: attacker.id,
+        source: "skill",
+        skill,
+        rollKind: "block",
+        before,
+        after,
+      });
+    }
   }
 
   private cheerOwedAssist(attacker: Player, analysis: BlockAnalysis): void {
@@ -605,10 +619,10 @@ export class BlockManager extends BlockPushChain {
     const attackerHadBall = this.isOnBall(attacker);
 
     if (ctx.placedProne) {
-      [attacker, defender].forEach((p) => {
+      for (const p of [attacker, defender]) {
         p.status = PlayerStatus.PRONE;
         this.eventBus.emit(GameEventNames.PlayerStatusChanged, p);
-      });
+      }
     } else {
       if (ctx.attackerKnockedDown) this.knockDownPlayer(attacker);
       if (ctx.defenderKnockedDown) this.knockDownTarget(defender);
@@ -633,13 +647,13 @@ export class BlockManager extends BlockPushChain {
     flowManager: GameFlowManager
   ): void {
     const drops: GameOperation[] = [];
-    [defender, attacker].forEach((p) => {
+    for (const p of [defender, attacker]) {
       const down =
         p === attacker ? ctx.attackerKnockedDown : ctx.defenderKnockedDown;
       const drop =
         down && this.isOnBall(p) ? this.dropCarrierBall(p, flowManager) : null;
       if (drop) drops.push(drop);
-    });
+    }
 
     const rolls = bothDownRolls(ctx, attacker, defender);
     if (rolls.length + drops.length > 0) {

@@ -123,30 +123,30 @@ class DiceAnimation implements Control {
   }
 
   private applyFrame(frame: Simulation["frames"][number]): void {
-    this.dice.forEach(({ mesh }, index) => {
+    for (const [index, { mesh }] of this.dice.entries()) {
       const [x, y, z, qx, qy, qz, qw] = indexed(frame, index);
       mesh.position.set(x, y, z);
       mesh.quaternion.set(qx, qy, qz, qw);
-    });
+    }
   }
 
   private placeResults(): void {
     const count = this.dice.length;
     const spot = resultSpot(this.stage, { width: count * SPREAD, height: 1 });
-    this.dice.forEach(({ lifted }, index) => {
+    for (const [index, { lifted }] of this.dice.entries()) {
       lifted.position
         .copy(spot)
         .add(new THREE.Vector3((index - (count - 1) / 2) * SPREAD, 0, 0));
-    });
+    }
   }
 
   private showResult(): void {
     this.placeResults();
     this.applyFrame(indexed(this.sim.frames, this.sim.frames.length - 1));
-    this.dice.forEach((die) => {
+    for (const die of this.dice) {
       die.mesh.quaternion.copy(this.forward(die));
       die.mesh.position.copy(die.lifted.position);
-    });
+    }
     this.render();
   }
 
@@ -213,10 +213,10 @@ class DiceAnimation implements Control {
 
   private settle(): void {
     this.placeResults();
-    this.dice.forEach((die) => {
+    for (const die of this.dice) {
       die.settled = snapshot(die.mesh);
       die.lifted.quaternion = this.forward(die);
-    });
+    }
     this.liftedAt = performance.now();
     this.input.resolve(
       this.dice.map(({ mesh, labels }) =>
@@ -238,7 +238,7 @@ class DiceAnimation implements Control {
   private lift(liftedAt: number): void {
     this.placeResults();
     const ease = liftEase(performance.now() - liftedAt);
-    this.dice.forEach(({ mesh, settled, lifted }, index) => {
+    for (const [index, { mesh, settled, lifted }] of this.dice.entries()) {
       mesh.position.lerpVectors(settled.position, lifted.position, ease);
       mesh.quaternion.slerpQuaternions(
         settled.quaternion,
@@ -247,7 +247,7 @@ class DiceAnimation implements Control {
       );
       const target = scaleTarget(this.markedIndex, index);
       mesh.scale.setScalar(mesh.scale.x + (target - mesh.scale.x) * 0.2);
-    });
+    }
   }
 
   start(): void {

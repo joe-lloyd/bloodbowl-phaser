@@ -24,9 +24,9 @@ export function useTeamLibrary(): [Team[], () => void] {
     ];
     reload();
     return () => {
-      stops.forEach((stop) => {
+      for (const stop of stops) {
         stop();
-      });
+      }
     };
   }, []);
   return [

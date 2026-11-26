@@ -51,9 +51,9 @@ function setTeamCaptain(team: Team, player: Player, captain: boolean): void {
 }
 
 export function appointTeamCaptain(team: Team, chosen: Player): void {
-  team.players.forEach((player) => {
+  for (const player of team.players) {
     setTeamCaptain(team, player, player === chosen);
-  });
+  }
 }
 
 export function chooseTeamCaptain(team: Team, playerId: string): EditDecision {

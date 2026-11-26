@@ -104,9 +104,9 @@ export class SetupPhaseHandler implements PhaseHandler {
   }
 
   private removeListeners(): void {
-    this.unsubscribes.forEach((unsubscribe) => {
+    for (const unsubscribe of this.unsubscribes) {
       unsubscribe();
-    });
+    }
     this.unsubscribes = [];
   }
 

@@ -54,9 +54,9 @@ export class MatchAutosave {
 
   start(): void {
     if (this.options.enabled === false || this.disposed) return;
-    this.watchedEvents.forEach((event) => {
+    for (const event of this.watchedEvents) {
       this.eventBus.on(event, this.boundaryHandler);
-    });
+    }
     this.schedule();
   }
 
@@ -118,8 +118,8 @@ export class MatchAutosave {
     this.disposed = true;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
-    this.watchedEvents.forEach((event) => {
+    for (const event of this.watchedEvents) {
       this.eventBus.off(event, this.boundaryHandler);
-    });
+    }
   }
 }

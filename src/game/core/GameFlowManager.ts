@@ -12,9 +12,9 @@ export async function trackEngineWork(work: Promise<void>): Promise<void> {
   } finally {
     runningDelays--;
     if (runningDelays === 0)
-      quietWaiters.splice(0).forEach((wake) => {
+      for (const wake of quietWaiters.splice(0)) {
         wake();
-      });
+      }
   }
 }
 
@@ -41,9 +41,9 @@ export const realTimeDelay: DelayProvider = (ms) => {
       runningDelays--;
       resolve();
       if (runningDelays === 0)
-        quietWaiters.splice(0).forEach((wake) => {
+        for (const wake of quietWaiters.splice(0)) {
           wake();
-        });
+        }
     }, ms)
   );
 };
@@ -172,9 +172,9 @@ export class GameFlowManager {
 
     const resolvers = this.idleResolvers;
     this.idleResolvers = [];
-    resolvers.forEach((resolve) => {
+    for (const resolve of resolvers) {
       resolve();
-    });
+    }
   }
 
   private async drain(epoch: number): Promise<void> {

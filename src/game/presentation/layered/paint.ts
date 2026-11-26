@@ -39,17 +39,17 @@ export function rampTint(colour: number, tone: number): Rgb {
 
 export function colourTable(palette: LayeredPalette, colors: TeamColors): Uint8ClampedArray {
   const table = new Uint8ClampedArray(palette.colors.length * 4);
-  palette.colors.forEach((hex, i) => {
+  for (const [i, hex] of palette.colors.entries()) {
     table.set([...hexRgb(hex), 255], i * 4);
-  });
+  }
   const kits = [
     [palette.kit.kit1, colors.primary],
     [palette.kit.kit2, colors.secondary],
   ] as const;
   for (const [indices, colour] of kits) {
-    indices.forEach((index, tone) => {
+    for (const [tone, index] of indices.entries()) {
       table.set([...rampTint(colour, KIT_TONES[tone] ?? 1), 255], index * 4);
-    });
+    }
   }
   return table;
 }

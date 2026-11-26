@@ -137,11 +137,10 @@ export class MatchStats {
     this.sppValues = new Map(
       teams.map((team) => [team.id, sppValuesFor(team.rosterName)])
     );
-    teams
-      .flatMap((team) => team.players)
-      .forEach((player) => {
-        this.stats.set(player.id, emptyStats(player));
-      });
+    const players = teams.flatMap((team) => team.players);
+    for (const player of players) {
+      this.stats.set(player.id, emptyStats(player));
+    }
     this.subscribe();
   }
 
@@ -311,7 +310,7 @@ export class MatchStats {
       throw new Error("unsupported-or-invalid-match-stats-state");
     }
     this.stats.clear();
-    snapshot.players.forEach((stats) => {
+    for (const stats of snapshot.players) {
       const legacy: Partial<PlayerMatchStats> = stats;
       this.stats.set(stats.playerId, {
         awardedTouchdownSpp: 0,
@@ -319,7 +318,7 @@ export class MatchStats {
         attempts: legacy.attempts ?? 0,
         kills: legacy.kills ?? 0,
       });
-    });
+    }
     this.appliedFlag = snapshot.applied;
     this.concedingTeamId = snapshot.concedingTeamId;
   }
@@ -333,11 +332,11 @@ export class MatchStats {
     const summary = this.summary(players);
     if (this.progressionEnabled) {
       const byId = new Map(players.map((player) => [player.id, player]));
-      summary.players.forEach((stats) => {
+      for (const stats of summary.players) {
         const player = byId.get(stats.playerId);
-        if (!player || player.playerKind === "star") return;
+        if (!player || player.playerKind === "star") continue;
         player.spp = (player.spp ?? 0) + stats.sppEarned;
-      });
+      }
     }
     this.eventBus.emit(GameEventNames.MatchSppApplied, undefined);
     return summary;

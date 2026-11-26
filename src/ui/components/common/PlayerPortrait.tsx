@@ -127,9 +127,9 @@ function AtlasPortrait({
     const draw = (index: number) => {
       const name = frameName("idle", "se", index);
       fctx.clearRect(0, 0, full.width, full.height);
-      layers.forEach((atlas, i) => {
+      for (const [i, atlas] of layers.entries()) {
         const f = atlas.frames[name];
-        if (!f) return;
+        if (!f) continue;
         const args = [
           atlas.image,
           f.frame.x,
@@ -143,7 +143,7 @@ function AtlasPortrait({
         ] as const;
         if (i === 0) {
           fctx.drawImage(...args);
-          return;
+          continue;
         }
 
         tctx.globalCompositeOperation = "source-over";
@@ -155,7 +155,7 @@ function AtlasPortrait({
         tctx.globalCompositeOperation = "destination-in";
         tctx.drawImage(...args);
         fctx.drawImage(tint, 0, 0);
-      });
+      }
       ctx.clearRect(0, 0, side, side);
       ctx.drawImage(full, ox, oy, side, side, 0, 0, side, side);
     };

@@ -102,16 +102,16 @@ async function workerPlayouts(
         ...(deadlineAt === undefined ? {} : { deadlineAt }),
         ...(weights ? { weights } : {}),
       });
-      share.forEach(({ index }, k) => {
+      for (const [k, { index }] of share.entries()) {
         scores[index] = got[k] ?? null;
-      });
+      }
     })
   );
   const rows: number[][] = [];
-  seeds.forEach((_, s) => {
+  for (const s of seeds.keys()) {
     const row = scores.slice(s * indices.length, (s + 1) * indices.length);
     if (row.every((score): score is number => score !== null)) rows.push(row);
-  });
+  }
   return rows;
 }
 
@@ -135,7 +135,7 @@ export function createWorkerSearchCoach(
       ...(options.weights ? { weights: options.weights } : {}),
     }),
     close() {
-      pool.workers.forEach((worker) => worker?.terminate());
+      for (const worker of pool.workers) worker?.terminate();
       pool.workers.fill(null);
     },
   };

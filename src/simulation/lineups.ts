@@ -109,9 +109,9 @@ export function createLineupTeam(
     roster.rerollCost,
     BUDGET
   );
-  lineupTemplates(rosterName).forEach((template, index) => {
+  for (const [index, template] of lineupTemplates(rosterName).entries()) {
     addPlayerToTeam(team, createPlayer(template, team.id, index + 1));
-  });
+  }
   chooseFirstLinemanAsVeteran(team);
   return team;
 }
@@ -133,9 +133,9 @@ export function createReadyMadeTeam(
     for (let i = 0; i < rerolls; i++) purchase(team, { type: "reroll" });
     const templates = lineupTemplates(rosterName, team.treasury);
     if (templates.length < 7 && rerolls > 0) continue;
-    templates.forEach((template, index) => {
+    for (const [index, template] of templates.entries()) {
       addPlayerToTeam(team, createPlayer(template, team.id, index + 1));
-    });
+    }
     chooseFirstLinemanAsVeteran(team);
     return team;
   }

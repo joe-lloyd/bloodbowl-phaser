@@ -187,8 +187,7 @@ function blockDiceCandidates(pending: PendingOf<"block-dice">): Candidate[] {
     );
   }
   if (pending.proAvailable) {
-    pending.options.forEach((option, dieIndex) =>
-      out.push(
+    for (const [dieIndex, option] of pending.options.entries()) out.push(
         one(
           {
             type: "pro-reroll-block",
@@ -198,7 +197,7 @@ function blockDiceCandidates(pending: PendingOf<"block-dice">): Candidate[] {
           `Pro re-roll the ${option.label} die`
         )
       )
-    );
+    ;
   }
   if (pending.brawlerAvailable) {
     out.push(

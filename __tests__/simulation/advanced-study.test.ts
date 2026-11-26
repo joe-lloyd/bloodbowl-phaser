@@ -47,9 +47,9 @@ describe("advanced skill study", () => {
         "pnpm-lock.yaml",
         "tsconfig.json",
       ];
-      inputs.forEach((name) => {
+      for (const name of inputs) {
         put(name);
-      });
+      }
       const original = acquisitionDigest(root);
       for (const file of [
         "README.md",
@@ -101,14 +101,14 @@ describe("advanced skill study", () => {
           team.players.every((p) => (p.advancements?.length ?? 0) <= 2)
         ).toBe(true);
       }
-      focused.allocations.forEach((a, i) => {
+      for (const [i, a] of focused.allocations.entries()) {
         const b = control.allocations[i];
         expect([
           fixtureValue(b).player,
           fixtureValue(b).access,
           SKILL_DEFINITIONS[fixtureValue(b).skill].category,
         ]).toEqual([a.player, a.access, SKILL_DEFINITIONS[a.skill].category]);
-      });
+      }
     }
   });
   it("mirrors identical seed and variants and retains three comparison arms", () => {

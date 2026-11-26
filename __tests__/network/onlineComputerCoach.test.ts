@@ -32,9 +32,9 @@ vi.mock("../../src/firebase/lobby", async (load) => ({
 
 const matches: OnlineMatch[] = [];
 afterEach(() => {
-  matches.splice(0).forEach((match) => {
+  for (const match of matches.splice(0)) {
     match.close();
-  });
+  }
   ServiceContainer.reset();
 });
 

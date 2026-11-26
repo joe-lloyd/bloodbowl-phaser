@@ -41,6 +41,6 @@ export async function forkWorkers(
       )
     );
   } finally {
-    children.forEach((child) => child.kill());
+    for (const child of children) child.kill();
   }
 }

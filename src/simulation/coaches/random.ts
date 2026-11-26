@@ -15,7 +15,7 @@ export const randomCoach: Coach = {
   name: "random",
   choose({ point, rng }) {
     const groups = new Map<string, CommandGroup>();
-    point.candidates.forEach((candidate, index) => {
+    for (const [index, candidate] of point.candidates.entries()) {
       const key = candidate.commands[0].type;
       const group = groups.get(key);
       if (group) group.indices.push(index);
@@ -24,7 +24,7 @@ export const randomCoach: Coach = {
           indices: [index],
           weight: WEIGHT[candidate.kind] ?? 1,
         });
-    });
+    }
     const entries = [...groups.values()];
     let roll =
       rng.next() * entries.reduce((sum, group) => sum + group.weight, 0);

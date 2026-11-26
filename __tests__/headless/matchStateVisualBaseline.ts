@@ -35,15 +35,14 @@ export function renderMatchStateBaseline(input: BaselineInput): string {
 
   const marks: string[] = [];
 
-  [...players]
-    .sort((a, b) => a.id.localeCompare(b.id))
-    .forEach((player) => {
+  const sorted = [...players].sort((a, b) => a.id.localeCompare(b.id));
+  for (const player of sorted) {
       const location = resolvePlayerLocation(player);
       if (location.kind !== "pitch") {
         marks.push(
           `  <text class="box" data-player="${player.id}" data-box="${location.box}">${player.id}</text>`
         );
-        return;
+        continue;
       }
       const activated = isActivatedThisTurn(state, player.id);
       marks.push(
@@ -55,7 +54,7 @@ export function renderMatchStateBaseline(input: BaselineInput): string {
           activated ? "0.5" : "1"
         }" data-player="${player.id}"/>`
       );
-    });
+    }
 
   const ball = resolveBallRepresentation(state, players);
   if (ball.kind === "loose") {

@@ -47,9 +47,9 @@ function setup(
     time += ms;
     const due = timers.filter((t) => t.at <= time);
     timers = timers.filter((t) => t.at > time);
-    due.forEach((t) => {
+    for (const t of due) {
       t.run();
-    });
+    }
   };
   return {
     gestures,

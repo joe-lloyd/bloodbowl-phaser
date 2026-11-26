@@ -100,12 +100,12 @@ export class Dugout {
     for (const box of ["reserves", "ko", "casualty", "sent-off"] as const) {
       const players = this.team.players.filter((p) => playerBoxOf(p) === box);
       const slots = this.squares[BOX_SQUARES[box]];
-      players.forEach((player, index) => {
+      for (const [index, player] of players.entries()) {
         const slot = slots[Math.min(index, slots.length - 1)];
         if (!slot) throw new Error(`Missing dugout slot for ${box}`);
         const [gx, gy] = slot;
         this.place(player, this.toWorld(gx, gy), box);
-      });
+      }
     }
   }
 

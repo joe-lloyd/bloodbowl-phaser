@@ -81,6 +81,18 @@ export class CasualtyOperation extends InjuryPartiesOperation {
     this.cause = cause;
   }
 
+  private killDetails(parties: InjuryParties): {
+    killerId?: string;
+    armsPlagueRidden: boolean;
+  } {
+    const { player, causedBy } = parties;
+    return {
+      ...(this.causedById === undefined ? {} : { killerId: this.causedById }),
+      armsPlagueRidden:
+        !!causedBy && plagueRiddenApplies(causedBy, player, this.cause),
+    };
+  }
+
   protected async resolve(
     context: FlowContext,
     { player, causedBy }: InjuryParties
@@ -102,9 +114,9 @@ export class CasualtyOperation extends InjuryPartiesOperation {
       causedBy ? [causedBy, player] : [player],
       preCtx
     );
-    preCtx.triggers.forEach((t) => {
+    for (const t of preCtx.triggers) {
       eventBus.emit(GameEventNames.SkillTriggered, t);
-    });
+    }
     if (
       preCtx.regenerated ||
       rerollFailedRegeneration(
@@ -127,15 +139,7 @@ export class CasualtyOperation extends InjuryPartiesOperation {
     const { result, grade, lasting } = outcome;
 
     const kill =
-      result === InjuryResult.DEAD
-        ? {
-            ...(this.causedById === undefined
-              ? {}
-              : { killerId: this.causedById }),
-            armsPlagueRidden:
-              !!causedBy && plagueRiddenApplies(causedBy, player, this.cause),
-          }
-        : undefined;
+      result === InjuryResult.DEAD ? this.killDetails({ player, causedBy }) : undefined;
     const offered = await offerApothecary(gameService, eventBus, player, {
       resultKind: "casualty",
       casualtyType: apothecaryCasualtyType(result),
