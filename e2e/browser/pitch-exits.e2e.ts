@@ -5,7 +5,9 @@ test("a scenario reload during players' exits raises no page error", async ({
   page,
 }) => {
   const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("pageerror", (error) => {
+    errors.push(error.message);
+  });
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "double-turnover-seeded", seed: 8 });
   await app.pitch.waitForCameraToSettle();

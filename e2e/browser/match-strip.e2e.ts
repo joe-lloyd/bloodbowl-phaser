@@ -75,7 +75,8 @@ for (const viewport of [
     );
     await expect(page.getByTestId("turns-left")).toHaveText("Turn 2 of 6");
 
-    expect((await strip.innerText()).match(/turn/gi)).toEqual(["TURN"]);
+    const stripText = await strip.innerText();
+    expect(stripText.match(/turn/gi)).toEqual(["TURN"]);
 
     const backing = await page
       .getByTestId("match-strip-bar")

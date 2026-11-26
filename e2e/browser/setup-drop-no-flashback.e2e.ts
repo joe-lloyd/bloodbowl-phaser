@@ -61,37 +61,41 @@ test("a dropped player never shows on the square they left", async ({
 
   const positions = async () => {
     const snapshot = await app.bridge.snapshot();
-    return fixtureValue(snapshot.teams
-      .find((team) => team.id === homeTeam.id))
-      .players.reduce<Record<string, Square | null>>((all, player) => {
-        all[player.id] = player.position;
-        return all;
-      }, {});
+    const team = fixtureValue(snapshot.teams.find((candidate) => candidate.id === homeTeam.id));
+    const all: Record<string, Square | null> = {};
+    for (const player of team.players) {
+      all[player.id] = player.position;
+    }
+    return all;
+  };
+  const linemanSquare = async () => {
+    const all = await positions();
+    return all[lineman];
   };
 
   await loadPreset(page, /balanced/i);
-  expect((await positions())[lineman]).toEqual(LINEMAN_SQUARE);
+  expect(await linemanSquare()).toEqual(LINEMAN_SQUARE);
 
   const drop = (name: string, from: Square, to: Square) =>
     dragAndRecord(page, app, name, lineman, from, to);
 
   await test.step("a legal move goes straight to the new square", async () => {
     const log = await drop("pitch-to-pitch", LINEMAN_SQUARE, DROP_A);
-    expect((await positions())[lineman]).toEqual(DROP_A);
-    expect(framesAt(log, "pitch", log.from, "after")).toEqual([]);
+    expect(await linemanSquare()).toEqual(DROP_A);
+    expect(framesAt(log, "pitch", log.from)).toEqual([]);
     expect(lastFrame(log).pitch).toMatchObject(at(log.to));
   });
 
   await test.step("an occupied square sends the player back", async () => {
     const log = await drop("occupied", DROP_A, OTHER_LINEMAN_SQUARE);
-    expect((await positions())[lineman]).toEqual(DROP_A);
+    expect(await linemanSquare()).toEqual(DROP_A);
     expect(lastFrame(log).pitch).toMatchObject(at(log.from));
   });
 
   await test.step("a drop outside the zone goes straight to the dugout", async () => {
     const log = await drop("off-zone", DROP_A, OFF_ZONE);
-    expect((await positions())[lineman]).toBeNull();
-    expect(framesAt(log, "pitch", log.from, "after")).toEqual([]);
+    expect(await linemanSquare()).toBeNull();
+    expect(framesAt(log, "pitch", log.from)).toEqual([]);
     expect(lastFrame(log).pitch?.visible).toBe(false);
     expect(lastFrame(log).dugout?.visible).toBe(true);
   });
@@ -99,17 +103,17 @@ test("a dropped player never shows on the square they left", async ({
   await test.step("a reserve dropped on the pitch leaves the dugout at once", async () => {
     const slot = await dugoutSquare(page, lineman);
     const log = await drop("dugout-to-pitch", slot, DROP_B);
-    expect((await positions())[lineman]).toEqual(DROP_B);
+    expect(await linemanSquare()).toEqual(DROP_B);
     expect(log.dugoutAtPress?.visible).toBe(true);
-    expect(framesAt(log, "dugout", fixtureValue(log.dugoutAtPress), "after")).toEqual([]);
+    expect(framesAt(log, "dugout", fixtureValue(log.dugoutAtPress))).toEqual([]);
     expect(lastFrame(log).pitch).toMatchObject(at(log.to));
     expect(lastFrame(log).dugout?.visible).toBe(false);
   });
 
   await test.step("the reserve just placed can be sent back to the dugout", async () => {
     const log = await drop("placed-then-off-zone", DROP_B, OFF_ZONE);
-    expect((await positions())[lineman]).toBeNull();
-    expect(framesAt(log, "pitch", log.from, "after")).toEqual([]);
+    expect(await linemanSquare()).toBeNull();
+    expect(framesAt(log, "pitch", log.from)).toEqual([]);
     expect(lastFrame(log).pitch?.visible).toBe(false);
     expect(lastFrame(log).dugout?.visible).toBe(true);
   });
@@ -127,16 +131,11 @@ function lastFrame(log: FrameLog): Frame {
   return fixtureValue(log.frames.at(-1));
 }
 
-function framesAt(
-  log: FrameLog,
-  sprite: "pitch" | "dugout",
-  square: Square,
-  when: "after"
-): Frame[] {
+function framesAt(log: FrameLog, sprite: "pitch" | "dugout", square: Square): Frame[] {
   return log.frames.filter((frame) => {
     const sample = frame[sprite];
     return (
-      (when === "after" ? frame.t >= 0 : frame.t < 0) &&
+      frame.t >= 0 &&
       !!sample?.visible &&
       Math.abs(sample.x - square.x) < 1 &&
       Math.abs(sample.y - square.y) < 1
@@ -197,14 +196,17 @@ async function dragAndRecord(
       }[] = [];
       let releasedAt: number | null = null;
       let dugoutAtPress: ReturnType<typeof read> = null;
-      const sample = (kind: string) =>
+      const sample = (kind: string) => {
         frames.push({
           kind,
           at: performance.now(),
           pitch: pitchSprite(),
           dugout: dugoutSprite(),
         });
-      const onRender = () => sample("render");
+      };
+      const onRender = () => {
+        sample("render");
+      };
       const onDown = () => {
         dugoutAtPress ??= dugoutSprite();
       };
@@ -212,7 +214,9 @@ async function dragAndRecord(
         if (releasedAt !== null) return;
         releasedAt = performance.now();
 
-        setTimeout(() => sample("release"), 0);
+        setTimeout(() => {
+          sample("release");
+        }, 0);
       };
       game.events.on("postrender", onRender);
       addEventListener("pointerdown", onDown, {capture: true});
@@ -309,7 +313,8 @@ async function startComputerSetup(page: Page, app: GameApp) {
   await flip.waitFor({ timeout: 15_000 });
   await flip.click();
 
-  const home = fixtureValue((await app.bridge.teams()).find((team) => team.name === HOME));
+  const teamList = await app.bridge.teams();
+  const home = fixtureValue(teamList.find((team) => team.name === HOME));
   const kick = page.getByRole("button", { name: /^KICK$/ });
   await expect(async () => {
     if (await kick.count()) await kick.first().click({ timeout: 500 });

@@ -25,8 +25,9 @@ test("a failed Rush with an armour roll hands over without a long wait", async (
         bannerAt: 0,
       };
       globalThis.__turnoverPace = pace;
-      const note = (what: string) =>
+      const note = (what: string) => {
         pace.beats.push({ at: Math.round(performance.now()), what });
+      };
       let thrown = 0;
       let rushSeq = 0;
       globalThis.eventBus.on(

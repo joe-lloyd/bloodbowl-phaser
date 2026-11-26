@@ -26,9 +26,8 @@ test("Dodgy Snack: table, banner, each labelled roll, then the outcome", async (
   const roll = dialog.getByRole("button", { name: "ROLL KICK-OFF" });
   await expect(roll).toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(1500);
-  expect(
-    (await app.bridge.events()).some((e) => e.name === "kickoffTableRolled")
-  ).toBe(false);
+  const events = await app.bridge.events();
+  expect(events.some((e) => e.name === "kickoffTableRolled")).toBe(false);
   await expect(dialog.getByTestId("kickoff-table")).toContainText(
     "11Dodgy Snack"
   );

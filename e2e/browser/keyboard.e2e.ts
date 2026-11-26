@@ -85,7 +85,8 @@ test("the menu's keys wait while a decision is open, and Enter presses the focus
   await page.keyboard.press("e");
   await page.keyboard.press("Shift+E");
   await expect(decision).toBeVisible();
-  expect((await app.bridge.phase()).activeTeamId).toBe(
+  const phase = await app.bridge.phase();
+  expect(phase.activeTeamId).toBe(
     await app.bridge.resolveRef("team1")
   );
 

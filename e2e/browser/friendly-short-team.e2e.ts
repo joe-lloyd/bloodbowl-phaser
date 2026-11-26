@@ -37,12 +37,14 @@ test("a friendly fields the player due to miss the next league game, with no Jou
   await expect(flip).toBeVisible({ timeout: 15_000 });
   await flip.click();
   await expect(page.getByText(/wins the toss!$/)).toBeVisible({ timeout: 15_000 });
-  const toss = (await app.bridge.events()).find(
+  const events = await app.bridge.events();
+  const toss = events.find(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
       (e.data as { rollType: string }).rollType === "Coin Toss"
   );
-  const winner = (await app.bridge.teams()).find(
+  const teams = await app.bridge.teams();
+  const winner = teams.find(
     (t) => t.id === (toss?.data as { teamId: string }).teamId
   );
   await page

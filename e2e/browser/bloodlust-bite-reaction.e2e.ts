@@ -47,12 +47,13 @@ async function watchThrall(page: Page, playerId: string): Promise<void> {
     const t0 = performance.now();
     const watch: Watch = { source: [], frames: [] };
     w.__biteWatch = watch;
-    w.__biteLog = (what) =>
+    w.__biteLog = (what) => {
       watch.source.push({
         seq: watch.source.length,
         t: Math.round(performance.now() - t0),
         what,
       });
+    };
 
     const play = sprite.play.bind(sprite);
     sprite.play = (anim, fromStart = true) => {
@@ -146,7 +147,8 @@ async function expectDownDuring(page: Page, teamId: string) {
     .configure({ soft: true })
     .poll(
       async () => {
-        const last = (await watched(page)).frames.at(-1);
+        const watch = await watched(page);
+        const last = watch.frames.at(-1);
         return last && [last.anim, last.stunnedMarker, last.activeTeamId];
       },
       { timeout: 5000 }
@@ -168,7 +170,10 @@ test("a Bloodlust bite at the end of the activation downs the Thrall at once", a
 
     await app.hud.endTurn().click();
     await expect
-      .poll(async () => (await app.bridge.snapshot()).activeTeamId)
+      .poll(async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.activeTeamId;
+      })
       .toBe(team2.id);
 
     await page.waitForTimeout(1000);
@@ -196,7 +201,10 @@ test("a Bloodlust bite settled by End Turn downs the Thrall once", async ({
 
   try {
     await expect
-      .poll(async () => (await app.bridge.snapshot()).activeTeamId)
+      .poll(async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.activeTeamId;
+      })
       .toBe(team2.id);
     await expectDownDuring(page, team2.id);
     await page.waitForTimeout(1000);

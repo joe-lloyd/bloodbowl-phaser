@@ -39,6 +39,11 @@ const BEHIND_RESERVE_SLOT = { x: 5, y: -3 };
 
 type Positions = Record<string, Square | null>;
 
+const moved = (before: Positions, after: Positions) =>
+  Object.keys(after).filter(
+    (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key])
+  );
+
 test("setup picks players up by their grid square, not their body", async ({
   page,
 }) => {
@@ -49,7 +54,8 @@ test("setup picks players up by their grid square, not their body", async ({
   let shot = 0;
 
   await startSetup(page, app, UNDERWORLD);
-  const team = fixtureValue((await app.bridge.teams()).find((t) => t.name === UNDERWORLD));
+  const teamList = await app.bridge.teams();
+  const team = fixtureValue(teamList.find((t) => t.name === UNDERWORLD));
   const id = (index: number) => fixtureValue(team.players[index]).id;
 
   const positions = async (): Promise<Positions> => {
@@ -57,10 +63,6 @@ test("setup picks players up by their grid square, not their body", async ({
     const players = fixtureValue(snapshot.teams.find((t) => t.id === team.id)).players;
     return Object.fromEntries(players.map((p) => [p.id, p.position]));
   };
-  const moved = (before: Positions, after: Positions) =>
-    Object.keys(after).filter(
-      (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key])
-    );
 
   const drag = async (name: string, from: Square, to: Square) => {
     const start = await app.pitch.viewportPoint(from);
@@ -105,7 +107,8 @@ test("setup picks players up by their grid square, not their body", async ({
 
   const trollInFrontOfSnotling = async () => {
     await loadPreset(page, /balanced/i);
-    expect((await positions())[id(TROLL)]).toEqual(TROLL_SQUARE);
+    const trollPositions = await positions();
+    expect(trollPositions[id(TROLL)]).toEqual(TROLL_SQUARE);
     const { after } = await drag(
       "setup-snotling-behind-troll",
       { x: 2, y: 4 },
@@ -190,7 +193,8 @@ test("after setup a reserve is hovered by their body again", async ({
   const app = new GameApp(page);
 
   await startSetup(page, app, SNOTLINGS);
-  const team = fixtureValue((await app.bridge.teams()).find((t) => t.name === SNOTLINGS));
+  const teamList = await app.bridge.teams();
+  const team = fixtureValue(teamList.find((t) => t.name === SNOTLINGS));
 
   for (let side = 0; side < 2; side++) {
     await loadPreset(page, /balanced/i);
@@ -202,7 +206,13 @@ test("after setup a reserve is hovered by their body again", async ({
   await expect(finishSwarming).toBeVisible();
   await finishSwarming.click();
   await expect
-    .poll(async () => (await app.bridge.phase()).phase, { timeout: 15_000 })
+    .poll(
+      async () => {
+        const current = await app.bridge.phase();
+        return current.phase;
+      },
+      { timeout: 15_000 }
+    )
     .not.toBe(GamePhase.SETUP);
   const snapshot = await app.bridge.snapshot();
   const players = fixtureValue(snapshot.teams.find((t) => t.id === team.id)).players;
@@ -211,15 +221,18 @@ test("after setup a reserve is hovered by their body again", async ({
   const away = await app.pitch.viewportPoint({ x: 10, y: 5 });
   await page.mouse.move(away.x, away.y);
   await page.waitForTimeout(100);
-  const since = (await app.bridge.events()).length;
+  const eventsBefore = await app.bridge.events();
+  const since = eventsBefore.length;
   const body = await app.pitch.viewportPoint(BEHIND_RESERVE_SLOT);
   await page.mouse.move(body.x, body.y, { steps: 4 });
   await expect
     .poll(
-      async () =>
-        (await app.bridge.events(since))
+      async () => {
+        const events = await app.bridge.events(since);
+        return events
           .filter((e) => e.name === GameEventNames.UI_ShowPlayerInfo)
-          .map((e) => (e.data as { id: string }).id),
+          .map((e) => (e.data as { id: string }).id);
+      },
       { timeout: 5000 }
     )
     .toContain(reserve);
@@ -260,7 +273,8 @@ async function startSetup(
   await expect(flip).toBeVisible({ timeout: 15_000 });
   await flip.click();
   await expect(page.getByText(/wins the toss!$/)).toBeVisible({ timeout: 10_000 });
-  const toss = (await app.bridge.events()).find(
+  const tossEvents = await app.bridge.events();
+  const toss = tossEvents.find(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
       (e.data as { rollType: string }).rollType === "Coin Toss"
@@ -276,12 +290,22 @@ async function startSetup(
     .click();
 
   await expect
-    .poll(async () => (await app.bridge.phase()).phase, { timeout: 15_000 })
+    .poll(
+      async () => {
+        const current = await app.bridge.phase();
+        return current.phase;
+      },
+      { timeout: 15_000 }
+    )
     .toBe(GamePhase.SETUP);
   await expect
-    .poll(async () => (await app.bridge.phase()).activeTeamId, {
-      timeout: 15_000,
-    })
+    .poll(
+      async () => {
+        const current = await app.bridge.phase();
+        return current.activeTeamId;
+      },
+      { timeout: 15_000 }
+    )
     .toBe(homeTeam.id);
   await expect(page.getByTestId("setup-checklist")).toBeVisible({
     timeout: 15_000,

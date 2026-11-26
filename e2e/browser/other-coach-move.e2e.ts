@@ -20,8 +20,10 @@ test("the other coach's path stays drawn until the move resolves, then clears", 
       },
       [name, data] as const
     );
-  const pathDrawn = async () =>
-    (await app.bridge.pitchLayers()).includes("path_line");
+  const pathDrawn = async () => {
+    const layers = await app.bridge.pitchLayers();
+    return layers.includes("path_line");
+  };
 
   expect(await pathDrawn()).toBe(false);
   await emit(GameEventNames.UI_ShowOtherCoachMove, {

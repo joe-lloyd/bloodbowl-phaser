@@ -12,7 +12,8 @@ test("Razzle-Dazzle: a Move, then a Block in the same activation", async ({
   await app.sandbox.open({ scenario: "razzle-dazzle-two-actions" });
   await app.pitch.waitForCameraToSettle();
   const mover = await app.bridge.resolveRef("team1:0");
-  const home = (await app.bridge.teams())[0].id;
+  const teamList = await app.bridge.teams();
+  const home = teamList[0].id;
 
   await app.pitch.clickPlayer("team1:0");
   await expect(app.hud.actionMenu()).toBeVisible();
@@ -65,8 +66,7 @@ test("Razzle-Dazzle: a Move, then a Block in the same activation", async ({
     await page.waitForTimeout(500);
   }
   expect(await finished()).toBe(true);
-  expect((await app.bridge.snapshot()).turn.activatedPlayerIds).toContain(
-    mover
-  );
+  const finalSnapshot = await app.bridge.snapshot();
+  expect(finalSnapshot.turn.activatedPlayerIds).toContain(mover);
   await page.screenshot({ path: shot("razzle-dazzle-done") });
 });

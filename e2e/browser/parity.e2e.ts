@@ -42,7 +42,8 @@ test.describe(`parity: ${fixtureValue(scenarioCase).id}`, () => {
       engine.initialSnapshot.ballPosition
     );
 
-    const eventsBeforeSteps = (await app.bridge.events()).length;
+    const eventsBefore = await app.bridge.events();
+    const eventsBeforeSteps = eventsBefore.length;
 
     await performSteps({ app, page }, fixtureValue(scenarioCase).steps);
 
@@ -58,7 +59,8 @@ test.describe(`parity: ${fixtureValue(scenarioCase).id}`, () => {
     expect(afterBrowser.ballPosition).toEqual(engine.snapshot.ballPosition);
     expect(statuses(afterBrowser)).toEqual(statuses(engine.snapshot));
 
-    const browserEvents = (await app.bridge.events(eventsBeforeSteps))
+    const browserEventLog = await app.bridge.events(eventsBeforeSteps);
+    const browserEvents = browserEventLog
       .map((event) => event.name)
       .filter((name) => GAMEPLAY_EVENTS.has(name));
     const engineEvents = engine.events

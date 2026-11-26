@@ -2,8 +2,10 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
-const fanatic = async (app: GameApp) =>
-  fixtureValue((await app.bridge.snapshot()).teams[0]).players[6];
+const fanatic = async (app: GameApp) => {
+  const snapshot = await app.bridge.snapshot();
+  return fixtureValue(snapshot.teams[0]).players[6];
+};
 
 test("Stand Firm refuses the Fanatic's push and it stays put, still active (FAQ)", async ({
   page,
@@ -26,7 +28,10 @@ test("Stand Firm refuses the Fanatic's push and it stays put, still active (FAQ)
   await app.hud.answerReaction(true);
 
   await expect
-    .poll(async () => (await app.bridge.snapshot()).activePlayer?.id)
+    .poll(async () => {
+      const snapshot = await app.bridge.snapshot();
+      return snapshot.activePlayer?.id;
+    })
     .toBe(fixtureValue((await fanatic(app))).id);
   expect(fixtureValue((await fanatic(app))).position).toEqual({ x: 10, y: 5 });
 
@@ -38,7 +43,10 @@ test("Stand Firm refuses the Fanatic's push and it stays put, still active (FAQ)
 
   await page.getByTestId("action-end-activation").click();
   await expect
-    .poll(async () => (await app.bridge.snapshot()).activePlayer)
+    .poll(async () => {
+      const snapshot = await app.bridge.snapshot();
+      return snapshot.activePlayer;
+    })
     .toBeNull();
 });
 
@@ -58,7 +66,10 @@ test("a boxed-in target is chain-pushed by clicks, and the Fanatic moves in", as
   await app.hud.chooseBlockResult("push");
 
   await expect
-    .poll(async () => (await app.bridge.pendingDecision())?.type)
+    .poll(async () => {
+      const decision = await app.bridge.pendingDecision();
+      return decision?.type;
+    })
     .toBe("push-direction");
   await app.pitch.clickSquare({ x: 12, y: 5 });
 

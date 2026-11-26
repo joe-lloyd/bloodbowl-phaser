@@ -18,7 +18,10 @@ test.describe("rule interaction shapes", () => {
 
     await app.hud.actionButton("move").click();
     await expect
-      .poll(async () => (await app.bridge.snapshot()).activePlayer?.action)
+      .poll(async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.activePlayer?.action;
+      })
       .toBe("move");
   });
 
@@ -49,11 +52,10 @@ test.describe("rule interaction shapes", () => {
     await page.getByTestId("action-plan-go").click();
 
     await expect
-      .poll(async () =>
-        (await app.bridge.events()).some(
-          (event) => event.name === GameEventNames.PassAttempted
-        )
-      )
+      .poll(async () => {
+        const eventLog = await app.bridge.events();
+        return eventLog.some((event) => event.name === GameEventNames.PassAttempted);
+      })
       .toBe(true);
   });
 
@@ -96,7 +98,10 @@ test.describe("rule interaction shapes", () => {
     await chainsaw.click();
 
     await expect
-      .poll(async () => (await app.bridge.snapshot()).activePlayer?.id)
+      .poll(async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.activePlayer?.id;
+      })
       .toBe(fixtureValue(loony).id);
   });
 

@@ -50,7 +50,10 @@ test("the camera stays on a kicked ball while the HUD changes and the phone turn
     const at = await app.pitch.viewportPoint(square);
     await page.touchscreen.tap(at.x, at.y);
   }
-  await expect.poll(async () => (await ballCamera(page)).following).toBe(true);
+  await expect.poll(async () => {
+    const camera = await ballCamera(page);
+    return camera.following;
+  }).toBe(true);
 
   const viewports = [
     { width: 844, height: 390 },
@@ -69,5 +72,6 @@ test("the camera stays on a kicked ball while the HUD changes and the phone turn
   await expect(
     page.getByRole("button", { name: "ROLL KICK-OFF" })
   ).toBeVisible({ timeout: 30_000 });
-  expect((await ballCamera(page)).following).toBe(true);
+  const finalBall = await ballCamera(page);
+  expect(finalBall.following).toBe(true);
 });

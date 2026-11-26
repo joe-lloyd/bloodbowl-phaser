@@ -19,7 +19,8 @@ test("the Sports-Wizard's Zap! is aimed by clicking a player", async ({
 }) => {
   const app = new GameApp(page);
   const dialog = await openAndEndTurn(app, page);
-  const away = (await app.bridge.teams())[1].id;
+  const teams = await app.bridge.teams();
+  const away = teams[1].id;
   await expect(dialog).toContainText("Sports-Wizard: cast a spell?");
   await expect(dialog).toContainText("4+");
   await expect(dialog).not.toContainText("%");
@@ -34,9 +35,13 @@ test("the Sports-Wizard's Zap! is aimed by clicking a player", async ({
   await expect(dialog).toBeHidden({ timeout: 15_000 });
 
   await expect
-    .poll(async () => (await app.bridge.snapshot()).activeTeamId, {
-      timeout: 15_000,
-    })
+    .poll(
+      async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.activeTeamId;
+      },
+      { timeout: 15_000 }
+    )
     .toBe(away);
   const events = await app.bridge.events();
   const zap = events.find(
@@ -75,24 +80,33 @@ test("Fireball shows its blast and is cast at the clicked square", async ({
 }) => {
   const app = new GameApp(page);
   const dialog = await openAndEndTurn(app, page);
-  const away = (await app.bridge.teams())[1].id;
+  const teams = await app.bridge.teams();
+  const away = teams[1].id;
   await page.getByTestId("spell-fireball").click();
   await expect(dialog).toContainText("Fireball: click the square to aim at");
   const aim = { x: 12, y: 5 };
   await app.pitch.hoverSquare(aim);
   await expect
-    .poll(async () => (await app.bridge.pitchHighlights()).length)
+    .poll(async () => {
+      const highlights = await app.bridge.pitchHighlights();
+      return highlights.length;
+    })
     .toBeGreaterThanOrEqual(9);
   await page.screenshot({ path: shot("sports-wizard-fireball-aim") });
   await app.pitch.clickSquare(aim);
 
   await expect(dialog).toBeHidden({ timeout: 15_000 });
   await expect
-    .poll(async () => (await app.bridge.snapshot()).activeTeamId, {
-      timeout: 20_000,
-    })
+    .poll(
+      async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.activeTeamId;
+      },
+      { timeout: 20_000 }
+    )
     .toBe(away);
-  const rolls = (await app.bridge.events())
+  const events = await app.bridge.events();
+  const rolls = events
     .filter((e) => e.name === "diceRoll")
     .map((e) => String((e.data as { rollType?: string }).rollType));
   expect(rolls.filter((r) => r.startsWith("Fireball"))).toHaveLength(3);

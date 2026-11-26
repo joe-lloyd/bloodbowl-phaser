@@ -121,9 +121,10 @@ test.describe("sandbox scenario-case explorer", () => {
     ]);
     await app.pitch.clickSquare({ x: 8, y: 5 });
     await expect
-      .poll(
-        async () => fixtureValue(fixtureValue((await app.bridge.snapshot()).teams[0]).players[0]).position
-      )
+      .poll(async () => {
+        const snapshot = await app.bridge.snapshot();
+        return fixtureValue(fixtureValue(snapshot.teams[0]).players[0]).position;
+      })
       .toEqual({ x: 8, y: 5 });
 
     await page.getByTestId("check-checkpoints").click();

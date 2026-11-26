@@ -4,7 +4,9 @@ test("loads the game shell headlessly with no page errors", async ({
   page,
 }) => {
   const pageErrors: string[] = [];
-  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("pageerror", (error) => {
+    pageErrors.push(error.message);
+  });
 
   await page.goto("/");
 

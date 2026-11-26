@@ -52,14 +52,21 @@ test.describe("core turn interactions", () => {
     await app.hud.declareAction("team1:0", "move");
 
     await expect
-      .poll(async () => (await app.bridge.snapshot()).activePlayer?.action)
+      .poll(async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.activePlayer?.action;
+      })
       .toBe("move");
 
-    const eventsBefore = (await app.bridge.events()).length;
+    const priorEvents = await app.bridge.events();
+    const eventsBefore = priorEvents.length;
     await app.hud.endTurn().click();
 
     await expect
-      .poll(async () => (await app.bridge.phase()).activeTeamId)
+      .poll(async () => {
+        const phase = await app.bridge.phase();
+        return phase.activeTeamId;
+      })
       .not.toBe(before.activeTeamId);
     const events = await app.bridge.events(eventsBefore);
     expect(events.map((event) => event.name)).toContain(
@@ -85,11 +92,12 @@ test.describe("core turn interactions", () => {
 
     await app.hud.rollBlockDice();
     await expect
-      .poll(async () =>
-        (await app.bridge.events()).some(
+      .poll(async () => {
+        const logged = await app.bridge.events();
+        return logged.some(
           (event) => event.name === GameEventNames.BlockDiceRolled
-        )
-      )
+        );
+      })
       .toBe(true);
 
     await app.hud.chooseBlockDie(0);

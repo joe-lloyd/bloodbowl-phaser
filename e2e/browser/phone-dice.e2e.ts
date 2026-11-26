@@ -65,7 +65,8 @@ for (const viewport of [
     }) => {
       test.setTimeout(180_000);
       const app = await openBlock(page);
-      const before = (await cameraState(page)).zoom;
+      const cameraBefore = await cameraState(page);
+      const before = cameraBefore.zoom;
       expect(before * SQUARE_PX).toBeGreaterThanOrEqual(19.9);
       await sampleCamera(page);
       await page.getByTestId("block-roll-dice").tap();

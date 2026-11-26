@@ -10,11 +10,7 @@ const shot = (page: Page, name: string) =>
 const refs = (side: string) =>
   Array.from({ length: 7 }, (_, index) => `${side}:${String(index)}`);
 
-async function openSquare(
-  app: GameApp,
-  ref: string,
-  avoid: (square: Square) => boolean = () => false
-): Promise<Square> {
+async function openSquare(app: GameApp, ref: string): Promise<Square> {
   const squares = await Promise.all(
     [...refs("team1"), ...refs("team2")].map((each) => app.pitch.squareOf(each))
   );
@@ -33,7 +29,6 @@ async function openSquare(
       (to) =>
         to.y >= 0 &&
         to.y < 11 &&
-        !avoid(to) &&
         squares.every((at) => !(at.x === to.x && at.y === to.y))
     );
   if (!open) throw new Error(`${ref} has no open square`);
@@ -101,7 +96,13 @@ test("Charge! plays all four picked players in the coach's own order", async ({
     await shot(page, "charge-one-played");
   }
   await expect
-    .poll(async () => (await app.bridge.phase()).phase, { timeout: 30_000 })
+    .poll(
+      async () => {
+        const phase = await app.bridge.phase();
+        return phase.phase;
+      },
+      { timeout: 30_000 }
+    )
     .toBe("PLAY");
   expect(await app.bridge.pitchLayers()).not.toContain("kick_target");
   await app.pitch.clickPlayer("team2:3");
@@ -120,7 +121,13 @@ test("the End button closes a Charge early, and Restart starts it over", async (
   await walk(app, "team2:5");
   await page.getByTestId("end-turn").click();
   await expect
-    .poll(async () => (await app.bridge.phase()).phase, { timeout: 30_000 })
+    .poll(
+      async () => {
+        const phase = await app.bridge.phase();
+        return phase.phase;
+      },
+      { timeout: 30_000 }
+    )
     .toBe("PLAY");
   await page.getByRole("button", { name: "Restart" }).click();
   await expect(page.getByText(/Choose up to 3 ringed players/)).toBeVisible({
@@ -144,7 +151,13 @@ test("Quick Snap gives the receiving coach the same choose-then-play turn", asyn
     await expect.poll(() => app.pitch.squareOf(ref)).toEqual(to);
   }
   await expect
-    .poll(async () => (await app.bridge.phase()).phase, { timeout: 30_000 })
+    .poll(
+      async () => {
+        const phase = await app.bridge.phase();
+        return phase.phase;
+      },
+      { timeout: 30_000 }
+    )
     .toBe("PLAY");
 });
 
