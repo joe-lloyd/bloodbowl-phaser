@@ -228,12 +228,12 @@ export function rollSkill(
 export function isSkillLegal(player: Player, skill: SkillType): boolean {
   if (player.skills.some((existing) => existing.type === skill)) return false;
   const needed = NEEDS_ONE_OF[skill];
-  if (needed && !player.skills.some((s) => needed.includes(s.type)))
+  if (needed && player.skills.every((s) => !needed.includes(s.type)))
     return false;
-  return !INCOMPATIBLE_SKILLS.some(
+  return INCOMPATIBLE_SKILLS.every(
     ([left, right]) =>
-      (skill === left && player.skills.some((s) => s.type === right)) ||
-      (skill === right && player.skills.some((s) => s.type === left))
+      !((skill === left && player.skills.some((s) => s.type === right)) ||
+      (skill === right && player.skills.some((s) => s.type === left)))
   );
 }
 
@@ -252,7 +252,7 @@ export function eligibleSkills(
   });
 }
 
-export type { PendingAdvancementRoll, RandomSkillCandidate };
+
 
 const MAX_SKILL_ROLLS = 1000;
 
@@ -344,7 +344,7 @@ function assertMatchesSavedRoll(
   if (saved.kind === "random-primary") {
     if (
       choice.kind !== "random-primary" ||
-      !saved.candidates.some((candidate) => candidate.skill === choice.skill)
+      saved.candidates.every((candidate) => candidate.skill !== choice.skill)
     ) {
       throw new Error("Pick one of the two rolled skills");
     }
@@ -500,3 +500,5 @@ export function applyAdvancement(
   delete player.pendingAdvancementRoll;
   return player;
 }
+
+export {type PendingAdvancementRoll, type RandomSkillCandidate} from "../../types/Player";

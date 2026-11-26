@@ -95,7 +95,7 @@ class ExitLifetime {
 export function playPitchExit(options: PitchExitOptions): Promise<void> {
   const { route, signal } = options;
   const from = route[0];
-  const to = route[route.length - 1];
+  const to = route.at(-1);
   if (!from || !to || route.length < 2 || signal?.aborted)
     return Promise.resolve();
   const lifetime = new ExitLifetime(options);
@@ -187,10 +187,12 @@ function destroyCarrier({
   medics.forEach((medic) => {
     medic.destroy();
   });
-  if (stars) {
-    scene.tweens.killTweensOf(stars);
-    stars.destroy();
+  if (!stars) {
+    return;
   }
+
+  scene.tweens.killTweensOf(stars);
+  stars.destroy();
 }
 
 function placeMedics(
@@ -219,10 +221,12 @@ function updateCarrier(
   } = transport;
   prop.setDepth(PLAYER_DEPTH + prop.y - (coffinOnly ? 0 : 1));
   placeMedics(transport, project);
-  if (patient && stars) {
-    stars.setPosition(patient.x, patient.y + patient.getHeadOffset() - 4);
-    stars.setDepth(PLAYER_DEPTH + patient.y + 1);
+  if (!(patient && stars)) {
+    return;
   }
+
+  stars.setPosition(patient.x, patient.y + patient.getHeadOffset() - 4);
+  stars.setDepth(PLAYER_DEPTH + patient.y + 1);
 }
 
 function carrierStep(
@@ -242,12 +246,14 @@ function carrierStep(
       carrier.draw(project);
       placeMedics(transport, project);
       const facing = facingForStep(to.x - from.x, to.y - from.y);
-      if (facing) {
-        medics.forEach((medic) => {
-          medic.walk(facing);
-        });
-        patient?.setFacing(facing);
+      if (!facing) {
+        return;
       }
+
+      medics.forEach((medic) => {
+        medic.walk(facing);
+      });
+      patient?.setFacing(facing);
     },
     onUpdate: () => {
       updateCarrier(transport, project);
@@ -303,17 +309,19 @@ function stretcher(scene: Phaser.Scene, medical: boolean): Carrier {
         [project(-34, -9), project(34, -9), project(34, 9), project(-34, 9)],
         true
       );
-      if (medical) {
-        bed.fillStyle(0xd0021b, 1);
-        bed.fillPoints(
-          [project(-9, -3), project(9, -3), project(9, 3), project(-9, 3)],
-          true
-        );
-        bed.fillPoints(
-          [project(-3, -9), project(3, -9), project(3, 9), project(-3, 9)],
-          true
-        );
+      if (!medical) {
+        return;
       }
+
+      bed.fillStyle(0xd0021b, 1);
+      bed.fillPoints(
+        [project(-9, -3), project(9, -3), project(9, 3), project(-9, 3)],
+        true
+      );
+      bed.fillPoints(
+        [project(-3, -9), project(3, -9), project(3, 9), project(-3, 9)],
+        true
+      );
     },
   };
 }

@@ -186,7 +186,7 @@ function riskyStepRequest(
     },
     message:
       `${rollText}. ${rolls.some((roll) => roll.type === "pickup" || roll.type === "secureBall") ? "A fail" : "A fall"} is a turnover.\n` +
-      (rerolls.length
+      (rerolls.length > 0
         ? `Re-rolls: ${rerolls.join(", ")}.`
         : "No re-roll available."),
     confirmLabel: `${title}!`,

@@ -251,7 +251,7 @@ function applyApothecaryAnswer(
       const index = player.injuries.lastIndexOf(
         recordedInjury(request.casualtyType)
       );
-      if (index >= 0) player.injuries.splice(index, 1);
+      if (index !== -1) player.injuries.splice(index, 1);
     }
     movePlayerToBox(player, { box: "reserves" }, eventBus);
     eventBus.emit(
@@ -270,7 +270,7 @@ function applyApothecaryAnswer(
 function forgetInjuries(player: Player, grade: CasualtyGrade): void {
   for (const injury of casualtyGradeInjuries(grade)) {
     const index = player.injuries.lastIndexOf(injury);
-    if (index >= 0) player.injuries.splice(index, 1);
+    if (index !== -1) player.injuries.splice(index, 1);
   }
 }
 

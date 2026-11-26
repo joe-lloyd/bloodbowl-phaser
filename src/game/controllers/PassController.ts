@@ -340,7 +340,7 @@ export class PassController {
     const value = PassController.PASS_RANGES.findIndex(
       (r) => r.type === passType
     );
-    if (value < 0) return squares;
+    if (value === -1) return squares;
 
     for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
       for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {

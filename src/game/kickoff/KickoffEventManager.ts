@@ -368,7 +368,7 @@ export class KickoffEventManager {
     if (!player || !this.selectable(player, choice.event)) return false;
     const selected = choice.selectedPlayerIds;
     const index = selected.indexOf(playerId);
-    if (index >= 0) {
+    if (index !== -1) {
       selected.splice(index, 1);
       return true;
     }
@@ -404,7 +404,7 @@ export class KickoffEventManager {
 
   private isFreeDestination(playerId: string, x: number, y: number): boolean {
     if (!isStandableSquare({ x, y })) return false;
-    return ![...this.team1.players, ...this.team2.players].some((other) => other.id !== playerId && other.gridPosition?.x === x && other.gridPosition.y === y);
+    return [...this.team1.players, ...this.team2.players].every((other) => !(other.id !== playerId && other.gridPosition?.x === x && other.gridPosition.y === y));
   }
 
   public placePlayer(playerId: string, x: number, y: number): boolean {

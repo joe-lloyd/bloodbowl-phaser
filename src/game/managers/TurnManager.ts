@@ -245,14 +245,14 @@ export class TurnManager {
     const endingTeam =
       currentTeamId === this.team1.id ? this.team1 : this.team2;
     for (const player of endingTeam.players) {
-      if (
-        this.stunnedAtTurnStart.includes(player.id) &&
+      if (!(this.stunnedAtTurnStart.includes(player.id) &&
         player.status === PlayerStatus.STUNNED &&
-        player.gridPosition
-      ) {
-        player.status = PlayerStatus.PRONE;
-        this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+        player.gridPosition)) {
+        continue;
       }
+
+      player.status = PlayerStatus.PRONE;
+      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
     }
     this.stunnedAtTurnStart = [];
     this.eventBus.emit(GameEventNames.TurnEnded, { teamId: currentTeamId });
@@ -413,7 +413,7 @@ export class TurnManager {
       category: "action",
       headline: "TURNOVER",
       detail: `${who}: ${reason}`,
-      ...(activeTeamId != null ? { teamId: activeTeamId } : {}),
+      ...(activeTeamId == null ? {} : { teamId: activeTeamId }),
     });
     this.eventBus.emit(GameEventNames.Turnover, {
       teamId: this.state.activeTeamId || "",

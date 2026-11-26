@@ -334,15 +334,17 @@ function bindPartEvents(core: Core, getParts: () => GameParts): void {
   eventBus.on(GameEventNames.PhaseChanged, ({ phase }) => {
     if (phase === GamePhase.HALFTIME)
       breakSouvenirs(state, [...team1.players, ...team2.players]);
-    if (phase === GamePhase.GAME_OVER) {
-      state.bribes = {};
-
-      revokeMatchGrants(state, [...team1.players, ...team2.players]);
-      announceFullTime(getParts());
-
-      rollFanFactors(getParts());
-      updateDedicatedFans(getParts());
+    if (phase !== GamePhase.GAME_OVER) {
+      return;
     }
+
+    state.bribes = {};
+
+    revokeMatchGrants(state, [...team1.players, ...team2.players]);
+    announceFullTime(getParts());
+
+    rollFanFactors(getParts());
+    updateDedicatedFans(getParts());
   });
 
   const clearMarks = () => {

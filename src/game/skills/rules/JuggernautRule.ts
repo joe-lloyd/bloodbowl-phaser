@@ -5,14 +5,16 @@ export const JuggernautRule: SkillRule = {
   onBlockResult(ctx, self) {
     if (self.id !== ctx.attacker.id || !ctx.isBlitz) return;
     ctx.suppressReactions = true;
-    if (ctx.resultType === "both-down") {
-      ctx.treatAsPush = true;
-      ctx.triggers.push({
-        playerId: self.id,
-        skill: SkillType.JUGGERNAUT,
-        effect: "Juggernaut: Both Down treated as a Push Back",
-      });
+    if (ctx.resultType !== "both-down") {
+      return;
     }
+
+    ctx.treatAsPush = true;
+    ctx.triggers.push({
+      playerId: self.id,
+      skill: SkillType.JUGGERNAUT,
+      effect: "Juggernaut: Both Down treated as a Push Back",
+    });
   },
 
   onPush(ctx, self) {

@@ -3,7 +3,7 @@ import { type Team } from "../../types/Team";
 export type TeamMode = "draft" | "active";
 
 export function getTeamMode(team: Team): TeamMode {
-  return team.firstMatchPlayedAt != null ? "active" : "draft";
+  return team.firstMatchPlayedAt == null ? "draft" : "active";
 }
 
 export function isDraftTeam(team: Team): boolean {

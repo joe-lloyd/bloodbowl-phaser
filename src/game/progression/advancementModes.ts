@@ -337,7 +337,7 @@ function standingNames(
   named: readonly SkillType[]
 ): SkillType[] {
   const illegal = named.findIndex((skill) => !isSkillLegal(player, skill));
-  return illegal < 0 ? [...named] : named.slice(0, illegal);
+  return illegal === -1 ? [...named] : named.slice(0, illegal);
 }
 
 function standingProgress(
@@ -485,7 +485,7 @@ export function chooseSecondarySkill(
   const decision = skillSelectionDecision(team, entry);
   if (
     decision.type !== "choose-secondary-skill" ||
-    !decision.candidates.some((candidate) => candidate.skill === skill)
+    decision.candidates.every((candidate) => candidate.skill !== skill)
   ) {
     throw new Error(`${skill} was not rolled for this Skill Selection.`);
   }

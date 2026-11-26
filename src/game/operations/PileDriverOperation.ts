@@ -31,12 +31,14 @@ function canPileDrive(
 function dropHeldBall(context: FlowContext, attacker: Player): void {
   const ball = groundBall(context.gameService.getState());
   const at = attacker.gridPosition;
-  if (at && ball?.x === at.x && ball.y === at.y) {
-    context.flowManager.add(new BounceOperation({ ...at }), true);
-    context.gameService.triggerTurnover(
-      "Pile Driver: the ball carrier was Placed Prone"
-    );
+  if (!(at && ball?.x === at.x && ball.y === at.y)) {
+    return;
   }
+
+  context.flowManager.add(new BounceOperation({ ...at }), true);
+  context.gameService.triggerTurnover(
+    "Pile Driver: the ball carrier was Placed Prone"
+  );
 }
 
 export class PileDriverOperation extends GameOperation {

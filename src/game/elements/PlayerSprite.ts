@@ -175,7 +175,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   private tick = (time: number): void => {
-    if (!this.layers.length || !this.visible) return;
+    if (this.layers.length === 0 || !this.visible) return;
     const count = modelArt(this.model).animations[this.anim];
     const once = ONE_SHOT.has(this.anim);
     const step = Math.floor(
@@ -391,7 +391,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   public async animateThrow(path: { x: number; y: number }[]): Promise<void> {
-    const dest = path[path.length - 1];
+    const dest = path.at(-1);
     if (!dest) return;
     const duration = 650;
     return new Promise((resolve) => {

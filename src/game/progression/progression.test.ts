@@ -31,7 +31,7 @@ function player(
     id,
     playerName: id,
     positionName: "Lineman",
-    number: Number(id.replace(/\D/g, "")) || 1,
+    number: Number(id.replaceAll(/\D/g, "")) || 1,
     keywords: [],
     teamId,
     stats: { ...baseStats },

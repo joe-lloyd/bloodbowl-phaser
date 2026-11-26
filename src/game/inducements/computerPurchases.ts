@@ -66,10 +66,12 @@ export function computerInducementPurchases(
       wanted,
       Math.floor(remaining / entry.price)
     );
-    if (quantity > 0) {
-      purchases.push({ inducement, quantity });
-      remaining -= quantity * entry.price;
+    if (!(quantity > 0)) {
+      continue;
     }
+
+    purchases.push({ inducement, quantity });
+    remaining -= quantity * entry.price;
   }
   return purchases;
 }

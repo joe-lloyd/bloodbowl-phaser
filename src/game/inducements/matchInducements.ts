@@ -294,7 +294,7 @@ export function revokeGrant(player: Player, grant: MatchGrant): void {
   switch (grant.kind) {
     case "skill": {
       const index = player.skills.findIndex((s) => s.type === grant.skill);
-      if (index >= 0) player.skills.splice(index, 1);
+      if (index !== -1) player.skills.splice(index, 1);
       break;
     }
     case "stat":
@@ -539,10 +539,12 @@ export class ResolvePregameInducementsOperation extends GameOperation {
     }
 
     for (const team of teams) {
-      if (spendMeasure(state, team.id, DesperateMeasure.MAGIC_SCROLL)) {
-        grantSportsWizard(state, team.id);
-        announce(context, `Magic Scroll: ${team.name} gains a Sports-Wizard`);
+      if (!spendMeasure(state, team.id, DesperateMeasure.MAGIC_SCROLL)) {
+        continue;
       }
+
+      grantSportsWizard(state, team.id);
+      announce(context, `Magic Scroll: ${team.name} gains a Sports-Wizard`);
     }
   }
 }

@@ -40,7 +40,7 @@ export function findRuleConfig(configId: string) {
     const config = entry.configs.find((c) => c.id === configId);
     if (config) return { skill: entry.skill, config };
   }
-  return undefined;
+  return;
 }
 
 function skillsInCategory(category: SkillCategory): SkillType[] {

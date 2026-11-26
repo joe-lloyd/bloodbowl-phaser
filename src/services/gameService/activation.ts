@@ -244,8 +244,7 @@ export function finishBlockActivation(
   const isBlitz =
     parts.state.activePlayer?.action === "blitz" &&
     parts.state.activePlayer.id === attackerId;
-  if (player && isBlitz && player.status === PlayerStatus.ACTIVE) {
-    if (
+  if (player && isBlitz && player.status === PlayerStatus.ACTIVE &&
       parts.game.getMovementUsed(attackerId) <
       moveAllowance(withDriveModifiers(player, parts.state))
     ) {
@@ -258,7 +257,6 @@ export function finishBlockActivation(
       });
       return;
     }
-  }
 
   parts.blockManager.endBlockActivation(attackerId);
 }

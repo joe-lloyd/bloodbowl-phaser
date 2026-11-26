@@ -63,11 +63,12 @@ const GUARDED_RULES = [
 const NEWER_THAN_ES2023 = [
   "prefer-abort-signal-any", "prefer-array-from-async", "prefer-get-or-insert-computed", "prefer-group-by",
   "prefer-iterator-helpers", "prefer-iterator-to-array", "prefer-iterator-to-array-at-end", "prefer-iterator-zip",
-  "prefer-promise-try", "prefer-promise-with-resolvers", "prefer-set-methods",
+  "prefer-promise-try", "prefer-promise-with-resolvers", "prefer-set-methods", "prefer-dom-node-html-methods",
 ];
 const UNICORN_OFF = [
   "no-null", "filename-case", "name-replacements", "consistent-boolean-name",
-  "consistent-arrow-return-style", "no-nested-ternary", "prefer-switch", ...NEWER_THAN_ES2023,
+  "consistent-arrow-return-style", "no-nested-ternary", "prefer-switch", "prefer-ternary",
+  "prefer-combined-guards", "require-css-escape", ...NEWER_THAN_ES2023,
 ];
 
 const NODE_FILES = [

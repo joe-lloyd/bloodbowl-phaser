@@ -102,11 +102,10 @@ export class ActivationGateOperation extends GameOperation {
     const eventBus = context.eventBus;
 
     switch (gate.onFail.kind) {
-      case "distracted": {
+      case "distracted":
         this.distract(context, player, gate.skill);
         return;
-      }
-      case "endActivation": {
+      case "endActivation":
         eventBus.emit(GameEventNames.SkillTriggered, {
           playerId: player.id,
           skill: gate.skill,
@@ -114,8 +113,7 @@ export class ActivationGateOperation extends GameOperation {
         });
         this.endActivationNow(gameService);
         return;
-      }
-      case "rooted": {
+      case "rooted":
         addCondition(player, PlayerCondition.ROOTED);
         eventBus.emit(GameEventNames.SkillTriggered, {
           playerId: player.id,
@@ -124,7 +122,6 @@ export class ActivationGateOperation extends GameOperation {
         });
         eventBus.emit(GameEventNames.PlayerStatusChanged, player);
         return;
-      }
       case "lashOut": {
         const victim = adjacentStandingPlayers(
           player,

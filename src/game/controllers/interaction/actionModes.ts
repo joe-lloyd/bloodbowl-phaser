@@ -37,7 +37,7 @@ export function enterActionMode(
   const declarer = c.gameService.getPlayerById(playerId);
   if (
     declarer?.status === PlayerStatus.PRONE &&
-    !c.actionSteps.some((step) => step.id === "move")
+    c.actionSteps.every((step) => step.id !== "move")
   ) {
     c.actionSteps.unshift({ id: "standup", label: "Stand Up" });
     c.currentStepId = "standup";
@@ -144,10 +144,10 @@ function standUpStep(c: GameplayInteractionController, playerId: string): void {
       showSteps(c);
       afterMove(c, playerId);
     })
-    .catch((err: unknown) => {
+    .catch((error: unknown) => {
       c.eventBus.emit(
         GameEventNames.UI_Notification,
-        `Cannot Stand Up: ${String(err)}`
+        `Cannot Stand Up: ${String(error)}`
       );
     });
 }

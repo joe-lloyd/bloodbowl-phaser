@@ -50,7 +50,7 @@ class ScopedEventBus implements IEventBus {
     if (once)
       registered = (data) => {
         const index = this.own.indexOf(entry);
-        if (index < 0) return;
+        if (index === -1) return;
         this.own.splice(index, 1);
         entry.unregister(this.target);
         callback(data);

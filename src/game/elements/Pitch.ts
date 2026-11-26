@@ -432,7 +432,7 @@ export class Pitch {
     const labels = rolls
       .filter((r) => r.square.x === step.x && r.square.y === step.y)
       .map((r) => `${ROLL_LETTER[r.type]} ${String(r.target)}+`);
-    if (labels.length) {
+    if (labels.length > 0) {
       this.addRollTag(
         { x: local.x, y: local.y + 8 },
         { text: labels.join(" "), color: "#fff3b0", name: "path_roll_label" }

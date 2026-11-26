@@ -68,7 +68,7 @@ export function movementHalf(c: Controller): MovementHalf | null {
   const player = c.selectedPlayerId
     ? c.gameService.getPlayerById(c.selectedPlayerId)
     : undefined;
-  if (!player || !c.actionSteps.some((step) => step.id === "move")) return null;
+  if (!player || c.actionSteps.every((step) => step.id !== "move")) return null;
   if (mayRiseNow(c, player)) return "standup";
   return plannedJumpTargets(c, player).length > 0 ? "jump" : null;
 }

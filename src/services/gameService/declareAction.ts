@@ -322,10 +322,12 @@ function expireActivationConditions(parts: GameParts, activating: Player) {
     parts.eventBus.emit(GameEventNames.PlayerStatusChanged, activating);
   }
 
-  if (hasCondition(activating, PlayerCondition.EYE_GOUGED)) {
-    removeCondition(activating, PlayerCondition.EYE_GOUGED);
-    parts.eventBus.emit(GameEventNames.PlayerStatusChanged, activating);
+  if (!hasCondition(activating, PlayerCondition.EYE_GOUGED)) {
+    return;
   }
+
+  removeCondition(activating, PlayerCondition.EYE_GOUGED);
+  parts.eventBus.emit(GameEventNames.PlayerStatusChanged, activating);
 }
 
 function moveRefused(

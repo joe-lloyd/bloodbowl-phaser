@@ -420,21 +420,21 @@ export function hydrateStoredTeam(
     ...(raw["recordedFixtureIds"]
       ? { recordedFixtureIds: raw["recordedFixtureIds"] as string[] }
       : {}),
-    ...(raw["playedGames"] !== undefined
-      ? { playedGames: parsePlayedGames(raw["playedGames"]) }
-      : {}),
-    ...(raw["draftRuleset"] !== undefined
-      ? { draftRuleset: readSevensRuleset(raw["draftRuleset"]) }
-      : {}),
-    ...(raw["gameType"] !== undefined
-      ? { gameType: readGameType(raw["gameType"]) }
-      : {}),
+    ...(raw["playedGames"] === undefined
+      ? {}
+      : { playedGames: parsePlayedGames(raw["playedGames"]) }),
+    ...(raw["draftRuleset"] === undefined
+      ? {}
+      : { draftRuleset: readSevensRuleset(raw["draftRuleset"]) }),
+    ...(raw["gameType"] === undefined
+      ? {}
+      : { gameType: readGameType(raw["gameType"]) }),
     ...(raw["activeCompetitionId"]
       ? { activeCompetitionId: raw["activeCompetitionId"] as string }
       : {}),
-    ...(raw["firstMatchPlayedAt"] != null
-      ? { firstMatchPlayedAt: Number(raw["firstMatchPlayedAt"]) }
-      : {}),
+    ...(raw["firstMatchPlayedAt"] == null
+      ? {}
+      : { firstMatchPlayedAt: Number(raw["firstMatchPlayedAt"]) }),
     ...(raw["advancementMode"]
       ? { advancementMode: raw["advancementMode"] as TeamAdvancementMode }
       : {}),
@@ -515,9 +515,9 @@ export function dehydrateTeam(team: Team): StoredTeam {
     ...(team.activeCompetitionId
       ? { activeCompetitionId: team.activeCompetitionId }
       : {}),
-    ...(team.firstMatchPlayedAt != null
-      ? { firstMatchPlayedAt: team.firstMatchPlayedAt }
-      : {}),
+    ...(team.firstMatchPlayedAt == null
+      ? {}
+      : { firstMatchPlayedAt: team.firstMatchPlayedAt }),
     ...(team.advancementMode ? { advancementMode: team.advancementMode } : {}),
     ...(team.advancementModeLocked
       ? { advancementModeLocked: team.advancementModeLocked }
@@ -543,7 +543,7 @@ export function dehydrateTeam(team: Team): StoredTeam {
 function readClubState(raw: unknown): { club?: ClubState } {
   if (raw === undefined) return {};
   const parsed = clubStateSchema.safeParse(raw);
-  return parsed.success ? { club: parsed.data } : { club: {} };
+  return ({ club: parsed.success ? parsed.data : {} });
 }
 
 export function readStoredTeam(raw: unknown): HydrationResult {

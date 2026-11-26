@@ -278,10 +278,10 @@ const INTERCEPTION_DECLINE_SCENARIO: RuleConfig = {
       name: "Offered then declined — no steal",
       matches: (r) =>
         r.decisions.some((d) => d.type === "interception") &&
-        !r.events.some((e) => e.name === GameEventNames.PassIntercepted),
+        r.events.every((e) => e.name !== GameEventNames.PassIntercepted),
       verify: (r) => {
         assert(
-          !r.events.some((e) => e.name === GameEventNames.PassIntercepted),
+          r.events.every((e) => e.name !== GameEventNames.PassIntercepted),
           "no interception occurs when declined"
         );
         const ball = r.snapshot.ballPosition;
@@ -317,10 +317,10 @@ const INTERCEPTION_NONE_SCENARIO: RuleConfig = {
       name: "The throw resolves with no interception offered",
       matches: (r) =>
         r.events.some((e) => e.name === GameEventNames.PassAttempted) &&
-        !r.decisions.some((d) => d.type === "interception"),
+        r.decisions.every((d) => d.type !== "interception"),
       verify: (r) => {
         assert(
-          !r.decisions.some((d) => d.type === "interception"),
+          r.decisions.every((d) => d.type !== "interception"),
           "no interception decision is raised for a clear lane"
         );
       },
@@ -381,11 +381,11 @@ const INTERCEPTION_BEFORE_SCATTER_SCENARIO: RuleConfig = {
           "no scatter is rolled for an intercepted pass"
         );
         assert(
-          !r.events.some(
+          r.events.every(
             (e) =>
-              e.name === GameEventNames.DiceRoll &&
+              !(e.name === GameEventNames.DiceRoll &&
               appendBallRoll(null, diceRollSchema.parse(e.data))?.movement ===
-                "scattered"
+                "scattered")
           ),
           "the log never reports the ball as scattered"
         );
@@ -456,16 +456,16 @@ const HANDOFF_NO_PA_TEST_SCENARIO: RuleConfig = {
         r.snapshot.ballPosition.y === 5,
       verify: (r) => {
         assert(
-          !r.events.some(
+          r.events.every(
             (e) =>
-              e.name === GameEventNames.DiceRoll &&
+              !(e.name === GameEventNames.DiceRoll &&
               z.object({ rollType: z.string().exactOptional() }).parse(e.data)
-                .rollType === "Pass"
+                .rollType === "Pass")
           ),
           "a Hand-off must never roll a Passing Ability Test"
         );
         assert(
-          !r.events.some((e) => e.name === GameEventNames.PassAttempted),
+          r.events.every((e) => e.name !== GameEventNames.PassAttempted),
           "a Hand-off must never emit a PassAttempted (throw) event"
         );
         assert(
@@ -498,10 +498,10 @@ const HANDOFF_NO_INTERCEPTION_SCENARIO: RuleConfig = {
     {
       id: "no-interception-offered",
       name: "No interception decision is raised",
-      matches: (r) => !r.decisions.some((d) => d.type === "interception"),
+      matches: (r) => r.decisions.every((d) => d.type !== "interception"),
       verify: (r) => {
         assert(
-          !r.decisions.some((d) => d.type === "interception"),
+          r.decisions.every((d) => d.type !== "interception"),
           "a Hand-off must never offer an interception, even past an eligible opponent"
         );
       },
@@ -725,10 +725,10 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "No interception is offered under the ruler",
             matches: (r) =>
               skillTriggered(r, SkillType.CLOUD_BURSTER) &&
-              !r.decisions.some((d) => d.type === "interception"),
+              r.decisions.every((d) => d.type !== "interception"),
             verify: (r) => {
               assert(
-                !r.decisions.some((d) => d.type === "interception"),
+                r.decisions.every((d) => d.type !== "interception"),
                 "Cloud Burster must suppress the interception offer"
               );
             },
@@ -764,10 +764,10 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "No interception offered under the ruler",
             matches: (r) =>
               skillTriggered(r, SkillType.HAIL_MARY_PASS) &&
-              !r.decisions.some((d) => d.type === "interception"),
+              r.decisions.every((d) => d.type !== "interception"),
             verify: (r) => {
               assert(
-                !r.decisions.some((d) => d.type === "interception"),
+                r.decisions.every((d) => d.type !== "interception"),
                 "Hail Mary Pass must suppress interception"
               );
             },
@@ -1152,15 +1152,15 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
               const blockIndex = r.events.findIndex(
                 (e) => e.name === GameEventNames.BlockDiceRolled
               );
-              assert(passIndex >= 0, "Dump-Off must attempt a Quick Pass");
+              assert(passIndex !== -1, "Dump-Off must attempt a Quick Pass");
               assert(
                 passIndex < blockIndex,
                 "the Quick Pass must resolve before block dice are rolled"
               );
               assert(
-                !r.events
+                r.events
                   .slice(passIndex, blockIndex)
-                  .some((e) => e.name === GameEventNames.Turnover),
+                  .every((e) => e.name !== GameEventNames.Turnover),
                 "the Dump-Off pass must not cause a Turnover"
               );
             },
@@ -1220,7 +1220,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                     .parse(event.data).rollType === "Armor Check"
               );
               assert(
-                passIndex >= 0,
+                passIndex !== -1,
                 "Dump-Off must allow an empty-square Quick Pass"
               );
               assert(
@@ -1228,9 +1228,9 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "the Quick Pass must resolve before Stab's Armour Roll"
               );
               assert(
-                !r.events
+                r.events
                   .slice(passIndex, stabIndex)
-                  .some((event) => event.name === GameEventNames.Turnover),
+                  .every((event) => event.name !== GameEventNames.Turnover),
                 "the empty-square Dump-Off must not cause a Turnover"
               );
             },
@@ -1422,9 +1422,9 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                     .object({ rollType: z.string().exactOptional() })
                     .parse(event.data).rollType === "Kickoff Event"
               );
-              assert(moveIndex >= 0, "the receiving player must move");
+              assert(moveIndex !== -1, "the receiving player must move");
               assert(
-                eventIndex < 0 || moveIndex < eventIndex,
+                eventIndex === -1 || moveIndex < eventIndex,
                 "the move must happen before the Kick-off Event roll"
               );
               assert(

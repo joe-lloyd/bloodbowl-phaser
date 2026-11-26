@@ -29,12 +29,14 @@ function blitRow(layer: LayerData, target: Target, span: Span): void {
     depth = (depth + (planes[pixels * 2 + source] ?? 0)) & 255;
     const index = planes[source] ?? 0;
     const dest = span.dest + i;
-    if (index > 0 && depth <= (target.depth[dest] ?? 0)) {
-      target.idx[dest] = index - 1;
-      target.code[dest] = planes[pixels + source] ?? 0;
-      target.depth[dest] = depth;
-      target.fromBase[dest] = span.base ? 1 : 0;
+    if (!(index > 0 && depth <= (target.depth[dest] ?? 0))) {
+      continue;
     }
+
+    target.idx[dest] = index - 1;
+    target.code[dest] = planes[pixels + source] ?? 0;
+    target.depth[dest] = depth;
+    target.fromBase[dest] = span.base ? 1 : 0;
   }
 }
 

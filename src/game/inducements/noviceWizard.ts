@@ -26,7 +26,7 @@ const onPitch = (player: Player) => !!player.gridPosition;
 function distance(a: Player, b: Player): number {
   const from = a.gridPosition;
   const to = b.gridPosition;
-  if (!from || !to) return Number.POSITIVE_INFINITY;
+  if (!from || !to) return Infinity;
   return Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y));
 }
 

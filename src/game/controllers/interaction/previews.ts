@@ -191,8 +191,8 @@ export function previewSquare(
   if (c.jumpTargeting) { drawJumpAim(c, selectedId); return; }
   if (drawActionAim({ c, selectedId, x: aim.x, y: aim.y })) return;
   c.pitch.clearPassVisualization();
-  if (!c.getPlayerAt(x, y)) drawPath(c, x, y);
-  else c.pitch.clearPath();
+  if (c.getPlayerAt(x, y)) {c.pitch.clearPath();}
+  else {drawPath(c, x, y);}
 }
 
 function ringAssists(

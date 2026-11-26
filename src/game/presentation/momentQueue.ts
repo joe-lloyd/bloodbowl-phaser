@@ -170,10 +170,12 @@ export class MomentQueue {
     let quietSince = Date.now();
     while (!this.disposed && Date.now() - quietSince < KICKOFF_QUIET_MS) {
       await new Promise((r) => setTimeout(r, 100));
-      if (this.dice.inAir() || this.decisionOpen || this.touchbackOpen) {
-        await this.dice.landed();
-        quietSince = Date.now();
+      if (!(this.dice.inAir() || this.decisionOpen || this.touchbackOpen)) {
+        continue;
       }
+
+      await this.dice.landed();
+      quietSince = Date.now();
     }
     this.waitsForKickoff = false;
   }

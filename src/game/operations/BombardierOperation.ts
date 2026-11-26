@@ -201,10 +201,12 @@ export class BombardierOperation extends GameOperation {
         Math.abs(e.gridPosition!.x - here.x),
         Math.abs(e.gridPosition!.y - here.y)
       );
-      if (d < bestDist) {
-        bestDist = d;
-        best = { ...e.gridPosition! };
+      if (!(d < bestDist)) {
+        continue;
       }
+
+      bestDist = d;
+      best = { ...e.gridPosition! };
     }
     return best ?? { ...here };
   }
@@ -214,7 +216,7 @@ export class BombardierOperation extends GameOperation {
     target: { x: number; y: number }
   ): { x: number; y: number } {
     const path = gameService.getBallMovementController().scatter(target);
-    return path[path.length - 1] ?? { ...target };
+    return path.at(-1) ?? { ...target };
   }
 
   private async resolveInterception(

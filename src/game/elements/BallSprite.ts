@@ -3,7 +3,7 @@ import { ISO } from "./GridUtils";
 import { PLAYER_DEPTH } from "./PlayerSprite";
 import { BallTrail } from "./BallTrail";
 
-export const CARRIED_HEIGHT = 1.0;
+export const CARRIED_HEIGHT = 1;
 
 export class BallSprite extends Phaser.GameObjects.Container {
   private ball: Phaser.GameObjects.Container;

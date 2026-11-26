@@ -129,9 +129,9 @@ export class CasualtyOperation extends InjuryPartiesOperation {
     const kill =
       result === InjuryResult.DEAD
         ? {
-            ...(this.causedById !== undefined
-              ? { killerId: this.causedById }
-              : {}),
+            ...(this.causedById === undefined
+              ? {}
+              : { killerId: this.causedById }),
             armsPlagueRidden:
               !!causedBy && plagueRiddenApplies(causedBy, player, this.cause),
           }

@@ -252,9 +252,9 @@ export class InjuryOperation extends InjuryPartiesOperation {
     eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
     player.status = PlayerStatus.INJURED;
     eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
-      ...(this.opts.causedById !== undefined
-        ? { causerId: this.opts.causedById }
-        : {}),
+      ...(this.opts.causedById === undefined
+        ? {}
+        : { causerId: this.opts.causedById }),
       victimId: player.id,
       cause: this.opts.cause ?? "special",
       sppEligible: earnsCasualtySpp(

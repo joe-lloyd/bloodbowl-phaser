@@ -330,7 +330,7 @@ function walk(run: MoveRun, presentationId?: string) {
     path: steps,
     ...(carried ? { ballFrom: run.shownFrom, ballPath: steps } : {}),
     ballJoinStep: 0,
-    ...(presentationId !== undefined ? { presentationId } : {}),
+    ...(presentationId === undefined ? {} : { presentationId }),
   };
   run.shownSteps = run.completedPath.length;
   run.shownFrom = { ...run.currentPos };

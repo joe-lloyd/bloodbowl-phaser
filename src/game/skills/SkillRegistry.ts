@@ -22,7 +22,7 @@ export const SkillRegistry = {
 
   coverage(): { implemented: number; total: number; missing: string[] } {
     const all: SkillType[] = Object.values(SkillType);
-    const missing = all.filter((t) => !rules.has(t)).map((t) => String(t));
+    const missing = all.filter((t) => !rules.has(t)).map(String);
     return {
       implemented: all.length - missing.length,
       total: all.length,

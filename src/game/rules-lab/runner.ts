@@ -39,7 +39,7 @@ function blockIndex(
   const preferred = pending.options.findIndex(
     (o) => o.type === policy.preferBlockResult
   );
-  return preferred >= 0 ? preferred : 0;
+  return preferred === -1 ? 0 : preferred;
 }
 
 function touchbackAnswer(

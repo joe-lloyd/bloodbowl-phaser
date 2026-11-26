@@ -80,10 +80,12 @@ export class Dugout {
   public refresh(): void {
     for (const [id, transit] of this.inTransit) {
       const player = this.team.players.find((p) => p.id === id);
-      if (!player || playerBoxOf(player) !== transit.box) {
-        transit.abort.abort();
-        this.inTransit.delete(id);
+      if (player && playerBoxOf(player) === transit.box) {
+        continue;
       }
+
+      transit.abort.abort();
+      this.inTransit.delete(id);
     }
 
     this.visibleBeforeRefresh = new Set(
@@ -127,10 +129,7 @@ export class Dugout {
       this.placeArrival(player, sprite, { at, box, arrival });
       return;
     }
-    if (!sprite) {
-      sprite = this.createPlayerSprite(player, at.x, at.y);
-      this.playerSprites.set(player.id, sprite);
-    } else {
+    if (sprite) {
       const moved =
         this.visibleBeforeRefresh.has(player.id) &&
         (sprite.x !== at.x || sprite.y !== at.y);
@@ -145,6 +144,9 @@ export class Dugout {
       } else {
         sprite.setPosition(at.x, at.y);
       }
+    } else {
+      sprite = this.createPlayerSprite(player, at.x, at.y);
+      this.playerSprites.set(player.id, sprite);
     }
     this.markSentOff(player.id, sprite, box);
     sprite.setDugoutPose(

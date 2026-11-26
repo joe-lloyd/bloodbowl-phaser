@@ -180,15 +180,17 @@ export class GameFlowManager {
   private async drain(epoch: number): Promise<void> {
     while (this.epoch === epoch && this.queue.length > 0) {
       const op = this.queue.shift();
-      if (op) {
-        console.log(`[Flow] Executing: ${op.name}`);
-        try {
-          await op.execute(this.context);
-        } catch (err) {
-          console.error(`[Flow] Error in ${op.name}:`, err);
+      if (!op) {
+        continue;
+      }
 
-          if (this.epoch === epoch) this.clear();
-        }
+      console.log(`[Flow] Executing: ${op.name}`);
+      try {
+        await op.execute(this.context);
+      } catch (error) {
+        console.error(`[Flow] Error in ${op.name}:`, error);
+
+        if (this.epoch === epoch) this.clear();
       }
     }
   }

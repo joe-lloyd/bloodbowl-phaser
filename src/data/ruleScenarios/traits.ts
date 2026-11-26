@@ -100,7 +100,7 @@ const availabilityFor = (
 };
 
 const lastCommandRefused = (r: ScriptResult, reason: string): boolean => {
-  const last = r.responses[r.responses.length - 1];
+  const last = r.responses.at(-1);
   return !!last && !last.ok && !!last.reason?.includes(reason);
 };
 
@@ -399,9 +399,9 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             verify: (r) => {
               assert(turnoverHappened(r), "failed pick-up is a turnover");
               assert(
-                !r.events.some(
+                r.events.every(
                   (e) =>
-                    e.name === "diceRoll" &&
+                    !(e.name === "diceRoll" &&
                     z
                       .object({ rollType: z.string().exactOptional() })
                       .parse(e.data)
@@ -409,7 +409,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                     z
                       .object({ description: z.string().exactOptional() })
                       .parse(e.data)
-                      .description?.includes("needs")
+                      .description?.includes("needs"))
                 ),
                 "no real pick-up roll may happen"
               );
@@ -1257,7 +1257,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 2 && playerAt(r, "team1:6", { x: 11, y: 5 }),
             verify: (r) => {
               assert(
-                !r.decisions.some((d) => d.type === "follow-up"),
+                r.decisions.every((d) => d.type !== "follow-up"),
                 "the Fanatic moves in without a follow-up choice"
               );
             },

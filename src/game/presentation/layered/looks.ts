@@ -50,8 +50,8 @@ export function randomAppearance(options: readonly LookOption[], random: Random)
 }
 
 function hashSeed(seed: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < seed.length; i += 1) hash = Math.imul(hash ^ seed.charCodeAt(i), 16777619);
+  let hash = 2_166_136_261;
+  for (let i = 0; i < seed.length; i += 1) hash = Math.imul(hash ^ seed.charCodeAt(i), 16_777_619);
   return hash >>> 0;
 }
 
@@ -61,6 +61,6 @@ export function seededRandom(seed: string): Random {
     state ^= state << 13;
     state ^= state >>> 17;
     state ^= state << 5;
-    return (state >>> 0) / 4294967296;
+    return (state >>> 0) / 4_294_967_296;
   };
 }

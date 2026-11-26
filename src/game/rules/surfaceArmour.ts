@@ -25,5 +25,5 @@ const REPLACES_SURFACE: readonly string[] = [
 export function surfaceStacksWith(
   triggers: readonly { skill: string }[]
 ): boolean {
-  return !triggers.some((trigger) => REPLACES_SURFACE.includes(trigger.skill));
+  return triggers.every((trigger) => !REPLACES_SURFACE.includes(trigger.skill));
 }

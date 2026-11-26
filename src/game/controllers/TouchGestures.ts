@@ -127,10 +127,12 @@ export class TouchGestures {
     if (!("id" in press) || press.id !== id) return;
     if (press.kind === "pending") { this.movePending(press, at); return; }
     if (press.kind === "route") this.handlers.routeTo(at);
-    if (press.kind === "pan") {
-      this.handlers.pan(at.x - press.last.x, at.y - press.last.y);
-      press.last = at;
+    if (press.kind !== "pan") {
+      return;
     }
+
+    this.handlers.pan(at.x - press.last.x, at.y - press.last.y);
+    press.last = at;
   }
 
   up(id: number): void {

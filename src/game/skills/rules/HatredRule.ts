@@ -9,7 +9,7 @@ export const HatredRule: SkillRule = {
     const instance = self.skills.find((s) => s.type === SkillType.HATRED);
     if (!matchesKeyword(ctx.defender, instance?.parameter)) return;
     const index = ctx.results.findIndex((r) => r.type === "skull");
-    if (index < 0) return;
+    if (index === -1) return;
 
     if (ctx.decisions) {
       const answer = (await ctx.decisions.request({

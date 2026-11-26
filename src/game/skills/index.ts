@@ -279,10 +279,12 @@ export function gatherParticipants(
   const seen = new Set<string>();
   const participants: Player[] = [];
   for (const p of [actor, ...(target ? [target] : []), ...byPosition]) {
-    if (!seen.has(p.id)) {
-      seen.add(p.id);
-      participants.push(p);
+    if (seen.has(p.id)) {
+      continue;
     }
+
+    seen.add(p.id);
+    participants.push(p);
   }
   return participants;
 }
@@ -446,11 +448,11 @@ export type {
   CasualtyContext,
   CountAssistContext,
   ActionDeclaredContext,
-  
+
   ActivationGate,
-  
-  
+
+
   TurnEndingContext,
-  
+
 } from "./SkillRule";
 ;

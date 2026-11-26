@@ -107,9 +107,7 @@ export class MovementPathSearch {
     const zones = movementTackleZones(square, this.input.opponents);
     const rush = steps + 1 > this.input.player.stats.MA ? 4 : 0;
     const barricade = barricadeBetween(from, square) ? 3 : 0;
-    return this.input.mode === "safe"
-      ? 1 + zones * 10 + rush + barricade
-      : 100 + zones + barricade;
+    return (this.input.mode === "safe" ? 1 + zones * 10 + rush : 100 + zones) + barricade;
   }
 
   private relax(step: {
@@ -129,8 +127,8 @@ export class MovementPathSearch {
       score + heuristic(neighbor, this.input.start, this.input.end)
     );
     if (
-      !this.openSet.some(
-        (square) => square.x === neighbor.x && square.y === neighbor.y
+      this.openSet.every(
+        (square) => !(square.x === neighbor.x && square.y === neighbor.y)
       )
     )
       this.openSet.push(neighbor);

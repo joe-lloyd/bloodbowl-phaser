@@ -17,7 +17,7 @@ function mayGrip(ctx: Escape, self: Player): boolean {
 
   if (!areAdjacent(self.gridPosition, ctx.from)) return false;
 
-  return !ctx.triggers.some((t) => t.skill === SkillType.TENTACLES);
+  return ctx.triggers.every((t) => t.skill !== SkillType.TENTACLES);
 }
 
 async function grip(ctx: Escape, self: Player): Promise<void> {

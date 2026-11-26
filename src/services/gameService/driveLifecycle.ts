@@ -68,7 +68,7 @@ export function startKickoff(parts: GameParts): void {
   const kicking = [parts.team1, parts.team2].find(
     (team) => team.id === state.setup?.kickingTeamId
   );
-  if (kicking && !kicking.players.some((p) => p.gridPosition)) {
+  if (kicking?.players.every((p) => !p.gridPosition)) {
     parts.flowManager.add(
       new AutomaticTouchbackOperation(() =>
         parts.ballManager.automaticTouchback(kicking.id === parts.team1.id)
@@ -90,11 +90,13 @@ class AutomaticTouchbackOperation extends GameOperation {
 }
 
 export function selectKicker(parts: GameParts, playerId: string): void {
-  if (parts.state.phase === GamePhase.KICKOFF) {
-    const player = parts.game.getPlayerById(playerId);
-    if (player) {
-      parts.eventBus.emit(GameEventNames.PlayerSelected, { player });
-    }
+  if (parts.state.phase !== GamePhase.KICKOFF) {
+    return;
+  }
+
+  const player = parts.game.getPlayerById(playerId);
+  if (player) {
+    parts.eventBus.emit(GameEventNames.PlayerSelected, { player });
   }
 }
 
@@ -208,7 +210,7 @@ function concededOutcome(parts: GameParts, result: MatchResult): string {
 export function rollFanFactors(parts: GameParts): void {
   if (!parts.state.paysWinnings || parts.state.fanFactors) return;
   const teams = [parts.team1, parts.team2];
-  if (!teams.some((team) => isLeagueMode(team.advancementMode))) return;
+  if (teams.every((team) => !isLeagueMode(team.advancementMode))) return;
   const fanFactors: Record<string, number> = {};
   for (const team of teams) {
     const d3 = parts.diceController.rollD3(
@@ -337,10 +339,12 @@ export async function rollKORecovery(
       recovered,
     });
     await beat();
-    if (recovered) {
-      movePlayerToBox(player, { box: "reserves" }, parts.eventBus);
-      forgetSeriousKnockout(state, player.id);
+    if (!recovered) {
+      continue;
     }
+
+    movePlayerToBox(player, { box: "reserves" }, parts.eventBus);
+    forgetSeriousKnockout(state, player.id);
   }
 
   assertSinglePlayerLocation(

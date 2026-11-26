@@ -63,7 +63,7 @@ export class SidelineTerrace {
       );
       this.objects.push(figure);
     }
-    if (!staff.length) {
+    if (staff.length === 0) {
       const at = project(layout.x + 3, layout.y + 1.5 * layout.direction);
       const empty = scene.add
         .text(at.x, at.y, "NO STAFF", {

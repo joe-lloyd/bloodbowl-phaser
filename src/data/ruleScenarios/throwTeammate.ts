@@ -92,7 +92,7 @@ const ttm = (opts: TtmOpts): ScenarioSetup => {
         x: opts.mate?.x ?? 11,
         y: opts.mate?.y ?? 5,
         ...(opts.extraMateSkills ? { skills: opts.extraMateSkills } : {}),
-        ...(Object.keys(mateStats).length ? { stats: mateStats } : {}),
+        ...(Object.keys(mateStats).length > 0 ? { stats: mateStats } : {}),
       },
     ],
     team2Placements: (opts.opponents ?? [{ x: 1, y: 1 }]).map((o, i) => ({

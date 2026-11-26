@@ -62,7 +62,7 @@ export function expensiveMistakeFor(
   return mistake;
 }
 
-const ROUNDING = 5_000;
+const ROUNDING = 5000;
 const INCIDENT_GOLD = 10_000;
 
 export interface ExpensiveMistakesResult {
