@@ -114,6 +114,7 @@ class Catcher(looks.Fine, Biped):
             ec.shades(J, tag, L["elf_shades"])
         low = 0.3 if L.get("sex") == "f" else 0.12        # a man's top reaches the belt
         tband(tag + "crop", J, P, [low, 0.38, P["sh_h"] - 0.02, P["sh_h"] + 0.03], "kit1", k=1.06, add=0.014)
+        core.cups(J, P, tag + "crop", "kit1", off=0.01)
         tband(tag + "crophem", J, P, [low - 0.015, low + 0.025], "kit2", k=1.07, add=0.022)
         kit(J, P, L, tag, hem="kit1", socks=None, piping=None)
         for side in ("l", "r"):

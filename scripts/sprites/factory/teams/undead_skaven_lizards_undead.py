@@ -135,7 +135,7 @@ class Wraith(Floating):
     and cord, long bone fingers reaching out, green eyes inside the hood."""
     key = "wraith"
     race = "skeleton"
-    knobs = dict(arms=1.15, shoulders=1.0, hands=1.05)
+    knobs = dict(arms=1.15, shoulders=1.0, hands=0.7)
     layout = dict(torso="cloth_black", arms="cloth_black", coat_mat="cloth_black", robe_lining="kit1", hem="kit1",
                   helm="hood", hood_mat="cloth_black", belt="kit2", buckle="gold", sleeve_cuff="kit2", jag=0.7,
                   claws=0.08, finger=1.3, clasp=False, trim="kit2", shroud=True, hood_rim=True)

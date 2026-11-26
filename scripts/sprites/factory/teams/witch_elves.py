@@ -41,6 +41,7 @@ class Novice(looks.Fine, Biped):
         top = L.get("witch_top")
         if top:
             tband(tag + "top", J, P, [0.33, 0.4, 0.46], "kit1", k=1.06, add=0.012)
+            core.cups(J, P, tag, "kit1")
         if top == "halter":
             for sd in (-1, 1):
                 ec.torso_stripe(J, P, tag, "halter%d" % sd, [(0.46, 26 * sd), (P["sh_h"] + 0.04, 10 * sd)], "kit2", r=0.03)

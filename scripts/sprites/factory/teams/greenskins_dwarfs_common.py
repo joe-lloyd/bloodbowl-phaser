@@ -323,6 +323,7 @@ def bust_band(J, P, tag, mat, trim=None):
     """A wrap over a bare-chested woman's bust, so a shirtless position still reads as a woman."""
     sh = P["sh_h"]
     tband(tag + "bustband", J, P, [0.48 * sh, 0.6 * sh, 0.74 * sh, 0.84 * sh], mat, k=1.07, add=0.018, solid=0.03)
+    core.cups(J, P, tag, mat, off=0.01)
     if trim:
         tband(tag + "bustrim", J, P, [0.47 * sh, 0.52 * sh], trim, k=1.08, add=0.03, solid=0.03)
 
