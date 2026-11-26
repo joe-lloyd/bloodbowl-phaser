@@ -1,6 +1,6 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import path from "node:path";
 import { env } from "node:process";
 import { describe, expect, it, vi } from "vitest";
 
@@ -82,7 +82,7 @@ async function playSeason(league: LeagueDoc): Promise<LeagueDoc> {
       for (const finding of outcome.recording.findings)
         engineFindings.push({ where, rule: `match-${finding.kind}`, detail: `${finding.key}: ${finding.message}` });
     } catch (cause) {
-      note(where, "simulation-failed", cause instanceof Error ? String(cause.stack) : String(cause));
+      note(where, "simulation-failed", String(cause instanceof Error ? cause.stack : cause));
       return latest;
     }
   }
@@ -159,7 +159,7 @@ describe.runIf(env["CLUB_SEASONS"] === "1")("club league seasons", () => {
 
     const output = env["CLUB_SEASONS_OUT"];
     if (output) {
-      mkdirSync(dirname(output), { recursive: true });
+      mkdirSync(path.dirname(output), { recursive: true });
       writeFileSync(output, JSON.stringify({ findings, engineFindings, seasons }, null, 2));
     }
     console.log(
