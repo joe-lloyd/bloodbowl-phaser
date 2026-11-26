@@ -138,6 +138,7 @@ export class CloudTeamRepository implements TeamRepository {
 
   async deleteTeam(teamId: string): Promise<void> {
     await deleteCloudTeam(this.uid, teamId);
+    this.lastWritten.delete(teamId);
     this.cache = this.cache.filter((team) => team.id !== teamId);
   }
 
@@ -151,18 +152,29 @@ export class CloudTeamRepository implements TeamRepository {
     cached: Team | undefined,
     before: Team[]
   ): Promise<void> {
+    const claimed = documentText(copy);
     try {
       const written = await writeCloudTeam(this.uid, copy);
-      this.lastWritten.set(copy.id, documentText(written));
+      this.settleWrite(copy.id, claimed, documentText(written));
       if (written !== copy) this.replace(cached, written);
     } catch (cause) {
-      this.lastWritten.delete(copy.id);
+      this.settleWrite(copy.id, claimed, undefined);
       this.replace(
         cached,
         before.find(({ id }) => id === copy.id)
       );
       throw cause;
     }
+  }
+
+  private settleWrite(
+    id: string,
+    claimed: string,
+    written: string | undefined
+  ): void {
+    if (this.lastWritten.get(id) !== claimed) return;
+    if (written === undefined) this.lastWritten.delete(id);
+    else this.lastWritten.set(id, written);
   }
 
   private claimWrite(team: Team): boolean {

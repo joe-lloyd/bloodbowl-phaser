@@ -1,6 +1,6 @@
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { setDoc } from "firebase/firestore";
+import { runTransaction, setDoc } from "firebase/firestore";
 import { CloudTeamRepository } from "../../../src/firebase/cloudTeamRepository";
 import { TeamBuilder } from "../../utils/test-builders";
 
@@ -11,6 +11,7 @@ vi.mock("firebase/firestore", async () => ({
   doc: vi.fn(() => ({})),
   collection: vi.fn(() => ({})),
   setDoc: vi.fn(),
+  runTransaction: vi.fn(),
 }));
 vi.mock("../../../src/firebase/config", () => ({
   isFirebaseConfigured: () => false,
@@ -122,5 +123,38 @@ describe("cloud team writes", () => {
     await repository.saveTeams(structuredClone(changed));
 
     expect(setDoc).toHaveBeenCalledTimes(2);
+  });
+
+  it("writes the latest save when an earlier write finishes after a newer one was queued", async () => {
+    const repository = new CloudTeamRepository("coach", [
+      activeTeam("first", 10_000),
+    ]);
+    let finishFirst!: () => void;
+    vi.mocked(setDoc).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishFirst = resolve;
+      })
+    );
+    const saveB = repository.saveTeams([activeTeam("first", 20_000)]);
+    const saveC = repository.saveTeams([activeTeam("first", 30_000)]);
+    finishFirst();
+    await saveB;
+    const saveBAgain = repository.saveTeams([activeTeam("first", 20_000)]);
+    await Promise.all([saveC, saveBAgain]);
+
+    expect(vi.mocked(setDoc).mock.lastCall?.[1]).toEqual(
+      expect.objectContaining({ treasury: 20_000 })
+    );
+  });
+
+  it("writes a deleted team again when it is saved back unchanged", async () => {
+    vi.mocked(runTransaction).mockResolvedValueOnce(undefined);
+    const team = activeTeam("first", 10_000);
+    const repository = new CloudTeamRepository("coach", [team]);
+    await repository.deleteTeam("first");
+
+    await repository.saveTeams([structuredClone(team)]);
+
+    expect(setDoc).toHaveBeenCalledTimes(1);
   });
 });
