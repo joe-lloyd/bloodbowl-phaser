@@ -23,15 +23,9 @@ export const SQUIG_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "squig-rage-activation",
         name: "Squig Rage roll on activation",
         description:
-          "An isolated Wrangler acts on a 3+ and becomes Distracted on a 1 or 2.",
+          "An isolated Wrangler rolls before an action is chosen: on a 3+ the coach picks one, on a 1 or 2 it becomes Distracted.",
         setup,
-        script: [
-          {
-            type: "declare-action",
-            playerId: "team1:1",
-            action: "ballAndChain",
-          },
-        ],
+        script: [{ type: "roll-squig-rage", playerId: "team1:1" }],
         outcomes: [
           {
             id: "distracted",
@@ -42,10 +36,11 @@ export const SQUIG_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
           {
             id: "acts",
-            name: "The Wrangler passes the roll and can move",
+            name: "The Wrangler passes the roll and waits for an action",
             matches: (run) =>
               skillCheckDiff(run, SkillType.SQUIG_RAGE) === 0 &&
-              run.snapshot.activePlayer?.action === "ballAndChain",
+              run.snapshot.activePlayer?.action === null &&
+              run.snapshot.activePlayer.squigRageSettled === true,
           },
         ],
       },

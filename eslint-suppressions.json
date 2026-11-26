@@ -531,9 +531,6 @@
     }
   },
   "__tests__/integration/action-plan-review.test.ts": {
-    "unicorn/no-immediate-mutation": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 2
     }

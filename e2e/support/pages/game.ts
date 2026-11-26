@@ -146,6 +146,12 @@ export class HudPage {
       .filter({ hasText: "must roll first" });
   }
 
+  squigRageConfirm(): Locator {
+    return this.page
+      .getByTestId("confirmation-modal")
+      .filter({ hasText: "before you choose an action" });
+  }
+
   plannedActivationRoll(): Locator {
     return this.page
       .getByTestId("action-plan")

@@ -12,6 +12,7 @@ import {
   stepRolls,
 } from "../../rules/moveLegs";
 import { ROUTE_ROLL_NAMES, type RouteRoll } from "../../rules/rollPreview";
+import { SQUIG_RAGE_GATE } from "../../skills/rules/SquigRageRule";
 
 type ConfirmationRequest = Omit<
   AllEvents[typeof GameEventNames.UI_RequestConfirmation],
@@ -256,5 +257,18 @@ export function gateRequest(
     cancelLabel: "Cancel",
     risky: true,
     chooserTeamId: player.teamId,
+  };
+}
+
+export function squigRageRequest(squig: Player): ConfirmationRequest {
+  const gate = SQUIG_RAGE_GATE;
+  return {
+    ...gateRequest(squig, [gate]),
+    title: `Activate ${squig.playerName}?`,
+    message:
+      `${rollLabel(gate.skill, gateNeed(gate))}. ${GATE_FAILURE_TEXT.squigRage}\n` +
+      "The roll comes before you choose an action. Once rolled, this player is activated.",
+    confirmLabel: "Activate",
+    cancelLabel: "Not now",
   };
 }

@@ -18,6 +18,7 @@ import {
   type ReactionDecisionAnswer,
 } from "../../types/decisions";
 import { steadyFootingSaves } from "../rules/steadyFooting";
+import { ragesOnActivation, SQUIG_RAGE_GATE } from "../skills/rules/SquigRageRule";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
 
@@ -25,8 +26,8 @@ export class ActivationGateOperation extends GameOperation {
   public readonly name = "ActivationGate";
 
   private playerId: string;
-  private action: ActionType;
-  constructor(playerId: string, action: ActionType) {
+  private action: ActionType | null;
+  constructor(playerId: string, action: ActionType | null) {
     super();
     this.playerId = playerId;
     this.action = action;
@@ -39,14 +40,12 @@ export class ActivationGateOperation extends GameOperation {
 
     const { activePlayer } = gameService.getState();
     const rolling = activePlayer?.id === player.id ? activePlayer : null;
-    const gates = unresolvedGates(
-      activationGates(
-        player,
-        this.action,
-        gameService.getTeammates(this.playerId)
-      ),
-      rolling?.squigRageSettled === true
-    );
+    const gates = gatesToRoll({
+      player,
+      action: this.action,
+      teammates: gameService.getTeammates(this.playerId),
+      squigRageSettled: rolling?.squigRageSettled === true,
+    });
     if (gates.length === 0) return;
     if (rolling) rolling.activationRollStarted = true;
     try {
@@ -85,7 +84,8 @@ export class ActivationGateOperation extends GameOperation {
         { rollName: gate.skill }
       );
       if (result.success) {
-        gameService.commitAction(this.playerId);
+        if (this.action === null) this.reopenActivation(context);
+        else gameService.commitAction(this.playerId);
         continue;
       }
       await this.applyFailure(context, player, gate);
@@ -276,10 +276,21 @@ export class ActivationGateOperation extends GameOperation {
   }
 }
 
-function unresolvedGates(
-  gates: ActivationGate[],
-  squigRageSettled: boolean
-): ActivationGate[] {
+function gatesToRoll({
+  player,
+  action,
+  teammates,
+  squigRageSettled,
+}: {
+  player: Player;
+  action: ActionType | null;
+  teammates: Player[];
+  squigRageSettled: boolean;
+}): ActivationGate[] {
+  if (action === null) {
+    return ragesOnActivation(player, teammates) ? [{ ...SQUIG_RAGE_GATE }] : [];
+  }
+  const gates = activationGates(player, action, teammates);
   if (!squigRageSettled) return gates;
   const rage = gates.findIndex((gate) => gate.onFail.kind === "squigRage");
   return gates.slice(rage + 1);

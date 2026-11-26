@@ -39,6 +39,7 @@ export const INTERACTION_COMMANDS: HeadlessCommand["type"][] = [
   "kickoff-skip",
   "kickoff-reselect",
   "declare-action",
+  "roll-squig-rage",
   "cancel-action",
   "move",
   "fumblerooski",

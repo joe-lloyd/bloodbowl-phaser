@@ -1,10 +1,10 @@
 import type { ActionType, MovementHalf } from "@/types/events";
 import { errorText } from "../../../ui/errorText";
 import { GameEventNames } from "@/types/events";
-import { PlayerStatus } from "@/types/Player";
+import { type Player, PlayerStatus } from "@/types/Player";
 import { type GameState } from "@/types/GameState";
 import { isTurnRunning } from "../../kickoff/kickoffTurn";
-import { rageLeavesOpen } from "@/game/rules/awaitingDeclaration";
+import { opensWithSquigRage, rageLeavesOpen } from "@/game/rules/awaitingDeclaration";
 import {
   type BlockReplacement,
   blockReplacementForDirectAction,
@@ -15,7 +15,8 @@ import { actionStepsFor } from "./actionSteps";
 import { drawJumpAim } from "./previews";
 import { afterMove, refreshPlayerVisualization } from "./routes";
 import { movementHalf, showSteps } from "./movement";
-import { gateRequest } from "./Confirmations";
+import { gateRequest, squigRageRequest } from "./Confirmations";
+import { isOwnActor } from "./players";
 import { activationGates } from "../../skills";
 import type { ActivationGate } from "../../skills/SkillRule";
 import { plansBeforeDeclaring } from "./plan";
@@ -420,6 +421,30 @@ function releasePreviousPlayer(
   }
 }
 
+function rollsSquigRageFirst(
+  c: GameplayInteractionController,
+  player: Player
+): boolean {
+  const state = c.gameService.getState();
+  return (
+    controlsPlayer(player.teamId) &&
+    isOwnActor(c, player, state.activeTeamId) &&
+    opensWithSquigRage(state, player, c.gameService.getTeammates(player.id))
+  );
+}
+
+async function activateSquig(
+  c: GameplayInteractionController,
+  squig: Player
+): Promise<void> {
+  const confirmed = await c.confirmations.ask("squig-rage", squigRageRequest(squig));
+  if (!confirmed || !rollsSquigRageFirst(c, squig)) return;
+  const active = c.gameService.getState().activePlayer;
+  releasePreviousPlayer({ c, playerId: squig.id, active, ownTeamsTurn: true });
+  c.deselectPlayer();
+  c.gameService.rollSquigRage(squig.id);
+}
+
 export function selectPlayer(
   c: GameplayInteractionController,
   playerId: string
@@ -427,6 +452,10 @@ export function selectPlayer(
   const player = c.gameService.getPlayerById(playerId);
 
   if (!player) return;
+  if (rollsSquigRageFirst(c, player)) {
+    void activateSquig(c, player);
+    return;
+  }
 
   const state = c.gameService.getState();
   const ownTeamsTurn = state.activeTeamId === player.teamId;
@@ -439,21 +468,26 @@ export function selectPlayer(
 
   c.eventBus.emit(GameEventNames.PlayerSelected, { player });
 
+  if (ownTeamsTurn && resumeDeclaredAction(c, playerId)) return;
+  refreshPlayerVisualization(c, playerId);
+}
+
+function resumeDeclaredAction(
+  c: GameplayInteractionController,
+  playerId: string
+): boolean {
   const resumed = c.gameService.getState().activePlayer;
   if (
-    resumed?.id === playerId &&
-    resumed.action &&
-    !resumed.razzleDazzle?.awaitingSecond &&
-    ownTeamsTurn &&
-    !c.gameService.hasPlayerActed(playerId)
+    resumed?.id !== playerId ||
+    !resumed.action ||
+    resumed.razzleDazzle?.awaitingSecond ||
+    c.gameService.hasPlayerActed(playerId)
   ) {
-    enterActionMode(
-      { c,playerId,action: resumed.action,blockReplacement: resumed.blockReplacement??null }    );
-    c.hasMovedInAction = c.gameService.getMovementUsed(playerId) > 0;
-    return;
+    return false;
   }
-
-  refreshPlayerVisualization(c, playerId);
+  enterActionMode({ c, playerId, action: resumed.action, blockReplacement: resumed.blockReplacement ?? null });
+  c.hasMovedInAction = c.gameService.getMovementUsed(playerId) > 0;
+  return true;
 }
 
 export function resumeActivePlayer(c: GameplayInteractionController): void {

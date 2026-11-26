@@ -20,7 +20,7 @@ import {
 } from "@/game/skills";
 import { holdsMeasure } from "@/game/inducements/matchInducements";
 import { kickoffTurnAllows } from "@/game/kickoff/kickoffTurn";
-import { mustRedeclare, rageLeavesOpen } from "@/game/rules/awaitingDeclaration";
+import { mustRedeclare, opensWithSquigRage, rageLeavesOpen } from "@/game/rules/awaitingDeclaration";
 import { razzleDazzleAllows } from "@/game/rules/actionAvailability";
 import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
 import {
@@ -82,6 +82,30 @@ export function declareAction({
     options,
     activating,
   });
+}
+
+export function rollSquigRage(parts: GameParts, playerId: string): boolean {
+  const squig = parts.game.getPlayerById(playerId);
+  if (!squig || !mayRollSquigRage(parts, squig)) return false;
+  const held = parts.state.activePlayer;
+  finishOnSwitch(parts, held, playerId);
+  expireActivationConditions(parts, squig);
+  parts.state.activePlayer = {
+    id: playerId,
+    action: null,
+    stalling: couldScoreWithoutDice(parts, squig),
+  };
+  parts.flowManager.add(new ActivationGateOperation(playerId, null), true);
+  return true;
+}
+
+function mayRollSquigRage(parts: GameParts, squig: Player): boolean {
+  const held = parts.state.activePlayer;
+  return (
+    parts.game.canActivate(squig.id) &&
+    (!held || endsOnSwitch(held)) &&
+    opensWithSquigRage(parts.state, squig, parts.game.getTeammates(squig.id))
+  );
 }
 
 type PlayerDeclaration = Parameters<typeof declareAction>[0] & {

@@ -36,6 +36,7 @@ const COMMAND_SHAPES: Record<string, CommandShape> = {
     action: "string",
     razzleDazzle: "boolean?",
   },
+  "roll-squig-rage": { playerId: "string" },
   "cancel-action": { playerId: "string" },
   move: { playerId: "string", path: "path" },
   fumblerooski: { playerId: "string", x: "integer", y: "integer" },

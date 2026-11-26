@@ -41,6 +41,7 @@ const KNOWN_COMMAND_TYPES = new Set<HeadlessCommand["type"]>([
   "kickoff-skip",
   "kickoff-reselect",
   "declare-action",
+  "roll-squig-rage",
   "cancel-action",
   "move",
   "fumblerooski",

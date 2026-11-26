@@ -455,6 +455,10 @@ export class NetworkedGameService implements IGameService {
     });
     return true;
   }
+  rollSquigRage(playerId: string): boolean {
+    this.send({ type: "roll-squig-rage", playerId });
+    return true;
+  }
   cancelAction(playerId: string): boolean {
     this.send({ type: "cancel-action", playerId });
     return true;

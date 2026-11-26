@@ -340,6 +340,8 @@ const COMMAND_HANDLERS: CommandHandlers = {
     );
     if (!declared) throw new Error("illegal-action-declaration");
   },
+  "roll-squig-rage": ({ ctx }, cmd) =>
+    accepted(ctx.gameService.rollSquigRage(cmd.playerId), "no-squig-rage-roll"),
   "cancel-action": async ({ ctx }, cmd) => {
     if (!ctx.gameService.cancelAction(cmd.playerId)) {
       throw new Error("action-already-committed");

@@ -1,4 +1,8 @@
 import { type GameState } from "@/types/GameState";
+import { type Player } from "@/types/Player";
+import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
+import { isTurnRunning } from "@/game/kickoff/kickoffTurn";
+import { ragesOnActivation } from "@/game/skills/rules/SquigRageRule";
 
 export function mustRedeclare(
   state: Pick<GameState, "activePlayer">,
@@ -31,4 +35,17 @@ export function activationRolling(
 ): boolean {
   const active = state.activePlayer;
   return active?.id === playerId && active.activationRollStarted === true;
+}
+
+export function opensWithSquigRage(
+  state: Pick<GameState, "phase" | "kick" | "activePlayer">,
+  squig: Player,
+  teammates: Player[]
+): boolean {
+  return (
+    isTurnRunning(state) &&
+    kickoffTurnOf(state)?.play.kind !== "one-square" &&
+    state.activePlayer?.id !== squig.id &&
+    ragesOnActivation(squig, teammates)
+  );
 }

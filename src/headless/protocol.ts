@@ -60,6 +60,7 @@ export type HeadlessCommand =
 
       razzleDazzle?: boolean;
     }
+  | { type: "roll-squig-rage"; playerId: string }
   | { type: "cancel-action"; playerId: string }
   | { type: "move"; playerId: string; path: MoveStep[] }
   | {

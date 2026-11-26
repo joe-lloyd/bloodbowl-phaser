@@ -156,6 +156,8 @@ export interface IGameService {
     options?: { razzleDazzle?: boolean };
   }): boolean;
 
+  rollSquigRage(playerId: string): boolean;
+
   cancelAction(playerId: string): boolean;
 
   commitAction(playerId: string): void;

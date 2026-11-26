@@ -685,6 +685,8 @@ export class GameService implements IGameService {
     });
   }
 
+  rollSquigRage: IGameService["rollSquigRage"] = (playerId) => declaration.rollSquigRage(this.parts, playerId);
+
   cancelAction(playerId: string): boolean {
     return this.parts.playerActionManager.cancelAction(playerId);
   }

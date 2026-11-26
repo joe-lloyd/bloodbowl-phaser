@@ -93,6 +93,10 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     razzleDazzle: z.union([z.literal(false), z.literal(true)]).exactOptional(),
   }),
   z.looseObject({
+    type: z.literal("roll-squig-rage"),
+    playerId: z.string(),
+  }),
+  z.looseObject({
     type: z.literal("cancel-action"),
     playerId: z.string(),
   }),
