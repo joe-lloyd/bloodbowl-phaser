@@ -42,6 +42,16 @@ import {
   clearMatchSave,
   readMatchSave,
 } from "../../../game/persistence/MatchSaveRepository";
+import {
+  keepOpponentArt,
+  rosterReady,
+  useOfflineArt,
+  useOnline,
+} from "../../hooks/useOfflineArt";
+import { OfflinePlayPanel } from "./OfflinePlayPanel";
+
+const NOT_SAVED_OFFLINE =
+  "Not saved for offline play. Open the game online once to save its art.";
 
 interface TeamSelectProps {
   mode?: "sandbox" | "standard" | "play";
@@ -83,6 +93,10 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const vsComputer = mode === "play" && opponent === "computer";
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const navigate = useNavigate();
+  const art = useOfflineArt();
+  const online = useOnline();
+  const artMissing = (team: Team): boolean =>
+    art.worker && !online && !rosterReady(art, team.rosterName);
 
   const legalityIssues = (team: Team): string[] => {
     const issues: string[] = [];
@@ -98,6 +112,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     } catch {
       issues.push(`Unknown roster ${team.rosterName}`);
     }
+    if (artMissing(team)) issues.push(NOT_SAVED_OFFLINE);
     return issues;
   };
 
@@ -108,6 +123,12 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
       team.name.toLowerCase().includes(query) ||
       team.rosterName.toLowerCase().includes(query)
     );
+  };
+
+  const chipLabel = (team: Team): string => {
+    if (friendlyRefusal(team)) return "In a tournament";
+    if (artMissing(team)) return "Not saved offline";
+    return `Not ${GAME_TYPE_LABELS[gameType]}`;
   };
 
   const teams1 = teams.filter((team) => matchesFilter(team, filter1));
@@ -167,6 +188,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     }
     if (vsComputer) {
       if (!selectedTeam2.computerTemplateId) return;
+      keepOpponentArt(selectedTeam2.rosterName);
       const computerTeam = createComputerTeamFromTemplate(
         selectedTeam2.computerTemplateId,
         { gameType }
@@ -288,11 +310,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                       {team.rosterName}
                     </span>
                     {issues.length > 0 && (
-                      <Chip tone="blood">
-                        {locked
-                          ? "In a tournament"
-                          : `Not ${GAME_TYPE_LABELS[gameType]}`}
-                      </Chip>
+                      <Chip tone="blood">{chipLabel(team)}</Chip>
                     )}
                   </button>
                   {locked && (
@@ -411,6 +429,15 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                 </button>
               ))}
             </div>
+          )}
+          {vsComputer && (
+            <OfflinePlayPanel
+              rosters={[
+                ...new Set(
+                  [...teams, ...computerTeams].map((team) => team.rosterName)
+                ),
+              ]}
+            />
           )}
         </Section>
       )}

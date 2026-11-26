@@ -27,6 +27,7 @@ import { type ReactElement } from "react";
 import { EventBus } from "../services/EventBus";
 import { useAuth } from "./hooks/useAuth";
 import { useCoachPresence } from "./hooks/useSocial";
+import { OfflineArtKeeper } from "./components/common/OfflineArtKeeper";
 import { isHouseBotBrowser } from "../firebase/houseBot";
 import { HouseBotSocial } from "./components/social/HouseBotSocial";
 import { TeamLibraryGate } from "./components/TeamManagement/TeamLibraryGate";
@@ -63,6 +64,7 @@ export function App({ eventBus }: AppProps) {
   return (
     <BrowserRouter>
       <CoachPresence />
+      <OfflineArtKeeper />
       {isHouseBotBrowser() && <HouseBotSocial />}
       <Routes>
         <Route path="/" element={<MainMenu />} />

@@ -35,6 +35,11 @@ export function modelFor(rosterName: string, positionName: string): string {
   return roster.find((m) => MODELS[m]) ?? FALLBACK_MODEL;
 }
 
+export function rosterModels(rosterName: string): string[] {
+  const models = Object.values(POSITIONS[rosterName] ?? {}).filter((m) => MODELS[m]);
+  return models.length > 0 ? [...new Set(models)] : [FALLBACK_MODEL];
+}
+
 export function hasModelArt(model: string): boolean {
   return model in MODELS;
 }
