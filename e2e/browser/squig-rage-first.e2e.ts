@@ -4,9 +4,12 @@ import { GameApp } from "../support/pages/game";
 
 const WRANGLER = "team1:1";
 
-async function openWrangler(page: Page, scenario: string, outcome?: string) {
+const PASSES = 1;
+const FAILS = 7;
+
+async function openWrangler(page: Page, scenario: string, seed = PASSES) {
   const app = new GameApp(page);
-  await app.sandbox.open({ scenario, ...(outcome !== undefined && { outcome }) });
+  await app.sandbox.open({ scenario, seed });
   const rolls = async () => {
     const events = await app.bridge.events();
     return events.filter((event) => event.name === GameEventNames.DiceRoll).length;
@@ -24,7 +27,7 @@ test("asks before a squig activates, rolls Squig Rage, then shows the actions", 
   const { app, rolls, activePlayer, ask } = await openWrangler(
     page,
     "squig-rage-activation",
-    "acts"
+    PASSES
   );
   await app.pitch.clickPlayer(WRANGLER);
   await expect(ask).toBeVisible();
@@ -51,7 +54,7 @@ test("a failed roll leaves the squig Distracted and never opens the actions", as
   const { app, rolls, activePlayer, ask } = await openWrangler(
     page,
     "squig-rage-activation",
-    "distracted"
+    FAILS
   );
   await app.pitch.clickPlayer(WRANGLER);
   await ask.getByRole("button", { name: "Activate", exact: true }).click();
@@ -65,7 +68,7 @@ test("Not now leaves the squig unactivated with no roll", async ({ page }) => {
   const { app, rolls, activePlayer, ask } = await openWrangler(
     page,
     "squig-rage-activation",
-    "acts"
+    PASSES
   );
   await app.pitch.clickPlayer(WRANGLER);
   await ask.getByRole("button", { name: "Not now", exact: true }).click();
