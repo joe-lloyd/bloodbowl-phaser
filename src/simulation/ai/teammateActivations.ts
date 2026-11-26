@@ -74,9 +74,10 @@ const clamp = (s: Square): Square => ({
   y: Math.max(0, Math.min(pitchHeight() - 1, s.y)),
 });
 
-const scatterCache = new Map<number, ReadonlyMap<number, number>>();
+const scatterCache = new Map<string, ReadonlyMap<number, number>>();
 function scatterFrom(aim: Square): ReadonlyMap<number, number> {
-  const known = scatterCache.get(key(aim));
+  const cacheKey = `${String(pitchWidth())}x${String(pitchHeight())}:${String(key(aim))}`;
+  const known = scatterCache.get(cacheKey);
   if (known) return known;
   const out = new Map<number, number>();
   const visit = (at: Square, rolls: number, p: number) => {
@@ -89,7 +90,7 @@ function scatterFrom(aim: Square): ReadonlyMap<number, number> {
       visit({ x: at.x + dx, y: at.y + dy }, rolls + 1, p / 8);
   };
   visit(aim, 0, 1);
-  scatterCache.set(key(aim), out);
+  scatterCache.set(cacheKey, out);
   return out;
 }
 
