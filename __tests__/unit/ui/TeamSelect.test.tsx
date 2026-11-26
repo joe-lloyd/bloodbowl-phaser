@@ -1,7 +1,7 @@
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TeamSelect } from "../../../src/ui/components/pages/TeamSelect";
 import { saveTeams } from "../../../src/game/managers/TeamManager";
@@ -266,5 +266,69 @@ describe("TeamSelect random opponent", () => {
 
     expect(pickedOpponents()).toHaveLength(1);
     expect(column(2).textContent).not.toContain("Library Team");
+  });
+});
+
+function MatchStart() {
+  return <p data-testid="match-start">{JSON.stringify(useLocation().state)}</p>;
+}
+
+describe("TeamSelect counted friendly", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await saveTeams([libraryTeam(0, "team-a", "Library Team A")]);
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={["/select-team"]}>
+          <Routes>
+            <Route path="/select-team" element={<TeamSelect mode="play" />} />
+            <Route path="/play/computer" element={<MatchStart />} />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    localStorage.clear();
+  });
+
+  it("offers the toggle against the computer and carries it into the match", () => {
+    const column = (player: 1 | 2) =>
+      fixtureValue(
+        container.querySelector(`[data-testid="team-column-${String(player)}"]`)
+      );
+    act(() => {
+      buttonIn(container, "Versus computer").click();
+    });
+    act(() => {
+      buttonIn(column(1), "Library Team A").click();
+      buttonIn(column(2), "Random").click();
+    });
+    const toggle = fixtureValue(
+      [...container.querySelectorAll("label")].find((label) =>
+        label.textContent.includes("Count this game")
+      )
+    );
+    act(() => {
+      fixtureValue(toggle.querySelector("input")).click();
+    });
+    act(() => {
+      buttonIn(container, "Start Game").click();
+    });
+
+    expect(
+      container.querySelector('[data-testid="match-start"]')?.textContent
+    ).toContain('"progressionEnabled":true');
   });
 });

@@ -70,7 +70,7 @@ describe("MatchResultsScreen", () => {
     expect(exitButton.disabled).toBe(false);
   });
 
-  it("keeps a club's career out of an exhibition even with progression on", async () => {
+  it("lets a club keep the SPP from a friendly the coach chose to count", async () => {
     localStorage.clear();
     const { services, team1, team2 } = setup(true);
     team1.club = {};
@@ -98,8 +98,42 @@ describe("MatchResultsScreen", () => {
         (sum, player) => sum + player.spp,
         0
       );
-    expect(spp("team-1")).toBe(0);
+    expect(spp("team-1")).toBe(4);
     expect(spp("team-2")).toBe(4);
+  });
+
+  it("does not keep a player who joined during a counted friendly", async () => {
+    localStorage.clear();
+    const { services, team1, team2 } = setup(true);
+    team1.club = {};
+    team1.advancementMode = "advanced-league";
+    await saveTeams([team1, team2]);
+    const starters = team1.players.map((player) => player.id);
+    team1.players.push({
+      ...fixtureValue(team1.players[0]),
+      id: "plague-ridden-rotter",
+      number: 12,
+    });
+    services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team1.players[0]).id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team2.players[0]).id);
+
+    await h.render();
+    const buttons = (label: string) =>
+      [...h.container.querySelectorAll("button")].filter((b) =>
+        b.textContent.includes(label)
+      );
+    for (const button of buttons("Roll MVP D6")) {
+      act(() => {
+        button.click();
+      });
+    }
+    act(() => {
+      fixtureValue(buttons("Confirm and assign SPP")[0]).click();
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    const saved = fixtureValue(loadTeams().find((team) => team.id === team1.id));
+    expect(saved.players.map((player) => player.id)).toEqual(starters);
   });
 
   it("keeps confirmed SPP and the match save when storage fails, then retries without another award", async () => {

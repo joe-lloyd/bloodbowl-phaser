@@ -122,6 +122,12 @@ export function isDeadLeaguePlayer(team: Team, player: Player): boolean {
   );
 }
 
+export function keepPreMatchSquad(team: Team, before: Team | undefined): void {
+  if (!before) return;
+  const squad = new Set(before.players.map((player) => player.id));
+  team.players = team.players.filter((player) => squad.has(player.id));
+}
+
 export function keepPreMatchInjuries(team: Team, before: Team | undefined): void {
   const saved = new Map(
     (before?.players ?? []).map((player) => [player.id, player.injuries])

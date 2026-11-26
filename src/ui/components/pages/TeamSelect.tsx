@@ -177,6 +177,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           team2: computerTeam,
           computerTeamId: computerTeam.id,
           difficulty,
+          progressionEnabled,
           gameType,
           ...(venue && { venue }),
         },
@@ -447,7 +448,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         </Notice>
       )}
 
-      {mode !== "sandbox" && !vsComputer && (
+      {mode !== "sandbox" && (
         <Panel className="p-4">
           <label className="flex cursor-pointer items-center gap-3 text-hud-base text-hud-bone">
             <input
@@ -458,7 +459,8 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                 setProgressionEnabled(event.target.checked);
               }}
             />
-            League fixture — award SPP and enable player advancement
+            Count this game: players keep the SPP and advancements they earn.
+            Injuries, gold and the win-loss record do not carry.
           </label>
         </Panel>
       )}

@@ -19,7 +19,7 @@ Lineman's row says so.
 | ID | Rule |
 | --- | --- |
 | CL-1 | A club starts as a standard 600,000 Sevens draft, and keeps the roster it was founded with: 7 to 11 players, at most 4 positionals, one Lineman as the Veteran. This is the Core Sevens squad. |
-| CL-2 | A club always uses Advanced League with SPP. Skills, injuries and deaths from league and tournament games follow each player into every game type. Friendlies are exhibitions, as for every team: nothing carries. |
+| CL-2 | A club always uses Advanced League with SPP. Skills, injuries and deaths from league and tournament games follow each player into every game type. A friendly carries nothing unless the coach ticks "Count this game" when picking teams. Then the club keeps the SPP and advancements its players earn, as any team does. Injuries, deaths, gold, the win-loss record and players added during the match, such as a Plague Ridden Rotter, never carry from a friendly. |
 | CL-3 | The Core Sevens squad plays Sevens, Street Bowl and Beach Bowl from the first match. Staff a game type bans stays home for that match and comes back afterwards. |
 | CL-4 | Team re-rolls cost 100,000 in every game type, so a club's re-rolls never change price. |
 | CL-5 | Gutter Bowl opens once current team value plus treasury reaches 750,000. It stays open after that, even if the club's value falls. |
