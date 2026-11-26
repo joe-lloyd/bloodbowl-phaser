@@ -5,8 +5,12 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TeamSelect } from "../../../src/ui/components/pages/TeamSelect";
 import { saveTeams } from "../../../src/game/managers/TeamManager";
-import { RosterName } from "../../../src/types/Team";
+import { RosterName, type Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
+import {
+  createComputerTeamFromTemplate,
+  getComputerTeamTemplates,
+} from "../../../src/competition/computerTeamTemplates";
 
 function typeInto(input: HTMLInputElement, value: string) {
   const nativeSetter = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
@@ -177,5 +181,90 @@ describe("TeamSelect match look", () => {
     expect(container.querySelector('[aria-label="Match style"]')).toBeNull();
     expect(container.textContent).not.toContain("Choose the pitch");
     expect(container.textContent).not.toMatch(/neon/i);
+  });
+});
+
+function buttonIn(scope: Element, text: string): HTMLButtonElement {
+  return fixtureValue(
+    [...scope.querySelectorAll("button")].find((button) =>
+      button.textContent.includes(text)
+    )
+  );
+}
+
+function libraryTeam(templateIndex: number, id: string, name: string): Team {
+  const template = fixtureValue(getComputerTeamTemplates()[templateIndex]);
+  const team = { ...createComputerTeamFromTemplate(template.id), id, name };
+  delete team.computerCoached;
+  delete team.computerTemplateId;
+  return team;
+}
+
+describe("TeamSelect random opponent", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await saveTeams([
+      libraryTeam(0, "team-a", "Library Team A"),
+      libraryTeam(1, "team-b", "Library Team B"),
+    ]);
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <TeamSelect mode="play" />
+        </MemoryRouter>
+      );
+    });
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    localStorage.clear();
+  });
+
+  const column = (player: 1 | 2) =>
+    fixtureValue(
+      container.querySelector(`[data-testid="team-column-${String(player)}"]`)
+    );
+
+  const pickedOpponents = () =>
+    [...column(2).querySelectorAll('button[aria-pressed="true"]')].map(
+      (button) => button.textContent
+    );
+
+  it("picks an opponent other than Player 1's team and enables Start", () => {
+    act(() => {
+      buttonIn(column(1), "Library Team A").click();
+    });
+    const random = buttonIn(column(2), "Random");
+
+    act(() => {
+      random.click();
+    });
+
+    expect(pickedOpponents()).toEqual([expect.stringContaining("Library Team B")]);
+    expect(buttonIn(container, "Start Game").disabled).toBe(false);
+    expect(random.disabled).toBe(true);
+  });
+
+  it("picks a computer team when Player 2 is the computer", () => {
+    act(() => {
+      buttonIn(container, "Versus computer").click();
+    });
+
+    act(() => {
+      buttonIn(column(2), "Random").click();
+    });
+
+    expect(pickedOpponents()).toHaveLength(1);
+    expect(column(2).textContent).not.toContain("Library Team");
   });
 });

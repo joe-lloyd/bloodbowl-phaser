@@ -127,6 +127,19 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     setSelectedTeam2(team);
   };
 
+  const randomCandidates = teams2.filter(
+    (team) =>
+      team.id !== selectedTeam1?.id &&
+      team.id !== selectedTeam2?.id &&
+      legalityIssues(team).length === 0
+  );
+
+  const handleRandomTeam2 = () => {
+    const pick =
+      randomCandidates[Math.floor(Math.random() * randomCandidates.length)];
+    if (pick) setSelectedTeam2(pick);
+  };
+
   const blockingDevelopment = [selectedTeam1, selectedTeam2]
     .filter((team): team is Team => !!team)
     .flatMap((team) => pendingDevelopment(team));
@@ -215,16 +228,27 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         className="px-4"
       />
       <div className="p-3">
-        <input
-          type="text"
-          value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value);
-          }}
-          placeholder="Search team or roster..."
-          aria-label={`Filter Player ${String(player)} teams`}
-          className="hud-field"
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value);
+            }}
+            placeholder="Search team or roster..."
+            aria-label={`Filter Player ${String(player)} teams`}
+            className="hud-field min-w-0 flex-1"
+          />
+          {player === 2 && (
+            <HudButton
+              onClick={handleRandomTeam2}
+              disabled={randomCandidates.length === 0}
+              title="Pick a random opponent from this list"
+            >
+              Random
+            </HudButton>
+          )}
+        </div>
         <div className="hud-scroll mt-2 flex h-[clamp(200px,calc(100vh_-_400px),620px)] phone:h-auto phone:max-h-[60dvh] flex-col gap-1.5 overflow-y-auto p-1">
           {columnTeams.length === 0 ? (
             <p className="py-6 text-center text-hud-sm text-hud-mute">
