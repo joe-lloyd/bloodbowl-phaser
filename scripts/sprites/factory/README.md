@@ -68,6 +68,9 @@ It also writes a `portrait/` copy of each body's layers that holds only the idle
 Roster portraits load those, about 2% of a full layer, so a team page downloads kilobytes per player
 instead of megabytes. `python3 portrait_layers.py [model ...]` rebuilds them for installed models, and the
 compositor test fails when a layer has no portrait copy.
+`__tests__/unit/layered/portraitBudget.test.tsx` fails when a model's heaviest portrait look passes 150 KB,
+or when a team page portrait downloads anything outside the portrait folder. The Treeman is the heaviest at
+about 123 KB. `pnpm sprites:portrait-check <folder>` draws every portrait both ways and compares the pixels.
 
 ## Models made by hand in Blender
 
