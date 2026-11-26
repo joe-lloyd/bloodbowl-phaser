@@ -148,12 +148,12 @@ function processTree(rootPid: number): ProcessCpu[] {
     .trim()
     .split("\n")
     .map((line) => {
-      const [pid, ppid, time, ...command] = line.trim().split(/\s+/);
+      const [pid, ppid, time = "", ...command] = line.trim().split(/\s+/);
       const cmd = command.join(" ");
       return {
         pid: Number(pid),
         ppid: Number(ppid),
-        seconds: parseCpuTime(time ?? ""),
+        seconds: parseCpuTime(time),
         type: cmd.includes("ffmpeg")
           ? "ffmpeg"
           : (/--type=([\w-]+)/.exec(cmd)?.[1] ?? "browser"),
@@ -518,7 +518,9 @@ async function main() {
   console.log(`wrote ${file}`);
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error(error);
   process.exit(1);
-});
+}

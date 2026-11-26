@@ -21,9 +21,11 @@ for (const entry of RULE_SCENARIOS) {
       },
       seed: 1,
     });
-    const legal = (await game.execute({ type: "legal-actions" })).legalActions;
+    const legalResult = await game.execute({ type: "legal-actions" });
+    const legal = legalResult.legalActions;
     const point = await enumerateDecision(game, null);
-    for (const player of legal?.players ?? []) {
+    const players = legal?.players ?? [];
+    for (const player of players) {
       for (const action of player.actions) {
         const offered = point.candidates.some((candidate) => {
           const command = candidate.commands[0];
@@ -63,9 +65,10 @@ writeFileSync(
   target,
   JSON.stringify({ omittedDeclarations: rows, captains }, null, 2)
 );
+const omittedActions = [...new Set(rows.map((row) => row.action))];
 console.log(
   JSON.stringify({
-    omittedActions: [...new Set(rows.map((row) => row.action))],
+    omittedActions,
     omissions: rows.length,
     captainTemplates: captains.length,
     appointed: captains.filter((team) => team.appointed).length,

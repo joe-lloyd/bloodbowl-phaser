@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import path from "node:path";
 import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { escapeHtml } from "../../../src/simulation/viewer";
 import { argument, writeMatchViewer } from "./lab";
@@ -18,18 +18,18 @@ function activationStart(recording: MatchRecording, step: number): number {
 }
 
 async function main() {
-  const run = resolve(argument(2));
-  const picks = JSON.parse(readFileSync(resolve(argument(3)), "utf8")) as [
+  const run = path.resolve(argument(2));
+  const picksFile = path.resolve(argument(3));
+  const picks = JSON.parse(readFileSync(picksFile, "utf8")) as [
     string,
     string,
   ][];
-  const out = resolve(argument(4));
+  const out = path.resolve(argument(4));
   mkdirSync(out, { recursive: true });
-  const drama = new Map(
-    (JSON.parse(readFileSync(join(run, "drama.json"), "utf8")) as Drama[]).map(
-      (d) => [d.game, d]
-    )
-  );
+  const dramas = JSON.parse(
+    readFileSync(path.join(run, "drama.json"), "utf8")
+  ) as Drama[];
+  const drama = new Map(dramas.map((d) => [d.game, d]));
   const items: string[] = [];
   for (const [id, why] of picks) {
     const d = drama.get(id)!;
@@ -39,13 +39,14 @@ async function main() {
     const timeline = d.scores
       .map((s) => `${d.rosters[s.side]} H${String(s.half)} T${String(s.turn)}`)
       .join(", ");
+    const firstScore = activationStart(recording, firstScoreStep(d)) + 1;
     items.push(`<li><h3>${escapeHtml(d.rosters[0])} ${String(d.final[0])}–${String(d.final[1])} ${escapeHtml(d.rosters[1])}</h3>
 <p>${escapeHtml(why)}</p>
 <p class="quiet">Scores: ${escapeHtml(timeline)}.</p>
-<p><a href="${escapeHtml(id)}.html#step=${String(start + 1)}">Watch the deciding score</a> · <a href="${escapeHtml(id)}.html#step=${String(activationStart(recording, firstScoreStep(d)) + 1)}">from the first score</a> · <a href="${escapeHtml(id)}.html">whole match</a></p></li>`);
+<p><a href="${escapeHtml(id)}.html#step=${String(start + 1)}">Watch the deciding score</a> · <a href="${escapeHtml(id)}.html#step=${String(firstScore)}">from the first score</a> · <a href="${escapeHtml(id)}.html">whole match</a></p></li>`);
   }
   writeFileSync(
-    join(out, "index.html"),
+    path.join(out, "index.html"),
     `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sevens nail-biters</title>
@@ -63,6 +64,6 @@ ${items.join("\n")}
 </ol>
 </body></html>`
   );
-  console.log(join(out, "index.html"));
+  console.log(path.join(out, "index.html"));
 }
 await main();

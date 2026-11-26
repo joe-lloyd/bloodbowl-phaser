@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import path from "node:path";
 import { escapeHtml } from "../../../src/simulation/viewer";
 import { argument, writeMatchViewer } from "./lab";
 import type { Moment, Tally } from "./usage";
@@ -54,16 +54,17 @@ function momentList(moments: Moment[]): string {
 }
 
 async function main() {
-  const run = resolve(argument(2));
-  const out = join(run, "moments");
+  const run = path.resolve(argument(2));
+  const out = path.join(run, "moments");
   mkdirSync(out, { recursive: true });
   const summary = JSON.parse(
-    readFileSync(join(run, "usage-summary.json"), "utf8")
+    readFileSync(path.join(run, "usage-summary.json"), "utf8")
   ) as Summary;
-  for (const id of new Set(summary.moments.map((m) => m.game)))
+  const games = new Set(summary.moments.map((m) => m.game));
+  for (const id of games)
     await writeMatchViewer(run, out, id);
   writeFileSync(
-    join(out, "index.html"),
+    path.join(out, "index.html"),
     `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sevens play moments</title>
@@ -89,6 +90,6 @@ ${usageRows(summary)}
 ${momentList(summary.moments)}
 </body></html>`
   );
-  console.log(join(out, "index.html"));
+  console.log(path.join(out, "index.html"));
 }
 await main();

@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GameEventNames } from "../../../src/types/events";
 import { PlayerStatus } from "../../../src/types/Player";
@@ -87,26 +87,25 @@ async function foulsOfTrace(file: string) {
     before: (step) => {
       const command = step.command;
       if (command.type === "declare-action") settle();
-      if (command.type === "foul" && step.ok) {
-        settle();
-        const side = teams.findIndex((t) =>
-          t.players.some((p) => p.id === command.playerId)
-        ) as 0 | 1;
-        const fouler = teams[side].players.find(
-          (p) => p.id === command.playerId
-        )!;
-        const target = teams[otherSide(side)].players.find(
-          (p) =>
-            p.gridPosition?.x === command.x && p.gridPosition?.y === command.y
-        );
-        if (target)
-          open = {
-            side,
-            key: groupOf(teams[side].rosterName, fouler),
-            target,
-            sentOff: false,
-          };
-      }
+      if (command.type !== "foul" || !step.ok) return;
+      settle();
+      const side = teams.findIndex((t) =>
+        t.players.some((p) => p.id === command.playerId)
+      ) as 0 | 1;
+      const fouler = teams[side].players.find(
+        (p) => p.id === command.playerId
+      )!;
+      const target = teams[otherSide(side)].players.find(
+        (p) =>
+          p.gridPosition?.x === command.x && p.gridPosition?.y === command.y
+      );
+      if (target)
+        open = {
+          side,
+          key: groupOf(teams[side].rosterName, fouler),
+          target,
+          sentOff: false,
+        };
     },
   });
   settle();
@@ -138,11 +137,12 @@ async function main() {
     frozen: {},
   };
   for (const file of files) {
-    const game = JSON.parse(readFileSync(join(out, file), "utf8")) as GameFouls;
+    const game = JSON.parse(readFileSync(path.join(out, file), "utf8")) as GameFouls;
     for (const side of [0, 1] as const) {
       const into =
         policies[side === game.candidateSide ? "candidate" : "frozen"];
-      for (const [key, t] of Object.entries(game.byGroup[side])) {
+      const groups = Object.entries(game.byGroup[side]);
+    for (const [key, t] of groups) {
         const own = (into[key] ??= tally());
         for (const k of Object.keys(own) as (keyof Tally)[]) own[k] += t[k];
       }
@@ -156,7 +156,7 @@ async function main() {
       "A Foul is a foul command the engine accepted. The target's state is read when the fouler's activation ends.",
   };
   writeFileSync(
-    join(run, "fouls-summary.json"),
+    path.join(run, "fouls-summary.json"),
     JSON.stringify(receipt, null, 2)
   );
   console.log(JSON.stringify({ games: receipt.games }));

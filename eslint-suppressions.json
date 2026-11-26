@@ -4219,17 +4219,6 @@
       "count": 1
     }
   },
-  "scripts/coach/advanced-study/fingerprint.ts": {
-    "no-nested-ternary": {
-      "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/prefer-simple-sort-comparator": {
-      "count": 1
-    }
-  },
   "scripts/coach/advanced-study/probes.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
@@ -4244,9 +4233,6 @@
       "count": 1
     },
     "sonarjs/no-duplicate-string": {
-      "count": 1
-    },
-    "unicorn/import-style": {
       "count": 1
     }
   },
@@ -4271,12 +4257,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/max-nested-calls": {
-      "count": 4
     }
   },
   "scripts/coach/advanced-study/schedule.ts": {
@@ -4319,29 +4299,11 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/max-nested-calls": {
-      "count": 4
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
     }
   },
   "scripts/coach/catalogue-study/audit.ts": {
     "max-depth": {
       "count": 2
-    },
-    "unicorn/max-nested-calls": {
-      "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
     }
   },
   "scripts/coach/catalogue-study/play.ts": {
@@ -4355,9 +4317,6 @@
       "count": 1
     },
     "max-params": {
-      "count": 1
-    },
-    "unicorn/import-style": {
       "count": 1
     }
   },
@@ -4379,12 +4338,6 @@
     },
     "no-restricted-syntax": {
       "count": 3
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/max-nested-calls": {
-      "count": 1
     }
   },
   "scripts/coach/catalogue-study/replay.ts": {
@@ -4393,16 +4346,10 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
     }
   },
   "scripts/coach/catalogue-study/rules.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 1
-    },
-    "unicorn/import-style": {
       "count": 1
     }
   },
@@ -4429,9 +4376,6 @@
     },
     "no-nested-ternary": {
       "count": 1
-    },
-    "unicorn/no-array-reduce": {
-      "count": 1
     }
   },
   "scripts/coach/fit-evaluation.ts": {
@@ -4445,12 +4389,6 @@
       "count": 1
     },
     "sonarjs/cognitive-complexity": {
-      "count": 1
-    },
-    "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-new-array": {
       "count": 1
     }
   },
@@ -4472,9 +4410,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
     }
   },
   "scripts/coach/policy-lab/drama.ts": {
@@ -4488,9 +4423,6 @@
       "count": 2
     },
     "no-restricted-syntax": {
-      "count": 1
-    },
-    "unicorn/import-style": {
       "count": 1
     }
   },
@@ -4512,22 +4444,10 @@
     },
     "max-lines-per-function": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
     }
   },
   "scripts/coach/policy-lab/evidence.ts": {
     "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    },
-    "unicorn/prefer-early-return": {
       "count": 1
     }
   },
@@ -4549,15 +4469,6 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/prefer-early-return": {
-      "count": 1
     }
   },
   "scripts/coach/policy-lab/gate.ts": {
@@ -4572,14 +4483,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    }
-  },
-  "scripts/coach/policy-lab/lab.ts": {
-    "unicorn/import-style": {
-      "count": 1
     }
   },
   "scripts/coach/policy-lab/moments.ts": {
@@ -4587,12 +4490,6 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
   },
@@ -4605,17 +4502,6 @@
     },
     "no-restricted-syntax": {
       "count": 2
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/max-nested-calls": {
-      "count": 3
-    }
-  },
-  "scripts/coach/policy-lab/narrate.ts": {
-    "unicorn/no-return-array-push": {
-      "count": 4
     }
   },
   "scripts/coach/policy-lab/outcomes.ts": {
@@ -4636,9 +4522,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
     }
   },
   "scripts/coach/policy-lab/recover.ts": {
@@ -4656,9 +4539,6 @@
     },
     "no-restricted-syntax": {
       "count": 5
-    },
-    "unicorn/import-style": {
-      "count": 1
     }
   },
   "scripts/coach/policy-lab/scorecard.ts": {
@@ -4671,12 +4551,6 @@
     "@typescript-eslint/no-unsafe-member-access": {
       "count": 1
     },
-    "complexity": {
-      "count": 2
-    },
-    "max-depth": {
-      "count": 1
-    },
     "max-lines-per-function": {
       "count": 1
     },
@@ -4685,30 +4559,6 @@
     },
     "no-restricted-syntax": {
       "count": 2
-    },
-    "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/max-nested-calls": {
-      "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
-    "unicorn/no-new-array": {
-      "count": 2
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/prefer-includes-over-repeated-comparisons": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 1
     }
   },
   "scripts/coach/policy-lab/teams.ts": {
@@ -4733,26 +4583,6 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    }
-  },
-  "scripts/coach/policy-study/fingerprint.ts": {
-    "no-nested-ternary": {
-      "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/prefer-simple-sort-comparator": {
       "count": 1
     }
   },
@@ -4797,12 +4627,6 @@
     },
     "no-restricted-syntax": {
       "count": 2
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/max-nested-calls": {
-      "count": 1
     }
   },
   "scripts/coach/policy-study/schedule.ts": {
@@ -4813,25 +4637,11 @@
   "scripts/coach/positions.ts": {
     "@typescript-eslint/no-empty-function": {
       "count": 4
-    },
-    "unicorn/prefer-top-level-await": {
-      "count": 1
     }
   },
   "scripts/coach/race-rates.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
-    },
-    "unicorn/no-declarations-before-early-exit": {
-      "count": 2
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 2
-    }
-  },
-  "scripts/coach/trait-weights/collect.ts": {
-    "unicorn/import-style": {
-      "count": 1
     }
   },
   "scripts/dice-audit/audit.ts": {
@@ -4849,20 +4659,11 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-declarations-before-early-exit": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 3
     }
   },
   "scripts/dice-audit/fetch.ts": {
     "no-restricted-syntax": {
       "count": 3
-    },
-    "unicorn/no-declarations-before-early-exit": {
-      "count": 1
     }
   },
   "scripts/e2e-coverage.ts": {
@@ -4874,22 +4675,10 @@
     },
     "no-restricted-syntax": {
       "count": 3
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 3
     }
   },
   "scripts/e2e-replay.ts": {
     "max-statements": {
-      "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/prefer-array-find": {
       "count": 1
     }
   },
@@ -4898,12 +4687,6 @@
       "count": 1
     },
     "sonarjs/cognitive-complexity": {
-      "count": 1
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
       "count": 1
     }
   },
@@ -4933,12 +4716,6 @@
     },
     "sonarjs/no-duplicate-string": {
       "count": 2
-    },
-    "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 1
     }
   },
   "scripts/page-shots/playwright.config.ts": {
@@ -4959,9 +4736,6 @@
     "@typescript-eslint/no-unused-expressions": {
       "count": 1
     },
-    "@typescript-eslint/use-unknown-in-catch-callback-variable": {
-      "count": 1
-    },
     "max-lines-per-function": {
       "count": 1
     },
@@ -4976,12 +4750,6 @@
     },
     "no-restricted-syntax": {
       "count": 2
-    },
-    "unicorn/prefer-default-parameters": {
-      "count": 1
-    },
-    "unicorn/prefer-top-level-await": {
-      "count": 1
     }
   },
   "scripts/perf/verifyRender.ts": {
@@ -4990,25 +4758,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-top-level-assignment-in-function": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-parameters": {
-      "count": 1
-    },
-    "unicorn/prefer-smaller-scope": {
-      "count": 1
-    }
-  },
-  "scripts/sprites/portrait_check.ts": {
-    "unicorn/import-style": {
-      "count": 1
-    }
-  },
-  "scripts/sprites/spriteFiles.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 5
     }
   },
   "src/competition/computerTeamTemplates.ts": {

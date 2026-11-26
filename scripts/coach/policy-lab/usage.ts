@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GameEventNames } from "../../../src/types/events";
 import { openTrace } from "../catalogue-study/replay";
@@ -98,7 +98,8 @@ export async function usageOfTrace(file: string, id: string) {
     const side = sides.get(teamId);
 
     const ownTurn = game.ctx.gameService.getState().activeTeamId === teamId;
-    for (const p of ownTurn ? open : []) {
+    const ownOpen = ownTurn ? open : [];
+    for (const p of ownOpen) {
       if (p.side !== side || p.turnsSince > 1) continue;
       const scored = p.turnsSince === 0 ? "this-turn" : "next-turn";
       count(p)[scored === "this-turn" ? "scoredThisTurn" : "scoredNextTurn"]++;
@@ -178,7 +179,7 @@ function pickMoments(all: Moment[], perPlay: number): Moment[] {
   return [...byPlay.values()]
     .sort((a, b) => a.length - b.length)
     .flatMap((list) =>
-      list
+      [...list]
         .sort(
           (a, b) =>
             Number(a.scored !== "this-turn") -
@@ -213,7 +214,7 @@ async function main() {
   const rosters: Record<string, Record<string, Tally>> = {};
   const moments: Moment[] = [];
   for (const file of files) {
-    const game = JSON.parse(readFileSync(join(out, file), "utf8")) as GameUsage;
+    const game = JSON.parse(readFileSync(path.join(out, file), "utf8")) as GameUsage;
     for (const side of [0, 1] as const) {
       const policy = side === game.candidateSide ? "candidate" : "frozen";
       add(policies[policy], game.byPlay[side]);
@@ -236,7 +237,7 @@ async function main() {
       "A play is a declaration, named by the coach's note; unplanned plays came from the heuristic fallback. It scored this turn when its team scored in the same team turn, next turn when in that team's following turn. Turnovers occurred during its activation. Sequence attribution, not a counterfactual value.",
   };
   writeFileSync(
-    join(run, "usage-summary.json"),
+    path.join(run, "usage-summary.json"),
     JSON.stringify(receipt, null, 2)
   );
   console.log(JSON.stringify({ games: receipt.games, policies }));

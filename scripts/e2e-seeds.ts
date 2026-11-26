@@ -1,6 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import path from "node:path";
+import { byCodeUnit } from "../src/game/core/order";
 import { RULE_SCENARIOS } from "../src/data/ruleScenarios/index.ts";
 import { findSeed } from "../src/game/rules-lab/index.ts";
 import {
@@ -9,8 +10,8 @@ import {
   type CommittedSeedMap,
 } from "../src/testing/seeds/committedSeeds.ts";
 
-const OUTPUT = join(
-  dirname(fileURLToPath(import.meta.url)),
+const OUTPUT = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
   "..",
   "src",
   "testing",
@@ -43,7 +44,7 @@ function outcomesToSeed() {
 
 function writeSeeds(seeds: CommittedSeedMap): void {
   const ordered: CommittedSeedMap = {};
-  for (const key of Object.keys(seeds).sort()) {
+  for (const key of Object.keys(seeds).sort(byCodeUnit)) {
     const seed = seeds[key];
     if (seed !== undefined) ordered[key] = seed;
   }

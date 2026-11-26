@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GameEventNames } from "../../../src/types/events";
 import { openTrace } from "../catalogue-study/replay";
@@ -120,9 +120,9 @@ async function main() {
   const { run, out } = lab;
   const rows = readdirSync(out)
     .filter((f) => f.endsWith(".json"))
-    .map((f) => JSON.parse(readFileSync(join(out, f), "utf8")) as Drama)
+    .map((f) => JSON.parse(readFileSync(path.join(out, f), "utf8")) as Drama)
     .sort((a, b) => b.drama - a.drama || a.game.localeCompare(b.game));
-  writeFileSync(join(run, "drama.json"), JSON.stringify(rows));
+  writeFileSync(path.join(run, "drama.json"), JSON.stringify(rows));
   console.log(JSON.stringify(rows.slice(0, 5)));
 }
 if (isEntry(import.meta.url)) await main();

@@ -121,16 +121,18 @@ function listen({ game, lines }: Narration): void {
       `      block ${name(d.attackerId)} -> ${name(d.defenderId)} ${String(d.numDice)}d ${picks}${JSON.stringify(d.results)}${d.selectedResult === undefined ? "" : ` kept ${JSON.stringify(d.selectedResult)}`}`
     );
   });
-  bus.on(GameEventNames.PlayerKnockedDown, ({ playerId }) =>
-    lines.push(`      down ${name(playerId)}`)
-  );
-  bus.on(GameEventNames.PlayerCasualtyInflicted, ({ victimId }) =>
-    lines.push(`      casualty ${name(victimId)}`)
-  );
-  bus.on(GameEventNames.Turnover, () => lines.push("      TURNOVER"));
-  bus.on(GameEventNames.Touchdown, ({ teamId }) =>
-    lines.push(`      TOUCHDOWN ${sideLetter(teamId === home ? 0 : 1)}`)
-  );
+  bus.on(GameEventNames.PlayerKnockedDown, ({ playerId }) => {
+    lines.push(`      down ${name(playerId)}`);
+  });
+  bus.on(GameEventNames.PlayerCasualtyInflicted, ({ victimId }) => {
+    lines.push(`      casualty ${name(victimId)}`);
+  });
+  bus.on(GameEventNames.Turnover, () => {
+    lines.push("      TURNOVER");
+  });
+  bus.on(GameEventNames.Touchdown, ({ teamId }) => {
+    lines.push(`      TOUCHDOWN ${sideLetter(teamId === home ? 0 : 1)}`);
+  });
 }
 
 function describe({ game, lines }: Narration, step: Step): void {

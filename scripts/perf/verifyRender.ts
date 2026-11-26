@@ -33,12 +33,11 @@ const preview = spawn(
 );
 let browser: Browser | undefined;
 let page: Page;
-let app: GameApp;
-let stale = 0;
+const tally = { stale: 0 };
 
-const frames = (n: number) =>
+const frames = () =>
   page.evaluate(
-    `new Promise((done) => { let left = ${String(n)}; const f = () => (--left <= 0 ? done(0) : requestAnimationFrame(f)); requestAnimationFrame(f); })`
+    `new Promise((done) => { let left = 3; const f = () => (--left <= 0 ? done(0) : requestAnimationFrame(f)); requestAnimationFrame(f); })`
   );
 const stadium = `window.game.scene.getScenes(true).at(-1).children.list.find((o) => o.type === "Image")`;
 
@@ -46,15 +45,15 @@ async function check(name: string) {
   await sleep(1500);
   const shown = await page.screenshot({ animations: "disabled" });
   await page.evaluate(`${stadium}.alpha = 0.5`);
-  await frames(3);
+  await frames();
   await page.evaluate(`${stadium}.alpha = 1`);
-  await frames(3);
+  await frames();
   const fresh = await page.screenshot({ animations: "disabled" });
   if (shown.equals(fresh)) {
     console.log(`${name}: same`);
     return;
   }
-  stale++;
+  tally.stale++;
   mkdirSync(OUT, { recursive: true });
   writeFileSync(`${OUT}/${name}-shown.png`, shown);
   writeFileSync(`${OUT}/${name}-fresh.png`, fresh);
@@ -63,10 +62,9 @@ async function check(name: string) {
 
 try {
   for (let tries = 0; ; tries++) {
-    const up = await fetch(`http://127.0.0.1:${String(PORT)}/`).then(
-      (res) => res.ok,
-      () => false
-    );
+    const up = await fetch(`http://127.0.0.1:${String(PORT)}/`)
+      .then((res) => res.ok)
+      .catch(() => false);
     if (up) break;
     if (tries > 100) throw new Error("vite preview never came up");
     await sleep(200);
@@ -77,7 +75,7 @@ try {
     viewport: { width: 1440, height: 900 },
     reducedMotion: "reduce",
   });
-  app = new GameApp(page);
+  const app = new GameApp(page);
   await app.sandbox.open({ scenario: "pickup-success-seeded" });
   await app.pitch.waitForCameraToSettle(60_000);
   if (control) {
@@ -112,6 +110,6 @@ try {
   preview.kill();
 }
 console.log(
-  stale ? `${String(stale)} stale checkpoint(s)` : "every checkpoint fresh"
+  tally.stale ? `${String(tally.stale)} stale checkpoint(s)` : "every checkpoint fresh"
 );
-process.exitCode = control ? (stale ? 0 : 1) : stale ? 1 : 0;
+process.exitCode = control ? (tally.stale ? 0 : 1) : tally.stale ? 1 : 0;

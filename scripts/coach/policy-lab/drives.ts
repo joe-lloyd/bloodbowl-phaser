@@ -1,5 +1,5 @@
 import { readdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import path from "node:path";
 import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../../src/types/events";
 import { PlayerStatus } from "../../../src/types/Player";
@@ -189,7 +189,7 @@ export function driveArgs(argv: string[]) {
     shard[1] > 1 ? `${String(shard[0])}-of-${String(shard[1])}` : "",
   ].filter(Boolean);
   return {
-    run: resolve(dir),
+    run: path.resolve(dir),
     roster,
     shard,
     out: `drives-summary${scope.map((p) => "-" + p).join("")}.json`,
@@ -199,12 +199,12 @@ export function driveArgs(argv: string[]) {
 async function main() {
   const { run, roster: only, shard, out } = driveArgs(process.argv.slice(2));
 
-  const files = readdirSync(join(run, "traces"))
+  const files = readdirSync(path.join(run, "traces"))
     .filter((f) => f.endsWith(".json.gz"))
     .filter((_, i) => i % shard[1] === shard[0]);
   const byRoster: Record<string, DriveTally> = {};
   for (const file of files) {
-    const { rosters, tallies } = await drivesOfTrace(join(run, "traces", file));
+    const { rosters, tallies } = await drivesOfTrace(path.join(run, "traces", file));
     for (const side of [0, 1] as const) {
       if (only && rosters[side] !== only) continue;
       const into = (byRoster[rosters[side]] ??= empty());
@@ -212,10 +212,11 @@ async function main() {
         into[k] += tallies[side][k];
     }
   }
-  writeFileSync(join(run, out), JSON.stringify(byRoster, null, 2));
-  for (const [roster, t] of Object.entries(byRoster).sort(
+  writeFileSync(path.join(run, out), JSON.stringify(byRoster, null, 2));
+  const ranked = Object.entries(byRoster).sort(
     (a, b) => b[1].scored / b[1].turns - a[1].scored / a[1].turns
-  ))
+  );
+  for (const [roster, t] of ranked)
     console.log(
       roster.padEnd(22),
       `turns ${String(t.turns)}`,

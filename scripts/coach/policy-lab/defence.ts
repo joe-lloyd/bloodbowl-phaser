@@ -1,5 +1,5 @@
 import { readdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import path from "node:path";
 import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import type { BlockRollData } from "../../../src/services/BlockResolutionService";
 import { GameEventNames } from "../../../src/types/events";
@@ -198,18 +198,18 @@ async function main() {
     throw new Error(
       "Usage: defence.ts <stage directory> [i/n], with 0 <= i < n"
     );
-  const run = resolve(dir);
-  const files = readdirSync(join(run, "traces"))
+  const run = path.resolve(dir);
+  const files = readdirSync(path.join(run, "traces"))
     .filter((f) => f.endsWith(".json.gz"))
     .filter((_, k) => k % n === i);
   const by: Record<string, DefenceTally> = {};
   for (const f of files) {
-    const { rosters, tallies } = await defenceOfTrace(join(run, "traces", f));
+    const { rosters, tallies } = await defenceOfTrace(path.join(run, "traces", f));
     for (const s of [0, 1] as const)
       add((by[rosters[s]] ??= emptyDefence()), tallies[s]);
   }
   writeFileSync(
-    join(run, `defence-${i}-of-${n}.json`),
+    path.join(run, `defence-${i}-of-${n}.json`),
     JSON.stringify(by, null, 2)
   );
 }

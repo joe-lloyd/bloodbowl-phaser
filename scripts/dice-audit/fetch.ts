@@ -1,6 +1,5 @@
 import { writeFileSync } from "node:fs";
 
-const PROJECT = "bloodbowl-web";
 const [out, since] = process.argv.slice(2);
 const token = process.env["FIRESTORE_TOKEN"];
 if (!out || !token) {
@@ -9,6 +8,7 @@ if (!out || !token) {
   );
   process.exit(1);
 }
+const PROJECT = "bloodbowl-web";
 
 type Value =
   | { nullValue: null }

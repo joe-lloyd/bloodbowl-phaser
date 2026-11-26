@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { parseLayeredModels, type LayerData, type LayeredModel } from "../../src/boundary/layeredArt";
 import { buildLookAtlas, type LookAtlas } from "../../src/game/presentation/layered/lookAtlas";
 import { randomAppearance, resolveLook, seededRandom } from "../../src/game/presentation/layered/looks";
@@ -95,9 +95,9 @@ function portrait(atlas: LookAtlas, name: string): RgbaImage {
 function checkModel(model: string, art: LayeredModel, out: string): Checked[] {
   const cache = new Map<string, LayerData>();
   const reader = (folder: (body: string) => string) => (body: string, name: string) => {
-    const path = `${SPRITES}/${model}/layered/${folder(body)}/${name}`;
-    const found = cache.get(path) ?? readLayerFiles(path);
-    cache.set(path, found);
+    const layerBase = `${SPRITES}/${model}/layered/${folder(body)}/${name}`;
+    const found = cache.get(layerBase) ?? readLayerFiles(layerBase);
+    cache.set(layerBase, found);
     return found;
   };
   const full = reader((body) => body);
@@ -107,8 +107,8 @@ function checkModel(model: string, art: LayeredModel, out: string): Checked[] {
     const after = draw(art, look, small);
     const first = idleNames(art)[0] ?? "";
     const file = (side: string) => `${model}-${String(index)}-${side}.png`;
-    writeFileSync(join(out, file("before")), encodePng(portrait(before, first)));
-    writeFileSync(join(out, file("after")), encodePng(portrait(after, first)));
+    writeFileSync(path.join(out, file("before")), encodePng(portrait(before, first)));
+    writeFileSync(path.join(out, file("after")), encodePng(portrait(after, first)));
     return { model, look: look.label, frames: Object.keys(before.frames).length, differing: differingPixels(before, after), before: file("before"), after: file("after") };
   });
 }
@@ -141,9 +141,9 @@ figcaption{display:flex;flex-direction:column;font-size:12px;margin-top:6px}figc
 
 const out = process.argv[2] ?? "portrait-check";
 const assets = "portrait-check-assets";
-mkdirSync(join(out, assets), { recursive: true });
-const results = [...parseLayeredModels(manifest)].flatMap(([model, art]) => checkModel(model, art, join(out, assets)));
-writeFileSync(join(out, "portrait-check.html"), page(results, assets));
+mkdirSync(path.join(out, assets), { recursive: true });
+const results = [...parseLayeredModels(manifest)].flatMap(([model, art]) => checkModel(model, art, path.join(out, assets)));
+writeFileSync(path.join(out, "portrait-check.html"), page(results, assets));
 const bad = results.filter((item) => item.differing > 0);
 console.log(`${String(results.length)} looks checked, ${String(bad.length)} differ`);
 for (const item of bad) console.log(`  ${item.model} ${item.look}: ${String(item.differing)} px`);

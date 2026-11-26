@@ -4,11 +4,16 @@ import { z } from "zod";
 import type { LayerData } from "../../src/boundary/layeredArt";
 import { parseJson } from "../../src/boundary/json";
 
+const FRAME = z.tuple([
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+]);
+
 const LAYER_INDEX = z.object({
-  frames: z.record(
-    z.string(),
-    z.tuple([z.number(), z.number(), z.number(), z.number(), z.number()])
-  ),
+  frames: z.record(z.string(), FRAME),
   pixels: z.number(),
 });
 

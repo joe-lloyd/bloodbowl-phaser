@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve, join } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SkillType } from "../../../src/types/Skills";
 import { ruleScenariosFor } from "../../../src/data/ruleScenarios";
@@ -54,7 +54,10 @@ export function coverageInventory() {
     skill,
     mechanics: ruleScenariosFor(skill)?.configs.map((c) => c.id) ?? [],
     aiContracts: tacticalEvidence[skill] ?? [],
-    status: tacticalEvidence[skill] ? "bounded-contract" : "open-tactical-gap",
+    status:
+      tacticalEvidence[skill] === undefined
+        ? "open-tactical-gap"
+        : "bounded-contract",
     evidenceScope:
       "Forced rule scenarios prove mechanics only. Natural events prove occurrence, not individual skill value.",
   }));
@@ -62,7 +65,7 @@ export function coverageInventory() {
 
 function runGate(out: string): void {
   mkdirSync(out, { recursive: true });
-  const resultFile = join(out, "contracts.json");
+  const resultFile = path.join(out, "contracts.json");
   const run = spawnSync(
     "pnpm",
     [
@@ -75,9 +78,9 @@ function runGate(out: string): void {
     ],
     { encoding: "utf8", maxBuffer: 50_000_000 }
   );
-  writeFileSync(join(out, "contracts.log"), run.stdout + run.stderr);
+  writeFileSync(path.join(out, "contracts.log"), run.stdout + run.stderr);
   writeFileSync(
-    join(out, "coverage.json"),
+    path.join(out, "coverage.json"),
     JSON.stringify(coverageInventory(), null, 2)
   );
   const result = JSON.parse(readFileSync(resultFile, "utf8"));
@@ -98,7 +101,7 @@ function runGate(out: string): void {
           .map((t) => ({ test: t.fullName, why: t.failureMessages }))
     ),
   };
-  writeFileSync(join(out, "gate.json"), JSON.stringify(receipt, null, 2));
+  writeFileSync(path.join(out, "gate.json"), JSON.stringify(receipt, null, 2));
   console.log(JSON.stringify(receipt));
   if (!receipt.passed)
     throw new Error(
@@ -108,6 +111,6 @@ function runGate(out: string): void {
 
 if (
   process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 )
-  runGate(resolve(process.argv[2] ?? "sim-results/policy-lab/contracts"));
+  runGate(path.resolve(process.argv[2] ?? "sim-results/policy-lab/contracts"));

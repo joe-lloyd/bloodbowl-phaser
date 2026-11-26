@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { join, resolve } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { snapshotHash } from "../../../src/simulation/runMatch";
@@ -38,7 +38,7 @@ export function argument(index: number): string {
 
 export function isEntry(url: string): boolean {
   const script = process.argv[1];
-  return Boolean(script) && resolve(script ?? "") === fileURLToPath(url);
+  return Boolean(script) && path.resolve(script ?? "") === fileURLToPath(url);
 }
 
 export async function replaySteps({ game, recording, before }: Replay) {
@@ -77,21 +77,21 @@ export function serveJobs(work: (job: LabJob) => Promise<void>): void {
 }
 
 export async function annotateRun(annotation: Annotation) {
-  const run = resolve(argument(2));
-  const out = join(run, annotation.folder);
+  const run = path.resolve(argument(2));
+  const out = path.join(run, annotation.folder);
   mkdirSync(out, { recursive: true });
   if (process.argv.includes("--worker")) {
     serveJobs(async (job) => {
       const result = await annotation.annotate(
-        join(run, "traces", job.id + ".json.gz"),
+        path.join(run, "traces", job.id + ".json.gz"),
         job
       );
-      writeFileSync(join(out, job.id + ".json"), JSON.stringify(result));
+      writeFileSync(path.join(out, job.id + ".json"), JSON.stringify(result));
     });
     return;
   }
   const manifest = parseLabManifest(
-    readFileSync(join(run, "manifest.json"), "utf8")
+    readFileSync(path.join(run, "manifest.json"), "utf8")
   );
   await processPool(annotation.entry, [run], manifest.jobs, annotation.workers);
   return { run, out, manifest };
@@ -113,8 +113,8 @@ export function analyzerSha256(entry: string): string {
 }
 
 export async function writeMatchViewer(run: string, out: string, id: string) {
-  const { recording, game } = openTrace(join(run, "traces", id + ".json.gz"));
+  const { recording, game } = openTrace(path.join(run, "traces", id + ".json.gz"));
   const dump = await buildMatchDump(recording, game);
-  writeFileSync(join(out, id + ".html"), renderMatchHtml(dump));
+  writeFileSync(path.join(out, id + ".html"), renderMatchHtml(dump));
   return recording;
 }

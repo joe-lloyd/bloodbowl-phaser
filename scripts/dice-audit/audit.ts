@@ -1,3 +1,4 @@
+import { byCodeUnit } from "../../src/game/core/order";
 import { readFileSync } from "node:fs";
 import {
   type DiceLog,
@@ -134,7 +135,7 @@ const isFaces = (dice: Reroll["before"]): dice is string[] =>
   Array.isArray(dice) && dice.every((d) => typeof d === "string");
 
 const sameAnyOrder = (a: string[], b: string[]) =>
-  [...a].sort().join(',') === [...b].sort().join(',');
+  [...a].sort(byCodeUnit).join(',') === [...b].sort(byCodeUnit).join(',');
 
 interface Tally {
   count: number;
@@ -185,9 +186,9 @@ for (const { log, reroll: r } of rerollsOnce) {
   }
   const { before, after } = r;
   if (isFaces(before) && isFaces(after)) {
-    const n = before.length;
 
     if (r.source !== "team" && r.source !== "veteran") continue;
+    const n = before.length;
     add(tallyFor(blockExact, n), r.repeated, exactChance(before));
     add(
       tallyFor(blockAnyOrder, n),
@@ -237,7 +238,8 @@ console.log(
 );
 
 console.log(`\nRe-rolls that came up the same as the roll they replaced`);
-for (const n of [...blockExact.keys()].sort()) {
+const blockSizes = [...blockExact.keys()].sort((a, b) => a - b);
+for (const n of blockSizes) {
   console.log(
     line(
       `${String(n)}-dice block, same faces same order`,
