@@ -204,6 +204,25 @@ export interface Formation {
   positions: { playerId: string; x: number; y: number }[];
 }
 
+export interface SeasonRecord {
+  season: number;
+  gameType: GameType;
+  leagueId: string;
+  position: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  champion: string;
+}
+
+export interface HomeLeague {
+  season: number;
+  rivalIds: string[];
+  benchIds: string[];
+  leagueId?: string;
+  history: SeasonRecord[];
+}
+
 export interface ClubState {
   gutterUnlocked?: true;
 
@@ -212,6 +231,8 @@ export interface ClubState {
   gutterSitsOutId?: string;
 
   matchSquad?: string[];
+
+  league?: HomeLeague;
 }
 
 export interface Team {
