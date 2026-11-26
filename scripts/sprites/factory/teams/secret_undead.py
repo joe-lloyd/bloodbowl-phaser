@@ -11,10 +11,7 @@ from teams.undead_skaven_lizards_lizard import Saurus
 from teams.undead_skaven_lizards_tomb import AnointedBlitzer, TombSkeleton
 from teams.undead_skaven_lizards_undead import Skeleton, Wraith, Zombie
 
-palette.ramp("shroud_grey", "#3a3e46", "#6a707c", "#a4aab4")
-palette.ramp("banshee_white", "#7a8494", "#c4ccd8", "#f4f8fc")
 palette.ramp("sea_green", "#1a4a4a", "#2a8a7a", "#7ad0b8")
-palette.ramp("scarab_shell", "#1a2a4a", "#2a5a8a", "#6ab0d0")
 
 
 # ----------------------------------------------------------------------------- spirits
@@ -22,7 +19,7 @@ palette.ramp("scarab_shell", "#1a2a4a", "#2a5a8a", "#6ab0d0")
 class CairnWraith(Wraith):
     """A grave wraith in a grey shroud with a kit1 hem, a long scythe and green eyes."""
     key = "cairn_wraith"
-    layout = dict(Wraith.layout, torso="shroud_grey", arms="shroud_grey", coat_mat="shroud_grey", hood_mat="shroud_grey", shroud=False)
+    layout = dict(Wraith.layout, torso="stone", arms="stone", coat_mat="stone", hood_mat="stone", shroud=False)
     target_px = 104
 
     def extras(self, J, P, L, tag, pose):
@@ -34,7 +31,7 @@ class CairnWraith(Wraith):
 class Banshee(Wraith):
     """A wailing spirit: no hood, long white hair streaming back, a pale robe with a kit1 sash."""
     key = "banshee"
-    layout = dict(Wraith.layout, torso="banshee_white", arms="banshee_white", coat_mat="banshee_white", helm=None, hood_rim=False, shroud=False,
+    layout = dict(Wraith.layout, torso="fur_white", arms="fur_white", coat_mat="fur_white", helm=None, hood_rim=False, shroud=False,
                   robe_lining="kit1")
     target_px = 96
 
@@ -43,7 +40,7 @@ class Banshee(Wraith):
         c, X, F, U, s = cc.hf(J)
         for i, sd in enumerate((-1, -0.4, 0.4, 1)):
             root = c + U * s[2] * 0.6 + X * sd * s[0] * 0.7
-            cc.tentacle(tag + "hair%d" % i, root, U * 0.3 - F + X * sd * 0.3, -UP * 0.6 - F * 0.4, 0.55, 0.05, "banshee_white", curl=1.5)
+            cc.tentacle(tag + "hair%d" % i, root, U * 0.3 - F + X * sd * 0.3, -UP * 0.6 - F * 0.4, 0.55, 0.05, "fur_white", curl=1.5)
         ellipsoid(tag + "wail", c + F * s[1] * 0.85 - U * s[2] * 0.4, (s[0] * 0.25, 0.03, s[2] * 0.3), "socket", J["head_R"])
 
 
@@ -364,13 +361,13 @@ class SaurusSkeleton(Saurus):
 
 @register
 class ScarabSwarm(Quadruped):
-    """A great blue-black scarab with gold markings, smaller beetles crawling round it, a kit1 band."""
+    """A great blue scarab with gold markings, smaller beetles crawling round it, a kit1 band."""
     key = "scarab_swarm"
     body = (0.7, 0.26)
     leg_len, leg_r = 0.18, 0.04
-    skin = "scarab_shell"
+    skin = "cloth_blue"
     paw_mat = "black"
-    head = dict(snout=(0.4, 1.0), ears="none", eye_mat="eye_green", snout_mat="scarab_shell", nose_mat="gold")
+    head = dict(snout=(0.4, 1.0), ears="none", eye_mat="eye_green", snout_mat="cloth_blue", nose_mat="gold")
     head_size = 0.16
     tail = None
     coat, collar = "kit1", "kit2"
@@ -379,7 +376,7 @@ class ScarabSwarm(Quadruped):
     def extras(self, J, tag, pose, centre):
         for i, (x, y) in enumerate(((-0.5, 0.3), (0.5, 0.1), (0.4, -0.45), (-0.45, -0.35))):
             p = centre + Vector((x, y, -0.2))
-            ellipsoid(tag + "beetle%d" % i, p, (0.1, 0.13, 0.06), "scarab_shell")
+            ellipsoid(tag + "beetle%d" % i, p, (0.1, 0.13, 0.06), "cloth_blue")
             ball_at(tag + "beetlespot%d" % i, p + UP * 0.05, 0.03, "gold")
 
 
