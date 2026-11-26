@@ -33,7 +33,7 @@ import {
   Inducement,
   type InducementSelectionLine,
 } from "../../types/Inducements";
-import { getRosterByRosterName } from "../RosterTemplates";
+import { findRosterName, getRosterByRosterName } from "../RosterTemplates";
 import {
   readSevensRuleset,
   type SevensRuleset,
@@ -367,9 +367,7 @@ export function hydrateStoredTeam(
 ): HydrationResult {
   const warnings: string[] = [];
   const rosterName = raw["rosterName"] as RosterName | undefined;
-  const knownRoster = Object.values(RosterName).find(
-    (name) => name === raw["rosterName"]
-  );
+  const knownRoster = findRosterName(raw["rosterName"]);
   const teamId = String(raw["id"]);
   const storedPlayers = Array.isArray(raw["players"])
     ? (raw["players"]).map(toStoredPlayer)

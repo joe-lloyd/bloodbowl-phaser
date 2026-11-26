@@ -1,5 +1,6 @@
 import { type MatchResult } from "../../types/GameState";
-import { RosterName, type Team } from "../../types/Team";
+import { type RosterName, type Team } from "../../types/Team";
+import { findRosterName } from "../../data/RosterTemplates";
 import { type PlayerMatchStats } from "./MatchStats";
 
 export type PlayedGameKind = "online" | "computer" | "local";
@@ -153,9 +154,7 @@ export function parsePlayedGames(raw: unknown): PlayedGame[] {
     const outcome = OUTCOMES.find((o) => o === entry["outcome"]);
     const ending = ENDINGS.find((e) => e === entry["ending"]);
     const opponent = isRecord(entry["opponent"]) ? entry["opponent"] : null;
-    const rosterName = Object.values(RosterName).find(
-      (name) => name === opponent?.["rosterName"]
-    );
+    const rosterName = findRosterName(opponent?.["rosterName"]);
     const score = isRecord(entry["score"]) ? entry["score"] : null;
     if (!kind || !outcome || !opponent || !rosterName || !score) return [];
     return [

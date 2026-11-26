@@ -152,6 +152,7 @@ describe("rule coverage gate", () => {
 
   it("only deliberate Sevens exclusions remain unregistered", () => {
     expect(SkillRegistry.coverage().missing).toEqual([
+      SkillType.BREATHE_FIRE_ICE,
       SkillType.DECAY,
       SkillType.INSIGNIFICANT,
     ]);

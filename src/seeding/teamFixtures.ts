@@ -104,7 +104,9 @@ export function seedAdvancementMode(
   if (PROGRESSED_ADVANCED_LEAGUE_ROSTERS.has(rosterName)) {
     return "advanced-league";
   }
-  const index = Object.values(RosterName).indexOf(rosterName);
+  const index = Object.values(RosterName).findIndex(
+    (name) => name === rosterName
+  );
   const mode = ADVANCEMENT_MODE_CYCLE[index % ADVANCEMENT_MODE_CYCLE.length];
   if (!mode) throw new Error(`unknown roster ${rosterName}`);
   return mode;

@@ -82,6 +82,7 @@ export const skillTypeSchema: z.ZodType<SkillType> = z.union([
   z.literal("Bombardier"),
   z.literal("Bone Head"),
   z.literal("Breathe Fire"),
+  z.literal("Breathe Fire (Ice)"),
   z.literal("Chainsaw"),
   z.literal("Decay"),
   z.literal("Drunkard"),

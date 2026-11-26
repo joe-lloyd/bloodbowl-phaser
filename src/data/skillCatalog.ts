@@ -131,6 +131,15 @@ export const SKILL_CATALOG = {
     description:
       "Instead of a Block: 4+, or 5+ against Strength 5 or more, places an opponent Prone. A 6 knocks them down, and a 1 the user.",
   },
+  "Breathe Fire (Ice)": {
+    kind: "trait",
+    category: null,
+    usage: "active",
+    compulsory: false,
+    parameterForm: null,
+    description:
+      "A Secret League trait. It is named on the player and has no effect in this game yet.",
+  },
   Bullseye: {
     kind: "skill",
     category: "Strength",

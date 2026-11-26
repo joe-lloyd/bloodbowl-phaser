@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { RosterName } from "../../types/Team";
+import { SECRET_ROSTER_NAMES } from "../../data/secretLeague/secretRosterNames";
 
 export const rosterNameSchema: z.ZodType<RosterName> = z.union([
   z.literal("Amazon"),
@@ -34,4 +35,5 @@ export const rosterNameSchema: z.ZodType<RosterName> = z.union([
   z.literal("Vampire"),
   z.literal("Witch Elf"),
   z.literal("Wood Elf"),
+  z.enum(SECRET_ROSTER_NAMES),
 ]);

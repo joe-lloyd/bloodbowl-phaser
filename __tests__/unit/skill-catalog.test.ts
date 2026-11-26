@@ -17,15 +17,15 @@ import {
 import { type Team } from "../../src/types/Team";
 
 describe("public skill catalog", () => {
-  it("contains 72 skills and 38 traits with unique family names", () => {
+  it("contains 72 skills and 39 traits with unique family names", () => {
     const definitions = Object.values(SKILL_DEFINITIONS);
-    expect(definitions).toHaveLength(110);
-    expect(new Set(definitions.map((entry) => entry.type)).size).toBe(110);
+    expect(definitions).toHaveLength(111);
+    expect(new Set(definitions.map((entry) => entry.type)).size).toBe(111);
     expect(definitions.filter((entry) => entry.kind === "skill")).toHaveLength(
       72
     );
     expect(definitions.filter((entry) => entry.kind === "trait")).toHaveLength(
-      38
+      39
     );
   });
 
@@ -54,9 +54,10 @@ describe("public skill catalog", () => {
 
   it("the registry's coverage universe reconciles with the catalog", () => {
     const coverage = SkillRegistry.coverage();
-    expect(coverage.total).toBe(110);
+    expect(coverage.total).toBe(111);
     expect(coverage.implemented).toBe(108);
     expect(coverage.missing).toEqual([
+      SkillType.BREATHE_FIRE_ICE,
       SkillType.DECAY,
       SkillType.INSIGNIFICANT,
     ]);

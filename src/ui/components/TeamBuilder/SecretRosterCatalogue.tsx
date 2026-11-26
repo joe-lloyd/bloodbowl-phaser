@@ -1,6 +1,7 @@
 import { useState } from "react";
 import secretLeagueRosters from "../../../data/community/secretLeague2025.json";
 import { getSecretRosterNames } from "../../../data/RosterTemplates";
+import { SECRET_CATALOGUE_NAMES } from "../../../data/secretLeague/secretRosters";
 import type { RosterName } from "../../../types/Team";
 import { Field } from "../componentWarehouse/HudKit";
 import {
@@ -10,8 +11,12 @@ import {
 import { RosterCard } from "./RosterCard";
 
 const playable = getSecretRosterNames();
+const built = new Set<string>([
+  ...playable,
+  ...SECRET_CATALOGUE_NAMES.values(),
+]);
 const rosters: readonly CatalogueRoster[] = secretLeagueRosters.filter(
-  (roster) => !playable.some((name) => name === roster.name)
+  (roster) => !built.has(roster.name)
 );
 
 export default function SecretRosterCatalogue({

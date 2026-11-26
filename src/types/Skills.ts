@@ -91,6 +91,7 @@ export const SkillType = {
   BOMBARDIER: "Bombardier",
   BONE_HEAD: "Bone Head",
   BREATHE_FIRE: "Breathe Fire",
+  BREATHE_FIRE_ICE: "Breathe Fire (Ice)",
   CHAINSAW: "Chainsaw",
   DECAY: "Decay",
   DRUNKARD: "Drunkard",
