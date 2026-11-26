@@ -63,6 +63,6 @@ describe("Secret League skills in a match", () => {
       slayer
     );
 
-    expect(rolls).toEqual(["Animosity"]);
+    expect(rolls).toEqual(["Animosity (Long Drongs Slayer #1)"]);
   });
 });
