@@ -139,7 +139,7 @@ export async function startSeason(
   return competition;
 }
 
-export function seasonRecord(
+function seasonRecord(
   competition: LeagueDoc,
   clubId: string,
   season: number
