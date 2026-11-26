@@ -7554,15 +7554,25 @@
       "count": 1
     }
   },
-  "scripts/sprites/roster_picker_cards.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 5
+  "scripts/sprites/portrait_check.ts": {
+    "unicorn/import-style": {
+      "count": 1
     },
+    "unicorn/no-array-callback-reference": {
+      "count": 2
+    }
+  },
+  "scripts/sprites/roster_picker_cards.ts": {
     "unicorn/no-array-sort": {
       "count": 3
     },
     "unicorn/no-for-each": {
       "count": 1
+    }
+  },
+  "scripts/sprites/spriteFiles.ts": {
+    "unicorn/max-nested-calls": {
+      "count": 5
     }
   },
   "src/boundary/designTokens.ts": {
