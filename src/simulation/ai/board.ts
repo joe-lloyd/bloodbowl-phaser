@@ -173,9 +173,9 @@ export function projectBoard(board: Board, moves: readonly BoardMove[]): Board {
   const replace = (p: FieldPlayer) => moved.get(p.id) ?? p;
   return {
     ...board,
-    ours: board.ours.map(replace),
-    theirs: board.theirs.map(replace),
-    everyone: board.everyone.map(replace),
+    ours: board.ours.map((element) => replace(element)),
+    theirs: board.theirs.map((element) => replace(element)),
+    everyone: board.everyone.map((element) => replace(element)),
     occupant,
   };
 }

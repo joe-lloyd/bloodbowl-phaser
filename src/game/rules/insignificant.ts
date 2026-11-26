@@ -11,7 +11,7 @@ export function isInsignificant(player: Player): boolean {
 }
 
 export function countInsignificant(players: Player[]): number {
-  return players.filter(isInsignificant).length;
+  return players.filter((player) => isInsignificant(player)).length;
 }
 
 export function insignificantLimitOk(players: Player[]): boolean {

@@ -144,14 +144,14 @@ export function summarizeHalfTime({
     recovery: recoveries.flatMap((result) => {
       const name = label(result.playerId);
       return name
-        ? [`${name}: ${result.recovered ? "Recovered" : "Still knocked out"}`]
+        ? `${name}: ${result.recovered ? "Recovered" : "Still knocked out"}`
         : [];
     }),
     out: players.flatMap((player) => {
       const out =
         injuryLabel(player) ??
         (player.status === PlayerStatus.REMOVED ? "Sent off" : null);
-      return out ? [`${playerLabel(player)}: ${out}`] : [];
+      return out ? `${playerLabel(player)}: ${out}` : [];
     }),
   };
 }

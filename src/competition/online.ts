@@ -61,7 +61,7 @@ function signedUpEntrant({
 function assertOnlineSetup(input: NewOnlineCompetition): void {
   if (!input.name.trim()) throw new Error("Give the competition a name.");
   const { places } = input.online;
-  if (!Number.isInteger(places) || places < 2 || places > MAX_PLACES)
+  if (!Number.isSafeInteger(places) || places < 2 || places > MAX_PLACES)
     throw new Error(`A competition has between 2 and ${String(MAX_PLACES)} places.`);
   const budget = input.profile?.draftBudget;
   if (budget !== undefined && !(budget > 0))
@@ -168,7 +168,7 @@ async function release(
     competition.type,
     competition.id,
     (latest) => {
-      teamIds = latest.entrants.filter(leaving).map((entrant) => entrant.teamId);
+      teamIds = latest.entrants.filter((element) => leaving(element)).map((entrant) => entrant.teamId);
       return withoutEntrants(latest, leaving);
     }
   );

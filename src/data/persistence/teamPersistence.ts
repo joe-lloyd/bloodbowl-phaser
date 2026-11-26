@@ -141,9 +141,9 @@ function parseDraftInducements(raw: unknown): InducementSelectionLine[] {
     const { inducement, quantity } = line;
     return isInducement(inducement) &&
       typeof quantity === "number" &&
-      Number.isInteger(quantity) &&
+      Number.isSafeInteger(quantity) &&
       quantity > 0
-      ? [{ inducement, quantity }]
+      ? { inducement, quantity }
       : [];
   });
 }
@@ -445,7 +445,7 @@ export function dehydrateTeam(team: Team): StoredTeam {
     ...(team.coachName !== undefined && { coachName: team.coachName }),
     rosterName: team.rosterName,
     colors: team.colors,
-    players: team.players.map(dehydratePlayer),
+    players: team.players.map((element) => dehydratePlayer(element)),
     maxRosterSize: team.maxRosterSize,
     formations: team.formations,
     treasury: team.treasury,

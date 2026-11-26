@@ -3,7 +3,7 @@ import { pushBackSquares, jumpTargets } from "../../../src/game/rules/jump";
 import { type Player, PlayerStatus } from "../../../src/types/Player";
 
 const key = (s: { x: number; y: number }) => `${String(s.x)},${String(s.y)}`;
-const set = (arr: { x: number; y: number }[]) => new Set(arr.map(key));
+const set = (arr: { x: number; y: number }[]) => new Set(arr.map((element) => key(element)));
 
 describe("jump push-back geometry", () => {
   it("diagonal jumper at 1 over 5 → 6/8/9", () => {

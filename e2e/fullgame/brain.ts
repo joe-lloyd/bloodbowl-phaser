@@ -206,7 +206,7 @@ function runTo(g: HeadlessGame, c: Candidate): Candidate {
     .getAvailableMovements(player.id)
     .filter((sq) => (sq.cost ?? 99) <= left || scores(sq));
 
-  const pickup = !carrying && reach.find(onBall);
+  const pickup = !carrying && reach.find((element) => onBall(element));
   const dir = { x: fixtureValue(step).x - at.x, y: fixtureValue(step).y - at.y };
   const gain = (sq: Square) =>
     (scores(sq) ? 100 : 0) +

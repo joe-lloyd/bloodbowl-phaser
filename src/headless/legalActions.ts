@@ -252,15 +252,13 @@ function replacementActions({
             .map((target) => target.id),
         }
       : {};
-    return [
-      {
+    return {
         blockReplacement: replacement,
         label: `Blitz (with ${BLOCK_REPLACEMENT_DEFINITIONS[replacement].label})`,
         direct,
         blitz,
         ...targets,
-      },
-    ];
+      };
   });
 }
 
@@ -284,7 +282,7 @@ function setupActions(ctx: HeadlessGameContext): LegalActions["setup"] {
     status,
     placements: (isTeam1 ? ctx.team1 : ctx.team2).players.flatMap((player) =>
       player.gridPosition
-        ? [{ playerId: player.id, ...player.gridPosition }]
+        ? { playerId: player.id, ...player.gridPosition }
         : []
     ),
     presetNames: new FormationManager()

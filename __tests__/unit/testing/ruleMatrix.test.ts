@@ -34,7 +34,7 @@ describe("generated rule cases", () => {
         ).toEqual(config.outcomes.map((o) => o.id).sort());
         for (const variant of scenarioCase.variants) {
           expect(
-            Number.isInteger(variant.seed),
+            Number.isSafeInteger(variant.seed),
             `${config.id}/${variant.id} has no committed seed — run 'pnpm e2e:seeds'`
           ).toBe(true);
         }

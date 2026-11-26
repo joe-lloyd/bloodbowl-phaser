@@ -36,7 +36,7 @@ export class Stadium {
     ).flatMap((layer) => {
       const image = scene.textures.get(key(path, layer)).getSourceImage();
       const tint = layer === "base" ? 0xffffff : colors[layer];
-      return image instanceof HTMLImageElement ? [{ image, tint }] : [];
+      return image instanceof HTMLImageElement ? { image, tint } : [];
     });
     const [first, ...rest] = layers;
     if (!first) return;

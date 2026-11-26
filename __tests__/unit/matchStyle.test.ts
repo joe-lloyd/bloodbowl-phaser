@@ -51,8 +51,8 @@ describe("the match style", () => {
     });
     expect(save).not.toHaveProperty("presentation");
 
-    const legacy = JSON.parse(
-      JSON.stringify({ ...save, presentation: { pitchThemeId: "neon" } })
+    const legacy = structuredClone(
+      { ...save, presentation: { pitchThemeId: "neon" } }
     ) as MatchSave;
     const start = resolveMatchStart(
       { team1: game.team1, team2: game.team2, resumeSave: legacy },

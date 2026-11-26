@@ -78,8 +78,8 @@ const KNOWN_COMMAND_TYPES = new Set<HeadlessCommand["type"]>([
 
 function onPitch(x: number, y: number): boolean {
   return (
-    Number.isInteger(x) &&
-    Number.isInteger(y) &&
+    Number.isSafeInteger(x) &&
+    Number.isSafeInteger(y) &&
     x >= 0 &&
     x < GameConfig.PITCH_WIDTH &&
     y >= 0 &&
@@ -243,7 +243,7 @@ function checkVariants(scenarioCase: ScenarioCase, add: Add): void {
       add(`${where}.id`, `duplicate variant id '${variant.id}'`);
     }
     variantIds.add(variant.id);
-    if (!Number.isFinite(variant.seed) || !Number.isInteger(variant.seed)) {
+    if (!Number.isFinite(variant.seed) || !Number.isSafeInteger(variant.seed)) {
       add(
         `${where}.seed`,
         `variant '${variant.id}' has no committed integer seed — ` +

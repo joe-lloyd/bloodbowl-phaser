@@ -291,7 +291,7 @@ function adjacentStandingPlayers(player: Player, others: Player[]): Player[] {
   return playersWithin(square, others, 1)
     .flatMap((other) =>
       other.status === PlayerStatus.ACTIVE && other.gridPosition
-        ? [{ other, at: other.gridPosition }]
+        ? { other, at: other.gridPosition }
         : []
     )
     .sort((a, b) => a.at.y - b.at.y || a.at.x - b.at.x)

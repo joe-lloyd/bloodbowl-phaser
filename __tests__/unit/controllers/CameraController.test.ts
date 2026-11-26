@@ -521,9 +521,9 @@ describe("CameraController", () => {
         controller.release();
         controller.focusSquare(8, 5);
       }
-      if (reason === "manual") controller.panBy(10, 10);
-      if (reason === "restore") controller.reset();
-      if (reason === "destroy") controller.destroy();
+      else if (reason === "manual") controller.panBy(10, 10);
+      else if (reason === "restore") controller.reset();
+      else if (reason === "destroy") controller.destroy();
       camera.zoomTo.mockClear();
       camera.pan.mockClear();
 
@@ -550,9 +550,9 @@ describe("CameraController", () => {
         controller.release();
         controller.focusSquare(8, 5);
       }
-      if (reason === "manual") controller.panBy(10, 10);
-      if (reason === "restore") controller.reset();
-      if (reason === "destroy") controller.destroy();
+      else if (reason === "manual") controller.panBy(10, 10);
+      else if (reason === "restore") controller.reset();
+      else if (reason === "destroy") controller.destroy();
       camera.zoomTo.mockClear();
       camera.pan.mockClear();
       vi.advanceTimersByTime(5000);

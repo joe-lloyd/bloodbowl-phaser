@@ -29,11 +29,9 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
 
   const getFocusable = (): HTMLElement[] => {
     if (!menuRef.current) return [];
-    return Array.from(
-      menuRef.current.querySelectorAll<HTMLElement>(
+    return [...menuRef.current.querySelectorAll<HTMLElement>(
         "button:not([disabled]), input:not([disabled])"
-      )
-    );
+      )];
   };
 
   useEffect(() => {

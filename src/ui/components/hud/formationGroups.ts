@@ -10,7 +10,7 @@ export function formationGroups(
   return [
     {
       label: kicking ? "For kicking" : "For receiving",
-      entries: builtIn.filter(fits),
+      entries: builtIn.filter((element) => fits(element)),
     },
     {
       label: kicking ? "For receiving" : "For kicking",

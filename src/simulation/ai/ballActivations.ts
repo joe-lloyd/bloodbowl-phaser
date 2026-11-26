@@ -166,7 +166,7 @@ function scoreActivation(
   const success = (r: Route) =>
     r.chance *
     (1 - unfedChance({ c: c, player: carrier, action: "move", at: r.to }));
-  const bestScore = scoring.sort(
+  const bestScore = [...scoring].sort(
     (a, b) => success(b) - success(a) || a.path.length - b.path.length
   )[0];
   if (!bestScore) return null;
@@ -347,7 +347,7 @@ export function deepReceiverActivations(
       rolls: best.rolls,
     });
   }
-  return out.sort((a, b) => b.value - a.value).slice(0, 1);
+  return [...out].sort((a, b) => b.value - a.value).slice(0, 1);
 }
 
 function approachTo(

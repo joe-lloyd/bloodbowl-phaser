@@ -42,7 +42,7 @@ describe("SoundTest page — Back to Main Menu", () => {
       );
     });
 
-    const backButton = Array.from(container.querySelectorAll("button")).find(
+    const backButton = [...container.querySelectorAll("button")].find(
       (button) => button.textContent?.includes("Back to Main Menu")
     );
     expect(backButton).toBeTruthy();

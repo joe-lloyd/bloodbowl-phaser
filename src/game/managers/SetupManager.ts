@@ -483,7 +483,7 @@ export class SetupManager {
       if (!player.gridPosition) movePlayerToBox(player, { box: "reserves" });
     }
     this.setupReady.add(teamId);
-    setup.confirmedTeamIds = Array.from(this.setupReady);
+    setup.confirmedTeamIds = [...this.setupReady];
     this.eventBus.emit(GameEventNames.SetupConfirmed, teamId);
 
     if (this.state.subPhase === SubPhase.SETUP_KICKING) {
@@ -627,7 +627,7 @@ export class SetupManager {
     if (!team) return [];
     return team.players.flatMap((player) => {
       const position = this.placedPlayers.get(player.id);
-      return position ? [{ playerId: player.id, ...position }] : [];
+      return position ? { playerId: player.id, ...position } : [];
     });
   }
 

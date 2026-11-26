@@ -65,15 +65,11 @@ describe("a Foul's Dirty Player across the armour-broken wait", () => {
 
     const told = response.events.flatMap(({ name, data }) => {
       if (name === GameEventNames.SkillTriggered)
-        return [
-          `skill: ${z.object({ effect: z.string() }).parse(data).effect}`,
-        ];
+        return `skill: ${z.object({ effect: z.string() }).parse(data).effect}`;
       if (name === GameEventNames.DiceRoll)
-        return [
-          `dice: ${z.object({ description: z.string() }).parse(data).description}`,
-        ];
+        return `dice: ${z.object({ description: z.string() }).parse(data).description}`;
       if (name === GameEventNames.UI_Notification)
-        return [`note: ${String(data)}`];
+        return `note: ${String(data)}`;
       return [];
     });
     expect(told).toEqual([

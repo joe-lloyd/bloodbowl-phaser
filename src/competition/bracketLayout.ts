@@ -41,7 +41,7 @@ export function layoutBracket(fixtures: CompetitionFixture[]): BracketLayout {
   const nodes = fixtures.map((fixture) => positions.place(fixture));
   const connectors = nodes.flatMap(({ fixture }) => {
     const next = positions.nextOf(fixture);
-    return next ? [{ fromFixtureId: fixture.id, toFixtureId: next.id }] : [];
+    return next ? { fromFixtureId: fixture.id, toFixtureId: next.id } : [];
   });
   const leafCounts = (["left", "right"] as const).map(
     (side) =>

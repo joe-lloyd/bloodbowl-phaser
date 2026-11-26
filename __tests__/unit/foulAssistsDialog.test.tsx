@@ -54,7 +54,7 @@ it("answers the Foul with the number of assists the coach clicks", async () => {
   });
 
   const buttons = [...container.querySelectorAll("button")];
-  expect(buttons.map(buttonLabel)).toEqual(["+0", "+1", "+2"]);
+  expect(buttons.map((button) => buttonLabel(button))).toEqual(["+0", "+1", "+2"]);
   expect(container.textContent).toContain(
     `${fixtureValue(fouler).playerName} fouls ${fixtureValue(target).playerName}. Add how many of the 2 Offensive Assists to the Armour Roll?`
   );

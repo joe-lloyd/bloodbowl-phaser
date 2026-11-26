@@ -87,7 +87,7 @@ describe("PlayerPage sprite", () => {
     await openPlayer(RosterName.HUMAN, "Human Lineman");
     const text = container.textContent ?? "";
     const sprite = fixtureValue(container.querySelector('[data-testid="player-sprite"]'));
-    const characteristics = fixtureValue(Array.from(container.querySelectorAll("h2")).find(
+    const characteristics = fixtureValue([...container.querySelectorAll("h2")].find(
       (heading) => heading.textContent === "Characteristics"
     ));
     expect(

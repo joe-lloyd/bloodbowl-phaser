@@ -368,7 +368,7 @@ export class BlockManager extends BlockPushChain {
         }
       }
     }
-    const square = emptyQuickPassSquares.sort(nearestFirst)[0];
+    const square = [...emptyQuickPassSquares].sort(nearestFirst)[0];
     if (!square) return null;
     return receiver ? { receiver, square } : { square };
   }

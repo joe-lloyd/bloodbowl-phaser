@@ -138,12 +138,10 @@ describe("PlayerDevelopment", () => {
     );
 
   const offered = () =>
-    Array.from(
-      container.querySelectorAll<HTMLElement>('[data-testid="random-candidate"]')
-    ).map((button) => button.dataset["skill"]);
+    [...container.querySelectorAll<HTMLElement>('[data-testid="random-candidate"]')].map((button) => button.dataset["skill"]);
 
   function buttonWithText(text: string) {
-    return Array.from(container.querySelectorAll("button")).find((button) =>
+    return [...container.querySelectorAll("button")].find((button) =>
       button.textContent?.includes(text)
     );
   }
@@ -256,9 +254,7 @@ describe("PlayerDevelopment", () => {
 
     const expected = ["4, 1: Steady Footing", "1, 3: Fend"];
     const shownNow = () =>
-      Array.from(
-        container.querySelectorAll('[data-testid="random-candidate"]')
-      ).map((button) => button.firstElementChild?.textContent);
+      [...container.querySelectorAll('[data-testid="random-candidate"]')].map((button) => button.firstElementChild?.textContent);
     expect(shownNow()).toEqual([]);
     await waitForDice();
     expect(playRoll.mock.calls.map(([, roll]) => roll)).toMatchObject([
@@ -266,9 +262,7 @@ describe("PlayerDevelopment", () => {
       { kind: "d6", values: [1, 3] },
     ]);
     expect(
-      Array.from(
-        container.querySelectorAll('[data-testid="random-candidate"]')
-      ).map((button) => button.lastElementChild?.textContent)
+      [...container.querySelectorAll('[data-testid="random-candidate"]')].map((button) => button.lastElementChild?.textContent)
     ).toEqual([
       SKILL_DEFINITIONS[SkillType.STEADY_FOOTING].description,
       SKILL_DEFINITIONS[SkillType.FEND].description,
@@ -404,7 +398,7 @@ describe("PlayerDevelopment", () => {
     await renderFromStorage(team.id, playerId, dice(4, 1, 1, 3));
     await rollCandidatesFor(SkillCategory.GENERAL);
     expect(
-      Array.from(container.querySelectorAll('[data-testid="roll-pair"]')).map(
+      [...container.querySelectorAll('[data-testid="roll-pair"]')].map(
         (pair) => pair.textContent
       )
     ).toEqual([
@@ -429,9 +423,7 @@ describe("PlayerDevelopment", () => {
     await saveTeams([stored]);
     await renderFromStorage(team.id, playerId, dice(6));
     expect(
-      Array.from(
-        container.querySelectorAll('[data-testid="random-candidate"]')
-      ).map((button) => button.firstElementChild?.textContent)
+      [...container.querySelectorAll('[data-testid="random-candidate"]')].map((button) => button.firstElementChild?.textContent)
     ).toEqual(["1, 1 and 2, 1: Block"]);
   });
 

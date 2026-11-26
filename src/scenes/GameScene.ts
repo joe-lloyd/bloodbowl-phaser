@@ -249,7 +249,7 @@ export class GameScene extends Phaser.Scene {
     this.cameraController = new CameraController(
       {
         scene: this,pitch: this.pitch,world: { width: this.venue.width,height: this.venue.height },dugoutPoints: [
-          ...Array.from(this.dugouts.values()).flatMap((d) => d.getBounds()),
+          ...[...this.dugouts.values()].flatMap((d) => d.getBounds()),
           ...this.staffTerraces.flatMap((terrace) => terrace.bounds),
         ],eventBus: this.eventBus,hudRects: () => {
           panels.watch();

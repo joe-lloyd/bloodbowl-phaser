@@ -48,7 +48,7 @@ export class PitchPage {
             const panels = document.querySelectorAll(
               "[data-hud-frame], [data-hud-panels]"
             );
-            const transitioning = Array.from(panels).some((panel) =>
+            const transitioning = [...panels].some((panel) =>
               panel
                 .getAnimations({ subtree: true })
                 .some(
@@ -57,7 +57,7 @@ export class PitchPage {
                     animation.playState === "running"
                 )
             );
-            const layout = Array.from(panels).flatMap((panel) =>
+            const layout = [...panels].flatMap((panel) =>
               [panel, ...panel.children].map((element) => {
                 const { left, top, width, height } =
                   element.getBoundingClientRect();

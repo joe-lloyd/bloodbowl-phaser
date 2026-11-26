@@ -113,7 +113,7 @@ function steadySupport(c: Context, plans: Activation[]) {
   const gs = c.board.gs;
   const support: Activation[] = [];
   const wait = new Map<string, number>();
-  for (const big of c.board.ours.filter(steadied)) {
+  for (const big of c.board.ours.filter((element) => steadied(element))) {
     const best = bestPlan(plans, big);
     if (!best) continue;
     const teammates = gs.getTeammates(big.id);
@@ -137,5 +137,5 @@ export function gatePriced(c: Context, plans: Activation[]): Activation[] {
     if (p >= 1 || a.value <= 0) return a;
     return { ...a, value: a.value * p * (wait.get(a.player.id) ?? 1) };
   };
-  return [...plans.map(price), ...support];
+  return [...plans.map((plan) => price(plan)), ...support];
 }

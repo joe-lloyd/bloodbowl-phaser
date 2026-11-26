@@ -15,7 +15,7 @@ function setupHalf(isTeam1: boolean) {
     cols: maxX - minX + 1,
     rows: layout.rows,
     lineX: isTeam1 ? maxX + 1 : minX,
-    obstacles: layout.obstacles.filter(inHalf),
+    obstacles: layout.obstacles.filter((element) => inHalf(element)),
   };
 }
 

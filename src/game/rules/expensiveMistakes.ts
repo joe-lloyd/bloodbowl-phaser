@@ -52,7 +52,7 @@ export function expensiveMistakeFor(
   d6: number
 ): ExpensiveMistake | null {
   if (!rollsForExpensiveMistakes(treasury)) return null;
-  if (!Number.isInteger(d6) || d6 < 1 || d6 > 6) {
+  if (!Number.isSafeInteger(d6) || d6 < 1 || d6 > 6) {
     throw new Error(`A D6 roll must be 1 to 6, not ${String(d6)}.`);
   }
   const band = Math.min(TABLE.length - 1, Math.floor(treasury / 100_000) - 1);

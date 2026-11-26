@@ -90,7 +90,7 @@ export function draftReserve(team: Team): number {
     0,
     ...draftListPlayers(team)
       .filter((player) => addedSkillCount(player) >= 1)
-      .map(draftedPlayerPrice)
+      .map((element) => draftedPlayerPrice(element))
   );
 }
 

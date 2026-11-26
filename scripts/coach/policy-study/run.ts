@@ -284,7 +284,7 @@ if (args.includes("--worker")) {
                   )
                 );
               });
-              return variant ? [variant.id] : [];
+              return variant ? variant.id : [];
             }
           )
         : [];

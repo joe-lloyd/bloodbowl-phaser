@@ -24,14 +24,12 @@ function readStrip() {
     teams: Object.keys(state.score).flatMap((id) => {
       const team = gs.getTeam(id);
       return team
-        ? [
-            {
+        ? {
               id,
               name: team.name,
               spent: id === state.activeTeamId ? spent : null,
               effects: driveEffectText(state, team),
-            },
-          ]
+            }
         : [];
     }),
   };

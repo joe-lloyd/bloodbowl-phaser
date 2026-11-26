@@ -26,7 +26,7 @@ const flag = (name: string, fallback: string) => {
 function sourceDigest(): string {
   const hash = createHash("sha256");
   const visit = (directory: string) => {
-    for (const item of readdirSync(directory, { withFileTypes: true }).sort(
+    for (const item of [...readdirSync(directory, { withFileTypes: true })].sort(
       (a, b) => a.name.localeCompare(b.name)
     )) {
       const file = join(directory, item.name);

@@ -74,7 +74,7 @@ it("keeps each interceptor's number whole when the name is cut", async () => {
   expect(
     rows.map((row) => [
       row.querySelector(".truncate")?.textContent,
-      row.querySelector(".truncate + .shrink-0")?.textContent,
+      row.querySelector(":scope .truncate + .shrink-0")?.textContent,
     ])
   ).toEqual([
     ["Noble Blitzer", "#2"],

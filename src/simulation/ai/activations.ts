@@ -112,7 +112,7 @@ export function planIdentity(plan: Activation): string {
 }
 
 function sortActivations(list: Activation[]): Activation[] {
-  return list.sort(
+  return [...list].sort(
     (a, b) =>
       b.value - a.value ||
       TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) ||

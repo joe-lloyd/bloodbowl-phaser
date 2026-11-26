@@ -46,7 +46,7 @@ async function seedTeams(page: Page) {
   await page.evaluate((stored) => {
     localStorage.clear();
     localStorage.setItem("bloodbowl_teams", JSON.stringify(stored));
-  }, teams.map(dehydrateTeam));
+  }, teams.map((team) => dehydrateTeam(team)));
   return teams;
 }
 

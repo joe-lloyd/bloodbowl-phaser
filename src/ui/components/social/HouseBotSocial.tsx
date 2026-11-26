@@ -57,7 +57,7 @@ function useAcceptFriendRequests(friends: readonly FriendRow[]): void {
   const asked = useRef(new Set<string>());
   useEffect(() => {
     const pending = new Set(
-      friends.flatMap((link) => (link.kind === "incoming" ? [link.key] : []))
+      friends.flatMap((link) => (link.kind === "incoming" ? link.key : []))
     );
     for (const key of asked.current) if (!pending.has(key)) asked.current.delete(key);
     for (const link of friends) {

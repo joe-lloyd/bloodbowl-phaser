@@ -82,7 +82,7 @@ describe("Secret League rosters", () => {
   it("offers every team whose file entry the game can read", () => {
     expect(getSecretRosterNames()).toHaveLength(101);
     expect(
-      SECRET_TEAMS.flatMap((team) => (team.lineup.ok ? [] : [team.name]))
+      SECRET_TEAMS.flatMap((team) => (team.lineup.ok ? [] : team.name))
     ).toEqual([
       "Chaos Imp",
       "Elemental",

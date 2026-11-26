@@ -45,9 +45,7 @@ describe("AvailableHires skill tooltips", () => {
 
     expect(container.textContent).toContain("Dodge");
 
-    const tooltipPanels = Array.from(
-      document.querySelectorAll('[role="tooltip"]')
-    );
+    const tooltipPanels = [...document.querySelectorAll('[role="tooltip"]')];
     expect(tooltipPanels.length).toBeGreaterThan(0);
 
     const dodgeTooltip = tooltipPanels.find(
@@ -72,9 +70,7 @@ describe("AvailableHires skill tooltips", () => {
     const defensiveText = SKILL_DEFINITIONS[SkillType.DEFENSIVE].description;
     const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].description;
 
-    const tooltipPanels = Array.from(
-      document.querySelectorAll('[role="tooltip"]')
-    ).map((panel) => panel.textContent);
+    const tooltipPanels = [...document.querySelectorAll('[role="tooltip"]')].map((panel) => panel.textContent);
 
     expect(tooltipPanels).toContain(defensiveText);
     expect(tooltipPanels).toContain(dodgeText);
@@ -97,9 +93,7 @@ describe("AvailableHires skill tooltips", () => {
       );
     });
 
-    const triggers = Array.from(
-      container.querySelectorAll('span[tabindex="0"]')
-    );
+    const triggers = [...container.querySelectorAll('span[tabindex="0"]')];
     expect(triggers.length).toBeGreaterThan(0);
 
     const [firstTrigger] = triggers;
@@ -161,9 +155,7 @@ describe("AvailableHires skill tooltips", () => {
         />
       );
     });
-    const [first, second] = Array.from(
-      container.querySelectorAll<HTMLElement>('span[tabindex="0"]')
-    );
+    const [first, second] = [...container.querySelectorAll<HTMLElement>('span[tabindex="0"]')];
     const panelOf = (trigger: HTMLElement) =>
       fixtureValue(document.getElementById(fixtureValue(trigger.getAttribute("aria-describedby"))));
     act(() => {
@@ -201,7 +193,7 @@ describe("AvailableHires skill tooltips", () => {
         />
       );
     });
-    const rows = Array.from(container.querySelectorAll("tbody tr")).map(
+    const rows = [...container.querySelectorAll(":scope tbody tr")].map(
       (row) => [
         fixtureValue(row.querySelector("td")).textContent,
         fixtureValue(row.querySelector('[data-testid="hire-allowance"]')).textContent,

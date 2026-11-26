@@ -149,7 +149,7 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
     standing(p) &&
     !c.available.get(p.id)?.has("move") &&
     isDeep({ c: c, from: at, s: p.gridPosition, receiver: p });
-  if (board.ours.some(wentDeep)) return;
+  if (board.ours.some((element) => wentDeep(element))) return;
   const receiver = deepReceiver(c, carrier);
   if (!receiver) return;
   for (let x = 0; x < pitchWidth(); x++)

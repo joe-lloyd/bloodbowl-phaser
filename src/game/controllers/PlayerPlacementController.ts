@@ -183,7 +183,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
       return false;
     }
 
-    const current = Array.from(this.placedPlayers.values()).filter(
+    const current = [...this.placedPlayers.values()].filter(
       (position) => position.playerId !== playerId
     );
     const availablePlayerCount = Math.max(
@@ -204,7 +204,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
       return false;
     }
 
-    const occupied = Array.from(this.placedPlayers.values()).some(
+    const occupied = [...this.placedPlayers.values()].some(
       (pos) => pos.x === gridX && pos.y === gridY
     );
 
@@ -243,7 +243,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   }
 
   clearPlacements(): void {
-    const playerIds = Array.from(this.placedPlayers.keys());
+    const playerIds = [...this.placedPlayers.keys()];
     this.placedPlayers.clear();
 
     for (const playerId of playerIds) {
@@ -266,7 +266,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   }
 
   getPlacements(): FormationPosition[] {
-    return Array.from(this.placedPlayers.values());
+    return [...this.placedPlayers.values()];
   }
 
   syncFromTeam(): void {

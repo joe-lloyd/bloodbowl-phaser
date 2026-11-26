@@ -199,7 +199,7 @@ function nearestFree(
     isPlayableSquare(area.layout, { x, y }) &&
     !taken.has(squareKey(x, y));
   for (let reach = 0; reach < area.layout.cols; reach++) {
-    const found = ring(wanted, reach).find(free);
+    const found = ring(wanted, reach).find((element) => free(element));
     if (found) return found;
   }
   return wanted;
@@ -379,7 +379,7 @@ interface Step {
 }
 
 function extend({ best, fit, required }: Step) {
-  const next = required ? best.map(() => -Infinity) : best.slice();
+  const next = required ? best.map(() => -Infinity) : [...best];
   const choice = best.map(() => -1);
   for (const [mask, base] of best.entries()) {
     if (base === -Infinity) continue;
@@ -425,5 +425,5 @@ export function assignPlayers({
     placed.push({ ...slot, playerId: player.id });
     mask &= ~(1 << s);
   }
-  return placed.reverse();
+  return [...placed].reverse();
 }

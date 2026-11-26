@@ -50,7 +50,7 @@ export function shoveChain(
     square = next;
     occupant = occupantOf(players, square);
   }
-  return moves.reverse();
+  return [...moves].reverse();
 }
 
 export function lineOfScrimmagePlayers(

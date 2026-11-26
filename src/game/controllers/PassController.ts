@@ -263,7 +263,7 @@ export class PassController {
     const perpendicular = { x: -direction.y, y: direction.x };
     const midpoint = { x: (from.x + landing.x) / 2, y: (from.y + landing.y) / 2 };
     const halfLen = len / 2;
-    const halfWid = PassController.INTERCEPT_HALF_WIDTH;
+    const halfWid = this.INTERCEPT_HALF_WIDTH;
 
     const offset = { x: square.x - midpoint.x, y: square.y - midpoint.y };
 
@@ -273,7 +273,7 @@ export class PassController {
       [1, 0],
       [0, 1],
     ];
-    const margin = PassController.INTERCEPT_TOUCH_MARGIN;
+    const margin = this.INTERCEPT_TOUCH_MARGIN;
     for (const [ax, ay] of axes) {
       const centreDist = Math.abs(offset.x * ax + offset.y * ay);
       const rulerReach =
@@ -315,7 +315,7 @@ export class PassController {
   public checkInterceptions({ from, target, opponents, isAccurate }: { from: { x: number; y: number }; target: { x: number; y: number }; opponents: Player[]; isAccurate: boolean }): InterceptionAttempt[] {
     const modifier = isAccurate ? -3 : -2;
     return opponents.flatMap((opponent) => this.isEligibleInterceptor(opponent, from, target)
-      ? [{ playerId: opponent.id, position: opponent.gridPosition, modifier }] : []);
+      ? { playerId: opponent.id, position: opponent.gridPosition, modifier } : []);
   }
 
   public attemptInterception(

@@ -72,7 +72,7 @@ export function LeagueRounds({
                 <Title level="row" as="h3" className="mb-2">Round {round}</Title>
                 <div className="space-y-3">
                   {roundFixtures(competition.fixtures, round).map(
-                    renderCompactFixture
+                    (element) => renderCompactFixture(element)
                   )}
                 </div>
               </div>
@@ -87,7 +87,7 @@ export function LeagueRounds({
             {plan.completed.map((round) => (
               <CompletedRound key={round} round={round}>
                 {roundFixtures(competition.fixtures, round).map(
-                  renderCompactFixture
+                  (element) => renderCompactFixture(element)
                 )}
               </CompletedRound>
             ))}

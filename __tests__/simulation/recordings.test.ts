@@ -15,7 +15,7 @@ describe("committed simulation recordings", () => {
     : [];
 
   it("has a fixture for every expectation", () => {
-    expect(files.sort()).toEqual(Object.keys(EXPECTED_END).sort());
+    expect([...files].sort()).toEqual(Object.keys(EXPECTED_END).sort());
   });
 
   it.each(files)("%s replays cleanly", async (file) => {

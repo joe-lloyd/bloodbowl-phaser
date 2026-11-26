@@ -121,7 +121,7 @@ function routeGrid(): RouteGrid {
     bestAt: new NumberTable(MAX_STEPS + 1, cells),
     parentAt: new NumberTable(MAX_STEPS + 1, cells),
     neighbours: Array.from({ length: cells }, (_, cell) =>
-      neighbours(square(cell)).map(key)
+      neighbours(square(cell)).map((element) => key(element))
     ),
     crossings: barricadeCrossings(cells),
   };
@@ -286,7 +286,7 @@ function pathTo(cell: number, steps: number): Square[] {
   const { parentAt } = routeGrid();
   for (let k = steps, c = cell; k > 0; c = parentAt.get(k, c), k--)
     path.push(square(c));
-  return path.reverse();
+  return [...path].reverse();
 }
 
 function bestStepCount(cell: number, steps: number): number {

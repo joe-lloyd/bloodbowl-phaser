@@ -151,7 +151,7 @@ function isValidStepPrompt(
     prompt.rolls.every(
       (roll) =>
         STEP_ROLLS.has(roll.type) &&
-        Number.isInteger(roll.target) &&
+        Number.isSafeInteger(roll.target) &&
         roll.target >= 2 &&
         roll.target <= (roll.type === "armour" ? 12 : 6)
     )
@@ -488,7 +488,7 @@ class OnlineSession {
       mayAct: () => this.match.mayAct() && computerOwnsDecision(this.game, myTeamId, team1.id),
       run: (command) => {
         if (command.type === "declare-action") void this.session.sendSelection(command.playerId);
-        if (command.type === "end-activation" || command.type === "end-turn") void this.session.sendSelection(null);
+        else if (command.type === "end-activation" || command.type === "end-turn") void this.session.sendSelection(null);
         return this.runOwn(command);
       },
     });

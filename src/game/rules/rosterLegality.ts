@@ -180,7 +180,7 @@ function staffViolations(team: Team, gameType: GameType): RosterViolation[] {
   ];
   return hired.flatMap(([staff, has]) => {
     const refusal = has ? staffRefusal(gameType, staff) : undefined;
-    return refusal ? [{ rule: "staff", detail: refusal }] : [];
+    return refusal ? { rule: "staff", detail: refusal } : [];
   });
 }
 

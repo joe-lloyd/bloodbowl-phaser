@@ -84,7 +84,7 @@ export function PendingDevelopmentPanel({
       (entry) => showExpensiveMistakes && entry.kind === "expensive-mistakes"
     ),
   ];
-  if (pending.length === 0 && !team.players.some(mustAdvance) && !notice && !dice.rolling) {
+  if (pending.length === 0 && team.players.every((player) => !mustAdvance(player)) && !notice && !dice.rolling) {
     return null;
   }
 

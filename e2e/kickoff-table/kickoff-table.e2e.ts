@@ -97,8 +97,8 @@ function engine(page: Page): Promise<EngineView> {
       weather: state.weather,
       owedAssists: { ...state.driveEffects?.owedAssists },
       freeRerolls: { ...state.driveEffects?.freeRerolls },
-      modifiers: JSON.parse(
-        JSON.stringify(state.driveEffects?.playerModifiers ?? {})
+      modifiers: structuredClone(
+        state.driveEffects?.playerModifiers ?? {}
       ),
       players: players.map((p) => ({
         id: p.id,
@@ -111,7 +111,7 @@ function engine(page: Page): Promise<EngineView> {
         baseMa: p.stats.MA,
         baseAv: p.stats.AV,
       })),
-      step: JSON.parse(JSON.stringify(gs.getKickoffEventStep() ?? null)),
+      step: structuredClone(gs.getKickoffEventStep() ?? null),
       teamNames: { [team1.id]: team1.name, [team2.id]: team2.name },
     };
   });
@@ -378,7 +378,7 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
         const owed = Object.keys(after.owedAssists);
         expect(owed.length).toBeGreaterThan(0);
         checked.push(
-          `Extra assist on the next first Block: ${owed.map(name).join(" and ")}`
+          `Extra assist on the next first Block: ${owed.map((element) => name(element)).join(" and ")}`
         );
         break;
       }

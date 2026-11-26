@@ -10,7 +10,7 @@ export async function tournamentLock(
 ): Promise<string | undefined> {
   if (lobby.competitionContext) return undefined;
   const seats = Object.values(lobby.players).flatMap((player) =>
-    player.team ? [{ uid: player.uid, teamId: player.team.id }] : []
+    player.team ? { uid: player.uid, teamId: player.team.id } : []
   );
   const saved = await Promise.all(
     seats.map(({ uid, teamId }) =>

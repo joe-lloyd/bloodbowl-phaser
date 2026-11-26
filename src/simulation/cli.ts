@@ -109,9 +109,9 @@ function parseRunOptions(argv: string[]): RunOptions {
     },
     HELP
   );
-  if (!Number.isInteger(options.games) || options.games < 1)
+  if (!Number.isSafeInteger(options.games) || options.games < 1)
     fail("--games must be a positive integer");
-  if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
+  if (!Number.isSafeInteger(options.seed)) fail("--seed must be an integer");
 
   if (options.html && !recordChosen) options.record = "all";
   return options;
@@ -183,12 +183,12 @@ function parseBenchOptions(argv: string[]): BenchOptions {
     BENCH_HELP
   );
   if (
-    !Number.isInteger(options.games) ||
+    !Number.isSafeInteger(options.games) ||
     options.games < 2 ||
     options.games % 2
   )
     fail("--games must be an even number of at least 2");
-  if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
+  if (!Number.isSafeInteger(options.seed)) fail("--seed must be an integer");
 
   if (options.standards && options.games / 2 < options.rosters.length)
     fail(
@@ -196,12 +196,12 @@ function parseBenchOptions(argv: string[]): BenchOptions {
     );
   if (
     options.rerolls !== undefined &&
-    (!Number.isInteger(options.rerolls) || options.rerolls < 0)
+    (!Number.isSafeInteger(options.rerolls) || options.rerolls < 0)
   )
     fail("--rerolls must be 0 or more");
-  if (!Number.isInteger(options.puzzleSeeds) || options.puzzleSeeds < 0)
+  if (!Number.isSafeInteger(options.puzzleSeeds) || options.puzzleSeeds < 0)
     fail("--puzzles must be 0 or more");
-  if (!Number.isInteger(options.workers) || options.workers < 1)
+  if (!Number.isSafeInteger(options.workers) || options.workers < 1)
     fail("--workers must be a positive integer");
   return options;
 }
@@ -265,10 +265,10 @@ function parseTuneOptions(argv: string[]): TuneOptions {
     ["--confirm", options.confirmGames],
     ["--workers", options.workers],
   ] as const)
-    if (!Number.isInteger(n) || n < 1)
+    if (!Number.isSafeInteger(n) || n < 1)
       fail(`${name} must be a positive integer`);
 
-  if (!Number.isInteger(options.seed) || options.seed < 0 || options.seed > 1e9)
+  if (!Number.isSafeInteger(options.seed) || options.seed < 0 || options.seed > 1e9)
     fail("--seed must be an integer from 0 to 1000000000");
   if (options.confirmGames < 4) fail("--confirm must be at least 4");
   if (options.games % 2 || options.confirmGames % 2)

@@ -248,7 +248,7 @@ export class GameplayInteractionController {
 
   private onDecisionResolved = ({ type }: { type: string }) => {
     if (type === "bite-target") this.targets.clearBiteTargets();
-    if (type === "inducement-choice") this.targets.dropSpell();
+    else if (type === "inducement-choice") this.targets.dropSpell();
     if (type !== "push-direction" || !this.push.active) return;
     this.push.reset();
     this.clearAllInteractionHighlights();

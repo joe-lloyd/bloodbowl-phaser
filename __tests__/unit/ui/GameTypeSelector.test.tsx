@@ -142,7 +142,7 @@ describe("GameTypeSelector", () => {
 
   const pitches = () => [
     ...container.querySelectorAll<HTMLButtonElement>(
-      '[aria-label="Pitch"] [role="radio"]'
+      ':scope [aria-label="Pitch"] [role="radio"]'
     ),
   ];
 

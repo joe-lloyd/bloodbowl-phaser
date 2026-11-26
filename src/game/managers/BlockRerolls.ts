@@ -26,8 +26,8 @@ const blockKnocksAttackerDown = (
     (result.type === "both-down" &&
       !hasSkill(attacker.skills, SkillType.BLOCK));
   return isAttackerChoice
-    ? results.length > 0 && results.every(knocksDown)
-    : results.some(knocksDown);
+    ? results.length > 0 && results.every((result) => knocksDown(result))
+    : results.some((result) => knocksDown(result));
 };
 
 export abstract class BlockRerolls extends BlockManagerBase {

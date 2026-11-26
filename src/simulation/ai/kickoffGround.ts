@@ -95,7 +95,7 @@ export function likelyReceivers({ c, landing }: KickoffGround): Player[] {
   const { theirs } = c.board;
   const able = theirs.filter((p) => standing(p) && canCarry(p));
   if (!landing)
-    return able
+    return [...able]
       .sort((a, b) => b.stats.MA - a.stats.MA)
       .slice(0, LIKELY_RECEIVERS);
   const under = able.find((p) => key(p.gridPosition) === key(landing));

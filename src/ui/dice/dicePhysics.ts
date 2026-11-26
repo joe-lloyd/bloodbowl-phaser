@@ -218,7 +218,7 @@ function animatePhysics(
 ): void {
   for (let step = 0; step < 60 * 6 * 2; step++) {
     world.step(STEP);
-    if (step % 2 === 0) frames.push(dice.map(frame));
+    if (step % 2 === 0) frames.push(dice.map((die) => frame(die)));
     if (
       step > 60 &&
       dice.every((body) => body.sleepState === CANNON.Body.SLEEPING)

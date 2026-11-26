@@ -59,11 +59,11 @@ export function eventOrder(events: EmittedEvent[]): string[] {
     if (typeof data !== "object" || data === null) return name;
     const details = DETAIL_FIELDS.flatMap((field) => {
       const value: unknown = Reflect.get(data, field);
-      return typeof value === "string" ? [value] : [];
+      return typeof value === "string" ? value : [];
     });
     const identity = IDENTITY_FIELDS.flatMap((field) => {
       const value = show(Reflect.get(data, field));
-      return value === undefined ? [] : [`${field}=${value}`];
+      return value === undefined ? [] : `${field}=${value}`;
     });
     const parts = [
       ...details,

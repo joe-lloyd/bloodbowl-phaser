@@ -46,7 +46,7 @@ describe("the game's compositor matches the sprite factory", () => {
         for (let row = 0; row < done.height; row += 1) {
           full.set(done.pixels.subarray(row * done.width, (row + 1) * done.width), (done.y + row) * art.frame + done.x);
         }
-        expect(Array.from(full)).toEqual(expand(expected.rle));
+        expect([...full]).toEqual(expand(expected.rle));
       }
     });
   }
@@ -54,7 +54,7 @@ describe("the game's compositor matches the sprite factory", () => {
 
 describe("rampTint", () => {
   it("puts the team colour at the mid-light tone and keeps the dark tone clear of black", () => {
-    expect(rampTint(0x8b0000, 0.78).map(Math.round)).toEqual([139, 0, 0]);
+    expect(rampTint(0x8b0000, 0.78).map((element) => Math.round(element))).toEqual([139, 0, 0]);
     const dark = rampTint(0x8b0000, 0.4375);
     expect(dark[0]).toBeGreaterThan(40);
   });
@@ -71,7 +71,7 @@ describe("colourTable", () => {
     kit: { kit1: [1, 2, 3], kit2: [4] },
   };
   const table = colourTable(palette, { primary: 0x8b0000, secondary: 0x00ff00 });
-  const entry = (index: number) => Array.from(table.subarray(index * 4, index * 4 + 4));
+  const entry = (index: number) => [...table.subarray(index * 4, index * 4 + 4)];
 
   it("paints the kit indices with the team colour ramp", () => {
     expect(entry(1)).toEqual([86, 8, 22, 255]);
@@ -95,7 +95,7 @@ function fullAtlas(model: string) {
     ["s", "se", "e", "ne", "n", "nw", "w", "sw"].flatMap((facing) => Array.from({ length: count }, (_, i) => `${anim}/${facing}/${String(i)}`))
   );
   const atlas = buildLookAtlas({
-    look: { layers: look.layers.map(read), shades: look.shades.map(read) },
+    look: { layers: look.layers.map((element) => read(element)), shades: look.shades.map((element) => read(element)) },
     names,
     size: art.frame,
     palette: art.layered.palette,
@@ -139,12 +139,12 @@ function portraitMismatches(model: string): string[] {
     names.flatMap((name) => {
       const base = `public/sprites/bloodbowl/${model}/layered/${body}`;
       const small = `${base}/portrait/${name}`;
-      if (!existsSync(`${small}.json`) || !existsSync(`${small}.bin`)) return [`${small} is missing`];
+      if (!existsSync(`${small}.json`) || !existsSync(`${small}.bin`)) return `${small} is missing`;
       const full = readIndex(`${base}/${name}`).frames;
       const wanted = Object.keys(full).filter((frame) => frame.startsWith("idle/se/")).sort();
       const got = readIndex(small).frames;
       const same = wanted.every((frame) => got[frame]?.slice(0, 4).join(',') === full[frame]?.slice(0, 4).join(','));
-      return same && Object.keys(got).length === wanted.length ? [] : [`${small} does not hold the idle/se frames`];
+      return same && Object.keys(got).length === wanted.length ? [] : `${small} does not hold the idle/se frames`;
     })
   );
 }
@@ -152,7 +152,7 @@ function portraitMismatches(model: string): string[] {
 describe("portrait layers", () => {
   it("give every layer of every model a portrait copy with its idle/se frames", () => {
     const fix = "run python3 portrait_layers.py <model> in scripts/sprites/factory";
-    expect(MODELS.flatMap(portraitMismatches), fix).toEqual([]);
+    expect(MODELS.flatMap((MODEL) => portraitMismatches(MODEL)), fix).toEqual([]);
   });
 
   it("draw thrall's portrait exactly as the full layers do", () => {
@@ -162,7 +162,7 @@ describe("portrait layers", () => {
     const draw = (folder: string) => {
       const read = (name: string) => readLayer("thrall", folder, name);
       return buildLookAtlas({
-        look: { layers: look.layers.map(read), shades: look.shades.map(read) },
+        look: { layers: look.layers.map((element) => read(element)), shades: look.shades.map((element) => read(element)) },
         names: Array.from({ length: art.animations["idle"] ?? 0 }, (_, i) => `idle/se/${String(i)}`),
         size: art.frame,
         palette: art.layered.palette,

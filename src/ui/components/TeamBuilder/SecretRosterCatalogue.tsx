@@ -101,7 +101,7 @@ export default function SecretRosterCatalogue({
   const [query, setQuery] = useState("");
   const search = query.trim().toLowerCase();
   const matches = (name: string) => name.toLowerCase().includes(search);
-  const choices = playable.filter(matches);
+  const choices = playable.filter((element) => matches(element));
   const filtered = previews.filter((roster) => matches(roster.name));
   return (
     <div className="space-y-3">

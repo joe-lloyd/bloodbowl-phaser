@@ -9,7 +9,7 @@ export function acquisitionDigest(root: string): string {
     hash.update(readFileSync(file));
   };
   function visit(directory: string, typescriptOnly = false) {
-    const items = readdirSync(directory, { withFileTypes: true }).sort(
+    const items = [...readdirSync(directory, { withFileTypes: true })].sort(
       (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
     );
     for (const item of items) {

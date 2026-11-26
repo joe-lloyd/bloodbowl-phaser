@@ -23,7 +23,7 @@ export function measureHudRects(
     const panels =
       reserve && stack.getAttribute(HUD_PANELS_ATTRIBUTE) === HUD_RESERVED
         ? [stack]
-        : Array.from(stack.children);
+        : [...stack.children];
     for (const panel of panels) {
       const box = panel.getBoundingClientRect();
       if (box.width === 0 || box.height === 0) continue;
@@ -70,7 +70,7 @@ export function watchHudPanels(onChange: () => void): {
       document
         .querySelectorAll(`[${HUD_PANELS_ATTRIBUTE}], [${HUD_FRAME_ATTRIBUTE}]`)
         .forEach((stack) => {
-          for (const box of [stack, ...Array.from(stack.children)]) {
+          for (const box of [stack, ...stack.children]) {
             if (watched.has(box)) continue;
             watched.add(box);
             observer.observe(box);

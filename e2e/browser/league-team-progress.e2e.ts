@@ -58,7 +58,7 @@ function season() {
     updatedAt: 1,
   };
 
-  return { teams: teams.slice(0, 2).map(dehydrateTeam), league };
+  return { teams: teams.slice(0, 2).map((element) => dehydrateTeam(element)), league };
 }
 
 async function seed(page: Page) {

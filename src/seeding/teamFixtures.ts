@@ -159,7 +159,7 @@ function addLinemen(
   linemen: PlayerTemplate[]
 ): void {
   while (picks.length < TARGET_SQUAD_SIZE) {
-    const insignificant = picks.filter(isInsignificantTemplate).length;
+    const insignificant = picks.filter((pick) => isInsignificantTemplate(pick)).length;
     const significant = picks.length - insignificant;
     const next =
       insignificant < significant
@@ -222,7 +222,7 @@ function trimToBudget(
     (apothecary ? APOTHECARY_COST : 0);
 
   const insignificantOk = (squad: PlayerTemplate[]) => {
-    const insignificant = squad.filter(isInsignificantTemplate).length;
+    const insignificant = squad.filter((element) => isInsignificantTemplate(element)).length;
     return insignificant <= squad.length - insignificant;
   };
 

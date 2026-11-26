@@ -49,7 +49,7 @@ describe("competitionFixtures", () => {
 
     const winners = semis.map((f) => fixtureValue(f.result).winnerEntrantId);
     expect([final.homeEntrantId, final.awayEntrantId].sort()).toEqual(
-      winners.sort()
+      [...winners].sort()
     );
     expect(active.championEntrantId).toBeUndefined();
   });

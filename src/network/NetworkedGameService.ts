@@ -177,7 +177,7 @@ export class NetworkedGameService implements IGameService {
   answerFoulAssists(count: number): boolean {
     const pending = this.pendingDecision();
     if (pending?.type !== "foul-assists") return false;
-    if (!Number.isInteger(count) || count < 0 || count > pending.available)
+    if (!Number.isSafeInteger(count) || count < 0 || count > pending.available)
       return false;
     this.send({ type: "choose-foul-assists", count });
     return true;

@@ -161,7 +161,7 @@ describe("the production registry honours the policy", () => {
     for (const scenarioCase of regressions) {
       for (const variant of scenarioCase.variants) {
         expect(
-          Number.isInteger(variant.seed),
+          Number.isSafeInteger(variant.seed),
           `${scenarioCase.id}/${variant.id}`
         ).toBe(true);
       }

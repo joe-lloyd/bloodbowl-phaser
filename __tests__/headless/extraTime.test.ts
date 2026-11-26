@@ -136,11 +136,11 @@ describe("a knockout tie", () => {
         [away]: fullHalf,
       });
 
-      const [won, lost] = [
+      const [won, lost] = [...[
         fixtureValue(penalties)[home],
         fixtureValue(penalties)[away],
       ]
-        .sort()
+        .sort()]
         .reverse();
       const winner =
         fixtureValue(fixtureValue(penalties)[home]) >

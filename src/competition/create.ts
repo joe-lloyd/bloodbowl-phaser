@@ -112,7 +112,7 @@ function withComputerTeams(
 ): OwnedChoice[] {
   const taken = new Set(
     input.entrants.flatMap((choice) =>
-      "team" in choice ? [choice.team.name] : []
+      "team" in choice ? choice.team.name : []
     )
   );
   return input.entrants.map((choice) => {

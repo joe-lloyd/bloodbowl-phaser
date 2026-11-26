@@ -88,7 +88,7 @@ describe("computer teams", () => {
           computerTeam(roster, roster, mode),
           profile
         );
-        return reasons.length > 0 ? [`${roster}: ${reasons.join(" ")}`] : [];
+        return reasons.length > 0 ? `${roster}: ${reasons.join(" ")}` : [];
       });
       expect(refused).toEqual([]);
     }

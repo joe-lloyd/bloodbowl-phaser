@@ -174,7 +174,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
     commandCoverage: commandCounts,
     ...((jevStats.length > 0) && { jev: jevStats }),
     findings: grouped,
-    perMatch: matches.sort((a, b) => a.seed - b.seed),
+    perMatch: [...matches].sort((a, b) => a.seed - b.seed),
   };
   if (options.html) {
     fs.writeFileSync(
@@ -184,12 +184,10 @@ export async function runBatch(options: RunOptions): Promise<number> {
         coaches: [options.home, options.away],
         matches: matches.flatMap((m) =>
           m.file
-            ? [
-                {
+            ? {
                   ...m,
                   page: path.basename(m.file).replace(/\.json$/, ".html"),
-                },
-              ]
+                }
             : []
         ),
         commandCoverage: commandCounts,

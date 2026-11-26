@@ -26,7 +26,7 @@ const EMPTY: DraftScore = {
 
 function wholeNumbers(home: string, away: string): [number, number] | null {
   const scores = [Number(home), Number(away)] as const;
-  return home !== "" && away !== "" && scores.every(Number.isInteger)
+  return home !== "" && away !== "" && scores.every((element) => Number.isSafeInteger(element))
     ? [scores[0], scores[1]]
     : null;
 }

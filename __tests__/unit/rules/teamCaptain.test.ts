@@ -84,7 +84,7 @@ describe("naming the Team Captain", () => {
     chooseTeamCaptain(team, fixtureValue(team.players[0]).id);
 
     const stored = dehydrateTeam(team);
-    const loaded = readStoredTeam(JSON.parse(JSON.stringify(stored))).team;
+    const loaded = readStoredTeam(structuredClone(stored)).team;
 
     expect(stored.players[0]).toMatchObject({ teamCaptain: true });
     expect(fixtureValue(loaded.players[0]).teamCaptain).toBe(true);
@@ -101,7 +101,7 @@ describe("loading a stored Team Captain", () => {
   function loadFlagged(team: ReturnType<typeof draft>, flagged: number[]) {
     const stored = dehydrateTeam(team);
     for (const index of flagged) (fixtureValue(stored.players[index]).teamCaptain = true);
-    return readStoredTeam(JSON.parse(JSON.stringify(stored))).team;
+    return readStoredTeam(structuredClone(stored)).team;
   }
 
   it("drops the title from a Big Guy, with no Pro", () => {

@@ -14,7 +14,7 @@ function addAtlasTexture(
   key: string,
   atlas: LookAtlas
 ): void {
-  const texture = textures.create(key, atlas.pages.map(pageCanvas));
+  const texture = textures.create(key, atlas.pages.map((element) => pageCanvas(element)));
   if (!texture) return;
   texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
   for (const [name, rect] of Object.entries(atlas.frames)) {

@@ -286,7 +286,7 @@ export function restoreFrogs(
     removeCondition(player, PlayerCondition.FROG);
   }
   mi.frogs = (mi.frogs ?? [])
-    .filter(lasting)
+    .filter((element) => lasting(element))
     .map((frog) => ({ ...frog, drivesLeft: (frog.drivesLeft ?? 1) - 1 }));
 }
 
@@ -668,8 +668,8 @@ function validSpell(
   }
   const square = answer.square;
   return square &&
-    Number.isInteger(square.x) &&
-    Number.isInteger(square.y) &&
+    Number.isSafeInteger(square.x) &&
+    Number.isSafeInteger(square.y) &&
     square.x >= 0 &&
     square.y >= 0 &&
     square.x < GameConfig.PITCH_WIDTH &&

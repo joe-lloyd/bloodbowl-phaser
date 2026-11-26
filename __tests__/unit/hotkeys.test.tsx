@@ -55,7 +55,7 @@ async function askStandFirm() {
 it("answers yes with Y and shows the key on the button", async () => {
   await askStandFirm();
   expect(
-    container.querySelector('[data-testid="reaction-yes"] kbd')?.textContent
+    container.querySelector(':scope [data-testid="reaction-yes"] kbd')?.textContent
   ).toBe("Y");
   await press("y");
   expect(answers).toEqual([{ accept: true }]);

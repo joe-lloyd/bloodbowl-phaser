@@ -60,6 +60,10 @@ const GUARDED_RULES = [
   "sonarjs/no-identical-expressions", "sonarjs/no-duplicate-string", "unicorn/max-nested-calls",
   "@eslint-community/eslint-comments/*",
 ];
+const SAFARI_16_ARRAY_METHODS = ["toSorted", "toReversed", "toSpliced"].map((property) => ({
+  property,
+  message: "Safari 15 has no copy-returning array methods. Copy the array first: [...items].sort().",
+}));
 const NEWER_THAN_ES2023 = [
   "prefer-abort-signal-any", "prefer-array-from-async", "prefer-get-or-insert-computed", "prefer-group-by",
   "prefer-iterator-helpers", "prefer-iterator-to-array", "prefer-iterator-to-array-at-end", "prefer-iterator-zip",
@@ -69,6 +73,8 @@ const UNICORN_OFF = [
   "no-null", "filename-case", "name-replacements", "consistent-boolean-name",
   "consistent-arrow-return-style", "no-nested-ternary", "prefer-switch", "prefer-ternary",
   "prefer-combined-guards", "require-css-escape", "prefer-await", "prefer-simple-condition-first",
+  "no-array-sort", "no-array-reverse",
+  "consistent-class-member-order",
   ...NEWER_THAN_ES2023,
 ];
 
@@ -124,6 +130,7 @@ const config = defineConfig(
     files: ["**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": ["error", { patterns: BANNED_PACKAGES }],
+      "no-restricted-properties": ["error", ...SAFARI_16_ARRAY_METHODS],
       "no-restricted-syntax": ["error", ...BOUNDARY_ONLY, ...UI_ONLY],
     },
   },

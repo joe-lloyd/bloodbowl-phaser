@@ -442,7 +442,7 @@ async function playMatch(
     if (idle === 60) {
       await reportStall(host, guest, i);
     }
-    if (idle === 240) {
+    else if (idle === 240) {
       mainLog(`GIVING UP: stalled for ~60 s`);
       break;
     }

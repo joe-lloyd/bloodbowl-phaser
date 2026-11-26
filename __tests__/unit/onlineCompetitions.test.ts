@@ -185,7 +185,7 @@ describe("the round schedule", () => {
     current.fixtures = current.fixtures.map((fixture) => (fixture.round === 1 && fixture !== human ? played(fixture, START) : fixture));
 
     expect(overdueEntrantIds(current, START + 7 * DAY)).toEqual([]);
-    expect(overdueEntrantIds(current, START + 7 * DAY + 1).sort()).toEqual([human.homeEntrantId, human.awayEntrantId].sort());
+    expect([...overdueEntrantIds(current, START + 7 * DAY + 1)].sort()).toEqual([human.homeEntrantId, human.awayEntrantId].sort());
   });
 
   it("leaves a competition without a schedule open in every round", () => {

@@ -96,9 +96,9 @@ describe("Masters of Undeath in Sevens", () => {
           ? game.ctx.team1.players[0]
           : game.ctx.team2.players[0];
       if (reason === "strength") fixtureValue(victim).stats.ST = 5;
-      if (reason === "stunty")
+      else if (reason === "stunty")
         fixtureValue(victim).skills.push(getSkill(SkillType.STUNTY));
-      if (reason === "own team") fixtureValue(victim).skills = [];
+      else if (reason === "own team") fixtureValue(victim).skills = [];
       const size = game.ctx.team1.players.length;
       await injure(game, fixtureValue(victim).id);
       expect(game.ctx.team1.players).toHaveLength(size);

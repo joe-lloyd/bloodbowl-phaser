@@ -33,7 +33,7 @@ function special(
 }
 
 const TEAM_RULES: ReadonlyMap<string, TeamRule> = new Map([
-  ...Object.values(League).map(league),
+  ...Object.values(League).map((element) => league(element)),
   ...Object.values(TeamSpecialRule).map((rule) => special(rule, rule)),
   special("favouredOfChaosUndivided", TeamSpecialRule.FAVOURED_OF_UNDIVIDED),
   special("lowCostLineman", TeamSpecialRule.LOW_COST_LINEMEN),
@@ -92,9 +92,9 @@ function teamProblems(blueprint: SecretTeamBlueprint, leagues: League[]) {
 
 function lineup(id: string, blueprint: SecretTeamBlueprint): Parsed<Lineup> {
   const templates = positions(blueprint);
-  const rules = blueprint.teamSpecialRules.map(teamRule);
+  const rules = blueprint.teamSpecialRules.map((element) => teamRule(element));
   const known = rules.flatMap((rule) => (rule.ok ? [rule.value] : []));
-  const leagues = known.flatMap((r) => (r.kind === "league" ? [r.league] : []));
+  const leagues = known.flatMap((r) => (r.kind === "league" ? r.league : []));
   const rosterName = SECRET_ROSTER_NAMES.find((n) => n === blueprint.name);
   const problems = [
     ...problemsOf([...templates, ...rules]),
@@ -109,7 +109,7 @@ function lineup(id: string, blueprint: SecretTeamBlueprint): Parsed<Lineup> {
       rerollCost: SEVENS_REROLL_COST,
       leagues,
       specialRules: known.flatMap((r) =>
-        r.kind === "special" ? [r.rule] : []
+        r.kind === "special" ? r.rule : []
       ),
       tier: blueprint.tier ?? 0,
       apothecary: blueprint.apothecary ?? false,
@@ -131,7 +131,7 @@ export const SECRET_TEAMS: readonly SecretTeam[] = Object.entries(
 
 const PLAYABLE = SECRET_TEAMS.flatMap((team) =>
   team.lineup.ok
-    ? [{ ...team.lineup.value, catalogueName: team.catalogueName }]
+    ? { ...team.lineup.value, catalogueName: team.catalogueName }
     : []
 );
 

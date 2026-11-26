@@ -458,7 +458,7 @@ describe("turnover ownership", () => {
         type: "choose-follow-up",
         followUp: false,
       });
-      events = events.concat(followed.events);
+      events = [...events, ...followed.events];
     }
 
     const allNames = events.map((e) => e.name);
@@ -585,14 +585,14 @@ describe("block-injury scenarios (seeded)", () => {
         x: fixtureValue(dir).x,
         y: fixtureValue(dir).y,
       });
-      events = events.concat(response.events);
+      events = [...events, ...response.events];
     }
     if (response.pendingDecision?.type === "follow-up") {
       response = await game.execute({
         type: "choose-follow-up",
         followUp: false,
       });
-      events = events.concat(response.events);
+      events = [...events, ...response.events];
     }
 
     const defenderAfter = fixtureValue(

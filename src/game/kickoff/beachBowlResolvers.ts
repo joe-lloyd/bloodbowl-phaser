@@ -67,7 +67,7 @@ async function resolveHighTide(
   const everyone = everyoneOnPitch(ctx);
   const taken = (square: Square) =>
     everyone.some((player) => player.gridPosition?.x === square.x && player.gridPosition.y === square.y);
-  const waders = playersInWideZone(ctx, zone).sort((a, b) => nearestCentreFirst(a, b, zone));
+  const waders = [...playersInWideZone(ctx, zone)].sort((a, b) => nearestCentreFirst(a, b, zone));
   for (const player of waders) {
     const from = player.gridPosition;
     const to = from ? wadeTarget(from, zone, taken) : null;

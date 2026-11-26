@@ -159,7 +159,7 @@ export abstract class BlockActivation extends BlockRerolls {
       originalStrength,
       continuationQueued: false,
       analyses,
-      board: this.allPlayers().map(snapshotPlayer),
+      board: this.allPlayers().map((element) => snapshotPlayer(element)),
       pileDriverTargetIds: [],
     };
     this.eventBus.emit(GameEventNames.SkillTriggered, {

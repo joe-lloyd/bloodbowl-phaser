@@ -113,7 +113,7 @@ export class BloodlustBiteOperation extends GameOperation {
       );
     }
 
-    for (const op of followUps.reverse()) flowManager.add(op, true);
+    for (const op of [...followUps].reverse()) flowManager.add(op, true);
   }
 
   private async chooseThrall(

@@ -20,14 +20,6 @@
     },
     "no-restricted-syntax": {
       "count": 5
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
-  "__tests__/campaign/club.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "__tests__/headless/HeadlessGame.test.ts": {
@@ -55,20 +47,11 @@
     "unicorn/consistent-function-scoping": {
       "count": 1
     },
-    "unicorn/no-array-reverse": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
       "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 4
     }
   },
   "__tests__/headless/blizzard-pass-range.test.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    },
     "unicorn/no-unnecessary-parameters": {
       "count": 1
     },
@@ -141,9 +124,6 @@
     "unicorn/consistent-function-scoping": {
       "count": 3
     },
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/no-await-expression-member": {
       "count": 1
     },
@@ -157,9 +137,6 @@
     }
   },
   "__tests__/headless/diceLog.test.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/consistent-function-scoping": {
       "count": 2
     },
@@ -180,11 +157,6 @@
       "count": 1
     }
   },
-  "__tests__/headless/eventOrder/eventOrder.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 2
-    }
-  },
   "__tests__/headless/eventOrder/foul.test.ts": {
     "unicorn/no-return-array-push": {
       "count": 1
@@ -196,12 +168,6 @@
     }
   },
   "__tests__/headless/extraTime.test.ts": {
-    "unicorn/no-array-reverse": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/require-array-sort-compare": {
       "count": 1
     }
@@ -224,11 +190,6 @@
       "count": 1
     }
   },
-  "__tests__/headless/foul-dirty-player-suspension.test.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 3
-    }
-  },
   "__tests__/headless/foulArmourLabel.test.ts": {
     "unicorn/no-return-array-push": {
       "count": 2
@@ -236,9 +197,6 @@
   },
   "__tests__/headless/fullGame.test.ts": {
     "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     }
   },
@@ -282,11 +240,6 @@
       "count": 1
     }
   },
-  "__tests__/headless/gutterBarricades.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 2
-    }
-  },
   "__tests__/headless/inducements-pregame.test.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 1
@@ -318,9 +271,6 @@
     },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 2
-    },
-    "unicorn/prefer-else-if": {
-      "count": 1
     }
   },
   "__tests__/headless/kickoff-airborne-carrier.test.ts": {
@@ -334,9 +284,6 @@
     }
   },
   "__tests__/headless/kickoff-events.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
       "count": 1
     },
@@ -387,9 +334,6 @@
   "__tests__/headless/mastersOfUndeath.test.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 3
-    },
-    "unicorn/prefer-else-if": {
-      "count": 2
     }
   },
   "__tests__/headless/match-state-visual-baseline.test.ts": {
@@ -418,11 +362,6 @@
       "count": 1
     }
   },
-  "__tests__/headless/matchStateVisualBaseline.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    }
-  },
   "__tests__/headless/pass-range.test.ts": {
     "unicorn/no-unnecessary-parameters": {
       "count": 1
@@ -436,11 +375,6 @@
   "__tests__/headless/pregame-purchases.test.ts": {
     "unicorn/no-await-expression-member": {
       "count": 17
-    }
-  },
-  "__tests__/headless/push-chain.test.ts": {
-    "unicorn/prefer-spread": {
-      "count": 1
     }
   },
   "__tests__/headless/pushed-onto-loose-ball.test.ts": {
@@ -468,9 +402,6 @@
     }
   },
   "__tests__/headless/rules/gate.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/require-array-sort-compare": {
       "count": 2
     }
@@ -478,9 +409,6 @@
   "__tests__/headless/scenario-rules.test.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 3
     }
   },
   "__tests__/headless/serialization.test.ts": {
@@ -633,9 +561,6 @@
     "@typescript-eslint/no-floating-promises": {
       "count": 4
     },
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/require-array-sort-compare": {
       "count": 2
     }
@@ -700,9 +625,6 @@
   },
   "__tests__/integration/rulebookRosters2025.test.ts": {
     "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/require-array-sort-compare": {
@@ -789,16 +711,10 @@
     "no-nested-ternary": {
       "count": 1
     },
-    "no-restricted-syntax": {
-      "count": 1
-    },
     "unicorn/no-unnecessary-parameters": {
       "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/prefer-structured-clone": {
       "count": 1
     }
   },
@@ -950,9 +866,6 @@
     "unicorn/consistent-function-scoping": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
       "count": 1
     }
@@ -1024,9 +937,6 @@
     },
     "max-params": {
       "count": 2
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "__tests__/network/sessionsOwnership.test.ts": {
@@ -1048,11 +958,6 @@
     },
     "@typescript-eslint/no-empty-function": {
       "count": 1
-    }
-  },
-  "__tests__/rules/emulator.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 2
     }
   },
   "__tests__/rules/firestoreRules.test.ts": {
@@ -1112,9 +1017,6 @@
     }
   },
   "__tests__/rules/friendRules.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
       "count": 13
     },
@@ -1187,9 +1089,6 @@
     "unicorn/import-style": {
       "count": 1
     },
-    "unicorn/no-array-reverse": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
       "count": 2
     },
@@ -1200,9 +1099,6 @@
   "__tests__/simulation/bench.test.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 3
-    },
-    "unicorn/no-array-reverse": {
-      "count": 1
     },
     "unicorn/no-duplicate-loops": {
       "count": 1
@@ -1241,9 +1137,6 @@
     }
   },
   "__tests__/simulation/game-plans.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-break-in-nested-loop": {
       "count": 1
     },
@@ -1276,9 +1169,6 @@
   "__tests__/simulation/plannerRuns.test.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 2
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 2
@@ -1314,9 +1204,6 @@
     "unicorn/consistent-function-scoping": {
       "count": 3
     },
-    "unicorn/no-array-reverse": {
-      "count": 1
-    },
     "unicorn/no-unnecessary-parameters": {
       "count": 2
     }
@@ -1335,9 +1222,6 @@
     "unicorn/import-style": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/require-array-sort-compare": {
       "count": 2
     }
@@ -1351,9 +1235,6 @@
     }
   },
   "__tests__/simulation/search.test.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/consistent-function-scoping": {
       "count": 3
     },
@@ -1383,9 +1264,6 @@
   "__tests__/simulation/turn-plans.test.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 8
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
     },
     "unicorn/no-await-expression-member": {
       "count": 7
@@ -1458,11 +1336,6 @@
       "count": 3
     }
   },
-  "__tests__/unit/bipyramidDice.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    }
-  },
   "__tests__/unit/biteTargetPrompt.test.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
@@ -1502,16 +1375,7 @@
     "unicorn/consistent-function-scoping": {
       "count": 2
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 4
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/no-duplicate-loops": {
-      "count": 1
-    },
-    "unicorn/prefer-else-if": {
       "count": 1
     },
     "unicorn/prefer-minimal-ternary": {
@@ -1585,9 +1449,6 @@
   },
   "__tests__/unit/competitionLogic.test.ts": {
     "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/require-array-sort-compare": {
@@ -1682,9 +1543,6 @@
     },
     "unicorn/prefer-query-selector": {
       "count": 1
-    },
-    "unicorn/prefer-scoped-selector": {
-      "count": 3
     }
   },
   "__tests__/unit/competitionViewPenalties.test.tsx": {
@@ -1732,9 +1590,6 @@
       "count": 2
     },
     "unicorn/no-await-expression-member": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
     }
   },
@@ -1787,9 +1642,6 @@
     "unicorn/no-object-as-default-parameter": {
       "count": 1
     },
-    "unicorn/prefer-else-if": {
-      "count": 6
-    },
     "unicorn/prefer-event-target": {
       "count": 1
     }
@@ -1808,9 +1660,6 @@
     }
   },
   "__tests__/unit/controllers/GameplayInteractionController.kickoff.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/require-array-sort-compare": {
       "count": 2
     }
@@ -1826,9 +1675,6 @@
     },
     "unicorn/consistent-function-scoping": {
       "count": 2
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "__tests__/unit/controllers/GameplayInteractionController.resume.test.ts": {
@@ -1921,9 +1767,6 @@
     "@typescript-eslint/require-await": {
       "count": 12
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/consistent-function-scoping": {
       "count": 3
     }
@@ -1950,9 +1793,6 @@
   "__tests__/unit/decisionDockInterception.test.tsx": {
     "@typescript-eslint/require-await": {
       "count": 5
-    },
-    "unicorn/prefer-scoped-selector": {
-      "count": 1
     }
   },
   "__tests__/unit/decisionsWaitForDice.test.tsx": {
@@ -1994,9 +1834,6 @@
     }
   },
   "__tests__/unit/diceTray.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/require-array-sort-compare": {
       "count": 1
     }
@@ -2147,9 +1984,6 @@
     "max-params": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/consistent-function-scoping": {
       "count": 2
     },
@@ -2229,9 +2063,6 @@
     "max-params": {
       "count": 1
     },
-    "unicorn/no-array-reverse": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 1
     }
@@ -2252,9 +2083,6 @@
   "__tests__/unit/foulAssistsDialog.test.tsx": {
     "@typescript-eslint/require-await": {
       "count": 4
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
     }
   },
   "__tests__/unit/gameHudMatchOptions.test.tsx": {
@@ -2309,9 +2137,6 @@
     },
     "unicorn/no-return-array-push": {
       "count": 2
-    },
-    "unicorn/prefer-scoped-selector": {
-      "count": 1
     }
   },
   "__tests__/unit/houseBotSocial.test.tsx": {
@@ -2320,18 +2145,12 @@
     }
   },
   "__tests__/unit/houseBotTeam.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/require-array-sort-compare": {
       "count": 1
     }
   },
   "__tests__/unit/hudDesignDrift.test.ts": {
     "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     }
   },
@@ -2352,9 +2171,6 @@
     }
   },
   "__tests__/unit/inducements/computerPurchases.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-unnecessary-parameters": {
       "count": 1
     },
@@ -2403,26 +2219,11 @@
     },
     "unicorn/no-return-array-push": {
       "count": 1
-    },
-    "unicorn/prefer-scoped-selector": {
-      "count": 2
     }
   },
   "__tests__/unit/layered/compositor.test.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 6
-    },
-    "unicorn/no-array-sort": {
-      "count": 5
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 2
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 2
     },
     "unicorn/require-array-sort-compare": {
       "count": 5
@@ -2578,14 +2379,6 @@
       "count": 1
     }
   },
-  "__tests__/unit/matchHistory.test.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    },
-    "unicorn/prefer-structured-clone": {
-      "count": 1
-    }
-  },
   "__tests__/unit/matchInformation.test.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -2731,13 +2524,7 @@
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
     },
-    "no-restricted-syntax": {
-      "count": 1
-    },
     "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/prefer-structured-clone": {
       "count": 1
     }
   },
@@ -2760,9 +2547,6 @@
   },
   "__tests__/unit/network/jointSeed.test.ts": {
     "unicorn/no-unnecessary-parameters": {
-      "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
       "count": 1
     }
   },
@@ -2789,15 +2573,9 @@
     },
     "@typescript-eslint/require-await": {
       "count": 21
-    },
-    "unicorn/prefer-scoped-selector": {
-      "count": 1
     }
   },
   "__tests__/unit/onlineCompetitions.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/require-array-sort-compare": {
       "count": 2
     }
@@ -2830,12 +2608,6 @@
       "count": 2
     },
     "@typescript-eslint/unbound-method": {
-      "count": 1
-    },
-    "unicorn/prefer-array-from-map": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
       "count": 1
     }
   },
@@ -2876,9 +2648,6 @@
     "@typescript-eslint/no-floating-promises": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/require-array-sort-compare": {
       "count": 1
     }
@@ -2908,9 +2677,6 @@
       "count": 3
     },
     "no-restricted-syntax": {
-      "count": 4
-    },
-    "unicorn/no-array-sort": {
       "count": 4
     },
     "unicorn/prefer-single-call": {
@@ -3049,11 +2815,6 @@
       "count": 1
     }
   },
-  "__tests__/unit/purchasePlannerTeams.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
   "__tests__/unit/rerollDialogTeamButton.test.tsx": {
     "@typescript-eslint/require-await": {
       "count": 3
@@ -3098,14 +2859,6 @@
   "__tests__/unit/rules/jumpGeometry.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
-  "__tests__/unit/rules/leagueSpending.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "__tests__/unit/rules/plagueRidden.test.ts": {
@@ -3118,22 +2871,8 @@
       "count": 1
     }
   },
-  "__tests__/unit/rules/teamAllegiance.test.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    },
-    "unicorn/prefer-structured-clone": {
-      "count": 1
-    }
-  },
   "__tests__/unit/rules/teamCaptain.test.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    },
     "unicorn/consistent-function-scoping": {
-      "count": 2
-    },
-    "unicorn/prefer-structured-clone": {
       "count": 2
     }
   },
@@ -3144,14 +2883,6 @@
   },
   "__tests__/unit/rules/teamPricing.test.ts": {
     "unicorn/no-unnecessary-parameters": {
-      "count": 1
-    }
-  },
-  "__tests__/unit/rules/veteran.test.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    },
-    "unicorn/prefer-structured-clone": {
       "count": 1
     }
   },
@@ -3177,9 +2908,6 @@
     }
   },
   "__tests__/unit/seeding/competitionFixtures.test.ts": {
-    "unicorn/no-array-sort": {
-      "count": 3
-    },
     "unicorn/no-duplicate-loops": {
       "count": 2
     },
@@ -3376,9 +3104,6 @@
     },
     "@typescript-eslint/require-await": {
       "count": 2
-    },
-    "unicorn/prefer-spread": {
-      "count": 1
     }
   },
   "__tests__/unit/teamManagementComputer.test.tsx": {
@@ -3396,15 +3121,7 @@
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/require-array-sort-compare": {
-      "count": 1
-    }
-  },
-  "__tests__/unit/testing/regressionPolicy.test.ts": {
-    "unicorn/prefer-number-is-safe-integer": {
       "count": 1
     }
   },
@@ -3418,12 +3135,6 @@
   },
   "__tests__/unit/testing/ruleMatrix.test.ts": {
     "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
-    "unicorn/prefer-number-is-safe-integer": {
       "count": 1
     },
     "unicorn/require-array-sort-compare": {
@@ -3542,24 +3253,12 @@
     "@typescript-eslint/require-await": {
       "count": 7
     },
-    "unicorn/prefer-array-from-map": {
-      "count": 2
-    },
     "unicorn/prefer-query-selector": {
       "count": 3
-    },
-    "unicorn/prefer-scoped-selector": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 5
     }
   },
   "__tests__/unit/ui/GameTypeSelector.test.tsx": {
     "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/prefer-scoped-selector": {
       "count": 1
     }
   },
@@ -3609,12 +3308,6 @@
     },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
-    },
-    "unicorn/prefer-array-from-map": {
-      "count": 5
-    },
-    "unicorn/prefer-spread": {
-      "count": 6
     }
   },
   "__tests__/unit/ui/PlayerPage.test.tsx": {
@@ -3629,9 +3322,6 @@
     },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 1
     }
   },
   "__tests__/unit/ui/PlayerPageSprite.test.tsx": {
@@ -3645,9 +3335,6 @@
       "count": 2
     },
     "unicorn/dom-node-dataset": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
       "count": 1
     }
   },
@@ -3674,12 +3361,6 @@
     },
     "unicorn/consistent-function-scoping": {
       "count": 4
-    },
-    "unicorn/prefer-scoped-selector": {
-      "count": 3
-    },
-    "unicorn/prefer-spread": {
-      "count": 2
     }
   },
   "__tests__/unit/ui/TeamBuilderLibraryFailure.test.tsx": {
@@ -3746,17 +3427,8 @@
     "unicorn/no-return-array-push": {
       "count": 2
     },
-    "unicorn/prefer-array-from-map": {
-      "count": 5
-    },
     "unicorn/prefer-query-selector": {
       "count": 1
-    },
-    "unicorn/prefer-scoped-selector": {
-      "count": 8
-    },
-    "unicorn/prefer-spread": {
-      "count": 6
     }
   },
   "__tests__/unit/ui/TeamSelect.test.tsx": {
@@ -3848,9 +3520,6 @@
     "max-params": {
       "count": 1
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-break-in-nested-loop": {
       "count": 1
     }
@@ -3896,9 +3565,6 @@
     }
   },
   "e2e/browser/bloodlust-bite-choice.e2e.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
       "count": 4
     },
@@ -3968,9 +3634,6 @@
     "no-restricted-syntax": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
       "count": 3
     },
@@ -3987,9 +3650,6 @@
     },
     "unicorn/no-array-callback-reference": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
     },
     "unicorn/no-await-expression-member": {
       "count": 4
@@ -4032,9 +3692,6 @@
     },
     "no-restricted-syntax": {
       "count": 2
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     },
     "unicorn/no-await-expression-member": {
       "count": 4
@@ -4084,14 +3741,6 @@
   "e2e/browser/league-rounds.e2e.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
-  "e2e/browser/league-team-progress.e2e.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
     }
   },
   "e2e/browser/match-journey.e2e.ts": {
@@ -4127,9 +3776,6 @@
     },
     "no-restricted-syntax": {
       "count": 3
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     },
     "unicorn/no-await-expression-member": {
       "count": 5
@@ -4187,9 +3833,6 @@
     "@typescript-eslint/consistent-type-assertions": {
       "count": 6
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/require-array-sort-compare": {
       "count": 1
     }
@@ -4197,9 +3840,6 @@
   "e2e/browser/player-sprite.e2e.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 10
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
     }
   },
   "e2e/browser/post-match-management.e2e.ts": {
@@ -4417,9 +4057,6 @@
     "unicorn/consistent-function-scoping": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 4
-    },
     "unicorn/no-break-in-nested-loop": {
       "count": 7
     },
@@ -4453,13 +4090,7 @@
     "@typescript-eslint/use-unknown-in-catch-callback-variable": {
       "count": 1
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-array-reduce": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/prefer-number-coercion": {
@@ -4558,9 +4189,6 @@
     "unicorn/dom-node-dataset": {
       "count": 1
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/prefer-logical-operator-over-ternary": {
       "count": 1
     }
@@ -4583,9 +4211,6 @@
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
     },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
-    },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 1
     },
@@ -4596,15 +4221,9 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 4
+      "count": 2
     },
     "sonarjs/no-duplicated-branches": {
-      "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/no-await-expression-member": {
@@ -4621,9 +4240,6 @@
     },
     "unicorn/prefer-query-selector": {
       "count": 1
-    },
-    "unicorn/prefer-structured-clone": {
-      "count": 2
     }
   },
   "e2e/online-match/twoCoaches.e2e.ts": {
@@ -4670,9 +4286,6 @@
       "count": 2
     },
     "unicorn/no-unnecessary-parameters": {
-      "count": 1
-    },
-    "unicorn/prefer-else-if": {
       "count": 1
     }
   },
@@ -4754,9 +4367,6 @@
     "@typescript-eslint/no-empty-function": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 3
-    },
     "unicorn/no-await-expression-member": {
       "count": 1
     }
@@ -4767,12 +4377,6 @@
     },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 2
     }
   },
   "e2e/support/seedTeams.ts": {
@@ -4833,9 +4437,6 @@
       "count": 1
     },
     "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/prefer-simple-sort-comparator": {
@@ -4908,9 +4509,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "scripts/coach/catalogue-study.ts": {
@@ -4940,9 +4538,6 @@
     },
     "unicorn/max-nested-calls": {
       "count": 4
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
@@ -4977,9 +4572,6 @@
     },
     "unicorn/import-style": {
       "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 2
     }
   },
   "scripts/coach/catalogue-study/repair.ts": {
@@ -5071,9 +4663,6 @@
     "unicorn/consistent-function-scoping": {
       "count": 1
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
     "unicorn/no-new-array": {
       "count": 1
     }
@@ -5116,9 +4705,6 @@
     },
     "unicorn/import-style": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "scripts/coach/policy-lab/drives.ts": {
@@ -5141,9 +4727,6 @@
       "count": 1
     },
     "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
@@ -5226,9 +4809,6 @@
       "count": 1
     },
     "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
@@ -5340,9 +4920,6 @@
     "unicorn/no-array-callback-reference": {
       "count": 2
     },
-    "unicorn/no-array-sort": {
-      "count": 4
-    },
     "unicorn/no-new-array": {
       "count": 2
     },
@@ -5368,9 +4945,6 @@
     },
     "sonarjs/no-duplicate-string": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 3
     }
   },
   "scripts/coach/policy-lab/usage.ts": {
@@ -5386,9 +4960,6 @@
     "unicorn/import-style": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
@@ -5398,9 +4969,6 @@
       "count": 1
     },
     "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
@@ -5457,9 +5025,6 @@
     },
     "unicorn/max-nested-calls": {
       "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
     }
   },
   "scripts/coach/policy-study/schedule.ts": {
@@ -5470,9 +5035,6 @@
   "scripts/coach/positions.ts": {
     "@typescript-eslint/no-empty-function": {
       "count": 4
-    },
-    "unicorn/prefer-number-is-safe-integer": {
-      "count": 2
     },
     "unicorn/prefer-top-level-await": {
       "count": 1
@@ -5515,9 +5077,6 @@
     "no-restricted-syntax": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 3
-    },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
     },
@@ -5529,13 +5088,7 @@
     "no-restricted-syntax": {
       "count": 3
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-declarations-before-early-exit": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
     }
   },
@@ -5551,9 +5104,6 @@
     },
     "unicorn/import-style": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 3
     },
     "unicorn/require-array-sort-compare": {
       "count": 3
@@ -5578,9 +5128,6 @@
       "count": 1
     },
     "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/require-array-sort-compare": {
@@ -5615,9 +5162,6 @@
       "count": 2
     },
     "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/require-array-sort-compare": {
@@ -5660,16 +5204,7 @@
     "no-restricted-syntax": {
       "count": 2
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/prefer-default-parameters": {
-      "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
       "count": 1
     },
     "unicorn/prefer-top-level-await": {
@@ -5699,14 +5234,6 @@
   "scripts/sprites/portrait_check.ts": {
     "unicorn/import-style": {
       "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    }
-  },
-  "scripts/sprites/roster_picker_cards.ts": {
-    "unicorn/no-array-sort": {
-      "count": 3
     }
   },
   "scripts/sprites/spriteFiles.ts": {
@@ -5797,11 +5324,6 @@
       "count": 10
     }
   },
-  "src/boundary/schemas/Player.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
   "src/boundary/schemas/PlayerSnapshot.ts": {
     "unicorn/max-nested-calls": {
       "count": 2
@@ -5825,24 +5347,6 @@
   "src/boundary/stadium.ts": {
     "unicorn/max-nested-calls": {
       "count": 3
-    }
-  },
-  "src/competition/bracketIndex.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    }
-  },
-  "src/competition/bracketLayout.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
-  "src/competition/bracketPositions.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "src/competition/computerTeamTemplates.ts": {
@@ -5885,15 +5389,7 @@
       "count": 1
     }
   },
-  "src/competition/create.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
   "src/competition/logic.ts": {
-    "unicorn/no-array-sort": {
-      "count": 3
-    },
     "unicorn/no-object-as-default-parameter": {
       "count": 1
     },
@@ -5902,39 +5398,21 @@
     }
   },
   "src/competition/online.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-array-reduce": {
-      "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
       "count": 1
     }
   },
   "src/competition/repository.ts": {
     "unicorn/max-nested-calls": {
       "count": 5
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
     }
   },
   "src/competition/roundPlan.ts": {
     "unicorn/no-array-callback-reference": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "src/competition/schedule.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/prefer-array-flat-map": {
       "count": 1
     }
@@ -5953,9 +5431,6 @@
       "count": 1
     },
     "max-statements": {
-      "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
       "count": 1
     }
   },
@@ -6034,12 +5509,6 @@
       "count": 6
     },
     "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
       "count": 1
     }
   },
@@ -6058,11 +5527,6 @@
       "count": 1
     }
   },
-  "src/data/ruleScenarios/passing.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
   "src/data/ruleScenarios/throwTeammate.ts": {
     "unicorn/no-unnecessary-parameters": {
       "count": 3
@@ -6078,30 +5542,14 @@
       "count": 1
     }
   },
-  "src/data/secretLeague/secretLeagueRosters.test.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
   "src/data/secretLeague/secretLeagueSkills.test.ts": {
     "unicorn/no-return-array-push": {
       "count": 1
     }
   },
   "src/data/secretLeague/secretPositions.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/prefer-spread": {
       "count": 1
-    }
-  },
-  "src/data/secretLeague/secretRosters.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 3
     }
   },
   "src/data/skillCatalog.ts": {
@@ -6123,9 +5571,6 @@
     }
   },
   "src/firebase/cloudTeamRepository.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
       "count": 1
     }
@@ -6155,9 +5600,6 @@
     "unicorn/max-nested-calls": {
       "count": 2
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-await-expression-member": {
       "count": 1
     }
@@ -6173,11 +5615,6 @@
       "count": 2
     }
   },
-  "src/firebase/lobbyTournamentLock.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
   "src/gallery/Frame.tsx": {
     "unicorn/max-nested-calls": {
       "count": 1
@@ -6189,9 +5626,6 @@
     }
   },
   "src/gallery/cloud/firebaseFirestore.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
     "unicorn/no-array-reduce": {
       "count": 3
     },
@@ -6232,11 +5666,6 @@
       "count": 2
     }
   },
-  "src/gallery/sceneStandIn.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
   "src/gallery/variantHelpers.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
@@ -6267,44 +5696,14 @@
       "count": 1
     }
   },
-  "src/game/controllers/BallMovementController.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
   "src/game/controllers/CameraController.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/consistent-function-scoping": {
       "count": 1
     },
     "unicorn/no-array-reduce": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-unreadable-array-destructuring": {
-      "count": 1
-    }
-  },
-  "src/game/controllers/GameplayInteractionController.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/prefer-else-if": {
-      "count": 1
-    }
-  },
-  "src/game/controllers/PassController.ts": {
-    "unicorn/class-reference-in-static-methods": {
-      "count": 2
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
     }
   },
@@ -6312,75 +5711,22 @@
     "@typescript-eslint/unbound-method": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/prefer-number-coercion": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 4
-    }
-  },
-  "src/game/controllers/SceneOrchestrator.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/game/controllers/TouchGestures.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/game/controllers/handlers/KickTargetMarker.ts": {
-    "unicorn/consistent-class-member-order": {
       "count": 1
     }
   },
   "src/game/controllers/handlers/KickoffPhaseHandler.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-non-function-verb-prefix": {
       "count": 1
     }
   },
   "src/game/controllers/handlers/PlayPhaseHandler.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
     }
   },
   "src/game/controllers/handlers/SetupPhaseHandler.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    },
     "unicorn/prefer-default-parameters": {
-      "count": 1
-    }
-  },
-  "src/game/controllers/handlers/TouchdownPhaseHandler.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/game/controllers/handlers/actionPresentation.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/game/controllers/interaction/BiteAndSpellTargets.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/game/controllers/interaction/actionModes.ts": {
-    "unicorn/prefer-else-if": {
       "count": 1
     }
   },
@@ -6403,9 +5749,6 @@
   "src/game/controllers/interaction/routes.ts": {
     "unicorn/no-array-reduce": {
       "count": 1
-    },
-    "unicorn/prefer-else-if": {
-      "count": 2
     }
   },
   "src/game/controllers/interaction/squareClicks.ts": {
@@ -6431,9 +5774,6 @@
     "@typescript-eslint/no-floating-promises": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 2
     },
@@ -6443,35 +5783,6 @@
   },
   "src/game/elements/BallTrail.ts": {
     "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/game/elements/Dugout.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 2
-    }
-  },
-  "src/game/elements/Pitch.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
-  "src/game/elements/PlayerSprite.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/game/elements/SidelineStaffSprite.ts": {
-    "unicorn/consistent-class-member-order": {
       "count": 1
     }
   },
@@ -6483,22 +5794,8 @@
       "count": 1
     }
   },
-  "src/game/elements/Stadium.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
   "src/game/elements/pitchExits.ts": {
     "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-array-reverse": {
       "count": 1
     }
   },
@@ -6561,14 +5858,6 @@
       "count": 1
     }
   },
-  "src/game/inducements/driveInducements.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
-    }
-  },
   "src/game/inducements/masterChef.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 1
@@ -6599,22 +5888,11 @@
     "sonarjs/cognitive-complexity": {
       "count": 2
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-object-as-default-parameter": {
       "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 2
-    },
-    "unicorn/prefer-number-is-safe-integer": {
-      "count": 2
-    }
-  },
-  "src/game/inducements/noviceWizard.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
     }
   },
   "src/game/inducements/prayersToNuffle.ts": {
@@ -6641,34 +5919,6 @@
     },
     "max-params": {
       "count": 1
-    },
-    "unicorn/no-array-reverse": {
-      "count": 1
-    }
-  },
-  "src/game/kickoff/KickoffEventManager.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/game/kickoff/beachBowlResolvers.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    }
-  },
-  "src/game/kickoff/driveHazards.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/game/kickoff/guardsBlock.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    }
-  },
-  "src/game/kickoff/kickoffDice.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
     }
   },
   "src/game/kickoff/kickoffMoment.ts": {
@@ -6678,11 +5928,6 @@
   },
   "src/game/kickoff/kickoffResolvers.ts": {
     "unicorn/consistent-compound-words": {
-      "count": 1
-    }
-  },
-  "src/game/kickoff/kickoffShoves.ts": {
-    "unicorn/no-array-reverse": {
       "count": 1
     }
   },
@@ -6715,12 +5960,6 @@
     },
     "max-params": {
       "count": 2
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "src/game/managers/BlockActivation.ts": {
@@ -6744,12 +5983,6 @@
     },
     "max-statements": {
       "count": 2
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
     },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
@@ -6779,12 +6012,6 @@
     },
     "max-statements": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
     }
   },
   "src/game/managers/BlockManagerBase.ts": {
@@ -6808,9 +6035,6 @@
     },
     "sonarjs/no-duplicate-string": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/managers/BlockOperations.ts": {
@@ -6822,9 +6046,6 @@
     },
     "max-params": {
       "count": 2
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 4
     }
   },
   "src/game/managers/BlockPushChain.ts": {
@@ -6851,9 +6072,6 @@
     },
     "max-params": {
       "count": 6
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/managers/BlockRerolls.ts": {
@@ -6865,12 +6083,6 @@
     },
     "complexity": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 2
     }
   },
   "src/game/managers/FormationManager.ts": {
@@ -6886,16 +6098,8 @@
     "no-restricted-syntax": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-computed-property-existence-check": {
       "count": 3
-    }
-  },
-  "src/game/managers/HighlightManager.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/managers/MovementManager.ts": {
@@ -6906,9 +6110,6 @@
       "count": 1
     },
     "max-params": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     }
   },
@@ -6924,9 +6125,6 @@
     },
     "complexity": {
       "count": 2
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
@@ -6960,19 +6158,10 @@
     "max-statements": {
       "count": 5
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-computed-property-existence-check": {
       "count": 2
     },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    },
     "unicorn/prefer-number-coercion": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
       "count": 1
     }
   },
@@ -6987,9 +6176,6 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
       "count": 1
     },
     "unicorn/no-top-level-assignment-in-function": {
@@ -7018,9 +6204,6 @@
     "max-statements": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/consistent-function-scoping": {
       "count": 1
     },
@@ -7041,9 +6224,6 @@
       "count": 4
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     }
   },
@@ -7096,9 +6276,6 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 1
-    },
-    "unicorn/prefer-else-if": {
-      "count": 1
     }
   },
   "src/game/managers/movementShared.ts": {
@@ -7129,15 +6306,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
     }
   },
   "src/game/operations/AgilityTestOperation.ts": {
@@ -7150,9 +6318,6 @@
     "max-params": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-useless-template-literals": {
       "count": 1
     }
@@ -7163,9 +6328,6 @@
     },
     "max-params": {
       "count": 3
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/operations/BallAndChainOperation.ts": {
@@ -7176,9 +6338,6 @@
       "count": 1
     },
     "max-statements": {
-      "count": 2
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 2
     }
   },
@@ -7196,15 +6355,6 @@
       "count": 1
     },
     "max-statements": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 2
-    },
-    "unicorn/no-array-reverse": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/no-declarations-before-early-exit": {
@@ -7230,9 +6380,6 @@
     "max-statements": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 2
-    },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
     }
@@ -7242,9 +6389,6 @@
       "count": 1
     },
     "max-statements": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     }
   },
@@ -7258,9 +6402,6 @@
     "max-params": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/max-nested-calls": {
       "count": 1
     }
@@ -7270,9 +6411,6 @@
       "count": 1
     },
     "complexity": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     },
     "unicorn/no-non-function-verb-prefix": {
@@ -7285,15 +6423,9 @@
   "src/game/operations/CrowdInjuryOperation.ts": {
     "max-params": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/operations/CrowdTakesActionOperation.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-thenable": {
       "count": 2
     }
@@ -7301,9 +6433,6 @@
   "src/game/operations/EndDriveOperations.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 3
     }
   },
   "src/game/operations/FoulOperation.ts": {
@@ -7333,22 +6462,11 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 2
-    }
-  },
-  "src/game/operations/HandoffOperation.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/operations/InjuryOperation.ts": {
     "max-params": {
       "count": 2
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/operations/PassOperation.ts": {
@@ -7382,12 +6500,6 @@
     "sonarjs/cognitive-complexity": {
       "count": 2
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 2
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/no-await-expression-member": {
       "count": 1
     },
@@ -7407,9 +6519,6 @@
     },
     "max-statements": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/operations/PileDriverOperation.ts": {
@@ -7420,9 +6529,6 @@
       "count": 1
     },
     "max-params": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     }
   },
@@ -7441,14 +6547,6 @@
     },
     "max-statements": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 2
-    }
-  },
-  "src/game/operations/SendOffOperation.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/operations/ThrowTeammateOperation.ts": {
@@ -7463,9 +6561,6 @@
     },
     "max-statements": {
       "count": 2
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     },
     "unicorn/no-declarations-before-early-exit": {
       "count": 2
@@ -7484,11 +6579,6 @@
       "count": 1
     }
   },
-  "src/game/operations/specialActionTarget.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
   "src/game/persistence/DiceLog.ts": {
     "@typescript-eslint/no-empty-function": {
       "count": 1
@@ -7498,16 +6588,10 @@
     },
     "no-nested-ternary": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/persistence/MatchAutosave.ts": {
     "max-params": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     }
   },
@@ -7532,16 +6616,8 @@
       "count": 1
     }
   },
-  "src/game/presentation/diceWatch.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
   "src/game/presentation/hudRects.ts": {
     "@typescript-eslint/no-empty-function": {
-      "count": 2
-    },
-    "unicorn/prefer-spread": {
       "count": 2
     }
   },
@@ -7564,9 +6640,6 @@
     }
   },
   "src/game/presentation/layered/lookTextures.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-top-level-assignment-in-function": {
       "count": 1
     }
@@ -7587,9 +6660,6 @@
       "count": 1
     },
     "sonarjs/no-duplicate-string": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     },
     "unicorn/no-return-array-push": {
@@ -7648,14 +6718,6 @@
       "count": 6
     }
   },
-  "src/game/presentation/venueSidelines.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
-    }
-  },
   "src/game/progression/MatchStats.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
@@ -7669,9 +6731,6 @@
       "count": 2
     },
     "max-lines-per-function": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     },
     "unicorn/prefer-early-return": {
@@ -7731,17 +6790,11 @@
     "sonarjs/no-duplicate-string": {
       "count": 2
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-computed-property-existence-check": {
       "count": 1
     }
   },
   "src/game/rules-lab/runner.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
@@ -7768,9 +6821,6 @@
   "src/game/rules/club.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 2
     }
   },
   "src/game/rules/expensiveMistakes.ts": {
@@ -7788,9 +6838,6 @@
     },
     "unicorn/consistent-function-scoping": {
       "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
-      "count": 1
     }
   },
   "src/game/rules/extraTime.ts": {
@@ -7803,11 +6850,6 @@
   },
   "src/game/rules/gameTypeChange.ts": {
     "unicorn/no-declarations-before-early-exit": {
-      "count": 1
-    }
-  },
-  "src/game/rules/insignificant.ts": {
-    "unicorn/no-array-callback-reference": {
       "count": 1
     }
   },
@@ -7892,12 +6934,6 @@
     },
     "sonarjs/no-duplicate-string": {
       "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "src/game/rules/raiseDead.ts": {
@@ -7916,11 +6952,6 @@
       "count": 9
     }
   },
-  "src/game/rules/rosterLegality.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
   "src/game/rules/secureBall.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -7937,9 +6968,6 @@
       "count": 1
     },
     "sonarjs/cognitive-complexity": {
-      "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
       "count": 1
     }
   },
@@ -7984,32 +7012,17 @@
     }
   },
   "src/game/setup/deployment.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-array-reverse": {
-      "count": 1
-    },
     "unicorn/no-unnecessary-parameters": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
       "count": 1
     }
   },
   "src/game/skills/DecisionService.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 1
     }
   },
   "src/game/skills/RerollArbiter.ts": {
     "no-nested-ternary": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     },
     "unicorn/prefer-early-return": {
@@ -8032,9 +7045,6 @@
       "count": 1
     },
     "max-statements": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/no-top-level-assignment-in-function": {
@@ -8155,36 +7165,14 @@
   "src/game/skills/rules/keywords.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 2
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
-  "src/game/validators/ActionValidator.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/game/validators/MovementPathSearch.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/game/validators/MovementValidator.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-computed-property-existence-check": {
       "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
-      "count": 2
     }
   },
   "src/game/validators/jumpReach.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 3
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
@@ -8222,9 +7210,6 @@
     "sonarjs/no-duplicate-string": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 1
     },
@@ -8237,9 +7222,6 @@
   },
   "src/headless/checksum.ts": {
     "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/prefer-code-point": {
@@ -8308,14 +7290,8 @@
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-computed-property-existence-check": {
       "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
-      "count": 3
     }
   },
   "src/headless/createHeadlessGame.ts": {
@@ -8338,9 +7314,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 2
     }
   },
   "src/headless/pendingDecisions.ts": {
@@ -8383,9 +7356,6 @@
     },
     "unicorn/no-computed-property-existence-check": {
       "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 1
     }
   },
   "src/main.ts": {
@@ -8397,9 +7367,6 @@
     }
   },
   "src/network/ComputerMatch.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 2
-    },
     "unicorn/consistent-function-scoping": {
       "count": 2
     },
@@ -8416,12 +7383,6 @@
     "@typescript-eslint/consistent-type-imports": {
       "count": 1
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/prefer-else-if": {
-      "count": 2
-    },
     "unicorn/prefer-then-catch": {
       "count": 1
     }
@@ -8430,30 +7391,15 @@
     "@typescript-eslint/consistent-type-imports": {
       "count": 9
     },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/prefer-number-coercion": {
-      "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
       "count": 1
     }
   },
   "src/network/OnlineMatch.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-computed-property-existence-check": {
       "count": 1
     },
     "unicorn/no-top-level-assignment-in-function": {
-      "count": 1
-    },
-    "unicorn/prefer-else-if": {
-      "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
       "count": 1
     }
   },
@@ -8470,9 +7416,6 @@
   },
   "src/network/computerCoach.ts": {
     "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     },
     "unicorn/no-await-expression-member": {
@@ -8514,17 +7457,6 @@
     },
     "max-statements": {
       "count": 3
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 1
-    }
-  },
-  "src/scenes/KickoffPlaygroundScene.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/scenes/SandboxScene.ts": {
@@ -8541,9 +7473,6 @@
       "count": 1
     },
     "max-statements": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     },
     "unicorn/prefer-early-return": {
@@ -8607,9 +7536,6 @@
   "src/seeding/competitionFixtures.ts": {
     "complexity": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
     }
   },
   "src/seeding/playerLifecycle.ts": {
@@ -8649,12 +7575,6 @@
     }
   },
   "src/seeding/teamFixtures.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
-    "unicorn/no-array-sort": {
-      "count": 3
-    },
     "unicorn/no-confusing-array-splice": {
       "count": 1
     },
@@ -8688,9 +7608,6 @@
   "src/services/BlockResolutionService.ts": {
     "sonarjs/cognitive-complexity": {
       "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/services/EventBus.ts": {
@@ -8701,22 +7618,11 @@
   "src/services/GameService.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 14
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/services/ScenarioLoader.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     }
   },
   "src/services/ServiceContainer.ts": {
     "unicorn/class-reference-in-static-methods": {
       "count": 8
-    },
-    "unicorn/consistent-class-member-order": {
-      "count": 1
     },
     "unicorn/prefer-default-parameters": {
       "count": 1
@@ -8725,15 +7631,9 @@
   "src/services/gameService/decisionAnswers.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
-      "count": 1
     }
   },
   "src/services/gameService/driveLifecycle.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
@@ -8769,9 +7669,6 @@
     }
   },
   "src/simulation/ai/activations.ts": {
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
     },
@@ -8789,9 +7686,6 @@
     "unicorn/no-array-reduce": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 3
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
@@ -8807,15 +7701,9 @@
   "src/simulation/ai/board.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 2
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 3
     }
   },
   "src/simulation/ai/chance.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-computed-property-existence-check": {
       "count": 1
     },
@@ -8824,9 +7712,6 @@
     }
   },
   "src/simulation/ai/decisions.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-array-reduce": {
       "count": 1
     }
@@ -8842,15 +7727,9 @@
   "src/simulation/ai/feedingSupport.ts": {
     "unicorn/no-duplicate-loops": {
       "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
     }
   },
   "src/simulation/ai/foulActivations.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
     "unicorn/no-duplicate-loops": {
       "count": 2
     }
@@ -8864,9 +7743,6 @@
     }
   },
   "src/simulation/ai/gateActivations.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
     "unicorn/no-array-reduce": {
       "count": 1
     },
@@ -8894,27 +7770,13 @@
     }
   },
   "src/simulation/ai/kickoffChoices.ts": {
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/no-unreadable-object-destructuring": {
       "count": 3
     }
   },
-  "src/simulation/ai/kickoffGround.ts": {
-    "unicorn/no-array-sort": {
-      "count": 2
-    }
-  },
   "src/simulation/ai/kickoffPlans.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-array-reduce": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
     }
   },
   "src/simulation/ai/kickoffSteps.ts": {
@@ -8933,40 +7795,20 @@
       "count": 1
     }
   },
-  "src/simulation/ai/pickupActivations.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
   "src/simulation/ai/planner.ts": {
     "unicorn/no-array-reduce": {
       "count": 1
     },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
     }
   },
   "src/simulation/ai/repositionActivations.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/no-return-array-push": {
       "count": 1
     }
   },
   "src/simulation/ai/routes.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-array-reverse": {
-      "count": 1
-    },
     "unicorn/no-computed-property-existence-check": {
       "count": 1
     },
@@ -8975,9 +7817,6 @@
     }
   },
   "src/simulation/ai/search.ts": {
-    "unicorn/no-array-sort": {
-      "count": 2
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     }
@@ -8998,9 +7837,6 @@
   "src/simulation/ai/teammateActivations.ts": {
     "unicorn/consistent-function-scoping": {
       "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 3
     },
     "unicorn/no-duplicate-loops": {
       "count": 1
@@ -9028,9 +7864,6 @@
       "count": 1
     },
     "max-params": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
       "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
@@ -9106,9 +7939,6 @@
     "unicorn/prefer-includes-over-repeated-comparisons": {
       "count": 2
     },
-    "unicorn/prefer-number-is-safe-integer": {
-      "count": 9
-    },
     "unicorn/prefer-then-catch": {
       "count": 1
     },
@@ -9126,11 +7956,6 @@
       "count": 1
     },
     "unicorn/no-array-reduce": {
-      "count": 1
-    }
-  },
-  "src/simulation/coaches/jev.ts": {
-    "unicorn/no-array-sort": {
       "count": 1
     }
   },
@@ -9173,9 +7998,6 @@
     "unicorn/max-nested-calls": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     },
@@ -9211,12 +8033,6 @@
       "count": 1
     },
     "unicorn/import-style": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 3
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
     },
     "unicorn/no-unreadable-for-of-expression": {
@@ -9271,9 +8087,6 @@
     "unicorn/import-style": {
       "count": 1
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 3
-    },
     "unicorn/prefer-continue": {
       "count": 1
     },
@@ -9318,9 +8131,6 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
     },
     "unicorn/no-break-in-nested-loop": {
       "count": 1
@@ -9457,19 +8267,11 @@
     "unicorn/import-style": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-break-in-nested-loop": {
       "count": 4
     },
     "unicorn/no-unsafe-string-replacement": {
       "count": 2
-    }
-  },
-  "src/social/openGames.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
     }
   },
   "src/testing/browserBridge.ts": {
@@ -9569,9 +8371,6 @@
     "no-nested-ternary": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/prefer-simple-sort-comparator": {
       "count": 1
     }
@@ -9579,9 +8378,6 @@
   "src/testing/coverage/merge.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 3
     },
     "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
@@ -9594,9 +8390,6 @@
     }
   },
   "src/testing/coverage/observed.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-unreadable-for-of-expression": {
       "count": 1
     },
@@ -9613,9 +8406,6 @@
     },
     "unicorn/no-array-callback-reference": {
       "count": 2
-    },
-    "unicorn/no-array-sort": {
-      "count": 3
     },
     "unicorn/prefer-simple-sort-comparator": {
       "count": 1
@@ -9650,9 +8440,6 @@
     "no-nested-ternary": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/require-array-sort-compare": {
       "count": 1
     }
@@ -9674,9 +8461,6 @@
     },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 2
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
     }
   },
   "src/testing/scenarioCase/registry.ts": {
@@ -9685,9 +8469,6 @@
     },
     "no-nested-ternary": {
       "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 2
     }
   },
   "src/testing/scenarioCase/types.ts": {
@@ -9712,9 +8493,6 @@
       "count": 2
     },
     "unicorn/no-unreadable-for-of-expression": {
-      "count": 3
-    },
-    "unicorn/prefer-number-is-safe-integer": {
       "count": 3
     }
   },
@@ -9867,11 +8645,6 @@
       "count": 1
     }
   },
-  "src/ui/components/TeamBuilder/SecretRosterCatalogue.tsx": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
   "src/ui/components/TeamBuilder/SidelineStaffSection.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -9906,9 +8679,6 @@
     "no-nested-ternary": {
       "count": 3
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/prefer-early-return": {
       "count": 1
     }
@@ -9937,9 +8707,6 @@
     "sonarjs/no-duplicate-string": {
       "count": 1
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
     }
@@ -9952,14 +8719,6 @@
   "src/ui/components/TeamManagement/TeamStatsOverview.tsx": {
     "react-refresh/only-export-components": {
       "count": 2
-    }
-  },
-  "src/ui/components/common/LayeredPortrait.tsx": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
     }
   },
   "src/ui/components/common/PlayerPortrait.tsx": {
@@ -10006,11 +8765,6 @@
   },
   "src/ui/components/competition/FixtureButtons.tsx": {
     "unicorn/prefer-logical-operator-over-ternary": {
-      "count": 1
-    }
-  },
-  "src/ui/components/competition/ReportResultForm.tsx": {
-    "unicorn/no-array-callback-reference": {
       "count": 1
     }
   },
@@ -10149,11 +8903,6 @@
       "count": 1
     }
   },
-  "src/ui/components/hud/FormationThumb.tsx": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/GameHUD.tsx": {
     "@typescript-eslint/no-empty-function": {
       "count": 2
@@ -10196,9 +8945,6 @@
   },
   "src/ui/components/hud/InducementChoiceDialog.tsx": {
     "max-lines-per-function": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
     }
   },
@@ -10250,9 +8996,6 @@
     },
     "unicorn/prefer-early-return": {
       "count": 1
-    },
-    "unicorn/prefer-spread": {
-      "count": 1
     }
   },
   "src/ui/components/hud/MatchResultsScreen.tsx": {
@@ -10292,9 +9035,6 @@
     "react-hooks/set-state-in-effect": {
       "count": 2
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-declarations-before-early-exit": {
       "count": 2
     },
@@ -10318,9 +9058,6 @@
       "count": 1
     },
     "max-lines-per-function": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
       "count": 1
     }
   },
@@ -10494,11 +9231,6 @@
       "count": 1
     }
   },
-  "src/ui/components/hud/diceTrayController.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/diceTrayData.ts": {
     "unicorn/no-array-callback-reference": {
       "count": 1
@@ -10510,23 +9242,8 @@
       "count": 1
     }
   },
-  "src/ui/components/hud/formationGroups.ts": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/matchStripText.ts": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/pregameInducementHooks.ts": {
     "react-hooks/set-state-in-effect": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/rollBannerState.ts": {
-    "unicorn/consistent-class-member-order": {
       "count": 1
     }
   },
@@ -10535,9 +9252,6 @@
       "count": 3
     },
     "unicorn/no-break-in-nested-loop": {
-      "count": 2
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
       "count": 2
     }
   },
@@ -10571,17 +9285,9 @@
       "count": 1
     }
   },
-  "src/ui/components/pages/CompetitionView.tsx": {
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
   "src/ui/components/pages/LeagueRounds.tsx": {
     "max-lines-per-function": {
       "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 2
     }
   },
   "src/ui/components/pages/LeagueTeamProgress.tsx": {
@@ -10592,9 +9298,6 @@
       "count": 2
     },
     "sonarjs/no-duplicate-string": {
-      "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
       "count": 1
     }
   },
@@ -10744,9 +9447,6 @@
     "react-hooks/set-state-in-effect": {
       "count": 1
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
     },
@@ -10813,9 +9513,6 @@
     "react-refresh/only-export-components": {
       "count": 1
     },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-declarations-before-early-exit": {
       "count": 1
     },
@@ -10860,33 +9557,13 @@
       "count": 1
     }
   },
-  "src/ui/components/social/HouseBotSocial.tsx": {
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    }
-  },
   "src/ui/dice/animation.test.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 1
     }
   },
-  "src/ui/dice/coinAnimation.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
-  "src/ui/dice/diceAnimation.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
   "src/ui/dice/diceFaces.ts": {
     "unicorn/prefer-path2d": {
-      "count": 1
-    }
-  },
-  "src/ui/dice/dicePhysics.ts": {
-    "unicorn/no-array-callback-reference": {
       "count": 1
     }
   },
@@ -10919,9 +9596,6 @@
     }
   },
   "src/ui/hooks/useSocial.ts": {
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/require-array-sort-compare": {
       "count": 1
     }
@@ -10937,9 +9611,6 @@
       "count": 2
     },
     "react-hooks/refs": {
-      "count": 1
-    },
-    "unicorn/no-array-reverse": {
       "count": 1
     },
     "unicorn/prefer-array-last-methods": {
@@ -11094,16 +9765,8 @@
       "count": 1
     }
   },
-  "src/ui/sound/SoundManager.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    }
-  },
   "src/ui/sound/SoundSuite.ts": {
     "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "unicorn/consistent-class-member-order": {
       "count": 1
     }
   },
@@ -11146,16 +9809,7 @@
     "unicorn/consistent-function-scoping": {
       "count": 1
     },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-array-sort": {
-      "count": 1
-    },
     "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/prefer-number-is-safe-integer": {
       "count": 1
     },
     "unicorn/require-array-sort-compare": {
@@ -11163,9 +9817,6 @@
     }
   },
   "studio/helper/jobs.ts": {
-    "unicorn/consistent-class-member-order": {
-      "count": 1
-    },
     "unicorn/no-return-array-push": {
       "count": 1
     }

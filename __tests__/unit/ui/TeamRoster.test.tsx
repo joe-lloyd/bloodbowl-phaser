@@ -100,8 +100,8 @@ describe("TeamRoster readability", () => {
     expect(scrollWrapper).toBeTruthy();
     expect(scrollWrapper?.querySelector("table")).toBeTruthy();
 
-    const cols = container.querySelectorAll("colgroup col");
-    const headerCells = container.querySelectorAll("thead th");
+    const cols = container.querySelectorAll(":scope colgroup col");
+    const headerCells = container.querySelectorAll(":scope thead th");
     expect(cols.length).toBe(headerCells.length);
   });
 });
@@ -150,15 +150,15 @@ describe("TeamRoster career-stat columns", () => {
       );
     });
 
-    const headerLabels = Array.from(container.querySelectorAll("thead th")).map(
+    const headerLabels = [...container.querySelectorAll(":scope thead th")].map(
       (th) => th.textContent
     );
     expect(headerLabels).toEqual(
       expect.arrayContaining(["GP", "TD", "CMP", "CAS", "Kills", "MVP"])
     );
 
-    const firstRow = container.querySelector("tbody tr");
-    const cellTexts = Array.from(firstRow?.querySelectorAll("td") ?? []).map(
+    const firstRow = container.querySelector(":scope tbody tr");
+    const cellTexts = [...(firstRow?.querySelectorAll("td") ?? [])].map(
       (td) => td.textContent
     );
     expect(cellTexts).toEqual(
@@ -182,8 +182,8 @@ describe("TeamRoster career-stat columns", () => {
       );
     });
 
-    const firstRow = container.querySelector("tbody tr");
-    const cellTexts = Array.from(firstRow?.querySelectorAll("td") ?? []).map(
+    const firstRow = container.querySelector(":scope tbody tr");
+    const cellTexts = [...(firstRow?.querySelectorAll("td") ?? [])].map(
       (td) => td.textContent
     );
 
@@ -229,9 +229,7 @@ describe("TeamRoster skill tooltips", () => {
     const blockText = SKILL_DEFINITIONS[SkillType.BLOCK].description;
     const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].description;
 
-    const tooltipPanels = Array.from(
-      document.querySelectorAll('[role="tooltip"]')
-    ).map((panel) => panel.textContent);
+    const tooltipPanels = [...document.querySelectorAll('[role="tooltip"]')].map((panel) => panel.textContent);
 
     expect(tooltipPanels).toContain(blockText);
     expect(tooltipPanels).toContain(dodgeText);
@@ -258,9 +256,7 @@ describe("TeamRoster skill tooltips", () => {
       );
     });
 
-    const triggers = Array.from(
-      container.querySelectorAll('span[tabindex="0"]')
-    );
+    const triggers = [...container.querySelectorAll('span[tabindex="0"]')];
     expect(triggers.length).toBe(2);
 
     for (const trigger of triggers) {
@@ -374,7 +370,7 @@ describe("TeamRoster row click and drag handle", () => {
   it("opens the player's page when the row is clicked", async () => {
     const team = await renderRoster();
     const positionCell = container.querySelectorAll(
-      '[data-testid="roster-row-2"] td'
+      ':scope [data-testid="roster-row-2"] td'
     )[2];
     click(fixtureValue(positionCell));
     const page = container.querySelector('[data-testid="player-page"]');
@@ -399,7 +395,7 @@ describe("TeamRoster row click and drag handle", () => {
     });
     const data = new Map<string, string>();
     const handle = fixtureValue(container.querySelector(
-      '[data-testid="roster-row-1"] [data-testid="drag-handle"]'
+      ':scope [data-testid="roster-row-1"] [data-testid="drag-handle"]'
     ));
     act(() => {
       handle.dispatchEvent(dragEvent("dragstart", data));
@@ -465,7 +461,7 @@ describe("TeamRoster SPP and value", () => {
 
   it("has SPP and Value columns and no Cost column", async () => {
     await renderLeagueTeam();
-    const headerLabels = Array.from(container.querySelectorAll("thead th")).map(
+    const headerLabels = [...container.querySelectorAll(":scope thead th")].map(
       (th) => th.textContent
     );
     expect(headerLabels).toEqual(expect.arrayContaining(["SPP", "Value"]));

@@ -78,7 +78,7 @@ export function snotlingsAtTheLimit(): Team {
   const insignificant = (template: (typeof templates)[number]) =>
     template.skills.some((skill) => skill.type === SkillType.INSIGNIFICANT);
   const significant = templates.filter((template) => !insignificant(template));
-  const snotling = fixtureValue(templates.find(insignificant));
+  const snotling = fixtureValue(templates.find((template) => insignificant(template)));
   const picks = significant.flatMap((template) =>
     Array.from({ length: template.maxAllowed ?? 1 }, () => template)
   );

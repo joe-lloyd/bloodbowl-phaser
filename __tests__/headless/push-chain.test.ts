@@ -309,7 +309,7 @@ describe("crowd surf", () => {
           type: "choose-follow-up",
           followUp: false,
         });
-        events = events.concat(followed.events);
+        events = [...events, ...followed.events];
       }
 
       const names = events.map((e) => e.name);
