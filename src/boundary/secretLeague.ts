@@ -1,9 +1,9 @@
 import { z } from "zod";
-import teamFile from "../data/secretLeague/secretLeagueTeamBlueprints.json";
-import playerFile from "../data/secretLeague/secretLeaguePlayerBlueprints.json";
-import skillFile from "../data/secretLeague/secretLeagueTraitsAndSkills.json";
-import ruleFile from "../data/secretLeague/secretLeagueTeamSpecialRules.json";
-import artFile from "../data/secretLeague/secretLeaguePositionModels.json";
+import teamFile from "../data/secretLeague/secretLeagueTeamBlueprints.json" with { type: "json" };
+import playerFile from "../data/secretLeague/secretLeaguePlayerBlueprints.json" with { type: "json" };
+import skillFile from "../data/secretLeague/secretLeagueTraitsAndSkills.json" with { type: "json" };
+import ruleFile from "../data/secretLeague/secretLeagueTeamSpecialRules.json" with { type: "json" };
+import artFile from "../data/secretLeague/secretLeaguePositionModels.json" with { type: "json" };
 
 function reference(folder: string) {
   const prefix = `${folder}/`;
