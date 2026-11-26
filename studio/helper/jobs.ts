@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { StudioJob } from "../boundary/studio";
 import type { OnLine } from "./run";
 
@@ -9,7 +10,7 @@ export class JobQueue {
   latest: StudioJob | null = null;
 
   add(kind: StudioJob["kind"], key: string, work: Work): StudioJob {
-    const job: StudioJob = { id: crypto.randomUUID(), kind, key, status: "queued", log: [] };
+    const job: StudioJob = { id: randomUUID(), kind, key, status: "queued", log: [] };
     this.jobs.set(job.id, job);
     this.latest = job;
     this.tail = this.tail.then(() => this.start(job, work));

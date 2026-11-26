@@ -55,7 +55,7 @@ describe("a player pushed onto a loose ball", () => {
       game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) =>
         events.push(d.rollType)
       );
-      response = await game.execute({
+      await game.execute({
         type: "choose-block-result",
         index: push,
       });

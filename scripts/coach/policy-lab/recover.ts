@@ -147,14 +147,13 @@ export async function recoverVerifiedGames(
     currentSource
   );
   mkdirSync(join(out, "traces"), { recursive: true });
-  let reused = 0;
   const pending = current.jobs.filter(
     (job) =>
       existsSync(join(oldRun, "games", job.id + ".json")) &&
       !existsSync(join(out, "games", job.id + ".json"))
   );
   await processPool(fileURLToPath(import.meta.url), [oldRun, out], pending, 8);
-  reused = current.jobs.filter((job) => {
+  const reused = current.jobs.filter((job) => {
     const file = join(out, "games", job.id + ".json");
     return (
       existsSync(file) &&

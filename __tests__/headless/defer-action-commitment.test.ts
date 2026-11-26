@@ -140,7 +140,7 @@ describe("defer-action-commitment", () => {
     });
     const playerId = fixtureValue(game.ctx.team1.players[0]).id;
 
-    let response = await game.execute({
+    const response = await game.execute({
       type: "declare-action",
       playerId,
       action: "block",
@@ -148,7 +148,7 @@ describe("defer-action-commitment", () => {
     expect(response.ok).toBe(true);
 
     if (response.pendingDecision?.type === "reaction") {
-      response = await game.execute({ type: "use-reaction", accept: false });
+      await game.execute({ type: "use-reaction", accept: false });
     }
     expect(game.snapshot().activePlayer).toMatchObject({
       id: playerId,
@@ -199,13 +199,12 @@ describe("defer-action-commitment", () => {
 
   it("Bone-head fails its gate: Distracted, activation ended, Blitz spent (5.3)", async () => {
     let found: Awaited<ReturnType<HeadlessGame["execute"]>> | null = null;
-    let playerId = "";
     for (let seed = 1; seed <= 300 && !found; seed++) {
       const game = new HeadlessGame({
         scenario: boneHeadScenario(`bone-head-${String(seed)}`),
         seed,
       });
-      playerId = fixtureValue(game.ctx.team1.players[0]).id;
+      const playerId = fixtureValue(game.ctx.team1.players[0]).id;
       await game.execute({
         type: "declare-action",
         playerId,

@@ -116,7 +116,7 @@ async function walkPlanned(c: GameplayInteractionController, playerId: string, r
   c.clearWaypoints();
   c.clearRollPreviews();
   c.pitch.clearPath();
-  let walked = false;
+  let walked: boolean;
   try {
     walked = await walkRoute(c, playerId, route);
   } catch (error) {

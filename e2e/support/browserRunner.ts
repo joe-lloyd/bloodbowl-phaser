@@ -99,7 +99,8 @@ export function assertBrowserCheckpoints(
           `  sandbox:  ${sandboxUrlFor(scenarioCase, variant)}\n` +
           `  replay:   pnpm e2e:replay ${scenarioCase.id} --variant ${variant.id} --headed\n` +
           `  bundle:   ${bundlePath}\n` +
-          `  (trace, screenshot and console output are in the same folder)`
+          `  (trace, screenshot and console output are in the same folder)`,
+        { cause: error }
       );
     }
   }

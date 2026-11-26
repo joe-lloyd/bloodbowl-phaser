@@ -171,13 +171,8 @@ export class DiceController {
     needed: number;
   } {
     const roll = this.rng.rollDie(6);
-    let success = false;
-
     const effectiveTotal = Math.min(6, roll + modifier);
-
-    if (roll === 6) success = true;
-    else if (roll === 1) success = false;
-    else success = effectiveTotal >= target;
+    const success = roll === 6 || (roll !== 1 && effectiveTotal >= target);
 
     const fullReason = playerName ? `${reason} (${playerName})` : reason;
 
