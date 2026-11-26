@@ -16,25 +16,12 @@ from teams.secret_dwarfs import goggles
 from teams.secret_undead import Syreen  # noqa: F401  registers the "sea_green" ramp
 from teams.undead_skaven_lizards_undead import Werewolf
 
-palette.ramp("spider_black", "#14101a", "#2e2636", "#4a4456")
-palette.ramp("spider_purple", "#2a1a4a", "#5a3a8a", "#9a6ac8")
-palette.ramp("skin_snake", "#2a4a1a", "#5a8a2a", "#a8c85a")
-palette.ramp("skin_moss", "#2a3a1a", "#4a6a2a", "#7a9a4a")
-palette.ramp("lava_rock", "#2a1a14", "#4a3a34", "#7a6a5e")
-palette.ramp("crab_red", "#6a1a14", "#b0402a", "#e87a5a")
-palette.ramp("turtle_shell", "#2a3a1a", "#5a6a2a", "#9aa05a")
-palette.ramp("fur_koala", "#4a4a52", "#8a8a94", "#c4c4cc")
-palette.ramp("fur_roo", "#6a3a1a", "#a86a3a", "#d8a878")
-palette.ramp("skin_blue_ind", "#1a3a6a", "#3a6ab0", "#7aa8e0")
-palette.ramp("skin_elephant", "#4a4a52", "#7a7a86", "#b0b0bc")
-palette.ramp("river_green", "#1a3a2a", "#3a6a4a", "#6aa07a")
-palette.ramp("sylph_skin", "#7a9ab0", "#b8d4e8", "#eef8ff")
 
 
 # ----------------------------------------------------------------------------- spiders
 class Spider(Quadruped):
     """Eight legs round a thorax and a big abdomen; kit1 band on the abdomen and kit2 marking on its back."""
-    skin = "spider_black"
+    skin = "fur_black"
     mark = "kit2"
     size = 1.0
     leg_len, leg_r = 0.5, 0.04
@@ -79,7 +66,7 @@ class Spider(Quadruped):
 class SkullbackSpider(Spider):
     """A purple spider with a white skull marking on its back."""
     key = "skullback_spider"
-    skin = "spider_purple"
+    skin = "varg_skin"
     mark = "white"
     target_px = 52
 
@@ -124,7 +111,7 @@ class SpiderRider(Centaur):
     target_px = 70
 
     class Body(Spider):
-        skin = "spider_black"
+        skin = "fur_black"
         mark = "kit2"
         size = 1.15
 
@@ -145,7 +132,7 @@ class Snakeman(Floating):
     """A snake-headed man on a coiled snake tail; kit1 sash and kit2 belt."""
     race = "skink"
     hover = 0.04
-    scale_mat = "skin_snake"
+    scale_mat = "skin_orc"
     knobs = dict(torso=0.95, limb=0.95, hunch=6)
 
     def make_layout(self, pose):
@@ -183,7 +170,7 @@ class SnakeRunner(Snakeman):
 class Mesmer(Snakeman):
     """A cobra-hooded mesmer with a gold staff and swaying gaze."""
     key = "mesmer"
-    scale_mat = "spider_purple"
+    scale_mat = "varg_skin"
     target_px = 88
 
     def extras(self, J, P, L, tag, pose):
@@ -211,7 +198,7 @@ class FenBeast(Biped):
     key = "fen_beast"
     race = "troll"
     knobs = dict(hunch=16, limb=1.4, shoulders=1.3, torso=1.3)
-    layout = dict(skin="skin_moss", lip="skin_moss", eyes="red", brow="socket", ears=None, legs="skin_moss", arms="skin_moss", belt="kit1",
+    layout = dict(skin="cloth_green", lip="cloth_green", eyes="red", brow="socket", ears=None, legs="cloth_green", arms="cloth_green", belt="kit1",
                   buckle=None, loin="kit2", loin_trim="kit1")
     stance = dict(lean=10, legs={"l": (8, 16, 12), "r": (-6, 16, 10)}, arms={"l": (12, 26, 30), "r": (12, 26, 30)}, hands="open")
     stride, arm_swing, jump = 30, 22, 0.08
@@ -219,7 +206,7 @@ class FenBeast(Biped):
 
     def extras(self, J, P, L, tag, pose):
         ec.leaf_ring(J, P, tag, P["sh_h"] - 0.05, 9, 0.3, "leaf", width=0.07, droop=0.95)
-        ec.leaf_ring(J, P, tag, 0.15, 9, 0.25, "skin_moss", width=0.07, droop=0.9, name="reed")
+        ec.leaf_ring(J, P, tag, 0.15, 9, 0.25, "cloth_green", width=0.07, droop=0.9, name="reed")
 
 
 @register
@@ -321,7 +308,7 @@ class GreatSylph(Floating):
 
     def make_layout(self, pose):
         L = super().make_layout(pose)
-        L.update(skin="sylph_skin", arms="sylph_skin", torso="kit1", hair="long", hair_mat="hair_white", brow="hair_white", lip="lip_f",
+        L.update(skin="gale", arms="gale", torso="kit1", hair="long", hair_mat="hair_white", brow="hair_white", lip="lip_f",
                  coat_mat="kit1", robe_lining="kit2", hem="kit2", jag=0.5)
         return L
 
@@ -358,8 +345,8 @@ class Kalite(Biped):
     key = "kalite"
     race = "human"
     sex = "f"
-    layout = dict(skin="skin_blue_ind", hair="long", hair_mat="hair", brow="hair", lip="lip_f", torso="kit1", arms="skin_blue_ind",
-                  legs="skin_blue_ind", boots="skin_blue_ind", cuff=None, loin="kit2", loin_trim="gold", neckband="gold", bracers="gold")
+    layout = dict(skin="skin_blue", hair="long", hair_mat="hair", brow="hair", lip="lip_f", torso="kit1", arms="skin_blue",
+                  legs="skin_blue", boots="skin_blue", cuff=None, loin="kit2", loin_trim="gold", neckband="gold", bracers="gold")
     stance = dict(lean=2, legs={"l": (8, 10, 10), "r": (-6, 10, 10)}, arms={"l": (30, 40, 50), "r": (30, 40, 50)}, hands="open")
     stride, arm_swing, jump = 42, 34, 0.28
     target_px = 88
@@ -369,8 +356,8 @@ class Kalite(Biped):
             sh = J["arms"][side][0] - UP * 0.12
             el = sh + J["X"] * sd * 0.28 + UP * 0.1 + J["F"] * 0.05
             wr = el + UP * 0.25 + J["X"] * sd * 0.05
-            tube(tag + "arm2" + side, [sh, el, wr], [0.06, 0.05, 0.04], "skin_blue_ind", n=8)
-            ball_at(tag + "hand2" + side, wr + UP * 0.04, 0.05, "skin_blue_ind")
+            tube(tag + "arm2" + side, [sh, el, wr], [0.06, 0.05, 0.04], "skin_blue", n=8)
+            ball_at(tag + "hand2" + side, wr + UP * 0.04, 0.05, "skin_blue")
             ball_at(tag + "bangle2" + side, wr, 0.045, "gold")
 
 
@@ -402,8 +389,8 @@ class Ganasa(Biped):
     key = "ganasa"
     race = "ogre"
     knobs = dict(belly=1.3, shoulders=1.3, limb=1.4)
-    layout = dict(skin="skin_elephant", head="snout", snout=(0.5, 1.2), ears="bull", ear_mat="skin_elephant", eye_mat="eye", tusks=True,
-                  snout_mat="skin_elephant", nose_mat="skin_elephant", legs="kit1", boots="skin_elephant", cuff=None, belt="kit2", buckle="gold",
+    layout = dict(skin="fur_grey", head="snout", snout=(0.5, 1.2), ears="bull", ear_mat="fur_grey", eye_mat="eye", tusks=True,
+                  snout_mat="fur_grey", nose_mat="fur_grey", legs="kit1", boots="fur_grey", cuff=None, belt="kit2", buckle="gold",
                   neckband="gold", bracers="gold")
     stance = dict(lean=2, legs={"l": (6, 14, 10), "r": (-6, 14, 8)}, arms={"l": (8, 34, 40), "r": (8, 34, 40)}, hands="fist")
     stride, arm_swing, jump = 28, 22, 0.08
@@ -412,9 +399,9 @@ class Ganasa(Biped):
     def extras(self, J, P, L, tag, pose):
         c, X, F, U, s = cc.hf(J)
         root = c + F * s[1] * 0.9 - U * s[2] * 0.2
-        cc.tentacle(tag + "trunk", root, F - U * 0.5, -UP * 1.2 + F * 0.3, 0.55, s[0] * 0.28, "skin_elephant", curl=1.5, tip=0.4)
+        cc.tentacle(tag + "trunk", root, F - U * 0.5, -UP * 1.2 + F * 0.3, 0.55, s[0] * 0.28, "fur_grey", curl=1.5, tip=0.4)
         for sd in (-1, 1):
-            ellipsoid(tag + "bigear%d" % sd, c + X * sd * s[0] * 1.1, (s[0] * 0.15, s[1] * 0.6, s[2] * 0.8), "skin_elephant", J["head_R"])
+            ellipsoid(tag + "bigear%d" % sd, c + X * sd * s[0] * 1.1, (s[0] * 0.15, s[1] * 0.6, s[2] * 0.8), "fur_grey", J["head_R"])
 
 
 @register
@@ -423,9 +410,9 @@ class DropBear(Quadruped):
     key = "drop_bear"
     body = (0.6, 0.24)
     leg_len, leg_r = 0.24, 0.07
-    skin = "fur_koala"
+    skin = "fur_grey"
     paw_mat = "black"
-    head = dict(snout=(0.4, 1.2), ears="rat", ear_mat="fur_white", fangs=True, eye_mat="eye", snout_mat="fur_koala", nose_mat="black")
+    head = dict(snout=(0.4, 1.2), ears="rat", ear_mat="fur_white", fangs=True, eye_mat="eye", snout_mat="fur_grey", nose_mat="black")
     head_size = 0.24
     tail = None
     coat, collar = "kit1", "kit2"
@@ -438,8 +425,8 @@ class Kangor(Biped):
     key = "kangor"
     race = "werewolf"
     knobs = dict(digi=True, legs=1.15, limb=1.0, hunch=10, arms=0.85)
-    layout = dict(skin="fur_roo", legs="fur_roo", head="snout", snout=(0.9, 0.8), ears="rat", ear_mat="fur_roo", fangs=False, eye_mat="eye",
-                  shorts="kit1", wraps="kit2", tail=dict(len=0.9, r=0.13, mat="fur_roo", up=0.0), claws=None)
+    layout = dict(skin="fur_red", legs="fur_red", head="snout", snout=(0.9, 0.8), ears="rat", ear_mat="fur_red", fangs=False, eye_mat="eye",
+                  shorts="kit1", wraps="kit2", tail=dict(len=0.9, r=0.13, mat="fur_red", up=0.0), claws=None)
     stance = dict(lean=12, legs={"l": (20, 18, 40), "r": (20, 18, 40)}, arms={"l": (40, 30, 80), "r": (40, 30, 80)}, hands="fist")
     stride, arm_swing, jump = 40, 20, 0.4
     target_px = 96
@@ -473,7 +460,7 @@ class Ignimbrite(Biped):
     key = "ignimbrite"
     race = "troll"
     knobs = dict(shoulders=1.35, torso=1.3, limb=1.45, hunch=8)
-    layout = dict(skin="lava_rock", lip="lava_rock", eyes="red", brow="socket", ears=None, legs="lava_rock", arms="lava_rock", belt="kit2",
+    layout = dict(skin="darkmetal", lip="darkmetal", eyes="red", brow="socket", ears=None, legs="darkmetal", arms="darkmetal", belt="kit2",
                   buckle=None, loin="kit1", loin_trim="kit2")
     stance = dict(lean=4, legs={"l": (6, 14, 10), "r": (-6, 14, 8)}, arms={"l": (10, 30, 30), "r": (10, 30, 30)}, hands="fist")
     stride, arm_swing, jump = 28, 22, 0.08
@@ -492,7 +479,7 @@ class GiantCrab(Quadruped):
     key = "giant_crab"
     body = (0.7, 0.3)
     leg_len, leg_r = 0.3, 0.05
-    skin = "crab_red"
+    skin = "skin_chaos"
     headless = True
     tail = None
     coat, collar = "kit1", None
@@ -504,11 +491,11 @@ class GiantCrab(Quadruped):
         for sd in (-1, 1):
             root = front + X * sd * 0.3
             el = root + F * 0.2 + X * sd * 0.2 + UP * 0.1
-            tube(tag + "claw%d" % sd, [root, el], [0.07, 0.06], "crab_red", n=8)
-            ellipsoid(tag + "pincer%d" % sd, el + F * 0.12, (0.12, 0.15, 0.08), "crab_red")
-            cone(tag + "pinch%d" % sd, el + F * 0.2, el + F * 0.35 + X * sd * 0.05, 0.05, "crab_red", 5)
+            tube(tag + "claw%d" % sd, [root, el], [0.07, 0.06], "skin_chaos", n=8)
+            ellipsoid(tag + "pincer%d" % sd, el + F * 0.12, (0.12, 0.15, 0.08), "skin_chaos")
+            cone(tag + "pinch%d" % sd, el + F * 0.2, el + F * 0.35 + X * sd * 0.05, 0.05, "skin_chaos", 5)
             stalk = front + X * sd * 0.1 + UP * 0.25
-            tube(tag + "stalk%d" % sd, [front + X * sd * 0.1 + UP * 0.1, stalk], [0.02, 0.02], "crab_red", n=5)
+            tube(tag + "stalk%d" % sd, [front + X * sd * 0.1 + UP * 0.1, stalk], [0.02, 0.02], "skin_chaos", n=5)
             ball_at(tag + "ceye%d" % sd, stalk, 0.04, "black")
 
 
@@ -545,7 +532,7 @@ class Turtleman(Biped):
 
     def extras(self, J, P, L, tag, pose):
         back = J["pelvis"] + J["u"] * 0.25 + J["B"] * 0.16
-        ellipsoid(tag + "shell", back, (0.3, 0.2, 0.34), "turtle_shell")
+        ellipsoid(tag + "shell", back, (0.3, 0.2, 0.34), "cloth_green")
         ellipsoid(tag + "plastron", surf(J, P, 0.2, 0, 0.02), (0.22, 0.08, 0.24), "skin_belly")
         cc.headband(J, tag, "kit1", tails=True)
 
@@ -588,12 +575,12 @@ class FireBelly(OgreBlocker):
 class RiverTroll(Troll):
     """A slimy green river troll trailing weed, with a kit1 net slung over one shoulder."""
     key = "river_troll"
-    layout = dict(Troll.layout, skin="river_green", legs="river_green", boots="river_green", lip="river_green")
+    layout = dict(Troll.layout, skin="skin_krox", legs="skin_krox", boots="skin_krox", lip="skin_krox")
     target_px = 92
 
     def extras(self, J, P, L, tag, pose):
         super().extras(J, P, L, tag, pose)
-        ec.leaf_ring(J, P, tag, P["sh_h"] - 0.02, 7, 0.22, "skin_moss", width=0.05, droop=1.0, name="weed")
+        ec.leaf_ring(J, P, tag, P["sh_h"] - 0.02, 7, 0.22, "cloth_green", width=0.05, droop=1.0, name="weed")
         cc.strap(J, P, tag, "kit1", r=0.05, flip=-1, name="net")
 
 
