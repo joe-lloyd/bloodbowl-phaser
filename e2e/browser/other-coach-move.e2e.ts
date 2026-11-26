@@ -13,7 +13,7 @@ test("the other coach's path stays drawn until the move resolves, then clears", 
     page.evaluate(
       ([event, payload]) => {
         (
-          window as unknown as {
+          globalThis as unknown as {
             eventBus: { emit(name: string, data: unknown): void };
           }
         ).eventBus.emit(event, payload);

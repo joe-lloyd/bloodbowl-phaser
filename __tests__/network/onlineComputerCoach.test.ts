@@ -128,7 +128,7 @@ function connect(
     eventBus: bus,
     transport,
     seed: 8,
-    ...(computer ? { computer: { pace: 0 } } : {}),
+    ...(computer && { computer: { pace: 0 } }),
   });
   matches.push(match);
   const service = ServiceContainer.getInstance().gameService;

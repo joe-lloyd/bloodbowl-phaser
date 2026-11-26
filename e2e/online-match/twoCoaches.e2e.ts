@@ -135,7 +135,7 @@ async function openCoach(side: Side): Promise<Coach> {
 async function engineView(page: Page) {
   return page
     .evaluate(() => {
-      const bridge = (window as unknown as Record<string, unknown>)[
+      const bridge = (globalThis as unknown as Record<string, unknown>)[
         "__bbTestBridge"
       ] as { snapshot(): Record<string, unknown> } | undefined;
       const s = bridge?.snapshot() as

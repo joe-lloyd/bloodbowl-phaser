@@ -79,7 +79,7 @@ function logChoice(
   note: string | undefined
 ): void {
   if (!import.meta.env.DEV) return;
-  const log = (window.__computerLog ??= []);
+  const log = (globalThis.__computerLog ??= []);
   log.push(
     `${String(snapshot.turn.turnNumber)} ${label}${note ? ` | ${note}` : ""}`
   );
@@ -117,9 +117,7 @@ export function computerOwnsDecision(
 }
 
 declare global {
-  interface Window {
-    __computerLog?: string[];
-  }
+  var __computerLog: string[] | undefined;
 }
 
 class ComputerCoach {

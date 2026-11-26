@@ -40,7 +40,7 @@ test("a recording's state resumes on the real board unchanged", async ({
 
   await page.addInitScript(
     ([key, value]) => {
-      window.localStorage.setItem(key, value);
+      localStorage.setItem(key, value);
     },
     [MATCH_SAVE_STORAGE_KEY, save] as const
   );

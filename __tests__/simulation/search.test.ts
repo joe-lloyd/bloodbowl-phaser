@@ -29,7 +29,7 @@ const position = (hasBall: "team1" | "team2" | null): Scenario => ({
         playerIndex: 0,
         x: 12,
         y: 5,
-        ...(hasBall === "team1" ? { hasBall: true as const } : {}),
+        ...((hasBall === "team1") && { hasBall: true as const }),
       },
       { playerIndex: 1, x: 10, y: 3 },
       { playerIndex: 2, x: 10, y: 7 },
@@ -39,14 +39,14 @@ const position = (hasBall: "team1" | "team2" | null): Scenario => ({
         playerIndex: 0,
         x: 13,
         y: 5,
-        ...(hasBall === "team2" ? { hasBall: true as const } : {}),
+        ...((hasBall === "team2") && { hasBall: true as const }),
       },
       { playerIndex: 1, x: 15, y: 3 },
     ],
     activeTeam: "team1",
     phase: GamePhase.PLAY,
     subPhase: SubPhase.TURN_RECEIVING,
-    ...(hasBall ? {} : { ballPosition: { x: 14, y: 5 } }),
+    ...(!hasBall && { ballPosition: { x: 14, y: 5 } }),
   },
 });
 
@@ -222,7 +222,7 @@ describe("the position score", () => {
         playerIndex: 0,
         x: 19,
         y: 5,
-        ...(ball === "scorer" ? { hasBall: true as const } : {}),
+        ...((ball === "scorer") && { hasBall: true as const }),
       };
       delete scenario.setup.ballPosition;
       const game = new HeadlessGame({ scenario, seed: 1 });

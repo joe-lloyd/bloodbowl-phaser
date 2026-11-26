@@ -323,7 +323,7 @@ export function createTeam(
     draws: 0,
     touchdowns: 0,
     casualties: 0,
-    ...(advancementMode ? { advancementMode } : {}),
+    ...(advancementMode && { advancementMode }),
   };
 }
 

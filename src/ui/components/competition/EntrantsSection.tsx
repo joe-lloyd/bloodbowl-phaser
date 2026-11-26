@@ -50,7 +50,7 @@ export function EntrantsSection({
 }) {
   const overdue = new Set(overdueEntrantIds(competition, now));
   const act = (entrant: CompetitionEntrant, action: Exclude<EntrantAction, null>) => {
-    if (!window.confirm(CONFIRM[action])) return;
+    if (!confirm(CONFIRM[action])) return;
     const work =
       action === "withdraw"
         ? withdrawFromCompetition(

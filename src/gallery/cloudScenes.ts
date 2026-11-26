@@ -155,7 +155,7 @@ export const hostReady = (ready: boolean) => () => {
     lobbyDoc(ME, {
       guestUid: RIVAL,
       players: bothPlayers(ready),
-      ...(ready ? { seedCommits: seeds, seedReveals: seeds } : {}),
+      ...(ready && { seedCommits: seeds, seedReveals: seeds }),
     })
   );
 };
@@ -255,7 +255,7 @@ export const rolledPlayer = (roll?: PendingAdvancementRoll) => () => {
       const ready = {
         ...first,
         spp: 30,
-        ...(roll ? { pendingAdvancementRoll: roll } : {}),
+        ...(roll && { pendingAdvancementRoll: roll }),
       };
       return { ...team, players: [ready, ...rest] };
     })

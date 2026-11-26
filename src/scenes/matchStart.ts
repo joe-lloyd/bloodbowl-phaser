@@ -84,14 +84,14 @@ export function ensureMatchServices(
   }
   const save = restored?.save;
   ServiceContainer.initialize({
-    eventBus: window.eventBus,
+    eventBus: globalThis.eventBus,
     team1,
     team2,
     initialState,
     progressionEnabled:
       save?.matchStats.progressionEnabled ?? progressionEnabled ?? false,
-    ...(save ? { rngState: save.rng, matchStatsState: save.matchStats } : {}),
-    ...(save?.turnManager ? { turnManagerState: save.turnManager } : {}),
+    ...(save && { rngState: save.rng, matchStatsState: save.matchStats }),
+    ...(save?.turnManager && { turnManagerState: save.turnManager }),
   });
 }
 
@@ -111,7 +111,7 @@ export function startAutosave(scene: GameScene): MatchAutosave {
         rng: container.rngService.captureState(),
         matchStats: container.matchStats.captureState(),
         turnManager: scene.gameService.captureTurnManagerState(),
-        ...(scene.competitionContext === undefined ? {} : { competition: scene.competitionContext }),
+        ...(scene.competitionContext !== undefined && { competition: scene.competitionContext }),
       }),
     { enabled: true }
   );

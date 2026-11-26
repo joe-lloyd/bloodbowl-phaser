@@ -42,7 +42,7 @@ export function TeamCrest({
       )}
       style={{
         clipPath: SHIELD,
-        ...(kit ? { backgroundColor: kit.trim } : {}),
+        ...(kit && { backgroundColor: kit.trim }),
       }}
     >
       <span
@@ -52,13 +52,11 @@ export function TeamCrest({
         )}
         style={{
           clipPath: SHIELD,
-          ...(kit
-            ? {
+          ...(kit && {
                 backgroundColor: kit.fill,
                 color: kit.trim,
                 textShadow: "0 1px 2px rgba(0, 0, 0, 0.85)",
-              }
-            : {}),
+              }),
         }}
       >
         {crestInitials(name)}

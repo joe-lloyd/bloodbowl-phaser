@@ -80,7 +80,7 @@ function submitReport({ competition, fixture, draft, knockout, onRecorded, onErr
     context: fixtureContext({ competition, fixtureId: fixture.id, playedVia: "reported" }),
     homeScore: scores[0],
     awayScore: scores[1],
-    ...(penalties ? { penalties } : {}),
+    ...(penalties && { penalties }),
   })
     .then((updated) => {
       onRecorded(updated);

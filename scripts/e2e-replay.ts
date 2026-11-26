@@ -37,8 +37,8 @@ function parseArgs(argv: string[]): Args {
   const variantId = flag("variant");
   return {
     target: positional[0] ?? "",
-    ...(variantId === undefined ? {} : { variantId }),
-    ...(seedRaw === undefined ? {} : { seed: Number(seedRaw) }),
+    ...(variantId !== undefined && { variantId }),
+    ...(seedRaw !== undefined && { seed: Number(seedRaw) }),
     browser: argv.includes("--browser"),
     headed: argv.includes("--headed"),
   };
@@ -114,15 +114,13 @@ async function replayInEngine(
     scenarioCase,
     variant,
     observed,
-    ...(failures[0]
-      ? {
+    ...(failures[0] && {
           failure: {
             checkpointId: failures[0].id,
             checkpointDescription: "",
             message: failures[0].message,
           },
-        }
-      : {}),
+        }),
   });
 
   const dir = join(process.cwd(), "e2e-results", "diagnostics");

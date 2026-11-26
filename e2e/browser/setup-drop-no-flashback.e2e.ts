@@ -161,7 +161,7 @@ async function dragAndRecord(
         y: number;
         visible: boolean;
       }
-      const game = (window as unknown as { game: PhaserGame }).game;
+      const game = (globalThis as unknown as { game: PhaserGame }).game;
       interface PhaserGame {
         events: {
           on(event: string, fn: () => void): void;
@@ -215,12 +215,12 @@ async function dragAndRecord(
         setTimeout(() => sample("release"), 0);
       };
       game.events.on("postrender", onRender);
-      window.addEventListener("pointerdown", onDown, {capture: true});
-      window.addEventListener("pointerup", onUp, {capture: true});
-      (window as unknown as Record<string, unknown>)["__dropRecorder"] = () => {
+      addEventListener("pointerdown", onDown, {capture: true});
+      addEventListener("pointerup", onUp, {capture: true});
+      (globalThis as unknown as Record<string, unknown>)["__dropRecorder"] = () => {
         game.events.off("postrender", onRender);
-        window.removeEventListener("pointerdown", onDown, true);
-        window.removeEventListener("pointerup", onUp, true);
+        removeEventListener("pointerdown", onDown, true);
+        removeEventListener("pointerup", onUp, true);
         return {
           playerId,
           from: pitch.getPixelPosition(from.x, from.y),
@@ -245,7 +245,7 @@ async function dragAndRecord(
   await page.waitForTimeout(500);
   const log = await page.evaluate(() =>
     (
-      (window as unknown as Record<string, unknown>)[
+      (globalThis as unknown as Record<string, unknown>)[
         "__dropRecorder"
       ] as () => FrameLog
     )()
@@ -269,7 +269,7 @@ async function dugoutSquare(page: Page, playerId: string): Promise<Square> {
       y: number;
     }
     const scene = ((
-      window as unknown as {
+      globalThis as unknown as {
         game: {
           scene: {
             getScenes(active: boolean): {

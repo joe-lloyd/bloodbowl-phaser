@@ -32,7 +32,7 @@ function regressionCase(
       step({ type: "move", playerId: "team1:0", path: [{ x: 6, y: 5 }] }),
     ],
     layers: ["engine"],
-    ...(regression === undefined ? {} : { regression: regression }),
+    ...(regression !== undefined && { regression: regression }),
     variants: [{ id: "v", name: "V", seed: 1, expectedOutcome: "moves" }],
     checkpoints: [{ id: "c", description: "c", assert: () => undefined }],
     ...overrides,

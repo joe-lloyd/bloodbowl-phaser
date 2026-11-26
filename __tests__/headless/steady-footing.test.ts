@@ -204,7 +204,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
       offers.push({
         kind: request.rollKind,
         roll: request.roll,
-        ...(request.needed === undefined ? {} : { needed: request.needed }),
+        ...(request.needed !== undefined && { needed: request.needed }),
       });
       game.ctx.gameService
         .getDecisionService()

@@ -64,7 +64,7 @@ describe("OnlineLobby SettingsPanel — turn timer", () => {
     const select = turnTimerSelect();
     await act(async () => {
       const nativeSetter = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
-        window.HTMLSelectElement.prototype,
+        HTMLSelectElement.prototype,
         "value"
       )).set);
       nativeSetter.call(select, "0");

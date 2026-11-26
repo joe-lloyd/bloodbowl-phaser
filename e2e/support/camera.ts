@@ -3,7 +3,7 @@ import type { BrowserTestBridge } from "../../src/testing/browserBridge";
 
 type CameraState = NonNullable<ReturnType<BrowserTestBridge["cameraState"]>>;
 type Sample = CameraState & { time: number };
-type CameraWindow = Window & {
+type CameraWindow = typeof globalThis & {
   __bbTestBridge?: BrowserTestBridge;
   cameraSamples?: Sample[];
   cameraSampling?: boolean;
@@ -11,7 +11,7 @@ type CameraWindow = Window & {
 
 export async function cameraState(page: Page) {
   const state = await page.evaluate(() =>
-    (window).__bbTestBridge?.cameraState()
+    (globalThis).__bbTestBridge?.cameraState()
   );
   if (!state) throw new Error("No live match camera");
   return state;
@@ -19,7 +19,7 @@ export async function cameraState(page: Page) {
 
 export async function sampleCamera(page: Page) {
   await page.evaluate(() => {
-    const w: CameraWindow = window;
+    const w: CameraWindow = globalThis;
     w.cameraSamples = [];
     w.cameraSampling = true;
     const sample = () => {
@@ -38,7 +38,7 @@ export async function finishCameraSample(
   name: string
 ) {
   const samples = await page.evaluate(() => {
-    const w: CameraWindow = window;
+    const w: CameraWindow = globalThis;
     w.cameraSampling = false;
     return w.cameraSamples ?? [];
   });

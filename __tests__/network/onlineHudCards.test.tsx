@@ -154,7 +154,7 @@ describe("online HUD cards", () => {
   });
 });
 
-const ENGINE_ONLY = [
+const ENGINE_ONLY = new Set([
   "addTouchdown",
   "abandonKick",
   "announceFullTime",
@@ -185,7 +185,7 @@ const ENGINE_ONLY = [
   "takeUnsatedBloodlust",
   "updateDedicatedFans",
   "whenSettled",
-];
+]);
 
 it("NetworkedGameService offers every GameService method the HUD can call", () => {
   const networked = new Set([
@@ -193,7 +193,7 @@ it("NetworkedGameService offers every GameService method the HUD can call", () =
     ...Object.getOwnPropertyNames(ServiceContainer.getInstance().gameService),
   ]);
   const missing = Object.getOwnPropertyNames(GameService.prototype).filter(
-    (name) => !networked.has(name) && !ENGINE_ONLY.includes(name)
+    (name) => !networked.has(name) && !ENGINE_ONLY.has(name)
   );
   expect(missing).toEqual([]);
 });

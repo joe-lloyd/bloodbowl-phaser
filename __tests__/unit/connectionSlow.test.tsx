@@ -189,8 +189,8 @@ describe("subscribeMatchLobby", () => {
   });
 
   it("follows the browser going offline and back", () => {
-    window.dispatchEvent(new Event("offline"));
-    window.dispatchEvent(new Event("online"));
+    dispatchEvent(new Event("offline"));
+    dispatchEvent(new Event("online"));
     expect(links.map((link) => link.state)).toEqual([
       "online",
       "offline",

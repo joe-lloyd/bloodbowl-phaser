@@ -18,7 +18,6 @@ import { type Coach } from "../../src/simulation/coach";
 import { plannerCoach } from "../../src/simulation/ai/planner";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { createCoachRng } from "../../src/simulation/rng";
-import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { RosterName } from "../../src/types/Team";
@@ -172,11 +171,7 @@ describe("whose turn it is against the computer", () => {
 
     await confirmComputerPregame(match);
     await match.run({ type: "start-setup", kickingTeamId: team2.id });
-    const game = (
-      globalThis.window as unknown as {
-        __computerMatch: { game: HeadlessGame };
-      }
-    ).__computerMatch.game;
+    const game = fixtureValue(globalThis.__computerMatch).game;
     const rng = createCoachRng(5);
     const live = match;
 
@@ -267,11 +262,7 @@ describe("a match against the computer", () => {
         kickingTeamId: firstKicker === "human" ? team1.id : team2.id,
       });
 
-      const game = (
-        globalThis.window as unknown as {
-          __computerMatch: { game: HeadlessGame };
-        }
-      ).__computerMatch.game;
+      const game = fixtureValue(globalThis.__computerMatch).game;
       const rng = createCoachRng(5);
       let humanCommands = 0;
       let refused = 0;
@@ -348,11 +339,7 @@ describe("the computer's pace", () => {
     });
     await confirmComputerPregame(match);
     await match.run({ type: "start-setup", kickingTeamId: team2.id });
-    const game = (
-      globalThis.window as unknown as {
-        __computerMatch: { game: HeadlessGame };
-      }
-    ).__computerMatch.game;
+    const game = fixtureValue(globalThis.__computerMatch).game;
     const placed = () =>
       fixtureValue(game.snapshot().teams[1]).players.filter((p) => p.position)
         .length;

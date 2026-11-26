@@ -19,7 +19,7 @@ export class GameBridge {
 
   async waitForReady(timeout = 20_000): Promise<void> {
     await this.page.waitForFunction(
-      (key) => !!(window as never)[key],
+      (key) => !!(globalThis as never)[key],
       BRIDGE_KEY,
       { timeout }
     );
@@ -27,7 +27,7 @@ export class GameBridge {
 
   snapshot(): Promise<GameSnapshot> {
     return this.page.evaluate(() =>
-      ((window as unknown as Record<string, BrowserTestBridge>)[
+      ((globalThis as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
       ])!.snapshot()
     );
@@ -36,7 +36,7 @@ export class GameBridge {
   events(sinceIndex = 0): Promise<EmittedEvent[]> {
     return this.page.evaluate(
       (since) =>
-        ((window as unknown as Record<string, BrowserTestBridge>)[
+        ((globalThis as unknown as Record<string, BrowserTestBridge>)[
           "__bbTestBridge"
         ])!.events(since),
       sinceIndex
@@ -45,7 +45,7 @@ export class GameBridge {
 
   pendingDecision(): Promise<PendingDecision | null> {
     return this.page.evaluate(() =>
-      ((window as unknown as Record<string, BrowserTestBridge>)[
+      ((globalThis as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
       ])!.pendingDecision()
     );
@@ -57,7 +57,7 @@ export class GameBridge {
     activeTeamId: string | null;
   }> {
     return this.page.evaluate(() =>
-      ((window as unknown as Record<string, BrowserTestBridge>)[
+      ((globalThis as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
       ])!.phase()
     );
@@ -65,7 +65,7 @@ export class GameBridge {
 
   scenes(): Promise<string[]> {
     return this.page.evaluate(() =>
-      ((window as unknown as Record<string, BrowserTestBridge>)[
+      ((globalThis as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
       ])!.scenes()
     );
@@ -73,7 +73,7 @@ export class GameBridge {
 
   pitchLayers(): Promise<string[]> {
     return this.page.evaluate(() =>
-      ((window as unknown as Record<string, BrowserTestBridge>)[
+      ((globalThis as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
       ])!.pitchLayers()
     );
@@ -81,7 +81,7 @@ export class GameBridge {
 
   pitchHighlights(): Promise<{ x: number; y: number }[]> {
     return this.page.evaluate(() =>
-      ((window as unknown as Record<string, BrowserTestBridge>)[
+      ((globalThis as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
       ])!.pitchHighlights()
     );
@@ -89,7 +89,7 @@ export class GameBridge {
 
   teams(): Promise<[BridgeTeam, BridgeTeam]> {
     return this.page.evaluate(() =>
-      ((window as unknown as Record<string, BrowserTestBridge>)[
+      ((globalThis as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
       ])!.teams()
     );

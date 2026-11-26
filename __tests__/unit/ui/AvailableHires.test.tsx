@@ -80,7 +80,7 @@ describe("AvailableHires skill tooltips", () => {
     expect(tooltipPanels).toContain(dodgeText);
 
     expect(
-      tooltipPanels.some((t) => t === `${defensiveText} ${dodgeText}`)
+      tooltipPanels.includes(`${defensiveText} ${dodgeText}`)
     ).toBe(false);
   });
 

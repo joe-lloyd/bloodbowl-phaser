@@ -23,7 +23,7 @@ export async function rehearse(
     event,
     isTeam1Kicking: true,
     landing: { x: 17, y: 5 },
-    ...(players === undefined ? {} : { selectionLimit: players }),
+    ...(players !== undefined && { selectionLimit: players }),
   });
   await settle();
   const home = (index: number) => fixtureValue(game.ctx.team1.players[index]);

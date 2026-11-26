@@ -385,7 +385,7 @@ describe("TeamBuilder opening a player", () => {
 
   it("opens a player of an unchanged saved team without asking", async () => {
     const team = await renderSavedTeam();
-    const confirmSpy = vi.spyOn(window, "confirm");
+    const confirmSpy = vi.spyOn(globalThis, "confirm");
     await clickRow(1);
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(
@@ -397,7 +397,7 @@ describe("TeamBuilder opening a player", () => {
     const team = await renderSavedTeam();
     const moved = fixtureValue(team.players.find((p) => p.number === 1));
     moveSlot(1, 9);
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirmSpy = vi.spyOn(globalThis, "confirm").mockReturnValue(true);
     await clickRow(9);
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(
@@ -410,8 +410,8 @@ describe("TeamBuilder opening a player", () => {
   it("stays on the team and says so when the save does not stick", async () => {
     const team = await renderSavedTeam();
     moveSlot(1, 9);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.spyOn(globalThis, "confirm").mockReturnValue(true);
+    const alertSpy = vi.spyOn(globalThis, "alert").mockImplementation(() => {});
 
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("quota exceeded", "QuotaExceededError");
@@ -431,7 +431,7 @@ describe("TeamBuilder opening a player", () => {
   it("stays on the team with edits intact when the coach declines to save", async () => {
     const team = await renderSavedTeam();
     moveSlot(1, 9);
-    vi.spyOn(window, "confirm").mockReturnValue(false);
+    vi.spyOn(globalThis, "confirm").mockReturnValue(false);
     await clickRow(9);
     expect(container.querySelector('[data-testid="player-page"]')).toBeNull();
     expect(
@@ -480,7 +480,7 @@ describe("TeamBuilder opening a player", () => {
     expect(
       container.querySelector('[data-testid="roster-row-4"]')?.textContent
     ).not.toContain("Empty slot");
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirmSpy = vi.spyOn(globalThis, "confirm").mockReturnValue(true);
     await clickRow(4);
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(saves).toHaveLength(1);
@@ -514,8 +514,8 @@ describe("TeamBuilder opening a player", () => {
     expect(modeButtons().every((button) => !button.disabled)).toBe(true);
 
     moveSlot(1, 9);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.spyOn(globalThis, "confirm").mockReturnValue(true);
+    vi.spyOn(globalThis, "alert").mockImplementation(() => {});
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("quota exceeded", "QuotaExceededError");
     });

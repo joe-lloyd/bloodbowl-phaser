@@ -57,7 +57,7 @@ describe("policy-lab play usage", () => {
         ok: response.ok,
         team,
         label: command.type,
-        ...(note === undefined ? {} : { note: note }),
+        ...(note !== undefined && { note: note }),
       });
       return response;
     };

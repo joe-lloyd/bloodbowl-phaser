@@ -14,7 +14,6 @@ import { stabilizeIds } from "../../src/headless/createHeadlessGame";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { createCoachRng } from "../../src/simulation/rng";
-import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import {
   type MatchSave,
   restoreMatchSave,
@@ -60,11 +59,7 @@ afterEach(() => {
 });
 
 const liveGame = () =>
-  (
-    globalThis.window as unknown as {
-      __computerMatch: { game: HeadlessGame };
-    }
-  ).__computerMatch.game;
+  fixtureValue(globalThis.__computerMatch).game;
 
 function startNew(
   pace: number,
@@ -72,7 +67,7 @@ function startNew(
 ): OnlineMatch {
   setMatchSaveRepository(repository);
   match = createComputerMatch({
-    ...(competitionContext === undefined ? {} : { competitionContext: competitionContext }),
+    ...(competitionContext !== undefined && { competitionContext: competitionContext }),
     eventBus: new EventBus(),
     team1: stabilizeIds(
       createLineupTeam(RosterName.DARK_ELF, "Poin", 0xcc0000),

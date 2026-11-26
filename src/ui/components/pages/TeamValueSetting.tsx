@@ -13,8 +13,8 @@ function withBound(range: TeamValueRange | undefined, bound: Bound, value: strin
   const min = bound === "min" ? picked : range?.min;
   const max = bound === "max" ? picked : range?.max;
   return {
-    ...(min === undefined ? {} : { min }),
-    ...(max === undefined ? {} : { max }),
+    ...(min !== undefined && { min }),
+    ...(max !== undefined && { max }),
   };
 }
 

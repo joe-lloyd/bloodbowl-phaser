@@ -83,10 +83,8 @@ describe("skill and prayer events keep their order", () => {
         pending.type === "inducement-choice"
           ? {
               type: "choose-inducement",
-              ...(pending.playerIds[0]
-                ? { playerId: pending.playerIds[0] }
-                : {}),
-              ...(pending.skills?.[0] ? { skill: pending.skills[0] } : {}),
+              ...(pending.playerIds[0] && { playerId: pending.playerIds[0] }),
+              ...(pending.skills?.[0] && { skill: pending.skills[0] }),
             }
           : undefined
       );

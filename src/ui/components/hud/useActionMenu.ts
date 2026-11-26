@@ -149,9 +149,7 @@ export function readMenuAvailability({
         teamId: selectedPlayer.teamId,
       }),
       hasMovedInAction,
-      ...(secondActionAfter === undefined
-        ? {}
-        : { secondActionAfter: secondActionAfter }),
+      ...(secondActionAfter !== undefined && { secondActionAfter: secondActionAfter }),
     });
     const state = gs.getState();
     return restrictAvailability(normal, (action) =>
@@ -183,11 +181,9 @@ export function menuActionRequest(
   return {
     action,
     playerId,
-    ...(blockReplacement === undefined ? {} : { blockReplacement }),
-    ...(half === undefined ? {} : { half }),
-    ...(razzleOn && canRazzle && action !== "forgoe"
-      ? { razzleDazzle: true }
-      : {}),
+    ...(blockReplacement !== undefined && { blockReplacement }),
+    ...(half !== undefined && { half }),
+    ...(razzleOn && canRazzle && action !== "forgoe" && { razzleDazzle: true }),
   };
 }
 

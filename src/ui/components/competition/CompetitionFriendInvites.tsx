@@ -9,7 +9,7 @@ import { HudButton, Section } from "../componentWarehouse/HudKit";
 import { FriendInviteList } from "../social/LobbyFriends";
 
 function shareLink(competition: CompetitionDoc): string {
-  return `${window.location.origin}${competitionPath({
+  return `${location.origin}${competitionPath({
     competitionType: competition.type,
     competitionId: competition.id,
   })}`;

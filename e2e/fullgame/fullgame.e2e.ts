@@ -156,7 +156,7 @@ test("a full Sevens match, built and played through the UI", async ({
       log(
         `   board ${await page.evaluate(() => {
           const scene = (
-            window as unknown as {
+            globalThis as unknown as {
               game?: {
                 scene: { getScene(k: string): Record<string, unknown> };
               };

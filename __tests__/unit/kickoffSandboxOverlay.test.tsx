@@ -13,7 +13,7 @@ describe("Kickoff Table sandbox selector", () => {
   let eventBus: EventBus;
 
   beforeEach(() => {
-    window.history.replaceState({}, "", "/sand-box");
+    history.replaceState({}, "", "/sand-box");
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);

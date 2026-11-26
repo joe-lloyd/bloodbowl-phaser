@@ -235,7 +235,7 @@ export async function migrateLocalTeams(
 
 export function connectTeamPersistenceToAuth(
   confirmMigration: (count: number) => boolean = (count) =>
-    window.confirm(
+    confirm(
       `You have ${String(count)} locally saved team${count === 1 ? "" : "s"}. ` +
         `Upload ${count === 1 ? "it" : "them"} to your cloud team library?`
     )

@@ -177,7 +177,7 @@ test("two fingers zoom, and a double tap on open ground fits the pitch", async (
     page.evaluate(
       () =>
         (
-          window as unknown as {
+          globalThis as unknown as {
             game: {
               scene: {
                 getScene(k: string): { cameras: { main: { zoom: number } } };

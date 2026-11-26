@@ -75,7 +75,7 @@ beforeAll(() => {
     .mockImplementation(() => pen as never);
 
   const frames = vi
-    .spyOn(window, "requestAnimationFrame")
+    .spyOn(globalThis, "requestAnimationFrame")
     .mockImplementation(() => 0);
   restore = () => {
     context.mockRestore();

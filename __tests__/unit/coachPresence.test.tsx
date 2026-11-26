@@ -60,7 +60,7 @@ describe("coach presence", () => {
     expect(coaches.ensureCoachProfile).toHaveBeenCalledTimes(2);
     expect(coaches.touchPresence).not.toHaveBeenCalled();
 
-    window.dispatchEvent(new Event("pointerdown"));
+    dispatchEvent(new Event("pointerdown"));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(PRESENCE_INTERVAL_MS);
     });
@@ -81,7 +81,7 @@ describe("coach presence", () => {
     });
     expect(coaches.touchPresence).not.toHaveBeenCalled();
 
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
+    dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(PRESENCE_INTERVAL_MS * 3);
     });

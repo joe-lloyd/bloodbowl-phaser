@@ -130,15 +130,11 @@ function bracketFixture({
     homeEntrantId,
     awayEntrantId,
     status: fixtureState(homeEntrantId, awayEntrantId),
-    ...(sourceFixtureIds === undefined
-      ? {}
-      : { sourceFixtureIds: sourceFixtureIds }),
-    ...(round < rounds
-      ? {
+    ...(sourceFixtureIds !== undefined && { sourceFixtureIds: sourceFixtureIds }),
+    ...((round < rounds) && {
           nextFixtureId: `round-${String(round + 1)}-match-${String(Math.ceil(order / 2))}`,
           nextSlot: order % 2 ? "home" : "away",
-        }
-      : {}),
+        }),
   };
 }
 
@@ -435,13 +431,11 @@ function completedResult({
       "A knockout game left level is decided on Penalties: enter the shoot-out."
     );
   }
-  const result = { homeScore, awayScore, ...(penalties ? { penalties } : {}) };
+  const result = { homeScore, awayScore, ...(penalties && { penalties }) };
   const lead = homeLead(result);
   return {
     ...result,
-    ...(lead === 0
-      ? {}
-      : { winnerEntrantId: lead > 0 ? homeEntrantId : awayEntrantId }),
+    ...(lead !== 0 && { winnerEntrantId: lead > 0 ? homeEntrantId : awayEntrantId }),
     completedAt: Date.now(),
   };
 }
@@ -592,7 +586,7 @@ export function recordTournamentResult({
     homeScore,
     awayScore,
     allowDraw: next.format === "round-robin",
-    ...(penalties === undefined ? {} : { penalties }),
+    ...(penalties !== undefined && { penalties }),
   });
 
   advanceTournament(next, fixture, result);

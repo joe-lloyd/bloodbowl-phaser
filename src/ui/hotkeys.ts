@@ -81,12 +81,12 @@ export function useHotkey(
       owner,
     };
     if (bound.length === 0)
-      window.addEventListener("keydown", onKeyDown, { capture: true });
+      addEventListener("keydown", onKeyDown, { capture: true });
     bound.push(binding);
     return () => {
       bound.splice(bound.indexOf(binding), 1);
       if (bound.length === 0)
-        window.removeEventListener("keydown", onKeyDown, { capture: true });
+        removeEventListener("keydown", onKeyDown, { capture: true });
     };
   }, [hotkey, enabled, owner]);
 }

@@ -59,7 +59,7 @@ function startFrom(state: ComputerPlayState | null) {
           coach: coachFor(difficulty),
           resume: restored,
           autosave: { difficulty },
-          ...(competitionContext === undefined ? {} : { competitionContext }),
+          ...(competitionContext !== undefined && { competitionContext }),
         };
       },
     };
@@ -76,15 +76,11 @@ function startFrom(state: ComputerPlayState | null) {
       team2: structuredClone(state.team2),
       computerTeamId: state.computerTeamId,
       coach: coachFor(difficulty),
-      ...(state.progressionEnabled === undefined
-        ? {}
-        : { progressionEnabled: state.progressionEnabled }),
+      ...(state.progressionEnabled !== undefined && { progressionEnabled: state.progressionEnabled }),
       autosave: { difficulty },
-      ...(state.competitionContext === undefined
-        ? {}
-        : { competitionContext: state.competitionContext }),
-      ...(state.gameType === undefined ? {} : { gameType: state.gameType }),
-      ...(state.venue === undefined ? {} : { venue: state.venue }),
+      ...(state.competitionContext !== undefined && { competitionContext: state.competitionContext }),
+      ...(state.gameType !== undefined && { gameType: state.gameType }),
+      ...(state.venue !== undefined && { venue: state.venue }),
     }),
   };
 }

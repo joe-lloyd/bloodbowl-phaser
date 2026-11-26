@@ -41,7 +41,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
     settle(() => {
       eventBus.emit(GameEventNames.UI_RerollResponse, {
         accept,
-        ...(source === undefined ? {} : { source: source }),
+        ...(source !== undefined && { source: source }),
       });
     });
   };

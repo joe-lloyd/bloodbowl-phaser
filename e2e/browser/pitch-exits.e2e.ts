@@ -11,7 +11,7 @@ test("a scenario reload during players' exits raises no page error", async ({
   await app.pitch.waitForCameraToSettle();
   await page.evaluate(() => {
     const scene = (
-      window as unknown as {
+      globalThis as unknown as {
         game: {
           scene: { getScenes(active: boolean): Record<string, never>[] };
         };

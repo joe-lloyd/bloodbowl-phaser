@@ -16,9 +16,7 @@ const intercepting: Answer = (pending) =>
     pending.type === "interception"
       ? {
           type: "choose-interception",
-          ...(pending.candidates[0]
-            ? { playerId: pending.candidates[0].playerId }
-            : {}),
+          ...(pending.candidates[0] && { playerId: pending.candidates[0].playerId }),
         }
       : acceptAll(pending)
   );

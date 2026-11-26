@@ -10,7 +10,7 @@ import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
 function typeInto(input: HTMLInputElement, value: string) {
   const nativeSetter = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
-    window.HTMLInputElement.prototype,
+    HTMLInputElement.prototype,
     "value"
   )).set);
   nativeSetter.call(input, value);

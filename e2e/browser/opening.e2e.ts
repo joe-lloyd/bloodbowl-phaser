@@ -120,7 +120,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   await shot("coin-sides");
 
   await page.evaluate(() => {
-    const w = window as unknown as { flippedAt: number; namedAt: number };
+    const w = globalThis as unknown as { flippedAt: number; namedAt: number };
     w.flippedAt = performance.now();
     new MutationObserver((_, observer) => {
       if (!(document.body.textContent ?? "").includes("wins the toss!")) {
@@ -136,7 +136,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   await shot("coin-spinning");
   await expect(page.getByText(/wins the toss!$/)).toBeVisible({ timeout: 10_000 });
   const namedAfterMs = await page.evaluate(() => {
-    const w = window as unknown as { flippedAt: number; namedAt: number };
+    const w = globalThis as unknown as { flippedAt: number; namedAt: number };
     return w.namedAt - w.flippedAt;
   });
   expect(namedAfterMs).toBeGreaterThan(1500);

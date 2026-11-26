@@ -92,7 +92,7 @@ test.describe("pitch geometry and the test bridge", () => {
 
     const surface = await page.evaluate(() =>
       Object.keys(
-        (window as unknown as { __bbTestBridge: Record<string, unknown> })
+        (globalThis as unknown as { __bbTestBridge: Record<string, unknown> })
           .__bbTestBridge
       ).sort()
     );
@@ -116,7 +116,7 @@ test.describe("pitch geometry and the test bridge", () => {
     const before = await app.bridge.snapshot();
     await page.evaluate(() => {
       const bridge = (
-        window as unknown as {
+        globalThis as unknown as {
           __bbTestBridge: {
             snapshot(): { ballPosition: { x: number; y: number } | null };
           };
@@ -130,7 +130,7 @@ test.describe("pitch geometry and the test bridge", () => {
 
     const camera = await page.evaluate(() => {
       const bridge = (
-        window as unknown as { __bbTestBridge: BrowserTestBridge }
+        globalThis as unknown as { __bbTestBridge: BrowserTestBridge }
       ).__bbTestBridge;
       const before = bridge.cameraState();
       const copy = bridge.cameraState();

@@ -38,7 +38,7 @@ const CORE_TOPIC = "core";
 const CASE_TOPIC = "e2e-cases";
 
 function formStateFromUrl() {
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(location.search);
   const scenarioId = params.get("scenario") ?? "";
   const empty = {
     topic: "",
@@ -111,8 +111,8 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
     setSearchError(null);
     emit(GameEventNames.UI_LoadScenario, {
       scenarioId,
-      ...(seed === undefined ? {} : { seed: seed }),
-      ...(outcome === undefined ? {} : { outcomeId: outcome }),
+      ...(seed !== undefined && { seed: seed }),
+      ...(outcome !== undefined && { outcomeId: outcome }),
     });
   };
 

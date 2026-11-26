@@ -59,7 +59,7 @@ export function board(
         activeTeam: "team1",
         phase: GamePhase.PLAY,
         subPhase: SubPhase.TURN_RECEIVING,
-        ...(team1Placements.some((p) => p.hasBall) ? {} : { ballPosition }),
+        ...(team1Placements.every((p) => !p.hasBall) && { ballPosition }),
       },
     },
   });

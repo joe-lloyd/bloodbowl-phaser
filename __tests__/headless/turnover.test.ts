@@ -64,12 +64,12 @@ describe("turnover resolution", () => {
       );
       if (!pickupFailed) continue;
 
-      const notifications = moved.events
+      const notifications = new Set(moved.events
         .filter((e) => e.name === GameEventNames.UI_Notification)
-        .map((e) => z.string().parse(e.data));
+        .map((e) => z.string().parse(e.data)));
       const cascade =
-        notifications.includes("Ball hits player!") &&
-        notifications.includes("Catch Failed!");
+        notifications.has("Ball hits player!") &&
+        notifications.has("Catch Failed!");
       if (!cascade) continue;
 
       cascadesTested++;

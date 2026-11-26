@@ -134,7 +134,7 @@ export class RollBook {
         seq,
         ...roll,
         rollType,
-        ...(teamId === undefined ? {} : { teamId: teamId }),
+        ...(teamId !== undefined && { teamId: teamId }),
         outcome: undefined,
       });
   }

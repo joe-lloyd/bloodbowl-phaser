@@ -61,7 +61,7 @@ function entrant(built: Team, seed: number): CompetitionEntrant {
     name: built.name,
     rosterName: built.rosterName,
     seed,
-    ...(built.computerCoached ? { computerCoached: true as const } : {}),
+    ...(built.computerCoached && { computerCoached: true as const }),
   };
 }
 

@@ -50,7 +50,7 @@ async function pass(
     type: "pass",
     playerId: passerId,
     ...target,
-    ...(hailMary === undefined ? {} : { hailMary }),
+    ...(hailMary !== undefined && { hailMary }),
   });
   const events = [...response.events];
   while (response.pendingDecision?.type === "reroll") {

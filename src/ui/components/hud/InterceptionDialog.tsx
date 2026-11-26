@@ -29,7 +29,7 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
   const respond = (playerId?: string) => {
     settle(() => {
       eventBus.emit(GameEventNames.UI_InterceptionResponse, {
-        ...(playerId === undefined ? {} : { playerId: playerId }),
+        ...(playerId !== undefined && { playerId: playerId }),
       });
     });
   };

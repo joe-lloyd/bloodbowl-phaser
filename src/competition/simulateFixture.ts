@@ -181,9 +181,9 @@ export async function simulateFixture(
       homeScore: score.home,
       awayScore: score.away,
       progressedTeams: teams,
-      ...(penalties ? { penalties: bySide(penalties, home, away) } : {}),
+      ...(penalties && { penalties: bySide(penalties, home, away) }),
       options: {
-        ...(fanFactors ? { fanFactors: bySide(fanFactors, home, away) } : {}),
+        ...(fanFactors && { fanFactors: bySide(fanFactors, home, away) }),
         stalled: stalledSides(state.stallingPlayerIds, teams.home, teams.away),
       },
     }

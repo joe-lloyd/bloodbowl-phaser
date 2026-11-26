@@ -16,19 +16,19 @@ const PREVIEW_E2E_ONLINE =
 
 const isCI = !!process.env["CI"];
 
-const ALL_PROJECTS = [
+const ALL_PROJECTS = new Set([
   "engine-scenarios",
   "browser-gameplay",
   "visual-regression",
   "online-emulator",
-];
+]);
 
 function selectedProjects(): string[] {
   const flagged = process.argv
     .filter((arg) => arg.startsWith("--project"))
     .flatMap((arg) => (arg.includes("=") ? arg.split("=").slice(1) : []));
   return [...flagged, ...process.argv.slice(1)].filter((value) =>
-    ALL_PROJECTS.includes(value)
+    ALL_PROJECTS.has(value)
   );
 }
 
@@ -54,7 +54,7 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
 
-  ...(isCI ? { workers: 2 } : {}),
+  ...(isCI && { workers: 2 }),
   timeout: 60_000,
   expect: { timeout: 10_000 },
 

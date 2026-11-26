@@ -314,6 +314,6 @@ async function markPoint(page: Page, at: Square): Promise<void> {
 
 async function clearMark(page: Page): Promise<void> {
   await page.evaluate(() =>
-    document.getElementById("grid-pick-mark")?.remove()
+    document.querySelector("#grid-pick-mark")?.remove()
   );
 }

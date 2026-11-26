@@ -166,7 +166,7 @@ export function GamePage({
     const game = new Phaser.Game(config);
     gameRef.current = game;
 
-    window.game = game;
+    globalThis.game = game;
 
     game.events.once("ready", () => {
       if (mode !== "normal") {
@@ -189,7 +189,7 @@ export function GamePage({
       }
     });
 
-    const container = document.getElementById("game-container");
+    const container = document.querySelector<HTMLElement>("#game-container");
     const releaseCanvas = container
       ? keepCanvasFitted(
           () => (game.isBooted ? game.scale : null),
@@ -214,7 +214,7 @@ export function GamePage({
 
       gameRef.current.destroy(true);
       gameRef.current = null;
-      window.game = null;
+      globalThis.game = null;
 
       ServiceContainer.reset();
     };

@@ -244,9 +244,7 @@ function fixtureFields(fixture: LobbyFixture) {
   return {
     competitionContext: fixture.context,
     fixtureTeams: { home: fixture.homeTeam, away: fixture.awayTeam },
-    ...(fixture.reservedFor === undefined
-      ? {}
-      : { reservedFor: fixture.reservedFor }),
+    ...(fixture.reservedFor !== undefined && { reservedFor: fixture.reservedFor }),
   };
 }
 
@@ -274,9 +272,7 @@ export async function createLobby(
       ? {
           ...DEFAULT_SETTINGS,
           progressionEnabled: true,
-          ...(fixture.context.gameType === undefined
-            ? {}
-            : { gameType: fixture.context.gameType }),
+          ...(fixture.context.gameType !== undefined && { gameType: fixture.context.gameType }),
         }
       : DEFAULT_SETTINGS,
     players: {
@@ -287,7 +283,7 @@ export async function createLobby(
         ready: false,
       },
     },
-    ...(fixture ? fixtureFields(fixture) : {}),
+    ...(fixture && fixtureFields(fixture)),
   };
   await setDoc(lobbyRef(code), {
     ...firebaseDocument(lobby),
@@ -449,8 +445,8 @@ export function subscribeMatchLobby({
     browserOnline = false;
     report();
   };
-  window.addEventListener("online", onOnline);
-  window.addEventListener("offline", onOffline);
+  addEventListener("online", onOnline);
+  addEventListener("offline", onOffline);
 
   const tick = setInterval(report, 1000);
   const stopListening = onSnapshot(
@@ -472,8 +468,8 @@ export function subscribeMatchLobby({
   );
   report();
   return () => {
-    window.removeEventListener("online", onOnline);
-    window.removeEventListener("offline", onOffline);
+    removeEventListener("online", onOnline);
+    removeEventListener("offline", onOffline);
     clearInterval(tick);
     stopListening();
   };

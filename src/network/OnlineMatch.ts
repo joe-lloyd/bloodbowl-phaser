@@ -247,7 +247,7 @@ function startingState(
     }, ...startingFormat(
         {
           gameType: lobbyGameType(lobby),
-          ...(lobby.competitionContext ? {} : { venue: lobby.settings.venue }),
+          ...(!lobby.competitionContext && { venue: lobby.settings.venue }),
         },
         seededRandom(seed)
       ) }
@@ -379,9 +379,9 @@ class OnlineSession {
       gameServiceFactory: (inner) => new NetworkedGameService({ inner,
         dispatch: (command) => this.runOwn(command), pendingDecision: () => this.game.pendingDecision(), eventBus: this.eventBus }),
       progressionEnabled: this.options.lobby.settings.progressionEnabled,
-      ...(resume.rng === undefined ? {} : { rngState: resume.rng }),
-      ...(resume.matchStats === undefined ? {} : { matchStatsState: resume.matchStats }),
-      ...(resume.turnManager === undefined ? {} : { turnManagerState: resume.turnManager }),
+      ...(resume.rng !== undefined && { rngState: resume.rng }),
+      ...(resume.matchStats !== undefined && { matchStatsState: resume.matchStats }),
+      ...(resume.turnManager !== undefined && { turnManagerState: resume.turnManager }),
     });
   }
 
@@ -468,7 +468,7 @@ class OnlineSession {
 
   private onResynced(): void {
     const subPhase = this.engine.getSubPhase();
-    this.eventBus.emit(GameEventNames.PhaseChanged, { phase: this.engine.getPhase(), ...(subPhase === undefined ? {} : { subPhase }) });
+    this.eventBus.emit(GameEventNames.PhaseChanged, { phase: this.engine.getPhase(), ...(subPhase !== undefined && { subPhase }) });
     this.eventBus.emit(GameEventNames.GameStateRestored, this.engine.getState());
     if (this.game.pendingDecision()?.type !== "block-dice") this.eventBus.emit(GameEventNames.UI_BlockRollCancelled, undefined);
     this.eventBus.emit(GameEventNames.UI_SyncBoard, { positions: true });

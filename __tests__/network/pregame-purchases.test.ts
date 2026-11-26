@@ -30,7 +30,7 @@ function session(
     myTeamId: host ? "team1" : "team2",
     peerTeamId: host ? "team2" : "team1",
     hostTeamId: "team1",
-    ...(onDesync === undefined ? {} : { onDesync: onDesync }),
+    ...(onDesync !== undefined && { onDesync: onDesync }),
   });
 }
 

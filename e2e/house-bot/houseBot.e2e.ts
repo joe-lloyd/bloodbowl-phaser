@@ -60,7 +60,7 @@ test("the house bot joins games until stopped", async () => {
   });
 
   await context.addInitScript((login) => {
-    window.__houseBotLogin = login;
+    globalThis.__houseBotLogin = login;
     localStorage.setItem("bb-house-bot", "1");
   }, botLogin());
   const page = context.pages()[0] ?? (await context.newPage());

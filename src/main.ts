@@ -19,7 +19,7 @@ void signInHouseBot().catch((error) => {
   console.error("[HouseBot] sign-in failed:", error);
 });
 
-const reactRoot = document.getElementById("react-root");
+const reactRoot = document.querySelector("#react-root");
 if (reactRoot) {
   const root = createRoot(reactRoot);
   root.render(createElement(App, { eventBus }));
@@ -28,7 +28,7 @@ if (reactRoot) {
   console.error("React root element not found!");
 }
 
-window.eventBus = eventBus;
+globalThis.eventBus = eventBus;
 
 console.log("🏈 Blood Bowl Sevens - Ready!");
 console.log("📡 EventBus - Ready for communication!");

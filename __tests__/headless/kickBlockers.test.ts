@@ -94,7 +94,7 @@ describe("an online reload during a later drive's Charge", () => {
       team1: teams[0],
       team2: teams[1],
       initialState: deserializeGameState(snapshot),
-      ...(snapshot.turnManager ? { turnManagerState: snapshot.turnManager } : {}),
+      ...(snapshot.turnManager && { turnManagerState: snapshot.turnManager }),
       kickingTeamId: snapshot.turnManager?.driveKickingTeamId ?? null,
       seed: 1,
     });

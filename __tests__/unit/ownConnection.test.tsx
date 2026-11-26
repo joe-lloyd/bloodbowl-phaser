@@ -114,8 +114,8 @@ describe("subscribeMatchLobby's own link", () => {
   });
 
   it("follows the browser going offline and back", () => {
-    window.dispatchEvent(new Event("offline"));
-    window.dispatchEvent(new Event("online"));
+    dispatchEvent(new Event("offline"));
+    dispatchEvent(new Event("online"));
     expect(seen).toEqual([true, false, true]);
   });
 

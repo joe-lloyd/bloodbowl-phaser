@@ -78,7 +78,7 @@ const goblin = ({
   playerIndex: 1,
   x,
   y,
-  ...(hasBall ? { hasBall: true } : {}),
+  ...(hasBall && { hasBall: true }),
   skills: [SkillType.RIGHT_STUFF, SkillType.DODGE],
   stats: { MA, ST: 2, AG: 3, PA: 4, AV: 8 },
 });

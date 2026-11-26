@@ -22,9 +22,7 @@ function scenario(opts: {
     name: "Stalling",
     description: "",
     setup: {
-      ...(opts.team1Roster === undefined
-        ? {}
-        : { team1Roster: opts.team1Roster }),
+      ...(opts.team1Roster !== undefined && { team1Roster: opts.team1Roster }),
       team1Placements: [
         { playerIndex: 0, x: 15, y: 5, hasBall: true, ...opts.carrier },
         { playerIndex: 1, x: 14, y: 5 },

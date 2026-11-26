@@ -21,7 +21,7 @@ function foulGame(
       name: "foul-event-order",
       description: "",
       setup: {
-        ...(roster ? { team1Roster: roster } : {}),
+        ...(roster && { team1Roster: roster }),
         team1Placements: [
           { playerIndex: roster ? 1 : 0, x: 10, y: 5, skills },
           ...(withAssist ? [{ playerIndex: 1, x: 11, y: 4 }] : []),

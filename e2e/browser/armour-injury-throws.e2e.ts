@@ -8,14 +8,12 @@ interface Beat {
 }
 
 declare global {
-  interface Window {
-    __throws: {
+  var __throws: {
       beats: Beat[];
       throws: string[];
       armourAt: number;
       bannerAt: number;
     };
-  }
 }
 
 const SHOTS = process.env["ARMOUR_SHOTS"];
@@ -27,16 +25,16 @@ test("armour and injury land as two throws before the turnover hands over", asyn
   await app.sandbox.open({ scenario: "block-injury-test", seed: 1 });
   await page.evaluate(
     (names) => {
-      const log: Window["__throws"] = {
+      const log: typeof globalThis.__throws = {
         beats: [],
         throws: [],
         armourAt: 0,
         bannerAt: 0,
       };
-      window.__throws = log;
+      globalThis.__throws = log;
       const note = (what: string) =>
         log.beats.push({ at: Math.round(performance.now()), what });
-      window.eventBus.on(
+      globalThis.eventBus.on(
         names.roll,
         (roll: { rollType: string; description: string }) => {
           note(`roll ${roll.rollType}: ${roll.description}`);
@@ -44,14 +42,14 @@ test("armour and injury land as two throws before the turnover hands over", asyn
             log.armourAt = performance.now();
         }
       );
-      window.eventBus.on(
+      globalThis.eventBus.on(
         names.tray,
         (tray: { thrown: number; landedThrough: number }) =>
           note(
             `tray thrown ${String(tray.thrown)} landed ${String(tray.landedThrough)}`
           )
       );
-      window.eventBus.on(names.moment, (moment: { kind: string } | null) => {
+      globalThis.eventBus.on(names.moment, (moment: { kind: string } | null) => {
         note(`moment ${moment?.kind ?? "none"}`);
         if (moment?.kind === "turn-started" && !log.bannerAt)
           log.bannerAt = performance.now();
@@ -88,7 +86,7 @@ test("armour and injury land as two throws before the turnover hands over", asyn
 
   if (SHOTS) {
     await page.waitForFunction(() =>
-      window.__throws.throws.some((t) => t.includes("Armour"))
+      globalThis.__throws.throws.some((t) => t.includes("Armour"))
     );
     await page.waitForFunction(
       () =>
@@ -112,10 +110,10 @@ test("armour and injury land as two throws before the turnover hands over", asyn
     await page.screenshot({ path: `${SHOTS}-2-injury.png` });
   }
 
-  await page.waitForFunction(() => window.__throws.bannerAt > 0, null, {
+  await page.waitForFunction(() => globalThis.__throws.bannerAt > 0, null, {
     timeout: 30_000,
   });
-  const log = await page.evaluate(() => window.__throws);
+  const log = await page.evaluate(() => globalThis.__throws);
   const start = log.beats[0]?.at ?? 0;
   console.log(
     log.beats.map((b) => `${String(b.at - start)} ${b.what}`).join("\n")

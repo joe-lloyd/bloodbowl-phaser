@@ -3,9 +3,7 @@ import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
 
 declare global {
-  interface Window {
-    __banner: { seen: string[]; armourAt: number; bannerAt: number };
-  }
+  var __banner: { seen: string[]; armourAt: number; bannerAt: number };
 }
 
 const SHOTS = process.env["ROLL_BANNER_SHOTS"];
@@ -21,13 +19,13 @@ test("the armour and injury rolls each get a banner, then the result", async ({
 
   await page.evaluate(
     (names) => {
-      const log: Window["__banner"] = { seen: [], armourAt: 0, bannerAt: 0 };
-      window.__banner = log;
-      window.eventBus.on(names.roll, (roll: { rollType: string }) => {
+      const log: typeof globalThis.__banner = { seen: [], armourAt: 0, bannerAt: 0 };
+      globalThis.__banner = log;
+      globalThis.eventBus.on(names.roll, (roll: { rollType: string }) => {
         if (roll.rollType.startsWith("Armour") && !log.armourAt)
           log.armourAt = performance.now();
       });
-      window.eventBus.on(names.moment, (moment: { kind: string } | null) => {
+      globalThis.eventBus.on(names.moment, (moment: { kind: string } | null) => {
         if (moment?.kind === "turn-started" && !log.bannerAt)
           log.bannerAt = performance.now();
       });
@@ -62,10 +60,10 @@ test("the armour and injury rolls each get a banner, then the result", async ({
   await expect(banner).toHaveAttribute("data-result", "", { timeout: 15_000 });
   await shot("4-result");
 
-  await page.waitForFunction(() => window.__banner.bannerAt > 0, null, {
+  await page.waitForFunction(() => globalThis.__banner.bannerAt > 0, null, {
     timeout: 30_000,
   });
-  const log = await page.evaluate(() => window.__banner);
+  const log = await page.evaluate(() => globalThis.__banner);
   console.log(log.seen.join("\n"));
   console.log(
     `armour dice to turn banner: ${String(Math.round(log.bannerAt - log.armourAt))} ms`

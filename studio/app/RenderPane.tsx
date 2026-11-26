@@ -107,7 +107,7 @@ export function RenderPane(props: RenderPaneProps) {
         <PreviewImage character={character} job={job} />
         {job && <div className="mt-3"><JobLog job={job} /></div>}
         {job?.kind === "export" && job.status === "done" && (
-          <HudButton size="sm" className="mt-3" disabled={dirty} onClick={() => { window.location.reload(); }}>Show the new art</HudButton>
+          <HudButton size="sm" className="mt-3" disabled={dirty} onClick={() => { location.reload(); }}>Show the new art</HudButton>
         )}
       </Section>
       {layeredArt(character.key) && <InGame character={character} kit={kit} />}

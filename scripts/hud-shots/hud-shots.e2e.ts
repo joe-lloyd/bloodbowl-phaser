@@ -35,12 +35,12 @@ test("a planned dodge, then the dice tray", async ({ page }) => {
   await app.pitch.waitForCameraToSettle();
 
   await page.evaluate(() => {
-    document.getElementById("react-root")!.style.visibility = "hidden";
+    document.querySelector<HTMLElement>("#react-root")!.style.visibility = "hidden";
   });
   await page.waitForTimeout(300);
   await shot(page, "pitch");
   await page.evaluate(() => {
-    document.getElementById("react-root")!.style.visibility = "";
+    document.querySelector<HTMLElement>("#react-root")!.style.visibility = "";
   });
   await app.pitch.clickPlayer("team1:0");
   await app.hud.actionButton("move").click();

@@ -34,7 +34,7 @@ async function watchThrall(page: Page, playerId: string): Promise<void> {
       playerSprites?: Map<string, SpriteLook>;
       eventBus: { on(event: string, handler: () => void): void };
     }
-    const w = window as unknown as {
+    const w = globalThis as unknown as {
       game: { scene: { getScenes(active: boolean): Scene[] } };
       __bbTestBridge: { phase(): { activeTeamId: string | null } };
       __biteWatch: Watch;
@@ -93,7 +93,7 @@ async function watchThrall(page: Page, playerId: string): Promise<void> {
 
 const watched = (page: Page) =>
   page.evaluate(
-    () => (window as unknown as { __biteWatch: Watch }).__biteWatch
+    () => (globalThis as unknown as { __biteWatch: Watch }).__biteWatch
   );
 
 async function attachWatch(page: Page, testInfo: TestInfo) {
@@ -135,7 +135,7 @@ async function bite(page: Page, app: GameApp): Promise<void> {
   await expect(app.hud.reactionDialog()).toBeVisible();
   await page.evaluate(() => {
     (
-      window as unknown as { __biteLog(what: SourceEntry["what"]): void }
+      globalThis as unknown as { __biteLog(what: SourceEntry["what"]): void }
     ).__biteLog("bite");
   });
   await app.hud.answerReaction(true);

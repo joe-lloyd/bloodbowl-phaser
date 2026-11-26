@@ -35,7 +35,7 @@ function Editor({ state, character, onChange }: { readonly state: StudioState; r
 }
 
 function initialKey(): string {
-  return window.location.hash.slice(1);
+  return location.hash.slice(1);
 }
 
 interface WorkbenchProps {
@@ -77,8 +77,8 @@ function Workbench({ studio, state }: WorkbenchProps) {
   const dirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(saved);
   const problem = character ? characterProblem(character) : null;
   const open = (key: string, next: Character | null) => {
-    if (dirty && !window.confirm("Leave without saving this character?")) return;
-    window.history.replaceState(null, "", `#${key}`);
+    if (dirty && !confirm("Leave without saving this character?")) return;
+    history.replaceState(null, "", `#${key}`);
     setSelected(key);
     setDraft(next);
   };

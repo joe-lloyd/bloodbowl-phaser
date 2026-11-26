@@ -30,7 +30,7 @@ async function blitzOutOfMovement(stab: boolean) {
     type: "declare-action",
     playerId: fixtureValue(attacker).id,
     action: "blitz",
-    ...(stab ? { blockReplacement: "stab" } : {}),
+    ...(stab && { blockReplacement: "stab" }),
   });
   game.ctx.gameService
     .getState()

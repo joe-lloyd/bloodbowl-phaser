@@ -94,7 +94,7 @@ export function entrantFor({
     ...entrantCoach(team),
     coachUid: ownerUid,
     rosterName: team.rosterName,
-    ...(team.computerCoached ? { computerCoached: true as const } : {}),
+    ...(team.computerCoached && { computerCoached: true as const }),
   };
 }
 
@@ -199,7 +199,7 @@ export function buildCompetition({
   const gameType = readGameType(rules.gameType);
   const base = {
     ruleset: readSevensRuleset(rules.ruleset),
-    ...(gameType === DEFAULT_GAME_TYPE ? {} : { gameType }),
+    ...(gameType !== DEFAULT_GAME_TYPE && { gameType }),
     id: `${rules.type}-${String(now)}-${Math.random().toString(36).slice(2, 8)}`,
     name: rules.name.trim(),
     organizerUid,
@@ -212,11 +212,9 @@ export function buildCompetition({
     standings: computeStandings(entrants, fixtures),
     createdAt: now,
     updatedAt: now,
-    ...(rules.profile ? { rosterProfile: rules.profile } : {}),
-    ...(online || entrants.some((entrant) => entrant.computerCoached)
-      ? { computerDifficulty: rules.computerDifficulty ?? "standard" }
-      : {}),
-    ...(online ? { online } : {}),
+    ...(rules.profile && { rosterProfile: rules.profile }),
+    ...((online !== undefined || entrants.some((entrant) => entrant.computerCoached)) && { computerDifficulty: rules.computerDifficulty ?? "standard" }),
+    ...(online && { online }),
   };
   return rules.type === "league"
     ? { ...base, type: "league", points: DEFAULT_LEAGUE_POINTS }

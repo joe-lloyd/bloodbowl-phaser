@@ -54,7 +54,7 @@ const lab = args.includes("--lab");
 const gameType = readGameType(flag("game-type", "sevens"));
 const venues = gameTypeRules(gameType).venues;
 const venueFlag = flag("venue", "");
-if (venueFlag && !(isVenue(venueFlag) && venues.some((v) => v === venueFlag)))
+if (venueFlag && !(isVenue(venueFlag) && venues.includes(venueFlag)))
   throw new Error(`--venue must be one of ${venues.join(", ")}`);
 const formatFor = (seed: number): MatchFormat => ({
   gameType,
@@ -240,15 +240,13 @@ if (args.includes("--worker")) {
           candidate: candidate.milliseconds,
           frozen: old.milliseconds,
         },
-        ...(lab
-          ? {
+        ...(lab && {
               opportunities: {
                 legal: candidate.legal,
                 proposed: candidate.proposed,
               },
               receipts: candidate.receipts,
-            }
-          : {}),
+            }),
       });
       process.send?.({ done: job.id });
     } catch (error) {
@@ -365,15 +363,13 @@ if (args.includes("--worker")) {
     inventory,
     objectives,
     jobs,
-    ...(lab
-      ? {
+    ...(lab && {
           lab: true,
           blockSize: 8,
           context: args.includes("--league")
             ? "persistent-fixture"
             : "exhibition",
-        }
-      : {}),
+        }),
   };
   const file = join(out, "manifest.json");
   if (existsSync(file)) {

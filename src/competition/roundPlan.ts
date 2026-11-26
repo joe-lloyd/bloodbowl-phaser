@@ -18,7 +18,7 @@ export function roundPlan(fixtures: CompetitionFixture[]): RoundPlan {
     );
   const [next, ...upcoming] = rounds.filter(open);
   return {
-    ...(next === undefined ? {} : { next }),
+    ...(next !== undefined && { next }),
     upcoming,
     completed: rounds.filter((round) => !open(round)),
   };

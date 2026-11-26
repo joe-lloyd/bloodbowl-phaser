@@ -22,7 +22,7 @@ function scenario(shadowing: boolean): Scenario {
           playerIndex: 0,
           x: 7,
           y: 5,
-          ...(shadowing ? { skills: [SkillType.SHADOWING] } : {}),
+          ...(shadowing && { skills: [SkillType.SHADOWING] }),
         },
         { playerIndex: 1, x: 18, y: 1 },
       ],

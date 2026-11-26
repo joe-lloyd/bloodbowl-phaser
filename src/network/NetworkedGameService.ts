@@ -68,8 +68,8 @@ export class NetworkedGameService implements IGameService {
     } = command;
     this.eventBus?.emit(GameEventNames.NetworkCommandRejected, {
       commandType: command.type,
-      ...((cmd.playerId ?? cmd.attackerId) === undefined ? {} : { playerId: cmd.playerId ?? cmd.attackerId }),
-      ...(cmd.action === undefined ? {} : { action: cmd.action }),
+      ...((cmd.playerId ?? cmd.attackerId) !== undefined && { playerId: cmd.playerId ?? cmd.attackerId }),
+      ...(cmd.action !== undefined && { action: cmd.action }),
       reason,
     });
   }
@@ -141,7 +141,7 @@ export class NetworkedGameService implements IGameService {
     source?: import("../types/decisions").RerollSource
   ): boolean {
     if (this.pendingDecision()?.type !== "reroll") return false;
-    this.send({ type: "use-reroll", accept, ...(source === undefined ? {} : { source }) });
+    this.send({ type: "use-reroll", accept, ...(source !== undefined && { source }) });
     return true;
   }
   answerReaction(accept: boolean): boolean {
@@ -153,12 +153,12 @@ export class NetworkedGameService implements IGameService {
     const pending = this.pendingDecision();
     if (pending?.type !== "bite-target") return false;
     if (!canChooseBiteTarget(pending, targetId)) return false;
-    this.send({ type: "choose-bite-target", ...(targetId === undefined ? {} : { playerId: targetId }) });
+    this.send({ type: "choose-bite-target", ...(targetId !== undefined && { playerId: targetId }) });
     return true;
   }
   answerInterception(playerId?: string): boolean {
     if (this.pendingDecision()?.type !== "interception") return false;
-    this.send({ type: "choose-interception", ...(playerId === undefined ? {} : { playerId }) });
+    this.send({ type: "choose-interception", ...(playerId !== undefined && { playerId }) });
     return true;
   }
   answerApothecary(accept: boolean): boolean {
@@ -250,7 +250,7 @@ export class NetworkedGameService implements IGameService {
       selectedPlayerIds: [...pending.selectedPlayerIds],
       movedPlayerIds: [...pending.movedPlayerIds],
       awaitingPlacement: [...pending.awaitingPlacement],
-      ...(pending.landingSquare ? { landingSquare: { ...pending.landingSquare } } : {}),
+      ...(pending.landingSquare && { landingSquare: { ...pending.landingSquare } }),
       stage: "choose",
       canReselect: false,
     };
@@ -450,8 +450,8 @@ export class NetworkedGameService implements IGameService {
       type: "declare-action",
       playerId,
       action,
-      ...(blockReplacement === undefined ? {} : { blockReplacement }),
-      ...(options.razzleDazzle ? { razzleDazzle: true } : {}),
+      ...(blockReplacement !== undefined && { blockReplacement }),
+      ...(options.razzleDazzle && { razzleDazzle: true }),
     });
     return true;
   }
@@ -547,9 +547,9 @@ export class NetworkedGameService implements IGameService {
       playerId: passerId,
       x: targetX,
       y: targetY,
-      ...(hailMary ? { hailMary } : {}),
+      ...(hailMary && { hailMary }),
     });
-    return { success: response.ok, ...(response.reason === undefined ? {} : { result: response.reason }) };
+    return { success: response.ok, ...(response.reason !== undefined && { result: response.reason }) };
   }
   async handOffBall(
     passerId: string,
@@ -560,7 +560,7 @@ export class NetworkedGameService implements IGameService {
       playerId: passerId,
       targetId: targetPlayerId,
     });
-    return { success: response.ok, ...(response.reason === undefined ? {} : { result: response.reason }) };
+    return { success: response.ok, ...(response.reason !== undefined && { result: response.reason }) };
   }
   async puntBall(
     playerId: string,
@@ -590,8 +590,8 @@ export class NetworkedGameService implements IGameService {
       teammateId,
       x,
       y,
-      ...(swoopFacing ? { swoopFacing } : {}),
-      ...(mode === undefined ? {} : { mode }),
+      ...(swoopFacing && { swoopFacing }),
+      ...(mode !== undefined && { mode }),
     });
   }
   async performSpecialAction(

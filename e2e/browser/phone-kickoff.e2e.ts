@@ -18,7 +18,7 @@ interface BallCamera {
 
 async function ballCamera(page: Page): Promise<BallCamera> {
   return page.evaluate(() => {
-    const scene = window.game?.scene.getScene("SandboxScene");
+    const scene = globalThis.game?.scene.getScene("SandboxScene");
     if (!scene || !("ballSprite" in scene)) throw new Error("no match scene");
     const camera = scene.cameras.main;
     const ball = scene.ballSprite;

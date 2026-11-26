@@ -37,29 +37,29 @@ export interface Variant {
   sppSpent: number;
 }
 
-const THROW_BOOSTS: readonly SkillType[] = [
+const THROW_BOOSTS: ReadonlySet<SkillType> = new Set([
   SkillType.STRONG_ARM,
   SkillType.BULLSEYE,
-];
-const WEAPONS: readonly SkillType[] = [
+]);
+const WEAPONS: ReadonlySet<SkillType> = new Set([
   SkillType.STAB,
   SkillType.CHAINSAW,
   SkillType.PROJECTILE_VOMIT,
   SkillType.BREATHE_FIRE,
   SkillType.BOMBARDIER,
-];
-const MUTATIONS: readonly SkillType[] = [
+]);
+const MUTATIONS: ReadonlySet<SkillType> = new Set([
   SkillType.BIG_HAND,
   SkillType.EXTRA_ARMS,
   SkillType.TWO_HEADS,
   SkillType.MONSTROUS_MOUTH,
-];
-const HOLDERS: readonly SkillType[] = [
+]);
+const HOLDERS: ReadonlySet<SkillType> = new Set([
   SkillType.TENTACLES,
   SkillType.PREHENSILE_TAIL,
   SkillType.GUARD,
   SkillType.STAND_FIRM,
-];
+]);
 
 function playerAt(players: Player[], index: number): Player {
   const player = players[index];
@@ -91,11 +91,11 @@ export function teamFromVariant(
 
 function specializedFit(p: Player, skill: SkillType): number | undefined {
   const canThrow = hasSkill(p.skills, SkillType.THROW_TEAM_MATE);
-  if (THROW_BOOSTS.includes(skill)) return canThrow ? 120 : -1000;
+  if (THROW_BOOSTS.has(skill)) return canThrow ? 120 : -1000;
   if (skill === SkillType.LETHAL_FLIGHT)
     return hasSkill(p.skills, SkillType.RIGHT_STUFF) ? 120 : -1000;
   if (skill === SkillType.VIOLENT_INNOVATOR)
-    return p.skills.some((s) => WEAPONS.includes(s.type)) ? 100 : -1000;
+    return p.skills.some((s) => WEAPONS.has(s.type)) ? 100 : -1000;
   if (skill === SkillType.MULTIPLE_BLOCK && p.stats.ST < 4) return -100;
   return undefined;
 }
@@ -104,8 +104,8 @@ function fit(p: Player, skill: SkillType): number {
   const specific = specializedFit(p, skill);
   if (specific !== undefined) return specific;
   const category = SKILL_DEFINITIONS[skill].category;
-  if (MUTATIONS.includes(skill)) return (7 - p.stats.AG) * 12 + p.stats.MA * 3;
-  if (HOLDERS.includes(skill)) return p.stats.ST * 18;
+  if (MUTATIONS.has(skill)) return (7 - p.stats.AG) * 12 + p.stats.MA * 3;
+  if (HOLDERS.has(skill)) return p.stats.ST * 18;
   if (category === SkillCategory.PASSING)
     return p.stats.PA > 0 ? (7 - p.stats.PA) * 14 : -1000;
   if (category === SkillCategory.AGILITY)

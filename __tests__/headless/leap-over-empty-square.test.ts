@@ -15,7 +15,7 @@ function scenario(skill: SkillType | null): Scenario {
     description: "a lineman with nobody adjacent leaps two squares east",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 5, ...(skill ? { skills: [skill] } : {}) },
+        { playerIndex: 0, x: 10, y: 5, ...(skill && { skills: [skill] }) },
         { playerIndex: 1, x: 1, y: 9 },
       ],
       team2Placements: [{ playerIndex: 0, x: 20, y: 1 }],

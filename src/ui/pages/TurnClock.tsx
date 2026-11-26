@@ -83,7 +83,7 @@ export function TurnClock({
 }: Props) {
   const [stripSlot, setStripSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
-    setStripSlot(document.getElementById("match-strip-clock"));
+    setStripSlot(document.querySelector("#match-strip-clock"));
   }, []);
   const present = (content: ReactNode) =>
     stripSlot ? createPortal(content, stripSlot) : content;

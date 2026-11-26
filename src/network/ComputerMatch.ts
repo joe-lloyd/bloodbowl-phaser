@@ -138,12 +138,12 @@ class ComputerSession {
     this.computerCoach = createComputerCoach({
       game: this.game, eventBus: this.eventBus, computerTeamId: options.computerTeamId,
       mayAct: () => this.owner(options.computerTeamId), run: (command) => this.runAs(options.computerTeamId, command),
-      ...(options.coach === undefined ? {} : { coach: options.coach }),
-      ...(options.pace === undefined ? {} : { pace: options.pace }),
+      ...(options.coach !== undefined && { coach: options.coach }),
+      ...(options.pace !== undefined && { pace: options.pace }),
     });
     if (options.resume) this.eventBus.once(GameEventNames.GameStateRestored, this.computerCoach.start);
     else this.computerCoach.start();
-    if (import.meta.env.DEV) window.__computerMatch = { game: this.game, run: (command) => this.runAs(this.myTeamId, command) };
+    if (import.meta.env.DEV) globalThis.__computerMatch = { game: this.game, run: (command) => this.runAs(this.myTeamId, command) };
     this.match = this.finishMatch();
   }
 
@@ -157,9 +157,9 @@ class ComputerSession {
       seed: Math.floor(Math.random() * 2 ** 31), progressionEnabled: progressionOf(this.options),
       gameServiceFactory: (engine) => new ComputerGameService({ engine,
         forward: (command) => this.runAs(this.myTeamId, command), pendingDecision: () => this.game.pendingDecision(), eventBus: this.eventBus }),
-      ...(rngState === undefined ? {} : { rngState }),
-      ...(matchStatsState === undefined ? {} : { matchStatsState }),
-      ...(turnManagerState === undefined ? {} : { turnManagerState }),
+      ...(rngState !== undefined && { rngState }),
+      ...(matchStatsState !== undefined && { matchStatsState }),
+      ...(turnManagerState !== undefined && { turnManagerState }),
     });
   }
 
@@ -197,7 +197,7 @@ class ComputerSession {
       rng: this.container.rngService.captureState(), matchStats: this.container.matchStats.captureState(),
       turnManager: this.engine.captureTurnManagerState(),
       computer: { computerTeamId, difficulty },
-      ...(this.options.competitionContext === undefined ? {} : { competition: this.options.competitionContext }),
+      ...(this.options.competitionContext !== undefined && { competition: this.options.competitionContext }),
     });
   }
 
@@ -243,9 +243,7 @@ class ComputerSession {
 }
 
 declare global {
-  interface Window {
-    __computerMatch?: { game: HeadlessGame; run: (command: HeadlessCommand) => Promise<CommandResponse> };
-  }
+  var __computerMatch: { game: HeadlessGame; run: (command: HeadlessCommand) => Promise<CommandResponse> } | undefined;
 }
 
 export function createComputerMatch(options: ComputerMatchOptions): OnlineMatch {

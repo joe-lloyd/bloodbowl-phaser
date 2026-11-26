@@ -115,7 +115,7 @@ export function TeamRoster({
             onClick={(e) => {
               if (!player || isRowControl(e.target)) return;
 
-              if (window.getSelection()?.toString()) return;
+              if (getSelection()?.toString()) return;
               openPlayer(player.id);
             }}
             onDragEnter={(e) => {
@@ -130,7 +130,7 @@ export function TeamRoster({
               const sourceSlotString = e.dataTransfer.getData("text/plain");
               const sourceSlot = parseInt(sourceSlotString);
 
-              if (isNaN(sourceSlot) || sourceSlot === slotNumber) return;
+              if (Number.isNaN(sourceSlot) || sourceSlot === slotNumber) return;
               onReorderPlayers(sourceSlot, slotNumber);
             }}
           >

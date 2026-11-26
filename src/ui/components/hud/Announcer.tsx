@@ -95,7 +95,7 @@ function useAnnouncement(
       id,
       kind: data.kind,
       headline: data.headline,
-      ...(data.subtitle === undefined ? {} : { subtitle: data.subtitle }),
+      ...(data.subtitle !== undefined && { subtitle: data.subtitle }),
       beat: "enter",
     });
     scheduleAnnouncement(data, { id, timers, setAnnouncement });
