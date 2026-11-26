@@ -4446,7 +4446,7 @@
       "count": 1
     },
     "complexity": {
-      "count": 2
+      "count": 1
     },
     "max-params": {
       "count": 1
@@ -6285,7 +6285,7 @@
       "count": 1
     },
     "react-hooks/immutability": {
-      "count": 2
+      "count": 1
     },
     "react-hooks/set-state-in-effect": {
       "count": 1
