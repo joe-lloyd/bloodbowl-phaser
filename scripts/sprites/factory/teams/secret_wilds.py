@@ -575,7 +575,7 @@ class FireBelly(OgreBlocker):
 class RiverTroll(Troll):
     """A slimy green river troll trailing weed, with a kit1 net slung over one shoulder."""
     key = "river_troll"
-    layout = dict(Troll.layout, skin="skin_krox", legs="skin_krox", boots="skin_krox", lip="skin_krox")
+    layout = dict(Troll.layout, skin="sea_green", legs="sea_green", boots="sea_green", lip="sea_green")
     target_px = 92
 
     def extras(self, J, P, L, tag, pose):
