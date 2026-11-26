@@ -1,6 +1,5 @@
 import { createServer } from "node:http";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { chromium } from "@playwright/test";
 
@@ -14,6 +13,10 @@ const TYPES = {
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".webmanifest": "application/manifest+json",
+  ".json": "application/json",
+  ".webp": "image/webp",
+  ".woff2": "font/woff2",
+  ".mp3": "audio/mpeg",
 };
 const BUNDLES = { one: await entryOf(), two: "index-Deploy02.js" };
 let deploy = "one";
@@ -24,7 +27,7 @@ async function entryOf() {
 }
 
 async function deployedFile(file) {
-  if (file === "index.html") {
+  if (file === "index.html" || file === "offline-manifest.json") {
     const page = await readFile(join(DIST, file), "utf8");
     return page.replaceAll(BUNDLES.one, BUNDLES[deploy]);
   }
@@ -37,10 +40,13 @@ async function deployedFile(file) {
 }
 
 const server = createServer(async (request, response) => {
-  const path = new URL(request.url, ORIGIN).pathname;
+  const path = decodeURIComponent(new URL(request.url, ORIGIN).pathname);
   const send = async (file) => {
     const body = await deployedFile(file);
-    response.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" });
+    response.writeHead(200, {
+      "content-type": TYPES[extname(file)] ?? "application/octet-stream",
+      "cache-control": "no-store",
+    });
     response.end(body);
   };
   try {
@@ -56,8 +62,8 @@ const check = (name, passed, detail = "") => {
   if (!passed) failures.push(name);
 };
 
-const profile = await mkdtemp(join(tmpdir(), "bb-pwa-"));
-const context = await chromium.launchPersistentContext(profile, { channel: "chromium" });
+const browser = await chromium.launch();
+const context = await browser.newContext();
 const page = await context.newPage();
 const mounted = () =>
   page
@@ -107,15 +113,25 @@ await page.goto(`${ORIGIN}/leagues`);
 check("a deep link runs the new bundle", (await running()) === "two");
 await page.waitForTimeout(800);
 
-const before = await cached();
+const offlineManifest = JSON.parse(await deployedFile("offline-manifest.json"));
+const coreUrls = Object.keys(offlineManifest.core).map((path) => new URL(path, ORIGIN).href);
+const cachedUrls = async () => new Set(Object.values(await cached()).flat());
+const missingCore = async () => {
+  const stored = await cachedUrls();
+  return coreUrls.filter((url) => !stored.has(url));
+};
+let missing = await missingCore();
+for (let tries = 0; missing.length > 0 && tries < 120; tries += 1) {
+  await page.waitForTimeout(500);
+  missing = await missingCore();
+}
+const before = await cachedUrls();
+check("every core file of the new deploy is cached", missing.length === 0, JSON.stringify(missing.slice(0, 5)));
+check("the new bundle is cached", before.has(`${ORIGIN}/assets/${BUNDLES.two}`));
+check("the old bundle is swept", !before.has(`${ORIGIN}/assets/${BUNDLES.one}`));
 check(
-  "only hashed build files and the page are cached",
-  Object.values(before).flat().every((url) => /\/index\.html$|\/assets\/[^/]+-[\w-]{8}\.(js|css)$/.test(url)),
-  JSON.stringify(before)
-);
-check(
-  "the new bundle is cached",
-  (before["bb-assets-v1"] ?? []).some((url) => url.endsWith(BUNDLES.two))
+  "no player art is cached before a team asks for it",
+  ![...before].some((url) => /\/sprites\/bloodbowl\/(?!sideline_)/.test(url))
 );
 
 await page.evaluate(() => fetch("/assets/gone-AAAAAAAA.js"));
@@ -137,7 +153,14 @@ server.closeAllConnections();
 await new Promise((resolve) => server.close(resolve));
 await page.reload();
 await checkRuns("the game starts offline", "two");
+const offlineFiles = await page.evaluate(async () => {
+  const art = await fetch("/venues/street/base.webp").then((response) => response.ok, () => false);
+  const faces = await document.fonts.load("700 16px 'Barlow Condensed'").catch(() => []);
+  return { art, font: faces.length > 0 && faces.every((face) => face.status === "loaded") };
+});
+check("venue art loads offline", offlineFiles.art);
+check("the UI font loads offline", offlineFiles.font);
 
 await context.close();
-await rm(profile, { recursive: true, force: true });
+await browser.close();
 process.exit(failures.length ? 1 : 0);

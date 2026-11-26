@@ -31,6 +31,7 @@ import { isHouseBotBrowser } from "../firebase/houseBot";
 import { HouseBotSocial } from "./components/social/HouseBotSocial";
 import { TeamLibraryGate } from "./components/TeamManagement/TeamLibraryGate";
 import { isAdminUser } from "../firebase/admin";
+import "./styles/fonts.css";
 import "./styles/global.css";
 
 interface AppProps {
