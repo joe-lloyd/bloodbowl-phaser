@@ -220,16 +220,18 @@ test("after setup a reserve is hovered by their body again", async ({
         (await app.bridge.events(since))
           .filter((e) => e.name === GameEventNames.UI_ShowPlayerInfo)
           .map((e) => (e.data as { id: string }).id),
-      { timeout: 5_000 }
+      { timeout: 5000 }
     )
     .toContain(reserve);
-  if (process.env["SHOTS"]) {
-    await markPoint(page, body);
-    await page.screenshot({
-      path: `${process.env["SHOTS"]}/reserve-hover-after-setup.png`,
-    });
-    await clearMark(page);
+  if (!process.env["SHOTS"]) {
+    return;
   }
+
+  await markPoint(page, body);
+  await page.screenshot({
+    path: `${process.env["SHOTS"]}/reserve-hover-after-setup.png`,
+  });
+  await clearMark(page);
 });
 
 async function startSetup(
@@ -306,7 +308,7 @@ async function markPoint(page: Page, at: Square): Promise<void> {
     const ring = document.createElement("div");
     ring.id = "grid-pick-mark";
     ring.style.cssText = `position:fixed;left:${String(x - 7)}px;top:${String(y - 7)}px;width:14px;height:14px;border:3px solid #ff2d55;border-radius:50%;pointer-events:none;z-index:99999`;
-    document.body.appendChild(ring);
+    document.body.append(ring);
   }, at);
 }
 

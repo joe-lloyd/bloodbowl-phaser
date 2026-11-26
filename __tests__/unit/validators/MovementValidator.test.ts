@@ -32,7 +32,7 @@ describe("MovementValidator", () => {
       expect(result.path.length).toBe(3);
       expect(result.rolls).toHaveLength(0);
 
-      expect(result.path[result.path.length - 1]).toEqual({ x: 8, y: 5 });
+      expect(result.path.at(-1)).toEqual({ x: 8, y: 5 });
     });
 
     it("should invalidate move out of bounds", () => {
@@ -114,7 +114,7 @@ describe("MovementValidator", () => {
       );
       expect(passedThroughObstacle).toBe(false);
 
-      expect(result.path[result.path.length - 1]).toEqual({ x: 7, y: 5 });
+      expect(result.path.at(-1)).toEqual({ x: 7, y: 5 });
     });
 
     it("should fail if destination is unreachable (blocked)", () => {
@@ -230,7 +230,7 @@ describe("MovementValidator", () => {
 
       expect(result.valid).toBe(true);
       expect(result.path.length).toBeGreaterThan(0);
-      expect(result.path[result.path.length - 1]).toEqual({ x: 9, y: 5 });
+      expect(result.path.at(-1)).toEqual({ x: 9, y: 5 });
 
       expect(result.rolls.some((r) => r.type === "dodge")).toBe(true);
     });

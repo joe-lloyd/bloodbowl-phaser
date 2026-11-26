@@ -102,7 +102,7 @@ function scan(file: string, source: string): Finding[] {
       file,
       line: source.slice(0, match.index).split("\n").length,
       rule: rule.name,
-      match: match[0].replace(/\s+/g, " "),
+      match: match[0].replaceAll(/\s+/g, " "),
     }))
   );
 }

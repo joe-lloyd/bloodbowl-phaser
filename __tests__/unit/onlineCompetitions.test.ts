@@ -34,7 +34,7 @@ import { createHumanTeam, createOrcTeam } from "../fixtures/teams";
 import { hostedFixture } from "../../src/ui/components/competition/useFixtureLaunch";
 
 const DAY = 24 * 60 * 60 * 1000;
-const START = 1_000 * DAY;
+const START = 1000 * DAY;
 
 function entrant(id: string, change: Partial<CompetitionEntrant> = {}): CompetitionEntrant {
   return { id, teamId: `team-${id}`, ownerUid: id, name: id, rosterName: "Orc", seed: 1, ...change };

@@ -540,7 +540,7 @@ describe("Frenzy's follow-up into the end zone with Bloodlust unsated", () => {
       const push = rolled.pendingDecision.options.findIndex(
         (o) => o.type === "push"
       );
-      if (push < 0) continue;
+      if (push === -1) continue;
       await run({ type: "choose-block-result", index: push });
       const pushed = await run({ type: "choose-push-direction", x: 19, y: 6 });
 
@@ -603,7 +603,7 @@ describe("Multiple Block after a push that scores", () => {
       const push = rolled.pendingDecision.options.findIndex(
         (o) => o.type === "push"
       );
-      if (push < 0) continue;
+      if (push === -1) continue;
       const chosen = await game.execute({
         type: "choose-block-result",
         index: push,

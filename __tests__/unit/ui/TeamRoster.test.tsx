@@ -22,7 +22,7 @@ describe("TeamRoster readability", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -112,7 +112,7 @@ describe("TeamRoster career-stat columns", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -198,7 +198,7 @@ describe("TeamRoster skill tooltips", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -291,7 +291,7 @@ describe("TeamRoster row click and drag handle", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -418,7 +418,7 @@ describe("TeamRoster SPP and value", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

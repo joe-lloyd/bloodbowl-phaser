@@ -70,7 +70,7 @@ async function main() {
       const homeGain = homeScore - awayScore - homeLead;
       return JSON.stringify({ seed, y: home ? homeGain : -homeGain, f });
     });
-    if (rows.length) process.stdout.write(rows.join("\n") + "\n");
+    if (rows.length > 0) process.stdout.write(rows.join("\n") + "\n");
   }
 }
 

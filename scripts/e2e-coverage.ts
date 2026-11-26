@@ -23,7 +23,7 @@ const BASELINE = join(ROOT, "src", "testing", "coverage", "baseline.json");
 const argv = process.argv.slice(2);
 const flag = (name: string): string | undefined => {
   const index = argv.indexOf(`--${name}`);
-  return index >= 0 ? argv[index + 1] : undefined;
+  return index === -1 ? undefined : argv[index + 1];
 };
 
 function gapsOf(result: CoverageResult): string[] {
@@ -79,12 +79,14 @@ function compareBaseline(result: CoverageResult): void {
   for (const gap of closed) console.log(`  + closed  ${gap}`);
   for (const gap of added) console.log(`  - ADDED   ${gap}`);
 
-  if (added.length > 0) {
-    console.error(
-      `\n${String(added.length)} new coverage gap(s) — add cases or record a reviewed exclusion`
-    );
-    process.exit(1);
+  if (added.length === 0) {
+    return;
   }
+
+  console.error(
+    `\n${String(added.length)} new coverage gap(s) — add cases or record a reviewed exclusion`
+  );
+  process.exit(1);
 }
 
 function main(): void {
@@ -134,10 +136,12 @@ function main(): void {
     return;
   }
 
-  if (result.issues.length > 0) {
-    console.error(`\n${String(result.issues.length)} coverage issue(s)`);
-    process.exit(1);
+  if (result.issues.length === 0) {
+    return;
   }
+
+  console.error(`\n${String(result.issues.length)} coverage issue(s)`);
+  process.exit(1);
 }
 
 main();

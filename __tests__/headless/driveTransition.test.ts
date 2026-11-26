@@ -94,10 +94,12 @@ async function placeAvailable(
         x,
         y,
       });
-      if (result.ok) {
-        occupied.add(`${String(x)},${String(y)}`);
-        placed++;
+      if (!result.ok) {
+        continue;
       }
+
+      occupied.add(`${String(x)},${String(y)}`);
+      placed++;
     }
   }
 }

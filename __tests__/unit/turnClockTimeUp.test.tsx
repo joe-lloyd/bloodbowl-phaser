@@ -94,7 +94,7 @@ describe("Time up when a turn runs out", () => {
           })
       );
       const container = document.createElement("div");
-      document.body.appendChild(container);
+      document.body.append(container);
       const root = createRoot(container);
       await act(async () => {
         root.render(

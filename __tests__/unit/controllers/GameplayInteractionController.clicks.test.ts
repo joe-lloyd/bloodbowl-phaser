@@ -65,7 +65,7 @@ describe("GameplayInteractionController", () => {
               gridPosition: { x: 5, y: 5 },
               status: "Active",
               skills: [],
-            }); } if (id === "p3") { return teammate; } return undefined; }
+            }); } if (id === "p3") { return teammate; } return; }
       );
       (controller).getPlayerAt = vi.fn().mockReturnValue(teammate);
 

@@ -66,7 +66,7 @@ describe("block dice chosen before they land", () => {
   it("lets the next roll play once the chosen block dice have landed", async () => {
     const bus = new EventBus();
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(<DiceTray eventBus={bus} />);
@@ -86,7 +86,7 @@ describe("block dice chosen before they land", () => {
         ],
       });
     });
-    await until(() => !!container.querySelector("canvas"), 2_000);
+    await until(() => !!container.querySelector("canvas"), 2000);
     await act(async () => {
       bus.emit(GameEventNames.DecisionResolved, {
         type: "block-dice",
@@ -103,7 +103,7 @@ describe("block dice chosen before they land", () => {
         description: "Armour: 5 + 6 = 11, broken",
       });
     });
-    await until(() => tray().includes("broken"), 8_000);
+    await until(() => tray().includes("broken"), 8000);
     expect(tray()).toContain("Armour: 5 + 6 = 11, broken");
 
     await act(async () => {

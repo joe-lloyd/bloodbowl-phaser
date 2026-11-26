@@ -84,7 +84,7 @@ for (const c of CASES) {
       .toEqual(c.crowd);
 
     const defenderId = await app.bridge.resolveRef("team2:0");
-    const target = c.crowd[c.crowd.length - 1];
+    const target = c.crowd.at(-1);
     const pushedIntoCrowd = async () =>
       (await app.bridge.events()).some(
         (e) =>
@@ -98,7 +98,7 @@ for (const c of CASES) {
         await waitForSquareToSettle(page, app, fixtureValue(target));
         await app.pitch.clickSquare(fixtureValue(target));
       }
-      await expect.poll(pushedIntoCrowd, { timeout: 3_000 }).toBe(true);
+      await expect.poll(pushedIntoCrowd, { timeout: 3000 }).toBe(true);
     }).toPass({ timeout: 20_000 });
 
     await expect

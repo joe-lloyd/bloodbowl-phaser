@@ -82,7 +82,7 @@ describe("first-match activation and active management journey", () => {
     saveTeam(team);
     expect(getTeamMode(team)).toBe("draft");
     expect(canEdit(team, { type: "change-roster-type" }).allowed).toBe(true);
-    expect(priceOf(team, { type: "reroll" }).amount).toBe(100000);
+    expect(priceOf(team, { type: "reroll" }).amount).toBe(100_000);
 
     stampFirstCompletedMatch(team);
     saveTeam(team);

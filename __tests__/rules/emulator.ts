@@ -31,7 +31,7 @@ export function dbFor(uid: string): Firestore {
   const app = initializeApp({ projectId: PROJECT }, `social-${uid}`);
   apps.push(app);
   const db = getFirestore(app);
-  const [host, port] = fixtureValue(EMULATOR).split(":");
+  const [host, port] = fixtureValue(EMULATOR).split(":", 2);
   connectFirestoreEmulator(db, fixtureValue(host), Number(port), {
     mockUserToken: uid === ADMIN ? ADMIN : { user_id: uid },
   });

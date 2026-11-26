@@ -117,7 +117,7 @@ describe("Advanced League journey", () => {
     const legal = fixtureValue(
       [SkillType.BLOCK, SkillType.DODGE, SkillType.TACKLE].find(
         (candidate) =>
-          !fixtureValue(scorer).skills.some((s) => s.type === candidate)
+          fixtureValue(scorer).skills.every((s) => s.type !== candidate)
       )
     );
     applyAdvancement(fixtureValue(scorer), {

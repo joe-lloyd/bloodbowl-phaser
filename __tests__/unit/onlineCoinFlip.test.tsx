@@ -106,7 +106,7 @@ const mount = async (first: LobbyDoc, side: OnlineMatch = match) => {
   coins.length = 0;
   const bus = new EventBus();
   const container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   const root = createRoot(container);
   const render = (next: LobbyDoc) =>
     act(async () => {
@@ -141,7 +141,7 @@ const mountWeather = async (coach: OnlineMatch) => {
   coins.length = 0;
   const bus = new EventBus();
   const container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   const root = createRoot(container);
   await act(async () => {
     root.render(
@@ -238,7 +238,7 @@ describe("online weather", () => {
     engine.readied = [];
     const bus = new EventBus();
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     coins.length = 0;
     await act(async () => {

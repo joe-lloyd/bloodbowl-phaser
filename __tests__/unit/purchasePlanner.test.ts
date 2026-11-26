@@ -43,12 +43,12 @@ describe("the purchase plan of a team with no human coach", () => {
     const plan = planPurchases(team);
 
     expect(plan.slice(0, 4)).toEqual(
-      Array(4).fill({
+      Array.from({ length: 4 }, () => ({
         kind: "player",
         positionName: "Goblin Lineman",
         price: 40_000,
         reason: "minimum",
-      })
+      }))
     );
     applyAll(team, plan);
     expect(fitPlayers(team)).toHaveLength(7);

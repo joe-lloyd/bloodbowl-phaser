@@ -1,6 +1,6 @@
-import { cpSync, existsSync, readdirSync } from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { cpSync, existsSync, readdirSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import autoprefixer from "autoprefixer";
 import tailwindcss from "tailwindcss";
@@ -29,8 +29,8 @@ function relativePublicFiles(): Plugin {
     name: "gallery-relative-public-files",
     enforce: "pre",
     transform: (code, id) =>
-      id.includes("/src/") && /\.tsx?$/.test(id.split("?")[0] ?? "")
-        ? code.replace(PUBLIC_PATH, "$1./$2")
+      id.includes("/src/") && /\.tsx?$/.test(id.split("?", 1)[0] ?? "")
+        ? code.replaceAll(PUBLIC_PATH, "$1./$2")
         : undefined,
     closeBundle: () => {
       for (const file of PUBLISHED)

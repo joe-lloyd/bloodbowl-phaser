@@ -53,8 +53,8 @@ describe("createHeadlessGame", () => {
   });
 
   it("produces identical dice outcomes for identical seeds", () => {
-    const a = createHeadlessGame({ scenario: scrimmage, seed: 12345 });
-    const b = createHeadlessGame({ scenario: scrimmage, seed: 12345 });
+    const a = createHeadlessGame({ scenario: scrimmage, seed: 12_345 });
+    const b = createHeadlessGame({ scenario: scrimmage, seed: 12_345 });
 
     const rollsA = Array.from({ length: 50 }, () => a.rng.rollDie(6));
     const rollsB = Array.from({ length: 50 }, () => b.rng.rollDie(6));

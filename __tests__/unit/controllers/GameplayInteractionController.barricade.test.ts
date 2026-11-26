@@ -35,8 +35,7 @@ const climber = createTestPlayer(
 async function answer(result: { confirmed: boolean; alternative?: true }) {
   await new Promise((resolve) => setTimeout(resolve, 0));
   const ask = eventBusSpies.emit.mock.calls
-    .filter(([name]) => name === GameEventNames.UI_RequestConfirmation)
-    .at(-1);
+    .findLast(([name]) => name === GameEventNames.UI_RequestConfirmation);
   const prompt = z
     .object({ actionId: z.string(), title: z.string() })
     .parse(fixtureValue(ask)[1]);

@@ -11,7 +11,7 @@ export default defineConfig({
   outputDir: process.env["PW_OUT"] ?? "e2e-results/fullgame",
   use: {
     ...vite.use,
-    actionTimeout: 4_000,
+    actionTimeout: 4000,
 
     viewport: (() => {
       const [width, height] = (process.env["FULLGAME_VIEWPORT"] ?? "1440x900")

@@ -69,7 +69,7 @@ describe("roster-authentic block-replacement scenario catalog", () => {
           expect(provenance.reason.length).toBeGreaterThan(20);
           expect(fixture.setup.team1Roster).toBe(provenance.roster);
 
-          const playerIndex = Number(provenance.playerRef.split(":")[1]);
+          const playerIndex = Number(provenance.playerRef.split(":", 2)[1]);
           const player = game.ctx.team1.players[playerIndex];
           expect(fixtureValue(player).positionName).toBe(
             provenance.positionName
@@ -84,9 +84,7 @@ describe("roster-authentic block-replacement scenario catalog", () => {
             );
             expect(
               placement.skills?.some((granted) =>
-                typeof granted === "string"
-                  ? granted === skill
-                  : granted.type === skill
+                (typeof granted === "string" ? granted : granted.type) === skill
               ) ?? false
             ).toBe(false);
           }

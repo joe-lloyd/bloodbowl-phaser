@@ -116,14 +116,14 @@ const baselinePath = (file: string) =>
 
 describe("fixed-viewport match-state visual baselines", () => {
   it.each(CHECKPOINTS)("matches the %s checkpoint", (file, render) => {
-    const actual = render().replace(/\r\n/g, "\n").trim();
+    const actual = render().replaceAll('\r\n', "\n").trim();
     const path = baselinePath(file);
 
     if (shouldUpdateVisualBaselines() || !existsSync(path)) {
       writeFileSync(path, `${actual}\n`, "utf8");
     }
 
-    const expected = readFileSync(path, "utf8").replace(/\r\n/g, "\n").trim();
+    const expected = readFileSync(path, "utf8").replaceAll('\r\n', "\n").trim();
     expect(actual).toBe(expected);
 
     expect(expected).toContain('width="1200" height="660"');

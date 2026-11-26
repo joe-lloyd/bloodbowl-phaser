@@ -216,7 +216,7 @@ describe("fixture audit", () => {
         phase: "PLAY",
         subPhase: "TURN_RECEIVING",
       },
-      [{ player: "team1:0", skill: SkillType.BALL_AND_CHAIN, reason: "   " }]
+      [{ player: "team1:0", skill: SkillType.BALL_AND_CHAIN, reason: ' '.repeat(3) }]
     );
     expect(issues).toHaveLength(1);
   });

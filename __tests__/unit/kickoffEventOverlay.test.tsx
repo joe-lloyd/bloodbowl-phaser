@@ -17,7 +17,7 @@ describe("the kick-off turn in the HUD", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -39,7 +39,7 @@ describe("the kick-off turn in the HUD", () => {
       })
     );
     const bus = game.ctx.eventBus;
-    if (!(bus instanceof EventBus)) throw new Error("no browser bus");
+    if (!(bus instanceof EventBus)) throw new TypeError("no browser bus");
     const render = async () => {
       const { turn, phase } = gs.getState();
       await act(async () => {

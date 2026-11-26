@@ -211,7 +211,7 @@ function developedVariants({
           SKILL_DEFINITIONS[allocation.skill].category &&
         ELITE_SKILLS.has(skill) === ELITE_SKILLS.has(allocation.skill)
     );
-    if (!pool.length)
+    if (pool.length === 0)
       throw new Error("No matched random control: " + templateId);
     const choice = { ...allocation, skill: rng.pick(pool) };
     learn(player, choice);

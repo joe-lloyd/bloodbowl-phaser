@@ -71,13 +71,13 @@ export async function findEveryEvent() {
       run.result.event !== KickoffEvent.HIGH_KICK ||
       (run.response.pendingDecision?.type === "kickoff-event" &&
         !!run.response.pendingDecision.landingSquare &&
-        !run.game
+        run.game
           .snapshot()
           .teams.flatMap((team) => team.players)
-          .some(
+          .every(
             (player) =>
-              player.position?.x === fixtureValue(landing).x &&
-              player.position.y === fixtureValue(landing).y
+              !(player.position?.x === fixtureValue(landing).x &&
+              player.position.y === fixtureValue(landing).y)
           ));
 
     if (

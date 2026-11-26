@@ -36,14 +36,14 @@ describe("Test Builders", () => {
         .withName("Custom Team")
         .withRosterName(RosterName.ORC)
         .withPlayers(7)
-        .withTreasury(100000)
+        .withTreasury(100_000)
         .withRerolls(3)
         .build();
 
       expect(team.name).toBe("Custom Team");
       expect(team.rosterName).toBe(RosterName.ORC);
       expect(team.players).toHaveLength(7);
-      expect(team.treasury).toBe(100000);
+      expect(team.treasury).toBe(100_000);
       expect(team.rerolls).toBe(3);
     });
 

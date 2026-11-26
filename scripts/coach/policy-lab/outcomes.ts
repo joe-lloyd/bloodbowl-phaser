@@ -86,10 +86,12 @@ function outcomeTracker(game: HeadlessGame) {
     const catcher = eventId(data, "catcherId");
     const passer = game.ctx.gameService.getPlayerById(passerId);
     const side = sides.get(passer?.teamId ?? "");
-    if (catcher && side !== undefined) {
-      catches.set(catcher, context.turn);
-      totals[side].completions++;
+    if (!catcher || side === undefined) {
+      return;
     }
+
+    catches.set(catcher, context.turn);
+    totals[side].completions++;
   }
   function touchdown(data: unknown, context: TurnContext) {
     const side = sides.get(eventId(data, "teamId") ?? "");

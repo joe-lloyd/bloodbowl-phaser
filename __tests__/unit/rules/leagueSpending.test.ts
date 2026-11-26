@@ -33,7 +33,7 @@ function leagueTeam(treasury: number, positions: string[]): Team {
   return team;
 }
 
-const LINEMEN = (count: number) => Array(count).fill("Human Lineman");
+const LINEMEN = (count: number) => Array.from({ length: count }, () => "Human Lineman");
 
 describe("between league fixtures", () => {
   it("hires a Blitzer for its 85,000 Hiring Fee", () => {

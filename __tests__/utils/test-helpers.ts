@@ -18,7 +18,7 @@ export const forceDice = (
 };
 
 export const buttonLabel = (button: Element | null | undefined) => {
-  if (!button) return undefined;
+  if (!button) return;
   const words = button.cloneNode(true) as Element;
   words.querySelectorAll("kbd").forEach((badge) => {
     badge.remove();

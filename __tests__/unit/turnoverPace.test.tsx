@@ -66,7 +66,7 @@ it("a failed Rush with its armour roll reaches the next turn banner in under 5 s
   const bus = new EventBus();
   const queue = new MomentQueue(bus);
   const container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   const root = createRoot(container);
   await act(async () => {
     root.render(<DiceTray eventBus={bus} />);
@@ -118,7 +118,7 @@ it("a failed Rush with its armour roll reaches the next turn banner in under 5 s
   expect(throws.values).toEqual([[1], [6, 6, 2, 4], [5, 3]]);
   expect(failedLandedAt).toBeGreaterThan(0);
   expect(bannerAt).toBeGreaterThan(failedLandedAt);
-  expect(bannerAt - failedLandedAt).toBeLessThan(5_000);
+  expect(bannerAt - failedLandedAt).toBeLessThan(5000);
 
   await act(async () => {
     root.unmount();

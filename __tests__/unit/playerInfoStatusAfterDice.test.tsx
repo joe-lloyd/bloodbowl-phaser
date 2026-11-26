@@ -22,7 +22,7 @@ beforeEach(async () => {
   player.gridPosition = { x: 5, y: 5 };
   player.status = PlayerStatus.ACTIVE;
   container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   root = createRoot(container);
   await act(async () => {
     root.render(<PlayerInfoPanel eventBus={bus} />);

@@ -80,7 +80,7 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
     hoisted.endTurnMock.mockClear();
     hoisted.activeTeamId = "host-team";
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
     eventBus = new EventBus();
   });

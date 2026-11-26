@@ -75,12 +75,12 @@ const rounded = (value: number | null, places = 3) =>
 async function foulValue(format: MatchFormat): Promise<number | null> {
   const subject = foulGame(format);
   const point = await enumerateDecision(subject, null);
-  const fouls = activations({
+  const foul = activations({
     board: readBoard(subject, "team1"),
     w: DEFAULT_WEIGHTS,
     available: availableActions(point.candidates),
-  }).filter((a) => a.action === "foul");
-  return rounded(fouls[0]?.value ?? null);
+  }).find((a) => a.action === "foul");
+  return rounded(foul?.value ?? null);
 }
 
 describe("game type rules in the planner's prices", () => {

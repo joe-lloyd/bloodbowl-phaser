@@ -109,7 +109,7 @@ function storedTeam(teamId: string): Record<string, unknown> | undefined {
   return raw.find((team) => team.id === teamId);
 }
 
-const coachRng = new RNGService(20261108);
+const coachRng = new RNGService(20_261_108);
 
 function mustLoad(teamId: string): Team {
   const team = getTeamById(teamId);

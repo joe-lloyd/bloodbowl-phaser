@@ -245,10 +245,12 @@ async function placeTeam(
         x,
         y,
       });
-      if (response.ok) {
-        occupied.add(`${String(x)},${String(y)}`);
-        placed++;
+      if (!response.ok) {
+        continue;
       }
+
+      occupied.add(`${String(x)},${String(y)}`);
+      placed++;
     }
   }
 }
@@ -293,8 +295,8 @@ test("plays a complete seeded match through both halves to GAME_OVER", async () 
 });
 
 test("is deterministic: the same seed twice gives the same match", async () => {
-  const first = await playFullMatch(31337);
-  const second = await playFullMatch(31337);
+  const first = await playFullMatch(31_337);
+  const second = await playFullMatch(31_337);
 
   const scores = (result: MatchResult) =>
     result.finalSnapshot.teams.map(

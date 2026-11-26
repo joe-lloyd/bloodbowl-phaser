@@ -90,14 +90,14 @@ describe("cloud team writes", () => {
     ];
     const repository = new CloudTeamRepository("coach", library);
     const edited = structuredClone(library);
-    edited[1] = { ...activeTeam("second", 20_000), treasury: 5_000 };
+    edited[1] = { ...activeTeam("second", 20_000), treasury: 5000 };
 
     await repository.saveTeams(edited);
 
     expect(setDoc).toHaveBeenCalledTimes(1);
     expect(setDoc).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ id: "second", treasury: 5_000 })
+      expect.objectContaining({ id: "second", treasury: 5000 })
     );
   });
 
@@ -114,7 +114,7 @@ describe("cloud team writes", () => {
     const repository = new CloudTeamRepository("coach", [
       activeTeam("first", 10_000),
     ]);
-    const changed = [activeTeam("first", 2_000)];
+    const changed = [activeTeam("first", 2000)];
     vi.mocked(setDoc).mockRejectedValueOnce(new Error("Cloud offline"));
     await expect(repository.saveTeams(changed)).rejects.toThrow(
       "Cloud offline"

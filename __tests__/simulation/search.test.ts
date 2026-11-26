@@ -328,7 +328,7 @@ describe("the lookahead over workers", () => {
     const fresh = () => ({ ...context, rng: createCoachRng(7) });
     expect(await pooled.choose(fresh())).toEqual(await here.choose(fresh()));
     expect(workers.map((w) => w.asked > 0)).toEqual([true, true, true]);
-  }, 60000);
+  }, 60_000);
 
   it.each([
     [

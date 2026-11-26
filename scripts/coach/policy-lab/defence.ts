@@ -88,7 +88,7 @@ export function watchDefence(
     const by = teams.findIndex((t) =>
       t.players.some((p) => p.id === b.attackerId)
     );
-    if (by < 0) return;
+    if (by === -1) return;
     const dice =
       Math.min(3, b.numDice) * (b.isAttackerChoice || b.numDice === 1 ? 1 : -1);
     const t = tallies[by as Side];
@@ -110,8 +110,7 @@ export function watchDefence(
     const t = tallies[side];
     const c = carrier();
     if (c?.side === side) t.won++;
-    else if (!c) t.loose++;
-    else {
+    else if (c) {
       const mine = teams[side].players.filter(
         (p) => p.status === PlayerStatus.ACTIVE && p.gridPosition
       );
@@ -123,6 +122,7 @@ export function watchDefence(
       if (toGo <= c.p.stats.MA + 2) t.within++;
       watching = { side, far: toGo > c.p.stats.MA };
     }
+    else {t.loose++;}
   };
 
   game.ctx.eventBus.on(GameEventNames.BlockDiceRolled, (b) => {

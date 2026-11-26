@@ -13,7 +13,7 @@ interface UsedByProps {
 export function UsedBy({ positions, character, onChange }: UsedByProps) {
   const { usedBy } = character;
   const free = Object.entries(positions).flatMap(([roster, names]) => names.map((position) => ({ roster, position })))
-    .filter((entry) => !usedBy.some((use) => use.roster === entry.roster && use.position === entry.position));
+    .filter((entry) => usedBy.every((use) => !(use.roster === entry.roster && use.position === entry.position)));
   return (
     <Section title="Plays as">
       {usedBy.map((use, index) => (

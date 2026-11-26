@@ -49,7 +49,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
       timeout: 15_000,
     });
     await expect(flip).toHaveCount(0);
-    await shot(`intro-${fixtureValue(name.split(" ")[0]).toLowerCase()}`);
+    await shot(`intro-${fixtureValue(name.split(" ", 1)[0]).toLowerCase()}`);
   }
   const cameraFrames = await finishCameraSample(
     page,
@@ -123,10 +123,12 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     const w = window as unknown as { flippedAt: number; namedAt: number };
     w.flippedAt = performance.now();
     new MutationObserver((_, observer) => {
-      if ((document.body.textContent ?? "").includes("wins the toss!")) {
-        w.namedAt = performance.now();
-        observer.disconnect();
+      if (!(document.body.textContent ?? "").includes("wins the toss!")) {
+        return;
       }
+
+      w.namedAt = performance.now();
+      observer.disconnect();
     }).observe(document.body, { childList: true, subtree: true });
   });
   await flip.click();

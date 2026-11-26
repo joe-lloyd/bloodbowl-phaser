@@ -92,7 +92,7 @@ describe("TurnClock pauses", () => {
     hoisted.setTurnDeadlineMock.mockClear();
     hoisted.endTurnMock.mockClear();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
     eventBus = new EventBus();
   });
@@ -199,7 +199,7 @@ describe("TurnClock pauses", () => {
     await act(async () => {
       render(before, false);
     });
-    await act(async () => vi.advanceTimersByTime(1_000));
+    await act(async () => vi.advanceTimersByTime(1000));
     const clock = () =>
       container.querySelector('[data-testid="turn-clock"]')?.textContent ?? "";
     expect(clock()).toContain("⏱ 0:59");
@@ -217,14 +217,14 @@ describe("TurnClock pauses", () => {
       settings: { turnSeconds: 240, timeoutBankMs: 0 },
     } as unknown as LobbyDoc;
 
-    const awaySince = Date.now() - 1_000;
+    const awaySince = Date.now() - 1000;
     const guestMatch = {
       ...hostMatch(),
       role: "guest",
       myTeamId: "guest-team",
     } as unknown as OnlineMatch;
     const guestRoot = document.createElement("div");
-    document.body.appendChild(guestRoot);
+    document.body.append(guestRoot);
     const guestClock = createRoot(guestRoot);
     const hostMatchNow = hostMatch();
     const show = (away: boolean) => {
@@ -302,11 +302,11 @@ describe("TurnClock pauses", () => {
         opponentName: "Host",
       } as unknown as OnlineMatch;
       const guestDiv = document.createElement("div");
-      document.body.appendChild(guestDiv);
+      document.body.append(guestDiv);
       const guestRoot = createRoot(guestDiv);
 
       const lastBeat = (at: number, cutOff: boolean) => {
-        const beat = start + Math.floor((at - start) / 6_000) * 6_000;
+        const beat = start + Math.floor((at - start) / 6000) * 6000;
         return cutOff ? start : beat;
       };
       const frames: { host: string; guest: string }[] = [];
@@ -366,7 +366,7 @@ describe("TurnClock pauses", () => {
           show();
         });
         frames.push({ host: read(container), guest: read(guestDiv) });
-        await act(async () => vi.advanceTimersByTime(1_000));
+        await act(async () => vi.advanceTimersByTime(1000));
       }
       await act(async () => {
         guestRoot.unmount();
@@ -417,11 +417,11 @@ describe("TurnClock pauses", () => {
     await act(async () => {
       render(true, false);
     });
-    await act(async () => vi.advanceTimersByTime(5_000));
+    await act(async () => vi.advanceTimersByTime(5000));
     await act(async () => {
       render(false, true);
     });
-    await act(async () => vi.advanceTimersByTime(5_000));
+    await act(async () => vi.advanceTimersByTime(5000));
     expect(
       container.querySelector('[data-testid="turn-clock-stopped"]')
     ).not.toBeNull();
@@ -434,7 +434,7 @@ describe("TurnClock pauses", () => {
   });
 
   it("does not end its own turn on the clock while it is offline", async () => {
-    const lobby = lobbyAt(Date.now() + 3_000);
+    const lobby = lobbyAt(Date.now() + 3000);
     const render = (offline: boolean) => {
       root.render(
         <TurnClock
@@ -456,7 +456,7 @@ describe("TurnClock pauses", () => {
     await act(async () => {
       render(false);
     });
-    await act(async () => vi.advanceTimersByTime(1_000));
+    await act(async () => vi.advanceTimersByTime(1000));
     expect(hoisted.endTurnMock).toHaveBeenCalledTimes(1);
   });
 
@@ -490,7 +490,7 @@ describe("TurnClock pauses", () => {
       "Your connection dropped: game paused"
     );
     expect(container.textContent).not.toContain("Host disconnected");
-    await act(async () => vi.advanceTimersByTime(5_000));
+    await act(async () => vi.advanceTimersByTime(5000));
     await act(async () => {
       render(false);
     });
@@ -526,7 +526,7 @@ describe("TurnClock pauses", () => {
     }) as unknown as OnlineMatch;
 
   it("does not end a new turn on the last turn's deadline before its own arrives", async () => {
-    const lobby = lobbyAt(Date.now() - 1_000, "guest-team:1:3");
+    const lobby = lobbyAt(Date.now() - 1000, "guest-team:1:3");
     await act(async () => {
       root.render(
         <TurnClock
@@ -538,13 +538,13 @@ describe("TurnClock pauses", () => {
         />
       );
     });
-    await act(async () => vi.advanceTimersByTime(3_000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(hoisted.endTurnMock).not.toHaveBeenCalled();
     expect(container.textContent).toContain("2:00");
   });
 
   it("ends the turn once this turn's own deadline has passed", async () => {
-    const lobby = lobbyAt(Date.now() + 1_000);
+    const lobby = lobbyAt(Date.now() + 1000);
     await act(async () => {
       root.render(
         <TurnClock
@@ -556,14 +556,14 @@ describe("TurnClock pauses", () => {
         />
       );
     });
-    await act(async () => vi.advanceTimersByTime(2_000));
+    await act(async () => vi.advanceTimersByTime(2000));
     expect(hoisted.endTurnMock).toHaveBeenCalledTimes(1);
   });
 
   it("warns in the strip for the last 15 seconds and says Time up on expiry", async () => {
     const slot = document.createElement("div");
     slot.id = "match-strip-clock";
-    container.appendChild(slot);
+    container.append(slot);
     const announcements: string[] = [];
     eventBus.on(GameEventNames.UI_Announce, (data) =>
       announcements.push(data.headline)
@@ -573,7 +573,7 @@ describe("TurnClock pauses", () => {
       eventBus.emit(GameEventNames.TurnEnded, { teamId: "host-team" });
     });
     const clockRoot = document.createElement("div");
-    container.appendChild(clockRoot);
+    container.append(clockRoot);
     const clock = createRoot(clockRoot);
     await act(async () => {
       clock.render(
@@ -586,7 +586,7 @@ describe("TurnClock pauses", () => {
         />
       );
     });
-    await act(async () => vi.advanceTimersByTime(1_000));
+    await act(async () => vi.advanceTimersByTime(1000));
     expect(
       slot.querySelector('[data-testid="turn-clock-warning"]')?.textContent
     ).toBe("15 seconds left");
@@ -629,8 +629,8 @@ describe("TurnClock pauses", () => {
     };
 
     it("says Time up when the other coach's turn ends on the clock", async () => {
-      const announcements = await watch(Date.now() + 1_000);
-      await act(async () => vi.advanceTimersByTime(1_500));
+      const announcements = await watch(Date.now() + 1000);
+      await act(async () => vi.advanceTimersByTime(1500));
       expect(announcements).toEqual([]);
       await act(async () => {
         eventBus.emit(GameEventNames.TurnEnded, { teamId: "host-team" });
@@ -648,10 +648,10 @@ describe("TurnClock pauses", () => {
     });
 
     it("says nothing when a turnover ended the turn after the clock ran out", async () => {
-      const announcements = await watch(Date.now() + 1_000);
+      const announcements = await watch(Date.now() + 1000);
       await act(async () => {
         eventBus.emit(GameEventNames.Turnover, { teamId: "host-team" });
-        vi.advanceTimersByTime(1_500);
+        vi.advanceTimersByTime(1500);
         eventBus.emit(GameEventNames.TurnEnded, { teamId: "host-team" });
       });
       expect(announcements).toEqual([]);
@@ -690,11 +690,11 @@ describe("TurnClock pauses", () => {
         />
       );
     });
-    await act(async () => vi.advanceTimersByTime(4_000));
+    await act(async () => vi.advanceTimersByTime(4000));
     expect(container.textContent).toContain("to decide");
     expect(run).not.toHaveBeenCalled();
 
-    await act(async () => vi.advanceTimersByTime(7_000));
+    await act(async () => vi.advanceTimersByTime(7000));
     expect(run).toHaveBeenCalledWith({ type: "choose-block-result", index: 0 });
     expect(run).toHaveBeenCalledTimes(1);
   });

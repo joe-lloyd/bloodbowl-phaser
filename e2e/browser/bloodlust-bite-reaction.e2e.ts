@@ -149,7 +149,7 @@ async function expectDownDuring(page: Page, teamId: string) {
         const last = (await watched(page)).frames.at(-1);
         return last && [last.anim, last.stunnedMarker, last.activeTeamId];
       },
-      { timeout: 5_000 }
+      { timeout: 5000 }
     )
     .toEqual(["fall", true, teamId]);
 }
@@ -171,7 +171,7 @@ test("a Bloodlust bite at the end of the activation downs the Thrall at once", a
       .poll(async () => (await app.bridge.snapshot()).activeTeamId)
       .toBe(team2.id);
 
-    await page.waitForTimeout(1_000);
+    await page.waitForTimeout(1000);
     await page.screenshot({ path: testInfo.outputPath("next-turn.png") });
   } finally {
     await attachWatch(page, testInfo);
@@ -199,7 +199,7 @@ test("a Bloodlust bite settled by End Turn downs the Thrall once", async ({
       .poll(async () => (await app.bridge.snapshot()).activeTeamId)
       .toBe(team2.id);
     await expectDownDuring(page, team2.id);
-    await page.waitForTimeout(1_000);
+    await page.waitForTimeout(1000);
     await page.screenshot({ path: testInfo.outputPath("next-turn.png") });
   } finally {
     await attachWatch(page, testInfo);

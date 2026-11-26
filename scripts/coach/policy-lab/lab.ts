@@ -88,7 +88,7 @@ export async function annotateRun(annotation: Annotation) {
       );
       writeFileSync(join(out, job.id + ".json"), JSON.stringify(result));
     });
-    return undefined;
+    return;
   }
   const manifest = parseLabManifest(
     readFileSync(join(run, "manifest.json"), "utf8")

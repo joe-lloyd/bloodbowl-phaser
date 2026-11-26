@@ -423,7 +423,7 @@ describe("Raised Lineman post-match recruitment", () => {
 
   it("fills a short-handed team with a Journeyman instead of fielding the unhired recruit", async () => {
     const { team } = await offer();
-    team.players.splice(0, 1);
+    team.players.shift();
     const game = new HeadlessGame({
       team1: team,
       team2: newGame().ctx.team2,

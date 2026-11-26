@@ -25,7 +25,7 @@ describe("Kickoff table resolves exactly once per drive (regression: reroll afte
     expect(state.kick?.resolution?.event).toBe(result.event);
     expect(state.kick?.resolution?.roll).toBe(result.roll);
 
-    const bribesBeforeReplay = { ...(game.snapshot().bribes ?? {}) };
+    const bribesBeforeReplay = { ...game.snapshot().bribes };
     const driveEffectsBeforeReplay = structuredClone(
       game.snapshot().driveEffects ?? {}
     );

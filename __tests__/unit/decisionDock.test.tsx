@@ -38,7 +38,7 @@ describe("decision dock", () => {
     service.getState().turn.teamId = teamId;
     fixtureValue(service.getTeam(teamId)).rerolls = 2;
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

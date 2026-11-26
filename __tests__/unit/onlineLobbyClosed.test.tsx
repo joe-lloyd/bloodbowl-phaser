@@ -33,7 +33,7 @@ describe("a lobby that closes while it is open", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
     act(() => {
       root.render(

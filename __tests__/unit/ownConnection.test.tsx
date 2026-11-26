@@ -76,7 +76,7 @@ describe("this coach's own connection comes first", () => {
 
   it("tells the offline coach they are offline", async () => {
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root: Root = createRoot(container);
     await act(async () => {
       root.render(
@@ -103,7 +103,7 @@ describe("subscribeMatchLobby's own link", () => {
     seen = [];
     stop = subscribeMatchLobby(
       {
-        code: "ABCD",uid: "me",onLobby: () => { },onLink: (link) => {
+        code: "ABCD",uid: "me",onLobby: () => {},onLink: (link) => {
           const online=link.state!=="offline";
           if(seen.at(-1)!==online) seen.push(online);
         }

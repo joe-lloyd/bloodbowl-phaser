@@ -17,7 +17,7 @@ export class TeamBuilder {
       "Test Team",
       RosterName.HUMAN,
       { primary: 0x0000ff, secondary: 0xffffff },
-      50000
+      50_000
     );
   }
 
@@ -101,7 +101,7 @@ export class PlayerBuilder {
   constructor() {
     this.template = {
       positionName: PositionKeyWord.LINEMAN,
-      cost: 50000,
+      cost: 50_000,
       keywords: [],
       primary: [],
       secondary: [],

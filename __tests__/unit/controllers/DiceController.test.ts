@@ -19,7 +19,7 @@ describe("DiceController", () => {
 
   beforeEach(() => {
     eventBus = new EventBus();
-    rng = new RNGService(12345);
+    rng = new RNGService(12_345);
     controller = new DiceController(eventBus, rng);
     emitSpy = observeEmit(eventBus);
   });

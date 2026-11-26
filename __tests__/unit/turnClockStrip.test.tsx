@@ -82,9 +82,9 @@ describe("turn clock in the match strip", () => {
     vi.useFakeTimers();
     slot = document.createElement("div");
     slot.id = "match-strip-clock";
-    document.body.appendChild(slot);
+    document.body.append(slot);
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
   });
   afterEach(() => {
     slot.remove();

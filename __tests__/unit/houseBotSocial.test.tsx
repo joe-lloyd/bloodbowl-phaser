@@ -48,7 +48,7 @@ describe("the house bot's browser", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
     world.friends = [];
     world.invites = [];

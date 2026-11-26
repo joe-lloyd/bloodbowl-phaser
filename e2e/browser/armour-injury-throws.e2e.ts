@@ -133,5 +133,5 @@ test("armour and injury land as two throws before the turnover hands over", asyn
   const injuryThrow = log.throws.findIndex((t) => t.includes("Injury"));
   expect(armourThrow).toBeGreaterThanOrEqual(0);
   expect(injuryThrow).toBeGreaterThan(armourThrow);
-  expect(log.bannerAt - log.armourAt).toBeLessThan(7_000);
+  expect(log.bannerAt - log.armourAt).toBeLessThan(7000);
 });

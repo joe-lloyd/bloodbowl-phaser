@@ -57,7 +57,7 @@ function openGameAppears(uid: string, code: string): Promise<boolean> {
         }, 30_000);
         const stop = subscribeOpenLobbies((lobbies) => {
           const games = openGames({ lobbies, now: Date.now(), me: uid });
-          if (!games.some((game) => game.code === code)) return;
+          if (games.every((game) => game.code !== code)) return;
           clearTimeout(timeout);
           stop();
           resolve(true);

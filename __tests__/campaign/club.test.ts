@@ -90,7 +90,7 @@ const snapshots: Snapshot[] = [];
 const competitions: { name: string; gameType: GameType; type: CompetitionType; entrants: string[] }[] = [];
 const gamesPlayed = new Map<string, number>();
 const everSeen = new Map<string, Set<string>>();
-const coachRng = new RNGService(20261122);
+const coachRng = new RNGService(20_261_122);
 let nextSeed = 1;
 
 function note(where: string, rule: string, detail: string): void {
@@ -232,7 +232,7 @@ async function playCompetition(competition: CompetitionDoc, gameType: GameType, 
     [homeId, awayId].forEach((id, index) => {
       const team = mustLoad(id);
       const specialistId = specialists[index];
-      if (specialistId && !team.players.some((player) => player.id === specialistId) && gameType !== "gutter-bowl")
+      if (specialistId && team.players.every((player) => player.id !== specialistId) && gameType !== "gutter-bowl")
         note(where, "specialist-lost", `${team.name} lost its specialist after a ${gameType} match`);
       const home = index === 0;
       snapshot(team, {

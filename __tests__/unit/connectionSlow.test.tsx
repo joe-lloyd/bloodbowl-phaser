@@ -58,22 +58,22 @@ const lobbyWith = (opponentSeenAgo: number) =>
 describe("a slow link is not a disconnect", () => {
   it("reads a 16 s silence from the other coach as slow, not gone", () => {
     expect(
-      describeConnection({ lobby: lobbyWith(16000),opponentUid: "opponent",link: "online",now: NOW })
+      describeConnection({ lobby: lobbyWith(16_000),opponentUid: "opponent",link: "online",now: NOW })
     ).toBe("slow");
     expect(
       describeConnection({ lobby: lobbyWith(5000),opponentUid: "opponent",link: "online",now: NOW })
     ).toBe("online");
     expect(
-      describeConnection({ lobby: lobbyWith(25000),opponentUid: "opponent",link: "online",now: NOW })
+      describeConnection({ lobby: lobbyWith(25_000),opponentUid: "opponent",link: "online",now: NOW })
     ).toBe("reconnecting");
   });
 
   it("reads this coach's own slow link as slow, whatever the other coach's heartbeat says", () => {
-    expect(describeConnection({ lobby: lobbyWith(25000),opponentUid: "opponent",link: "slow",now: NOW })).toBe(
+    expect(describeConnection({ lobby: lobbyWith(25_000),opponentUid: "opponent",link: "slow",now: NOW })).toBe(
       "slow"
     );
     expect(
-      describeConnection({ lobby: lobbyWith(25000),opponentUid: "opponent",link: "offline",now: NOW })
+      describeConnection({ lobby: lobbyWith(25_000),opponentUid: "opponent",link: "offline",now: NOW })
     ).toBe("offline");
   });
 
@@ -103,7 +103,7 @@ describe("a slow link is not a disconnect", () => {
 
   it("says the connection is slow", async () => {
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root: Root = createRoot(container);
     await act(async () => {
       root.render(
@@ -179,13 +179,13 @@ describe("subscribeMatchLobby", () => {
 
   it("calls the link slow while its writes wait over 6 s for the server", async () => {
     snapshotListener?.(snap(false, false, 900));
-    snapshotListener?.(snap(false, true, 7_000));
-    await vi.advanceTimersByTimeAsync(5_000);
+    snapshotListener?.(snap(false, true, 7000));
+    await vi.advanceTimersByTimeAsync(5000);
     expect(links.at(-1)?.state).toBe("online");
-    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(2000);
     expect(links.at(-1)).toEqual({ state: "slow", confirmedSeen: 900 });
-    snapshotListener?.(snap(false, false, 7_000));
-    expect(links.at(-1)).toEqual({ state: "online", confirmedSeen: 7_000 });
+    snapshotListener?.(snap(false, false, 7000));
+    expect(links.at(-1)).toEqual({ state: "online", confirmedSeen: 7000 });
   });
 
   it("follows the browser going offline and back", () => {

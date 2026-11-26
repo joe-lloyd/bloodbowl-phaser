@@ -275,7 +275,7 @@ describe("GameplayInteractionController", () => {
         gridPosition: at,
       }));
       mockGameService.movePlayer.mockImplementation(async (_id, path) => {
-        at = fixtureValue(path[path.length - 1]);
+        at = fixtureValue(path.at(-1));
         mockGameService.getMovementUsed.mockReturnValue(at.x - 5);
       });
       mockMovementValidator.findPath.mockReturnValue({ cost: 0,

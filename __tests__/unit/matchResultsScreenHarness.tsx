@@ -28,7 +28,7 @@ export function resultsHarness() {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

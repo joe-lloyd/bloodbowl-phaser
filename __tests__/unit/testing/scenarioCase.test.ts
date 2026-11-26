@@ -88,7 +88,7 @@ describe("scenario-case schema", () => {
           {
             id: "drifted",
             name: "Drifted",
-            seed: Number.NaN,
+            seed: NaN,
             expectedOutcome: "nothing in particular",
           },
         ],

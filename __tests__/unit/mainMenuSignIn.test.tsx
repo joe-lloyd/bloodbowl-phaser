@@ -166,7 +166,7 @@ describe("signing in from the main menu", () => {
     sdk.state.popups.length = 0;
     sdk.state.links.length = 0;
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
     await act(async () => {
       root.render(

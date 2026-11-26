@@ -45,7 +45,7 @@ describe("block dialogs on the other coach's screen", () => {
 
       container?.remove();
       container = document.createElement("div");
-      document.body.appendChild(container);
+      document.body.append(container);
       root = createRoot(container);
       const bus = game.ctx.eventBus as never;
       await act(async () => {
@@ -71,7 +71,7 @@ describe("block dialogs on the other coach's screen", () => {
       const push = rolled.pendingDecision.options.findIndex(
         (option) => option.type === "push"
       );
-      if (push < 0) continue;
+      if (push === -1) continue;
 
       await act(async () => {
         game.ctx.eventBus.emit(GameEventNames.UI_BlockDialog, {
@@ -117,7 +117,7 @@ describe("block dialogs on the other coach's screen", () => {
     const [attacker] = game.ctx.team1.players;
     const [defender] = game.ctx.team2.players;
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
     await act(async () => {
       fixtureValue(root).render(<BlockDiceDialog eventBus={game.ctx.eventBus as never} />);

@@ -1,4 +1,3 @@
-import { forceDice } from "./test-helpers";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { type PlayerPlacement, type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -82,4 +81,6 @@ export async function blockAndPush(
 export const PUSH = 3;
 export const POW = 5;
 
-export { forceDice };
+
+
+export {forceDice} from "./test-helpers";

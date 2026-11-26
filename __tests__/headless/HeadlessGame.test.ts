@@ -37,7 +37,7 @@ describe("HeadlessGame action protocol", () => {
 
     for (const command of [
       { type: "place-player", playerId, x: 2.5, y: 3 },
-      { type: "kick-ball", playerId, x: 10, y: Number.NaN },
+      { type: "kick-ball", playerId, x: 10, y: NaN },
       { type: "move", playerId, path: [{ x: 3.5, y: 4 }] },
       {
         type: "apply-formation",
@@ -383,13 +383,15 @@ describe("HeadlessGame action protocol", () => {
       const turnover = moved.events.find(
         (e) => e.name === GameEventNames.Turnover
       );
-      if (turnover) {
-        reported = true;
-
-        expect(moved.snapshot.activeTeamId).toBe(
-          fixtureValue(snapshot.teams[1]).id
-        );
+      if (!turnover) {
+        continue;
       }
+
+      reported = true;
+
+      expect(moved.snapshot.activeTeamId).toBe(
+        fixtureValue(snapshot.teams[1]).id
+      );
     }
     expect(reported).toBe(true);
   });

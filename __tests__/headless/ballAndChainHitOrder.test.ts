@@ -58,7 +58,7 @@ async function lurchAll(
           answerDecision(response.pendingDecision, game, {
             acceptRerolls: false,
             custom: (pending) => {
-              if (pending.type !== "block-dice") return undefined;
+              if (pending.type !== "block-dice") return;
               const order =
                 pending.chooserTeamId === team
                   ? FANATIC_PRIORITY
@@ -119,7 +119,7 @@ async function lurch(
   });
   const before = game.snapshot();
   const responses = await lurchAll(game, fixtureValue(fanatic).id);
-  const response = responses[responses.length - 1];
+  const response = responses.at(-1);
 
   const name = (id: string) =>
     [...game.ctx.team1.players, ...game.ctx.team2.players].find(
@@ -252,7 +252,7 @@ describe("a Ball & Chain lurch through a pile of players", () => {
       expect(violations, `seed ${String(seed)}`).toEqual([]);
 
       const fell = trail.indexOf(`injury ${fanatic}`);
-      if (fell < 0 || armoured.length === 0) continue;
+      if (fell === -1 || armoured.length === 0) continue;
       fellAfterHitting++;
 
       expect(trail.slice(fell + 1), `seed ${String(seed)}`).toEqual([]);
@@ -296,13 +296,13 @@ describe("a Ball & Chain lurch through a pile of players", () => {
     const before = game.snapshot();
     const responses = await lurchAll(game, fixtureValue(fanatic).id);
     const response = {
-      ...responses[responses.length - 1],
+      ...responses.at(-1),
       events: responses.flatMap((r) => r.events),
     };
     const scoredAt = response.events.findIndex(
       (e) => e.name === GameEventNames.Touchdown
     );
-    if (scoredAt < 0) return null;
+    if (scoredAt === -1) return null;
 
     expect(
       fixtureValue(fanatic).gridPosition,
@@ -383,7 +383,7 @@ describe("a Ball & Chain lurch through a pile of players", () => {
             .parse(e.data)
             .description.startsWith(`Injury Roll (${run.fanatic})`)
       );
-      if (injury < 0) continue;
+      if (injury === -1) continue;
       scored++;
       expect(injury, `seed ${String(seed)}`).toBeLessThan(run.scoredAt);
     }

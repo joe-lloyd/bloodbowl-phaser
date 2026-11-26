@@ -62,7 +62,7 @@ describe("rolling a Skill Selection D3", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.4);
     vi.spyOn(RNGService.prototype, "rollDie").mockReturnValue(2);
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

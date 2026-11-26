@@ -38,7 +38,7 @@ async function mount(remote = false, myTeamId?: string) {
       pendingDecision: () => game.pendingDecision(),
     } as OnlineMatch);
   container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   root = createRoot(container);
   await act(async () => {
     fixtureValue(root).render(
@@ -151,7 +151,7 @@ describe("ready and purchase screens before the coin toss", () => {
     });
     watch.disconnect();
     expect(state.pregameInducements?.offer?.confirmed["team2"]).toBe(true);
-    expect(shown.join()).not.toMatch(/inducement/i);
+    expect(shown.join(',')).not.toMatch(/inducement/i);
     expect(container.textContent).toContain("Waiting for Home");
   });
 

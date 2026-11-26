@@ -80,9 +80,9 @@ export function snotlingsAtTheLimit(): Team {
   const significant = templates.filter((template) => !insignificant(template));
   const snotling = fixtureValue(templates.find(insignificant));
   const picks = significant.flatMap((template) =>
-    Array(template.maxAllowed ?? 1).fill(template)
+    Array.from({ length: template.maxAllowed ?? 1 }, () => template)
   );
-  team.players = [...picks.slice(0, 4), ...Array(4).fill(snotling)].map(
+  team.players = [...picks.slice(0, 4), ...Array.from({ length: 4 }, () => snotling)].map(
     (template, index) => createPlayer(template, team.id, index + 1)
   );
   team.rerolls = 6;

@@ -213,9 +213,7 @@ describe("TurnManager", () => {
         mockTeam2,
         mockCallbacks,
         (ms) =>
-          ms === 500
-            ? new Promise<void>((resolve) => (autoEnd = resolve))
-            : new Promise<void>(() => {})
+          new Promise<void>(ms === 500 ? (resolve) => (autoEnd = resolve) : () => {})
       );
       manual.startGame("team1");
 

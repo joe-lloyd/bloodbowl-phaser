@@ -11,7 +11,7 @@ function draftTeam() {
     "Test",
     RosterName.HUMAN,
     { primary: 0, secondary: 0 },
-    50000
+    50_000
   );
 }
 
@@ -77,8 +77,8 @@ describe("canEdit", () => {
 
   it("lets an active team release a player above a corrected maximum", () => {
     const t = activeRoster(RosterName.DARK_ELF, [
-      ...Array(4).fill("Dark Elf Lineman"),
-      ...Array(3).fill("Dark Elf Blitzer"),
+      ...Array.from({ length: 4 }, () => "Dark Elf Lineman"),
+      ...Array.from({ length: 3 }, () => "Dark Elf Blitzer"),
     ]);
     const blitzer = fixtureValue(t.players[4]).id;
     const lineman = fixtureValue(t.players[0]).id;
@@ -93,7 +93,7 @@ describe("canEdit", () => {
 
   it("lets an active team release a Big Guy above the shared limit", () => {
     const t = activeRoster(RosterName.UNDERWORLD_DENIZENS, [
-      ...Array(5).fill("Underworld Goblin Lineman"),
+      ...Array.from({ length: 5 }, () => "Underworld Goblin Lineman"),
       "Underworld Troll",
       "Mutant Rat Ogre",
     ]);

@@ -11,7 +11,7 @@ function draftTeam(
     "Test",
     RosterName.HUMAN,
     { primary: 0, secondary: 0 },
-    60000,
+    60_000,
     2_000_000,
     mode
   );
@@ -22,7 +22,7 @@ describe("refunding draft purchases", () => {
     const team = draftTeam();
     purchase(team, { type: "reroll" });
     purchase(team, { type: "reroll" });
-    expect(refund(team, { type: "reroll" })).toEqual({ amount: 100000 });
+    expect(refund(team, { type: "reroll" })).toEqual({ amount: 100_000 });
     expect(team.rerolls).toBe(1);
     expect(team.treasury).toBe(1_900_000);
   });

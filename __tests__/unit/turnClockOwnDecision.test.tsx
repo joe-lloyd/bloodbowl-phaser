@@ -91,7 +91,7 @@ describe("the acting coach's clock runs out on their own decision", () => {
       run,
     } as unknown as OnlineMatch;
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(
@@ -140,7 +140,7 @@ describe("the acting coach's clock runs out on their own decision", () => {
       run,
     } as unknown as OnlineMatch;
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(
@@ -193,7 +193,7 @@ describe("the acting coach's clock runs out on their own decision", () => {
       run,
     } as unknown as OnlineMatch;
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(
@@ -239,7 +239,7 @@ describe("the acting coach's clock runs out on their own decision", () => {
       run,
     } as unknown as OnlineMatch;
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(

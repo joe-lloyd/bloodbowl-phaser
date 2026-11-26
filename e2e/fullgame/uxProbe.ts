@@ -19,7 +19,7 @@ function inspect(): UxFinding[] {
   const label = (el: Element) => {
     const text = (el.textContent ?? "")
       .trim()
-      .replace(/\s+/g, " ")
+      .replaceAll(/\s+/g, " ")
       .slice(0, 40);
     const id = el.getAttribute("data-testid");
     return id
@@ -166,7 +166,7 @@ function inspect(): UxFinding[] {
             )
           : false;
       });
-      if (!dialogUp && onPitch.length && hidden.length * 2 >= onPitch.length) {
+      if (!dialogUp && onPitch.length > 0 && hidden.length * 2 >= onPitch.length) {
         findings.push({
           kind: "players-offscreen",
           detail: `${String(hidden.length)}/${String(onPitch.length)} of the acting team out of view`,

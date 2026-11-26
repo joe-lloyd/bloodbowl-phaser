@@ -64,7 +64,7 @@ describe("catching a bounced ball", () => {
       const caught = rolls.findIndex(
         (d, i) => i > bounced && d.startsWith("Catch")
       );
-      if (bounced >= 0 && caught >= 0)
+      if (bounced !== -1 && caught !== -1)
         catches.push(fixtureValue(rolls[caught]));
     }
 
@@ -116,9 +116,9 @@ describe("catching a bounced ball", () => {
         );
       const thrownIn = rolls.findIndex((d) => d.startsWith("Throw-in"));
       const caught = rolls.findIndex(
-        (d, i) => thrownIn >= 0 && i > thrownIn && d.startsWith("Catch")
+        (d, i) => thrownIn !== -1 && i > thrownIn && d.startsWith("Catch")
       );
-      if (caught >= 0) catches.push(fixtureValue(rolls[caught]));
+      if (caught !== -1) catches.push(fixtureValue(rolls[caught]));
     }
 
     expect(catches.length).toBe(3);

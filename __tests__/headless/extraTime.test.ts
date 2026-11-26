@@ -58,7 +58,7 @@ async function play(seed: number, knockout: boolean) {
     if (roll.teamId === home)
       rollOff.push({ [home]: z.number().parse(roll.value) });
     else
-      fixtureValue(rollOff[rollOff.length - 1])[away] = z
+      fixtureValue(rollOff.at(-1))[away] = z
         .number()
         .parse(roll.value);
   });
@@ -69,7 +69,7 @@ async function play(seed: number, knockout: boolean) {
     coaches: [heuristicCoach, heuristicCoach],
     game,
   });
-  const last = rollOff[rollOff.length - 1];
+  const last = rollOff.at(-1);
   return {
     recording,
     state: state(),

@@ -247,7 +247,7 @@ describe("late-half scoring and preservation", () => {
         },
         { league: true, opponentTurnsPlayed: 5 }
       );
-      fixtureValue(game.ctx.team1.players[0]).cost = 600000;
+      fixtureValue(game.ctx.team1.players[0]).cost = 600_000;
       expect(
         (await coachStep(game, createPlannerCoach())).command
       ).toMatchObject({ type: "declare-action", action });

@@ -59,7 +59,7 @@ afterAll(() => {
 it("lands a fall's armour and injury dice within 3.5 s of the failed roll", async () => {
   const bus = new EventBus();
   const container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   const root = createRoot(container);
   await act(async () => {
     root.render(<DiceTray eventBus={bus} />);
@@ -91,7 +91,7 @@ it("lands a fall's armour and injury dice within 3.5 s of the failed roll", asyn
     while (!check() && Date.now() < end)
       await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
   };
-  await until(() => landedThrough >= 1, 8_000);
+  await until(() => landedThrough >= 1, 8000);
   expect(landedThrough).toBe(1);
   await act(async () => {
     roll("Armour Roll (Human Lineman)", [6, 6], "Armour: 6+6 = 12, broken");
@@ -100,7 +100,7 @@ it("lands a fall's armour and injury dice within 3.5 s of the failed roll", asyn
   await until(() => landedThrough >= 3, 12_000);
 
   expect(landedThrough).toBe(3);
-  expect(fixtureValue(landedAt[2]) - fixtureValue(landedAt[0])).toBeLessThan(3_500);
+  expect(fixtureValue(landedAt[2]) - fixtureValue(landedAt[0])).toBeLessThan(3500);
 
   await act(async () => {
     root.unmount();

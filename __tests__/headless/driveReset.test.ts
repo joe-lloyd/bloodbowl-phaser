@@ -80,10 +80,12 @@ async function placeTeam(game: HeadlessGame, teamId: string): Promise<void> {
         x,
         y,
       });
-      if (r.ok) {
-        occupied.add(`${String(x)},${String(y)}`);
-        placed++;
+      if (!r.ok) {
+        continue;
       }
+
+      occupied.add(`${String(x)},${String(y)}`);
+      placed++;
     }
   }
 }

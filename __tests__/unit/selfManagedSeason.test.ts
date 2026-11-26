@@ -125,7 +125,7 @@ describe("a league season reported by score only", () => {
     const person = team(RosterName.HUMAN, "Pat's Team", 5, 300_000, false);
     const personBefore = structuredClone(person);
     const doc = await league([...computerTeams, person]);
-    const rng = new RNGService(20261113);
+    const rng = new RNGService(20_261_113);
 
     const rounds = Math.max(...doc.fixtures.map((fixture) => fixture.round));
     for (let round = 1; round <= rounds; round++) {

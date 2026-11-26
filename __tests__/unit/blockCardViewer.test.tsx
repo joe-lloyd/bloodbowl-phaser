@@ -24,7 +24,7 @@ beforeEach(() => {
   bus = new EventBus();
   ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
   container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   root = createRoot(container);
 });
 

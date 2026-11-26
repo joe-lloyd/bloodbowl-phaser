@@ -11,7 +11,7 @@ describe("OnlineLobby SettingsPanel — turn timer", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -23,7 +23,7 @@ describe("OnlineLobby SettingsPanel — turn timer", () => {
     vi.restoreAllMocks();
   });
 
-  const turnTimerSelect = () => fixtureValue(container.querySelectorAll("select")[0]);
+  const turnTimerSelect = () => fixtureValue(container.querySelector("select"));
 
   const render = (
     settings: LobbySettings,

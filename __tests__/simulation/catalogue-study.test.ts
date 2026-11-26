@@ -31,17 +31,17 @@ describe("catalogue study", () => {
     const formatFunction: unknown = runInNewContext(`(${formatter})`);
     function format(key: string, value: unknown): string {
       if (typeof formatFunction !== "function")
-        throw new Error("Expected formatter function");
+        throw new TypeError("Expected formatter function");
       const result: unknown = Reflect.apply(formatFunction, undefined, [
         key,
         value,
       ]);
       if (typeof result !== "string")
-        throw new Error("Expected formatted text");
+        throw new TypeError("Expected formatted text");
       return result;
     }
-    expect(format("decision_points_offered", 331614)).toBe(
-      (331614).toLocaleString()
+    expect(format("decision_points_offered", 331_614)).toBe(
+      (331_614).toLocaleString()
     );
     expect(format("selections", 2)).toBe("2");
     expect(format("points", 0.5)).toBe("50.0%");

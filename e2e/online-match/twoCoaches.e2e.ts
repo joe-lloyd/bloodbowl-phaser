@@ -29,7 +29,7 @@ const PLAN = (process.env["DISRUPT"] ?? "")
   .split(",")
   .filter(Boolean)
   .map((entry) => {
-    const [at, what] = entry.split(":");
+    const [at, what] = entry.split(":", 2);
     return { at: Number(at), what };
   });
 
@@ -212,7 +212,7 @@ function canvasMismatches(
     const drawn = canvas.players[id];
     if (drawn === undefined) continue;
     const want = pos ? `${String(pos.x)},${String(pos.y)}` : "off";
-    const where = drawn.split(" ")[0];
+    const where = drawn.split(" ", 1)[0];
     if (where !== want)
       out.push(`${id} engine ${want} ${status}, drawn ${drawn}`);
   }
@@ -341,7 +341,7 @@ async function step(coach: Coach, i: number): Promise<string | null> {
 }
 
 async function disrupt(what: string, host: Coach, guest: Coach, code: string) {
-  const [side, kind, secs] = what.split("-");
+  const [side, kind, secs] = what.split("-", 3);
   const coach = side === "host" ? host : guest;
   const ms = Number(secs ?? 15) * 1000;
   mainLog(`DISRUPT ${what}`);
@@ -385,15 +385,17 @@ async function advanceCoaches(
   for (const coach of [host, guest]) {
     const did = await step(coach, i).catch((error: Error) => {
       coach.rec.log(
-        `${String(i)} step failed: ${String(error.message.split("\n")[0])}`
+        `${String(i)} step failed: ${String(error.message.split("\n", 1)[0])}`
       );
       return null;
     });
     if (did === "over") return null;
-    if (did) {
-      moves++;
-      await compare(host, guest, `${coach.side}: ${did}`);
+    if (!did) {
+      continue;
     }
+
+    moves++;
+    await compare(host, guest, `${coach.side}: ${did}`);
   }
   return moves;
 }
@@ -408,7 +410,7 @@ async function reportStall(
   await guest.rec.shot(guest.page, `stall-${String(i)}`);
   for (const coach of [host, guest]) {
     coach.rec.log(
-      `stall view: mayAct=${String(await mayAct(coach))} next=${JSON.stringify(await brainNext(coach.page).catch((e) => String(e))).slice(0, 400)}`
+      `stall view: mayAct=${String(await mayAct(coach))} next=${JSON.stringify(await brainNext(coach.page).catch(String)).slice(0, 400)}`
     );
   }
 }
@@ -423,7 +425,7 @@ async function playMatch(
   const plan = [...PLAN];
   for (let i = 0; i < MAX_ITER; i++) {
     await host.page.waitForTimeout(150);
-    if (plan.length && moves >= fixtureValue(plan[0]).at) {
+    if (plan.length > 0 && moves >= fixtureValue(plan[0]).at) {
       const { what } = fixtureValue(plan.shift());
       await disrupt(fixtureValue(what), host, guest, code);
       await compare(host, guest, `after ${String(what)}`, 30_000);
@@ -526,7 +528,7 @@ test("an online match between two machines stays in sync", async () => {
       .filter({ has: coach.page.locator("option", { hasText: team }) });
     await select.waitFor({ timeout: 30_000 }).catch(async (error) => {
       coach.rec.log(
-        `lobby without ${team}: ${(await coach.page.locator("body").innerText()).replace(/\s+/g, " ").slice(0, 600)}`
+        `lobby without ${team}: ${(await coach.page.locator("body").innerText()).replaceAll(/\s+/g, " ").slice(0, 600)}`
       );
       await coach.rec.shot(coach.page, "lobby-no-team");
       throw error;
@@ -557,7 +559,7 @@ test("an online match between two machines stays in sync", async () => {
     );
     const diffs = diffPaths(h, g).filter((d) => !d.startsWith("checksum"));
     mainLog(
-      `START STATE ${diffs.length ? "DIFFERS: " + diffs.slice(0, 8).join(" | ") : "identical"}`
+      `START STATE ${diffs.length > 0 ? "DIFFERS: " + diffs.slice(0, 8).join(" | ") : "identical"}`
     );
   }
 

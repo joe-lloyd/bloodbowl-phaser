@@ -5,8 +5,8 @@ import {
   readdirSync,
   readFileSync,
   writeFileSync,
-} from "fs";
-import { basename, dirname, join } from "path";
+} from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { GameApp } from "../../e2e/support/pages/game";
 
 const DIR = process.env["SHOTS"] ?? "e2e-results/page-shots/out";

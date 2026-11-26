@@ -65,7 +65,7 @@ function checkFields(character: Character, catalog: Catalog): void {
 export function checkCharacter(character: Character, catalog: Catalog): void {
   const base = catalog.models.find((model) => model.key === character.base);
   if (!base || base.character) throw new Error(`${character.base} is not a model a character can start from`);
-  if (!catalog.races.some((race) => race.key === character.race)) throw new Error(`Unknown race ${character.race}`);
+  if (catalog.races.every((race) => race.key !== character.race)) throw new Error(`Unknown race ${character.race}`);
   checkFields(character, catalog);
   const inherited = character.looks.kind === "base" ? base.lookKeys : [];
   if (character.parts === "drop" && inherited.some((key) => base.ownKeys.includes(key))) {

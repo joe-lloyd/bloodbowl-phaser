@@ -34,7 +34,7 @@ async function openSquare(
         to.y >= 0 &&
         to.y < 11 &&
         !avoid(to) &&
-        !squares.some((at) => at.x === to.x && at.y === to.y)
+        squares.every((at) => !(at.x === to.x && at.y === to.y))
     );
   if (!open) throw new Error(`${ref} has no open square`);
   return open;
@@ -93,10 +93,12 @@ test("Charge! plays all four picked players in the coach's own order", async ({
     await page.getByRole("button", { name: /end activation/i }).click();
     if (index < 3)
       expect(await app.bridge.pitchLayers()).toContain("kick_target");
-    if (index === 0) {
-      await expect(page.getByText("3 left", { exact: true })).toBeVisible();
-      await shot(page, "charge-one-played");
+    if (index !== 0) {
+      continue;
     }
+
+    await expect(page.getByText("3 left", { exact: true })).toBeVisible();
+    await shot(page, "charge-one-played");
   }
   await expect
     .poll(async () => (await app.bridge.phase()).phase, { timeout: 30_000 })

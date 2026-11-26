@@ -284,8 +284,8 @@ describe("Dugout", () => {
     movePlayerToBox(knocked as never, { box: "ko" });
     dugout.arriveFrom(knocked.id, { x: 120, y: 90 }, "knockedOut");
     dugout.refresh();
-    const finish = exits.finish[exits.finish.length - 1];
-    const signal = exits.signals[exits.signals.length - 1];
+    const finish = exits.finish.at(-1);
+    const signal = exits.signals.at(-1);
     expect(fixtureValue(signal).aborted).toBe(false);
     movePlayerToBox(knocked as never, {
       box: "pitch",

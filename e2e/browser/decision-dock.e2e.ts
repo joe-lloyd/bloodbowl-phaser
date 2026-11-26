@@ -38,13 +38,15 @@ async function expectDockClear(
   await expect(app.hud.endTurn()).toBeHidden();
   const screenshot = test.info().outputPath(`${name}.png`);
   await page.screenshot({ path: screenshot });
-  if (process.env["DECISION_DOCK_SHOTS"]) {
-    await mkdir(process.env["DECISION_DOCK_SHOTS"], { recursive: true });
-    await copyFile(
-      screenshot,
-      `${process.env["DECISION_DOCK_SHOTS"]}/${String(viewport.width)}x${String(viewport.height)}-${name}.png`
-    );
+  if (!process.env["DECISION_DOCK_SHOTS"]) {
+    return;
   }
+
+  await mkdir(process.env["DECISION_DOCK_SHOTS"], { recursive: true });
+  await copyFile(
+    screenshot,
+    `${process.env["DECISION_DOCK_SHOTS"]}/${String(viewport.width)}x${String(viewport.height)}-${name}.png`
+  );
 }
 
 for (const viewport of [

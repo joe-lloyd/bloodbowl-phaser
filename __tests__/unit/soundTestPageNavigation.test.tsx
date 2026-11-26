@@ -20,7 +20,7 @@ describe("SoundTest page — Back to Main Menu", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
     eventBus = new EventBus();
     navigateMock.mockReset();

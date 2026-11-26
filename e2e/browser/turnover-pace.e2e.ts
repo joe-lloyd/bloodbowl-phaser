@@ -85,5 +85,5 @@ test("a failed Rush with an armour roll hands over without a long wait", async (
   console.log(
     `failed die landed to turn banner: ${String(Math.round(pace.bannerAt - pace.failedLandedAt))} ms`
   );
-  expect(pace.bannerAt - pace.failedLandedAt).toBeLessThan(6_000);
+  expect(pace.bannerAt - pace.failedLandedAt).toBeLessThan(6000);
 });

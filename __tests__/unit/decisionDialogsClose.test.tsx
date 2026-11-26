@@ -27,7 +27,7 @@ describe("decision dialogs close once the decision is settled", () => {
     playerId = fixtureValue(game.ctx.team1.players[0]).id;
     teamId = game.ctx.team1.id;
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

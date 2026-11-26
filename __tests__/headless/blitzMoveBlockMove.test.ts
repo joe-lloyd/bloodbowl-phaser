@@ -54,7 +54,7 @@ async function runToPostBlock(seed: number) {
   const idx = rolled.pendingDecision.options.findIndex(
     (o) => o.type === "push" || o.type === "pow" || o.type === "pow-dodge"
   );
-  if (idx < 0) return null;
+  if (idx === -1) return null;
 
   let response = await game.execute({
     type: "choose-block-result",
@@ -164,7 +164,7 @@ describe("Blitz: block mid-move, keep moving", () => {
       const idx = rolled.pendingDecision.options.findIndex(
         (o) => o.type === "push" || o.type === "pow" || o.type === "pow-dodge"
       );
-      if (idx < 0) continue;
+      if (idx === -1) continue;
       let response = await game.execute({
         type: "choose-block-result",
         index: idx,

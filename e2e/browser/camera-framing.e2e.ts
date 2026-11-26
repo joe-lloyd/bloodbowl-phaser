@@ -107,8 +107,7 @@ test("direct teammate selection after movement holds zoom for every frame and se
   await app.pitch.waitForCameraToSettle();
   await page.waitForTimeout(1500);
   const selected = (await app.bridge.events())
-    .filter((e) => e.name === GameEventNames.PlayerSelected)
-    .at(-1);
+    .findLast((e) => e.name === GameEventNames.PlayerSelected);
   expect(selected?.data).toMatchObject({ player: { id: requestedId } });
   expect((await app.bridge.snapshot()).turn.activatedPlayerIds).toContain(
     await app.bridge.resolveRef("team1:0")
@@ -257,8 +256,7 @@ for (const afterMs of [250, 700]) {
     await expect
       .poll(async () => {
         const event = (await app.bridge.events())
-          .filter((e) => e.name === GameEventNames.PlayerSelected)
-          .at(-1);
+          .findLast((e) => e.name === GameEventNames.PlayerSelected);
         return event?.data;
       })
       .toMatchObject({ player: { id: requestedId } });

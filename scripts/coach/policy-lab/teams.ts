@@ -47,7 +47,7 @@ function preference(player: Player, skill: SkillType, role: Role): number {
           ? receiver
           : carrier;
   const index = priorities.indexOf(skill);
-  return index < 0 ? 0 : 100 - index * 10;
+  return index === -1 ? 0 : 100 - index * 10;
 }
 
 function rolePlayers(team: Team) {
@@ -63,7 +63,7 @@ function rolePlayers(team: Team) {
   const players: { p: Player; player: number; role: Role }[] = [];
   for (const role of ["handler", "passer", "receiver", "hitter"] as const) {
     const pick = candidates
-      .filter((c) => !players.some((used) => used.player === c.player))
+      .filter((c) => players.every((used) => used.player !== c.player))
       .sort(
         (a, b) => fit[role](b.p) - fit[role](a.p) || a.player - b.player
       )[0];
@@ -125,7 +125,7 @@ function developPlayer(
     if (!costs || p.spp < (random ? costs.randomPrimary : costs.chosenPrimary))
       break;
     const legal = eligibleSkills(p, p.primary ?? []);
-    if (!legal.length) break;
+    if (legal.length === 0) break;
     const skill = chooseSkill(p, role, legal, random, rng);
     applyAdvancement(p, {
       kind: random ? "random-primary" : "chosen-primary",

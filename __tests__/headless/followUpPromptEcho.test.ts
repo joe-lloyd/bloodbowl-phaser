@@ -44,7 +44,7 @@ describe("a follow-up prompt the board repeats", () => {
       const push = response.pendingDecision.options.findIndex(
         (o) => o.type === "push"
       );
-      if (push < 0) continue;
+      if (push === -1) continue;
       response = await game.execute({
         type: "choose-block-result",
         index: push,
@@ -172,7 +172,7 @@ describe("a catch re-roll raised by a push's bounce", () => {
       const pow = response.pendingDecision.options.findIndex(
         (o) => o.type === "pow"
       );
-      if (pow < 0) continue;
+      if (pow === -1) continue;
       response = await game.execute({
         type: "choose-block-result",
         index: pow,
