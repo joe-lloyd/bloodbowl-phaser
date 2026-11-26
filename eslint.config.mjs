@@ -4,6 +4,7 @@ import n from "eslint-plugin-n";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import sonarjs from "eslint-plugin-sonarjs";
+import unicorn from "eslint-plugin-unicorn";
 import globals from "globals";
 import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
@@ -56,9 +57,19 @@ const GUARDED_RULES = [
   "@typescript-eslint/consistent-type-assertions", "@typescript-eslint/no-non-null-assertion",
   "@typescript-eslint/no-explicit-any", "no-restricted-syntax", "no-restricted-imports",
   "sonarjs/no-identical-functions", "sonarjs/no-duplicated-branches",
-  "sonarjs/no-identical-expressions", "sonarjs/no-duplicate-string",
+  "sonarjs/no-identical-expressions", "sonarjs/no-duplicate-string", "unicorn/max-nested-calls",
   "@eslint-community/eslint-comments/*",
 ];
+const NEWER_THAN_ES2023 = [
+  "prefer-abort-signal-any", "prefer-array-from-async", "prefer-get-or-insert-computed", "prefer-group-by",
+  "prefer-iterator-helpers", "prefer-iterator-to-array", "prefer-iterator-to-array-at-end", "prefer-iterator-zip",
+  "prefer-promise-try", "prefer-promise-with-resolvers", "prefer-set-methods",
+];
+const UNICORN_OFF = [
+  "no-null", "filename-case", "name-replacements", "consistent-boolean-name",
+  "consistent-arrow-return-style", "no-nested-ternary", "prefer-switch", ...NEWER_THAN_ES2023,
+];
+
 const NODE_FILES = [
   "scripts/**/*.ts", "functions/**/*.ts", "e2e/**/*.ts", "src/headless/**/*.ts", "src/simulation/**/*.ts",
   "studio/helper/**/*.ts", "*.config.ts", "playwright.*.ts",
@@ -116,6 +127,20 @@ const config = defineConfig(
   },
   {
     files: ["**/*.{ts,tsx}"],
+    extends: [unicorn.configs.recommended],
+    rules: {
+      ...Object.fromEntries(UNICORN_OFF.map((rule) => [`unicorn/${rule}`, "off"])),
+      "unicorn/number-literal-case": ["error", { hexadecimalValue: "lowercase" }],
+      "unicorn/numeric-separators-style": ["error", { hexadecimal: { onlyIfContainsSeparator: true } }],
+      "unicorn/switch-case-braces": ["error", "avoid"],
+      "unicorn/prefer-smaller-scope": ["error", { checkTypeAliases: false }],
+      "unicorn/catch-error-name": ["error", { ignore: ["^cause$", "^reason$"] }],
+      "unicorn/no-useless-undefined": ["error", { checkArrowFunctionBody: false }],
+      "no-nested-ternary": "error",
+    },
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
     extends: [comments.recommended],
     rules: {
       "@eslint-community/eslint-comments/require-description": ["error", { ignore: [] }],
@@ -134,7 +159,7 @@ const config = defineConfig(
   },
   {
     files: ["scripts/**/*.ts", "src/headless/cli.ts", "src/simulation/cli.ts", "src/simulation/commands/**/*.ts"],
-    rules: { "n/no-process-exit": "off" },
+    rules: { "n/no-process-exit": "off", "unicorn/no-process-exit": "off" },
   },
   { files: ["src/boundary/**", "studio/boundary/**"], rules: { "no-restricted-syntax": ["error", ...UI_ONLY] } },
   { files: ["src/ui/**"], rules: { "no-restricted-syntax": ["error", ...BOUNDARY_ONLY] } },
@@ -146,6 +171,7 @@ export const testSizeExceptions = {
     "max-lines", "max-lines-per-function", "complexity", "sonarjs/cognitive-complexity",
     "max-depth", "max-nested-callbacks", "max-statements",
     "sonarjs/no-identical-functions", "sonarjs/no-duplicate-string",
+    "unicorn/max-nested-calls", "unicorn/no-top-level-assignment-in-function",
   ].map((rule) => [rule, "off"])),
 };
 
