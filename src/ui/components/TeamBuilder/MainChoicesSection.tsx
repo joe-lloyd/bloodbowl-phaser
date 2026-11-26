@@ -75,7 +75,14 @@ function FormatChoices({
   locked: boolean;
   onChange: (team: Team) => void;
 }) {
-  const disabled = locked || !!team.activeCompetitionId || !!team.club;
+  if (team.club)
+    return (
+      <p className="font-hud-body text-hud-sm text-hud-dim lg:col-span-2">
+        A club has no single game type. The same squad plays Sevens, Street
+        Bowl and Beach Bowl, and Gutter Bowl once it opens.
+      </p>
+    );
+  const disabled = locked || !!team.activeCompetitionId;
   return (
     <>
       <div className="lg:col-span-2">

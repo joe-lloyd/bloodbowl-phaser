@@ -9,7 +9,12 @@ import {
   staffTeamValue,
   type Team,
 } from "../../../types/Team";
-import { InjuryType, type Player, PlayerStatus } from "../../../types/Player";
+import {
+  InjuryType,
+  type Player,
+  type PlayerTemplate,
+  PlayerStatus,
+} from "../../../types/Player";
 import { canAdvance, mustAdvance } from "../../../game/progression/progression";
 import { BloodBowlTable } from "../componentWarehouse/BloodBowlTable";
 import { Chip, hudButtonClass } from "../componentWarehouse/HudKit";
@@ -19,6 +24,8 @@ import { isLinemanPosition } from "../../../game/rules/rosterLegality";
 import { mayCaptain } from "../../../game/rules/teamCaptain";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 import { appearanceOf } from "../../../game/names/playerIdentity";
+import { isGutterSpecialist } from "../../../game/rules/club";
+import { ClubBadges, GutterSlotRow } from "../club/ClubRosterRows";
 
 interface TeamRosterProps {
   team: Team;
@@ -30,6 +37,10 @@ interface TeamRosterProps {
   onChooseTeamCaptain?: ((playerId: string) => void) | undefined;
 
   onOpenPlayer?: (playerId: string) => void;
+
+  onHireSpecialist?: ((template: PlayerTemplate) => void) | undefined;
+
+  onChooseSitsOut?: ((playerId: string) => void) | undefined;
 }
 
 function isRowControl(target: EventTarget | null): boolean {
@@ -72,6 +83,8 @@ export function TeamRoster({
   onChooseVeteran,
   onChooseTeamCaptain,
   onOpenPlayer,
+  onHireSpecialist,
+  onChooseSitsOut,
 }: TeamRosterProps) {
   const navigate = useNavigate();
   const openPlayer =
@@ -82,7 +95,7 @@ export function TeamRoster({
   return (
     <BloodBowlTable
       title={team.name.toUpperCase()}
-      aside={`${String(team.players.length)} / 11 players`}
+      aside={`${String(team.players.filter((player) => !isGutterSpecialist(team, player)).length)} / 11 players`}
       accent={{ color: numToHex(team.colors.primary) }}
       headers={[
         { label: "#", width: "40px", className: "num" },
@@ -155,6 +168,11 @@ export function TeamRoster({
                       player={player}
                       onChooseVeteran={onChooseVeteran}
                       onChooseTeamCaptain={onChooseTeamCaptain}
+                    />
+                    <ClubBadges
+                      team={team}
+                      player={player}
+                      onChooseSitsOut={onChooseSitsOut}
                     />
                   </div>
                 </td>
@@ -235,6 +253,7 @@ export function TeamRoster({
           </tr>
         );
       })}
+      <GutterSlotRow team={team} onHire={onHireSpecialist} />
       <tr data-testid="roster-value-total">
         <td colSpan={18} className="text-right text-hud-sm text-hud-mute">
           Players {formatGold(playersTeamValue(team))} + re-rolls &amp; staff{" "}

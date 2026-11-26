@@ -9,6 +9,13 @@ Club mode is admin-only while its design settles, like the Sandbox. An
 admin opens it from the main menu: **Club → My Clubs** or **Found a Club**.
 Everyone else sees no Club menu, and the `/clubs` pages send them home.
 
+A club's page is its team sheet, the same page every team uses, with one
+more row. Shirt 12 holds the Gutter Bowl specialist. Before Gutter Bowl
+opens, that row shows the club's progress toward it. Once it opens, the row
+offers each positional the club may hire. When the squad has eleven players,
+the specialist's row picks the Lineman who sits out Gutter Bowl, and that
+Lineman's row says so.
+
 | ID | Rule |
 | --- | --- |
 | CL-1 | A club starts as a standard 600,000 Sevens draft, and keeps the roster it was founded with: 7 to 11 players, at most 4 positionals, one Lineman as the Veteran. This is the Core Sevens squad. |

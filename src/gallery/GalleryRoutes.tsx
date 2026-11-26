@@ -9,7 +9,6 @@ import {
 import { EventBus } from "../services/EventBus";
 import { ClubFounding } from "../ui/components/club/ClubFounding";
 import { ClubHub } from "../ui/components/club/ClubHub";
-import { ClubPage } from "../ui/components/club/ClubPage";
 import {
   EmptyState,
   HudButton,
@@ -62,7 +61,7 @@ const PAGES: readonly [string, ReactNode][] = [
   ["/build-team/:teamId/player/:playerId", <PlayerPage key="player" />],
   ["/clubs", <ClubHub key="clubs" />],
   ["/clubs/new", <ClubFounding key="new-club" />],
-  ["/clubs/:teamId", <ClubPage key="club" />],
+  ["/clubs/:teamId", <TeamBuilder key="club" />],
   ["/shared-teams", <SharedTeamBrowser key="shared" />],
   ["/friends", <FriendsPage key="friends" />],
   ["/leagues", <CompetitionHub key="leagues" type="league" />],

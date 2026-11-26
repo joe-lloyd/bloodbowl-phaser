@@ -21,6 +21,7 @@ import {
   signedIn,
   teamAt,
   withClubs,
+  withGutterClub,
   withFriends,
   withInvites,
 } from "./cloudScenes";
@@ -212,6 +213,12 @@ const CLUBS = teamPages("Clubs", [
     id: "page-club",
     title: "A club",
     prepare: withClubs,
+    view: () => at(`/clubs/${teamAt(0).id}`),
+  },
+  {
+    id: "page-club-gutter",
+    title: "A full club with its Gutter Bowl specialist",
+    prepare: withGutterClub,
     view: () => at(`/clubs/${teamAt(0).id}`),
   },
   {
