@@ -4,6 +4,7 @@
 
 LAYERED_DIR is the factory's out/layered folder (render.py --layers). For each model it:
 - copies <body>/<layer>.{json,bin} to public/sprites/bloodbowl/<model>/layered/,
+- writes idle/se portrait copies of those layers with portrait_layers.py,
 - removes the model's flat atlases (base, kit1, kit2), which the game no longer loads for it,
 - writes the model's entry in src/game/presentation/spriteManifest.json with a "layered" block
   (density, look options, layers per body, palette tables),
@@ -14,6 +15,8 @@ import json
 import shutil
 import sys
 from pathlib import Path
+
+from portrait_layers import write_model
 
 ROOT = Path(__file__).resolve().parents[3]
 SPRITES = ROOT / "public" / "sprites" / "bloodbowl"
@@ -31,6 +34,7 @@ def install(source, manifest):
         shutil.rmtree(dest)
     for body in rig["bodies"]:
         shutil.copytree(source / body, dest / body)
+    write_model(SPRITES / model)
     for layer in ("base", "kit1", "kit2"):
         for ext in ("png", "json"):
             (SPRITES / model / f"{layer}.{ext}").unlink(missing_ok=True)

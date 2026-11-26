@@ -64,6 +64,11 @@ fold that object into the option instead.
 flat atlases, writes its manifest entry (with the options and palette tables the game reads) and copies
 a golden frame to `__tests__/fixtures/layered/` for the compositor's unit test.
 
+It also writes a `portrait/` copy of each body's layers that holds only the idle frames facing south-east.
+Roster portraits load those, about 2% of a full layer, so a team page downloads kilobytes per player
+instead of megabytes. `python3 portrait_layers.py [model ...]` rebuilds them for installed models, and the
+compositor test fails when a layer has no portrait copy.
+
 ## Models made by hand in Blender
 
 `art/<model>.blend` holds a model made by hand, and a small class draws its parts; see `cave_maw` in
