@@ -13,6 +13,7 @@
     "gallery:build": "vite build -c vite.gallery.config.ts",
     "studio": "pnpm --filter studio dev",
     "sprites:roster-cards": "tsx scripts/sprites/roster_picker_cards.ts",
+    "sprites:portrait-check": "tsx scripts/sprites/portrait_check.ts",
     "gallery:shots": "playwright test -c scripts/hud-shots/playwright.config.ts",
     "headless": "tsx src/headless/cli.ts",
     "sim": "tsx src/simulation/cli.ts",
