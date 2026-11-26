@@ -56,7 +56,7 @@ export function LayeredPortrait(props: LayeredPortraitProps) {
 
   useEffect(() => {
     let live = true;
-    loadLookAtlas({ model, appearance, colors, anims: ["idle"], facings: ["se"] })
+    loadLookAtlas({ model, appearance, colors, scope: "portrait" })
       .then((atlas) => {
         if (live) setSheet(toSheet(atlas));
       })

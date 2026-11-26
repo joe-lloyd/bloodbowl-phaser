@@ -127,3 +127,50 @@ describe("buildLookAtlas", () => {
     expect(outsideTheirPage(atlas)).toEqual([]);
   });
 });
+
+function readIndex(path: string) {
+  return parseJson(readFileSync(`${path}.json`, "utf8"), layerIndex);
+}
+
+function portraitMismatches(model: string): string[] {
+  const art = layeredArt(model);
+  if (!art) return [`${model} has no layered art`];
+  return Object.entries(art.layered.bodies).flatMap(([body, names]) =>
+    names.flatMap((name) => {
+      const base = `public/sprites/bloodbowl/${model}/layered/${body}`;
+      const small = `${base}/portrait/${name}`;
+      if (!existsSync(`${small}.json`) || !existsSync(`${small}.bin`)) return [`${small} is missing`];
+      const full = readIndex(`${base}/${name}`).frames;
+      const wanted = Object.keys(full).filter((frame) => frame.startsWith("idle/se/")).sort();
+      const got = readIndex(small).frames;
+      const same = wanted.every((frame) => got[frame]?.slice(0, 4).join() === full[frame]?.slice(0, 4).join());
+      return same && Object.keys(got).length === wanted.length ? [] : [`${small} does not hold the idle/se frames`];
+    })
+  );
+}
+
+describe("portrait layers", () => {
+  it("give every layer of every model a portrait copy with its idle/se frames", () => {
+    expect(MODELS.flatMap(portraitMismatches)).toEqual([]);
+  });
+
+  it("draw thrall's portrait exactly as the full layers do", () => {
+    const art = layeredArt("thrall");
+    if (!art) throw new Error("no layered art for thrall");
+    const look = resolveLook(art, undefined);
+    const draw = (folder: string) => {
+      const read = (name: string) => readLayer("thrall", folder, name);
+      return buildLookAtlas({
+        look: { layers: look.layers.map(read), shades: look.shades.map(read) },
+        names: Array.from({ length: art.animations["idle"] ?? 0 }, (_, i) => `idle/se/${String(i)}`),
+        size: art.frame,
+        palette: art.layered.palette,
+        colors: { primary: 0x8b0000, secondary: 0xffffff },
+      });
+    };
+    const full = draw(look.body);
+    const small = draw(`${look.body}/portrait`);
+    expect(small.frames).toEqual(full.frames);
+    expect(small.pages.map((page) => Buffer.from(page.pixels).equals(Buffer.from(full.pages[0]?.pixels ?? [])))).toEqual([true]);
+  });
+});

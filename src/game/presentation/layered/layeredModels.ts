@@ -37,17 +37,18 @@ export function lookTextureKey(request: PlayerLookRequest): string | null {
   return art ? lookAtlasKey(request, resolveLook(art, request.appearance)) : null;
 }
 
+type LookScope = "match" | "portrait";
+
 export interface LookRequest {
   readonly model: string;
   readonly appearance: PlayerAppearance | undefined;
   readonly colors: TeamColors;
-  readonly anims?: readonly string[];
-  readonly facings?: readonly string[];
+  readonly scope?: LookScope;
 }
 
-function frameNames(art: LayeredModel, request: Pick<LookRequest, "anims" | "facings">): string[] {
-  const anims = request.anims ?? Object.keys(art.animations);
-  const facings = request.facings ?? FACINGS;
+function frameNames(art: LayeredModel, scope: LookScope): string[] {
+  const anims = scope === "portrait" ? ["idle"] : Object.keys(art.animations);
+  const facings = scope === "portrait" ? ["se"] : FACINGS;
   return anims.flatMap((anim) =>
     facings.flatMap((facing) =>
       Array.from({ length: art.animations[anim] ?? 0 }, (_, i) => `${anim}/${facing}/${String(i)}`)
@@ -55,8 +56,9 @@ function frameNames(art: LayeredModel, request: Pick<LookRequest, "anims" | "fac
   );
 }
 
-function loadLayer(model: string, body: string, layer: string): Promise<LayerData> {
-  const url = `${MATCH_STYLE.spritePath}/${model}/layered/${body}/${layer}`;
+function loadLayer(request: LookRequest, body: string, layer: string): Promise<LayerData> {
+  const folder = request.scope === "portrait" ? `${body}/portrait` : body;
+  const url = `${MATCH_STYLE.spritePath}/${request.model}/layered/${folder}/${layer}`;
   let pending = layers.get(url);
   if (!pending) {
     pending = fetchLayer(url);
@@ -71,16 +73,15 @@ function colourKey(colors: TeamColors): string {
 }
 
 function lookAtlasKey(request: LookRequest, look: ResolvedLook): string {
-  const scope = `${(request.anims ?? ["all"]).join(",")}:${(request.facings ?? ["all"]).join(",")}`;
-  return `look:${lookKey(request.model, look)}:${colourKey(request.colors)}:${scope}`;
+  return `look:${lookKey(request.model, look)}:${colourKey(request.colors)}:${request.scope ?? "match"}`;
 }
 
 async function build(art: LayeredModel, request: LookRequest, look: ResolvedLook): Promise<LookAtlas> {
-  const load = (names: readonly string[]) => Promise.all(names.map((layer) => loadLayer(request.model, look.body, layer)));
+  const load = (names: readonly string[]) => Promise.all(names.map((layer) => loadLayer(request, look.body, layer)));
   const [layers, shades] = await Promise.all([load(look.layers), load(look.shades)]);
   return buildLookAtlas({
     look: { layers, shades },
-    names: frameNames(art, request),
+    names: frameNames(art, request.scope ?? "match"),
     size: art.frame,
     palette: art.layered.palette,
     colors: request.colors,
