@@ -136,7 +136,7 @@ describe("action plan review fixes", () => {
     await controller.onSquareClicked(12, 5);
     await controller.onSquareClicked(12, 5);
 
-    expect(seen.notes).toContain("Cannot move: Error: refused");
+    expect(seen.notes).toContain("Cannot move: refused");
     expect(jumper.gridPosition).toEqual({ x: 10, y: 6 });
     expect(controller.selectedPlayerId).toBe(jumper.id);
     expect(seen.plan).toBeNull();
