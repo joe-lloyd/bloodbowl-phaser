@@ -222,6 +222,8 @@ function canvasMismatches(
 let checks = 0;
 let divergences = 0;
 
+const board = (hud: string) => hud.replace(" (you)", "");
+
 async function compare(
   host: Coach,
   guest: Coach,
@@ -248,7 +250,6 @@ async function compare(
         ...canvasMismatches(ge, gc).map((d) => `guest canvas ${d}`)
       );
 
-    const board = (hud: string) => hud.replace(" (you)", "");
     if (hc && gc && board(hc.hud) !== board(gc.hud))
       problems.push(`scoreboard host "${hc.hud}" vs guest "${gc.hud}"`);
     views = { he, ge, hc, gc };
@@ -274,9 +275,9 @@ async function compare(
 const mayAct = (coach: Coach) =>
   brainCall(coach.page, "mayAct").catch(() => false);
 
-async function settled(coach: Coach, before: string, ms = 6000) {
+async function settled(coach: Coach, before: string) {
   const start = Date.now();
-  while (Date.now() - start < ms) {
+  while (Date.now() - start < 6000) {
     if (JSON.stringify(await engineView(coach.page)) !== before) {
       appendFileSync(
         `${OUT}/latency.log`,
@@ -308,7 +309,8 @@ async function step(coach: Coach, i: number): Promise<string | null> {
   if (opening) return opening;
   if (await clickIf(page, /^RECEIVE$/)) return "chose to receive";
 
-  if ((await brainNext(page).catch(() => null))?.over) return "over";
+  const early = await brainNext(page).catch(() => null);
+  if (early?.over) return "over";
   if (!(await mayAct(coach))) return null;
   const before = JSON.stringify(await engineView(page));
   if (await riskyMoveConfirm(page, rec)) {
@@ -451,6 +453,11 @@ async function playMatch(
   return moves;
 }
 
+const signedIn = (coach: Coach) =>
+  coach.page
+    .getByRole("button", { name: /sign out/i })
+    .waitFor({ timeout: 60_000 });
+
 test("an online match between two machines stays in sync", async () => {
   test.setTimeout(3 * 60 * 60 * 1000);
   mkdirSync(OUT, { recursive: true });
@@ -509,10 +516,6 @@ test("an online match between two machines stays in sync", async () => {
 
   await host.page.waitForTimeout(3000);
 
-  const signedIn = (coach: Coach) =>
-    coach.page
-      .getByRole("button", { name: /sign out/i })
-      .waitFor({ timeout: 60_000 });
   await host.page.goto("/");
   await signedIn(host);
   const code = await new OnlinePage(host.page).hostGame();
@@ -527,8 +530,9 @@ test("an online match between two machines stays in sync", async () => {
       .locator("select")
       .filter({ has: coach.page.locator("option", { hasText: team }) });
     await select.waitFor({ timeout: 30_000 }).catch(async (error) => {
+      const bodyText = await coach.page.locator("body").innerText();
       coach.rec.log(
-        `lobby without ${team}: ${(await coach.page.locator("body").innerText()).replaceAll(/\s+/g, " ").slice(0, 600)}`
+        `lobby without ${team}: ${bodyText.replaceAll(/\s+/g, " ").slice(0, 600)}`
       );
       await coach.rec.shot(coach.page, "lobby-no-team");
       throw error;

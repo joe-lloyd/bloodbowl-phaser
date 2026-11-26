@@ -452,6 +452,7 @@ function SkillSelectionEntry({
   const [category, setCategory] = useState<SkillCategory | "">("");
   const [skill, setSkill] = useState<SkillType | "">("");
   const [error, setError] = useState("");
+  if (rolling) return null;
   const rng = panelRng();
 
   const act = async (
@@ -682,7 +683,6 @@ function SkillSelectionEntry({
     }
   })();
 
-  if (rolling) return null;
   return (
     <div className={ENTRY}>
       {body}

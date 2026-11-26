@@ -51,11 +51,11 @@ const startToss = (fx: MatchFixture) => {
   });
 };
 
-const pressed = (open: (fx: MatchFixture) => void, label: string) =>
+const pressed = () =>
   soon((fx) => {
-    open(fx);
+    startToss(fx);
     later(120, () => {
-      click("button", label);
+      click("button", "FLIP COIN");
     });
   });
 
@@ -167,7 +167,7 @@ const COIN = rows({ ...SHARED, section: "Coin toss" }, [
   {
     id: "coin-result",
     title: "Flipping, then the winner chooses",
-    drive: pressed(startToss, "FLIP COIN"),
+    drive: pressed(),
   },
   {
     id: "coin-computer",
@@ -176,7 +176,7 @@ const COIN = rows({ ...SHARED, section: "Coin toss" }, [
       setActiveOnlineMatch(onlineMatch(fx, { kind: "computer" }));
       return hud(fx);
     },
-    drive: pressed(startToss, "FLIP COIN"),
+    drive: pressed(),
   },
   {
     id: "coin-online-ready",

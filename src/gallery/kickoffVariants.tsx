@@ -37,13 +37,12 @@ const LANDING = playgroundLanding(KICKOFF_SCENE.scenario, PLAYGROUND.kicking);
 
 function pick(fx: MatchFixture, picks: number): string[] {
   const { gameService } = fx.services;
-  return fx.team1.players.reduce<string[]>(
-    (chosen, { id }) =>
-      chosen.length < picks && gameService.selectKickoffEventPlayer(id)
-        ? [...chosen, id]
-        : chosen,
-    []
-  );
+  const chosen: string[] = [];
+  for (const { id } of fx.team1.players) {
+    if (chosen.length < picks && gameService.selectKickoffEventPlayer(id))
+      chosen.push(id);
+  }
+  return chosen;
 }
 
 function answerStep(fx: MatchFixture, step: Step): void {

@@ -1,12 +1,12 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import type { ObservedRun, ScenarioCase } from "../../src/testing/scenarioCase";
 import {
   buildFragment,
   type CoverageFragment,
 } from "../../src/testing/coverage/observed";
 
-const FRAGMENT_DIR = join("e2e-results", "coverage-fragments");
+const FRAGMENT_DIR = path.join("e2e-results", "coverage-fragments");
 
 const buffered: CoverageFragment[] = [];
 let flushRegistered = false;
@@ -40,11 +40,11 @@ function ensureFlushOnExit(): void {
 
 function flushCoverageFragments(): void {
   if (buffered.length === 0) return;
-  const dir = join(process.cwd(), FRAGMENT_DIR);
+  const dir = path.join(process.cwd(), FRAGMENT_DIR);
   mkdirSync(dir, { recursive: true });
   const name = `fragments-${String(process.pid)}.json`;
   writeFileSync(
-    join(dir, name),
+    path.join(dir, name),
     `${JSON.stringify(buffered, null, 2)}\n`,
     "utf8"
   );

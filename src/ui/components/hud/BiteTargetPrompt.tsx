@@ -118,7 +118,7 @@ function BiteTargetPromptView({
 
 function biteTargetCopy(
   request: BiteTargetDecisionRequest,
-  biter: string | undefined
+  biter = "This player"
 ) {
   if (request.purpose === "squig-block") {
     return {
@@ -135,7 +135,7 @@ function biteTargetCopy(
   }
   return {
     title: "Bloodlust: choose who to bite",
-    detail: `${biter ?? "This player"} can bite ${String(request.targetIds.length)} Thrall Linemen. Click the one to bite on the pitch: they are marked in red.`,
+    detail: `${biter} can bite ${String(request.targetIds.length)} Thrall Linemen. Click the one to bite on the pitch: they are marked in red.`,
     decline: "Bite nobody",
   };
 }

@@ -21,6 +21,8 @@ interface AvailableHiresProps {
   allowance?: (template: PlayerTemplate) => PositionAllowance;
 }
 
+const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
+
 export function AvailableHires({
   roster,
   colors = { primary: 0x8e1b1b, secondary: 0xffffff },
@@ -29,8 +31,6 @@ export function AvailableHires({
   hireRefusal,
   allowance,
 }: AvailableHiresProps) {
-  const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
-
   return (
     <BloodBowlTable
       title="AVAILABLE HIRES"

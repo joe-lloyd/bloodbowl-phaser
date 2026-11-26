@@ -45,12 +45,10 @@ function onKeyDown(event: KeyboardEvent) {
   if (event.metaKey || event.ctrlKey || event.altKey || event.repeat) return;
   if (isTyping(event.target)) return;
   const hotkey = hotkeyOf(event);
-  const binding = [...bound]
-    .reverse()
-    .find(
-      (candidate) =>
-        candidate.hotkey === hotkey && onScreen(candidate.owner?.current)
-    );
+  const binding = bound.findLast(
+    (candidate) =>
+      candidate.hotkey === hotkey && onScreen(candidate.owner?.current)
+  );
   if (!binding) return;
   if (
     hotkey === "Enter" &&

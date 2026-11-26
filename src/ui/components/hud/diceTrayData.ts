@@ -16,10 +16,14 @@ export const BLOCK_VALUE: Record<BlockResultType, number> = {
   pow: 6,
 };
 
+export function asList<T>(value: T | T[]): T[] {
+  return Array.isArray(value) ? value : [value];
+}
+
 export function toDice(event: RollEvent): Omit<DiceRoll, "team"> | null {
-  const values = new Array<number | string>().concat(event.value);
+  const values = asList(event.value);
   if (isBlockDice(event.diceType)) {
-    const faces = values.map(blockValue);
+    const faces = values.map((value) => blockValue(value));
     return faces.every((face): face is number => face !== undefined)
       ? { kind: "block", values: faces }
       : null;
@@ -28,7 +32,7 @@ export function toDice(event: RollEvent): Omit<DiceRoll, "team"> | null {
     const sides = isD16(event.diceType) ? 16 : 6;
     const pips = values.map(Number);
     return pips.length > 0 &&
-      pips.every((v) => Number.isInteger(v) && v >= 1 && v <= sides)
+      pips.every((v) => Number.isSafeInteger(v) && v >= 1 && v <= sides)
       ? { kind: sides === 16 ? "d16" : "d6", values: pips }
       : null;
   }

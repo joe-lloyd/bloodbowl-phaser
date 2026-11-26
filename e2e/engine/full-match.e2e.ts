@@ -6,8 +6,14 @@ import { type GameSnapshot } from "../../src/headless/serialization";
 import { type PendingDecision } from "../../src/headless/protocol";
 import { recordCoverageFragment } from "../support/coverageFragments";
 import { MATCH_FLOW_CASES } from "../../src/testing/cases";
+import { byCodeUnit } from "../../src/game/core/order";
 
 const MAX_COMMANDS = 600;
+
+type Run = (command: { type: string } & Record<string, unknown>) => Promise<{
+  ok: boolean;
+  reason?: string;
+}>;
 
 interface MatchResult {
   finalSnapshot: GameSnapshot;
@@ -53,43 +59,7 @@ async function playFullMatch(seed: number): Promise<MatchResult> {
     const pending = game.pendingDecision();
     if (pending) {
       decisionsSeen.push(pending);
-      switch (pending.type) {
-        case "kickoff-event":
-          await run({ type: "kickoff-skip" });
-          break;
-        case "block-dice":
-          await run({ type: "choose-block-result", index: 0 });
-          break;
-        case "push-direction": {
-          const direction = pending.options[0];
-          await run({
-            type: "choose-push-direction",
-            x: fixtureValue(direction).x,
-            y: fixtureValue(direction).y,
-          });
-          break;
-        }
-        case "touchback": {
-          const receiver = fixtureValue(fixtureValue(snapshot.teams
-            .find((team) => team.id === pending.teamId))
-            .players.find(
-              (player) => player.position && player.status === "Active"
-            ));
-          await run({ type: "touchback", playerId: receiver.id });
-          break;
-        }
-        case "reroll":
-          await run({ type: "use-reroll", accept: false });
-          break;
-        case "reaction":
-          await run({ type: "use-reaction", accept: false });
-          break;
-        case "interception":
-          await run({ type: "choose-interception" });
-          break;
-        default:
-          await run({ type: "choose-follow-up", followUp: true });
-      }
+      await answerDecision(pending, snapshot, run);
       continue;
     }
 
@@ -199,12 +169,53 @@ async function playFullMatch(seed: number): Promise<MatchResult> {
   };
 }
 
+async function answerDecision(
+  pending: PendingDecision,
+  snapshot: GameSnapshot,
+  run: Run
+): Promise<void> {
+  switch (pending.type) {
+    case "kickoff-event":
+      await run({ type: "kickoff-skip" });
+      return;
+    case "block-dice":
+      await run({ type: "choose-block-result", index: 0 });
+      return;
+    case "push-direction": {
+      const direction = pending.options[0];
+      await run({
+        type: "choose-push-direction",
+        x: fixtureValue(direction).x,
+        y: fixtureValue(direction).y,
+      });
+      return;
+    }
+    case "touchback": {
+      const receiver = fixtureValue(fixtureValue(snapshot.teams
+        .find((team) => team.id === pending.teamId))
+        .players.find(
+          (player) => player.position && player.status === "Active"
+        ));
+      await run({ type: "touchback", playerId: receiver.id });
+      return;
+    }
+    case "reroll":
+      await run({ type: "use-reroll", accept: false });
+      return;
+    case "reaction":
+      await run({ type: "use-reaction", accept: false });
+      return;
+    case "interception":
+      await run({ type: "choose-interception" });
+      return;
+    default:
+      await run({ type: "choose-follow-up", followUp: true });
+  }
+}
+
 async function placeTeam(
   game: HeadlessGame,
-  run: (command: { type: string } & Record<string, unknown>) => Promise<{
-    ok: boolean;
-    reason?: string;
-  }>,
+  run: Run,
   snapshot: GameSnapshot,
   teamId: string
 ): Promise<void> {
@@ -267,7 +278,7 @@ test("plays a complete seeded match through both halves to GAME_OVER", async () 
   expect(Object.keys(result.finalSnapshot.score)).toHaveLength(2);
   expect(result.commandCount).toBeLessThan(MAX_COMMANDS);
 
-  expect([...result.phasesSeen].sort()).toEqual(
+  expect([...result.phasesSeen].sort(byCodeUnit)).toEqual(
     expect.arrayContaining([
       GamePhase.SETUP,
       GamePhase.KICKOFF,
@@ -294,17 +305,18 @@ test("plays a complete seeded match through both halves to GAME_OVER", async () 
   } as never);
 });
 
+const scores = (result: MatchResult) =>
+  result.finalSnapshot.teams.map((team) => result.finalSnapshot.score[team.id]);
+
 test("is deterministic: the same seed twice gives the same match", async () => {
   const first = await playFullMatch(31_337);
   const second = await playFullMatch(31_337);
 
-  const scores = (result: MatchResult) =>
-    result.finalSnapshot.teams.map(
-      (team) => result.finalSnapshot.score[team.id]
-    );
   expect(scores(second)).toEqual(scores(first));
   expect(second.commandCount).toBe(first.commandCount);
-  expect([...second.phasesSeen].sort()).toEqual([...first.phasesSeen].sort());
+  expect([...second.phasesSeen].sort(byCodeUnit)).toEqual(
+    [...first.phasesSeen].sort(byCodeUnit)
+  );
 });
 
 test("every drive resets and re-runs setup, without re-running the coin flip", async () => {

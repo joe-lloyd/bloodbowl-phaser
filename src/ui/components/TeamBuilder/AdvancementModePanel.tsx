@@ -127,11 +127,11 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
     const allocation = (team.matchedPlayAllocations ?? []).find(
       (candidate) => candidate.playerId === allocationPlayerId
     );
-    const removePlayer = team.players.find(
+    const playerToRemove = team.players.find(
       (candidate) => candidate.id === allocationPlayerId
     );
-    if (!allocation || !removePlayer) return;
-    removeMatchedPlayAllocation(team, removePlayer, allocation);
+    if (!allocation || !playerToRemove) return;
+    removeMatchedPlayAllocation(team, playerToRemove, allocation);
     onChange({ ...team });
   };
 

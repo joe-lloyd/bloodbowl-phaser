@@ -2,8 +2,8 @@ import { type TeamColors } from "../../../types/Team";
 import { cx } from "../componentWarehouse/HudKit";
 import { numToHex } from "../TeamManagement/TeamStatsOverview";
 
-export function crestInitials(name?: string): string {
-  const [first, second] = (name ?? "").match(/[\p{L}\p{N}]+/gu) ?? [];
+export function crestInitials(name = ""): string {
+  const [first, second] = name.match(/[\p{L}\p{N}]+/gu) ?? [];
   if (!first) return "?";
   if (!second) return first.slice(0, 2).toUpperCase();
   return (first.charAt(0) + second.charAt(0)).toUpperCase();

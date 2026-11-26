@@ -110,8 +110,10 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
     };
 
     setCheckpoints(
-      checkpointsForLayer(scenarioCase, variant, "browser")
-        .concat(checkpointsForLayer(scenarioCase, variant, "engine"))
+      [
+        ...checkpointsForLayer(scenarioCase, variant, "browser"),
+        ...checkpointsForLayer(scenarioCase, variant, "engine"),
+      ]
         .filter(
           (checkpoint, index, all) =>
             all.findIndex((other) => other.id === checkpoint.id) === index

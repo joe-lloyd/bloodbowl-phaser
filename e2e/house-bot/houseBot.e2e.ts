@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname } from "node:path";
+import path from "node:path";
 import { GameApp } from "../support/pages/game";
 import { HOUSE_BOT_EMAIL } from "../../src/firebase/houseBotAccount";
 import { type Recorder } from "../fullgame/driver";
@@ -93,7 +93,7 @@ test("the house bot joins games until stopped", async () => {
 });
 
 function botLogin(): { email: string; password: string } {
-  const file = `${dirname(PROFILE)}/credentials.json`;
+  const file = `${path.dirname(PROFILE)}/credentials.json`;
   if (existsSync(file))
     return JSON.parse(readFileSync(file, "utf8")) as {
       email: string;
@@ -103,7 +103,7 @@ function botLogin(): { email: string; password: string } {
     email: HOUSE_BOT_EMAIL,
     password: randomBytes(24).toString("base64url"),
   };
-  mkdirSync(dirname(file), { recursive: true });
+  mkdirSync(path.dirname(file), { recursive: true });
   writeFileSync(file, JSON.stringify(login), { mode: 0o600 });
   log(`made the bot's login for ${login.email}; kept in ${file}`);
   return login;

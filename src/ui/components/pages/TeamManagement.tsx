@@ -78,6 +78,15 @@ function GameTypeLine({ team, status }: { team: Team; status: TeamStatus }) {
   );
 }
 
+const stillPlaying = (teamId: string): boolean => {
+  const team = getTeamById(teamId);
+  if (!team?.computerCoached || !team.activeCompetitionId) return false;
+  alert(
+    "This computer team is still playing in a competition. Delete it once the competition is over."
+  );
+  return true;
+};
+
 export function TeamManagement() {
   const [teams, reloadTeams] = useTeamLibrary();
   const navigate = useNavigate();
@@ -94,15 +103,6 @@ export function TeamManagement() {
 
   const handleEditTeam = (teamId: string) => {
     navigate(`/build-team/${teamId}`);
-  };
-
-  const stillPlaying = (teamId: string): boolean => {
-    const team = getTeamById(teamId);
-    if (!team?.computerCoached || !team.activeCompetitionId) return false;
-    alert(
-      "This computer team is still playing in a competition. Delete it once the competition is over."
-    );
-    return true;
   };
 
   const handleDeleteTeam = async (teamId: string) => {
@@ -193,9 +193,10 @@ export function TeamManagement() {
                 return;
               event.preventDefault();
               const next =
-                event.key === "Home"
-                  ? "mine"
-                  : tab === "mine" || event.key === "End" ? "computer" : "mine";
+                event.key !== "Home" &&
+                (tab === "mine" || event.key === "End")
+                  ? "computer"
+                  : "mine";
               setTab(next);
               (next === "mine" ? mineTab : computerTab).current?.focus();
             }}

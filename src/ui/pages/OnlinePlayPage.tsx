@@ -137,11 +137,6 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     navigate("/", { replace: true });
   }, [lobby, user, navigate]);
 
-  const leave = () => {
-    leftRef.current = true;
-    navigate("/");
-  };
-
   if (error) {
     return (
       <div className="hud-page flex h-full w-full flex-col items-center justify-center gap-4 px-6">
@@ -164,6 +159,11 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
       </div>
     );
   }
+
+  const leave = () => {
+    leftRef.current = true;
+    navigate("/");
+  };
 
   const endRequest = endRequestFrom(lobby, user.uid);
   const { connection, hold } = opponentPresence(

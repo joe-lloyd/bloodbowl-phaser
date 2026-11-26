@@ -166,12 +166,12 @@ export function TournamentBracket({
     };
   }, [fixtures, layout]);
 
-  const entrantOf = (id: string | null | undefined) =>
-    entrants.find((candidate) => candidate.id === id);
-
   if (narrow || layout.nodes.length === 0 || entrants.length < 4) {
     return <>{fallback}</>;
   }
+
+  const entrantOf = (id: string | null | undefined) =>
+    entrants.find((candidate) => candidate.id === id);
 
   const columns = Array.from({ length: layout.columns }, (_, column) =>
     layout.nodes

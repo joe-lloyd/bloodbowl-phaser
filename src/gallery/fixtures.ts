@@ -64,10 +64,11 @@ export function setupMatch(options: FixtureOptions = {}): MatchFixture {
         team2: team2,
         startingPhase: options.phase ?? GamePhase.PLAY,
       });
-  Object.assign(state, {
-    ...(options.phase && { phase: options.phase }),
-    ...(options.subPhase && { subPhase: options.subPhase }),
-  });
+  Object.assign(
+    state,
+    options.phase && { phase: options.phase },
+    options.subPhase && { subPhase: options.subPhase }
+  );
 
   setActiveOnlineMatch(null);
   ServiceContainer.reset();

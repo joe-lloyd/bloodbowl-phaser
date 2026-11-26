@@ -30,8 +30,10 @@ export async function freezeAnimation(page: Page): Promise<void> {
         };
       }
     ).game;
-    for (const scene of game?.scene?.getScenes?.(true) ?? []) {
-      for (const tween of scene.tweens?.getTweens?.() ?? []) {
+    const activeScenes = game?.scene?.getScenes?.(true) ?? [];
+    for (const scene of activeScenes) {
+      const sceneTweens = scene.tweens?.getTweens?.() ?? [];
+      for (const tween of sceneTweens) {
         try {
           tween.complete();
         } catch {}

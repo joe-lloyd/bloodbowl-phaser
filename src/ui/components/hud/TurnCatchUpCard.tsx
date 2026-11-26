@@ -16,6 +16,11 @@ import {
 
 const MIN_READ_MS = 5000;
 
+const service = () =>
+  ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService
+    : null;
+
 export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
   const [summary, setSummary] = useState<TurnSummary | null>(null);
   const incidents = useRef<TurnIncident[]>([]);
@@ -25,10 +30,6 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
   const shown = useRef(0);
   const actedEarly = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const service = () =>
-    ServiceContainer.isInitialized()
-      ? ServiceContainer.getInstance().gameService
-      : null;
   const clear = () => {
     shown.current += 1;
     incidents.current = [];

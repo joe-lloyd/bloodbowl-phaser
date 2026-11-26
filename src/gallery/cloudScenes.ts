@@ -139,10 +139,11 @@ export const LOBBY_PATH = `/online/lobby/${CODE}`;
 
 export function hostAlone(): void {
   withFriends();
+  const host = player(ME, "Joe", teamAt(0));
   openLobby(
     lobbyDoc(ME, {
       listed: true,
-      players: { [ME]: player(ME, "Joe", teamAt(0)) },
+      players: { [ME]: host },
     })
   );
 }
@@ -172,12 +173,13 @@ export function guestSeat(): void {
 export function openGamesList(): void {
   withInvites();
   openLobby(lobbyDoc(RIVAL, { listed: true }));
+  const pale = player(THIRD, "Morgana the Pale", teamAt(2));
   openLobby(
     lobbyDoc(THIRD, {
       code: "PALE77",
       listed: true,
       players: {
-        [THIRD]: player(THIRD, "Morgana the Pale", teamAt(2)),
+        [THIRD]: pale,
       },
     })
   );

@@ -5,7 +5,7 @@ import { GameEventNames } from "../../../types/events";
 import { soundSettings } from "../../sound/settings";
 import type { DiceThrow } from "../../dice/diceScene";
 import { DIE_LANDING_TIMEOUT_MS } from "../../../game/presentation/diceWatch";
-import { teamLook } from "./diceTrayData";
+import { asList, teamLook } from "./diceTrayData";
 
 export const WEATHER_ROLL = "Weather";
 
@@ -38,7 +38,7 @@ export function useWeatherThrow({
 
   useEventBus(eventBus, GameEventNames.DiceRoll, (roll) => {
     if (roll.rollType !== rollType || step !== "waiting") return;
-    const values = new Array<number | string>().concat(roll.value).map(Number);
+    const values = asList(roll.value).map(Number);
     setStep("rolling");
     void (async () => {
       const team = teamLook(teamId);

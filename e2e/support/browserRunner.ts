@@ -24,9 +24,9 @@ export async function runCaseInBrowser(
   variant: SeededVariant
 ): Promise<BrowserRunResult> {
   const consoleErrors: string[] = [];
-  page.on("pageerror", (error) =>
-    consoleErrors.push(`pageerror: ${error.message}`)
-  );
+  page.on("pageerror", (error) => {
+    consoleErrors.push(`pageerror: ${error.message}`);
+  });
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -39,7 +39,8 @@ export async function runCaseInBrowser(
   });
 
   const initialSnapshot = await app.bridge.snapshot();
-  const eventsBeforeSteps = (await app.bridge.events()).length;
+  const eventsSoFar = await app.bridge.events();
+  const eventsBeforeSteps = eventsSoFar.length;
 
   await performSteps({ app, page }, scenarioCase.steps);
 

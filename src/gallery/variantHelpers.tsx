@@ -144,6 +144,8 @@ export function fillLog(fx: MatchFixture, rounds: number) {
   }
 }
 
+const noop = () => undefined;
+
 export function onlineMatch(
   fx: MatchFixture,
   overrides: Record<string, unknown> = {}
@@ -158,8 +160,8 @@ export function onlineMatch(
     pendingDecision: () => null,
     waitingLabel: () => "Grimgutz's turn (Gouged Eye)…",
     chatHistory: () => [],
-    onChatMessage: () => () => undefined,
-    onFatalError: () => () => undefined,
+    onChatMessage: () => noop,
+    onFatalError: () => noop,
     sendChat: () => undefined,
     setClockPaused: () => undefined,
     coachName: () => "Grimgutz",

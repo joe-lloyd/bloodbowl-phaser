@@ -37,6 +37,13 @@ interface ActiveMatch {
   label: string;
 }
 
+const discardLocal = () => {
+  if (!confirm("Discard this saved match? This cannot be undone.")) {
+    return;
+  }
+  clearMatchSave();
+};
+
 export function MainMenu() {
   const navigate = useNavigate();
   const { user, ready, onlineAvailable } = useAuth();
@@ -44,10 +51,12 @@ export function MainMenu() {
   const [signingIn, setSigningIn] = useState<SignInRequest | null>(null);
   const signIn = () =>
     new Promise<AuthUser>((resolve, reject) => {
-      setSigningIn({ id: ++signInRequests, resolve, reject });
+      setSigningIn({ id: ++signInCounter.requests, resolve, reject });
     });
 
-  const settle = (request: SignInRequest, signedIn: AuthUser | null) => {
+  const settle = (signedIn: AuthUser | null) => {
+    const request = signingIn;
+    if (!request) return;
     if (signedIn) request.resolve(signedIn);
     else request.reject(new SignInCancelled());
     setSigningIn((open) => (open === request ? null : open));
@@ -128,13 +137,6 @@ export function MainMenu() {
     else navigate("/play", { state: { resumeSave: save } });
   };
 
-  const discardLocal = () => {
-    if (!confirm("Discard this saved match? This cannot be undone.")) {
-      return;
-    }
-    clearMatchSave();
-  };
-
   const onlineDisabled = !onlineAvailable || !ready;
   const admin = isAdminUser(user);
 
@@ -175,10 +177,10 @@ export function MainMenu() {
         <SignInDialog
           key={signingIn.id}
           onSignedIn={(signedIn) => {
-            settle(signingIn, signedIn);
+            settle(signedIn);
           }}
           onClose={() => {
-            settle(signingIn, null);
+            settle(null);
           }}
         />
       )}
@@ -193,7 +195,7 @@ interface SignInRequest {
   resolve: (user: AuthUser) => void;
   reject: (cancelled: SignInCancelled) => void;
 }
-let signInRequests = 0;
+const signInCounter = { requests: 0 };
 
 function confirmLinkText(link: ConfirmLink): string {
   switch (link.kind) {

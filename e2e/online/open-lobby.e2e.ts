@@ -3,14 +3,14 @@ import { OnlinePage } from "../support/pages/online";
 
 test.describe.configure({ mode: "serial", timeout: 180_000 });
 
+const shot = (page: Page, name: string) =>
+  page.screenshot({ path: test.info().outputPath(`${name}.png`) });
+
 test("a host opens a lobby and a stranger joins it from Open games @online", async ({
   browser,
 }) => {
   const hostContext = await browser.newContext();
   const guestContext = await browser.newContext();
-  const shot = (page: Page, name: string) =>
-    page.screenshot({ path: test.info().outputPath(`${name}.png`) });
-
   try {
     const hostPage = await hostContext.newPage();
     const guestPage = await guestContext.newPage();

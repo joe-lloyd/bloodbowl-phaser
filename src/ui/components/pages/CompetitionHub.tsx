@@ -76,7 +76,7 @@ export function CompetitionHub({ type }: { type: CompetitionType }) {
       .then(setCompetitions);
   }, [type, user]);
 
-  const createButton = (
+  const competitionCreateButton = (
     <HudButton variant="primary" onClick={() => navigate(`/${route}/new`)}>
       Create {type}
     </HudButton>
@@ -88,7 +88,7 @@ export function CompetitionHub({ type }: { type: CompetitionType }) {
         back={{ label: "Back to Menu", onClick: () => navigate("/") }}
         title={label}
         subtitle="Build a competition, play its fixtures locally or online, and resume the season at any time."
-        actions={competitions.length > 0 && createButton}
+        actions={competitions.length > 0 && competitionCreateButton}
       />
 
       {user && <OpenSignups type={type} uid={user.uid} />}
@@ -96,7 +96,7 @@ export function CompetitionHub({ type }: { type: CompetitionType }) {
       {competitions.length === 0 ? (
         <EmptyState
           title={`No ${label.toLowerCase()} yet.`}
-          action={createButton}
+          action={competitionCreateButton}
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

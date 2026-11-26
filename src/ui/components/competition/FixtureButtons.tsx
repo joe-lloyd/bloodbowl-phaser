@@ -39,9 +39,9 @@ function plays(competition: CompetitionDoc, entrant: CompetitionEntrant, uid: st
 }
 
 function ComputerGame({ competition, fixture, home, away, handlers }: FixtureProps) {
-  const offerPlay = competition.online
-    ? competition.online.computerGames === "play" && handlers.organizer
-    : true;
+  const offerPlay =
+    !competition.online ||
+    (competition.online.computerGames === "play" && handlers.organizer);
   return (
     <div className="flex flex-wrap gap-2">
       {handlers.maySimulate(fixture) && (

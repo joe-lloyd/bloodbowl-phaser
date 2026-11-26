@@ -499,7 +499,7 @@ function choiceStatus({
   chosen,
   proMode,
   rerollFirst,
-  attackingTeamName,
+  attackingTeamName = "Attacking team",
   diceShown,
 }: {
   chosen: string | null;
@@ -514,7 +514,7 @@ function choiceStatus({
   if (getActiveOnlineMatch()?.mayAct() === false)
     return "The other coach is choosing…";
   if (rerollFirst)
-    return `${attackingTeamName ?? "Attacking team"}: re-roll first?`;
+    return `${attackingTeamName}: re-roll first?`;
   return matchesMedia(PHONE_QUERY)
     ? "Tap a result"
     : `Click a die in the tray, or press ${dieKeys(diceShown)}, to choose the result`;

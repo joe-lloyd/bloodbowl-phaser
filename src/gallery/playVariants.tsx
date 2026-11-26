@@ -317,13 +317,14 @@ const openMenu = () => {
   click('[aria-haspopup="menu"]');
 };
 
+const off = () => undefined;
+
 const OPTION_ROWS: MatchRow[] = [
   { id: "options-open", title: "Open, local match", open: openMenu },
   {
     id: "options-confirm",
     title: "Online guest, confirming a destructive action",
     view: (fx) => {
-      const off = () => undefined;
       setActiveOnlineMatch(onlineMatch(fx));
       return hud(fx, {
         onlineMenu: {

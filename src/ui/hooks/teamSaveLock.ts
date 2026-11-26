@@ -1,16 +1,16 @@
 import { useSyncExternalStore } from "react";
 
-let saving = false;
+const saveState = { saving: false };
 const listeners = new Set<() => void>();
 
 function setSaving(next: boolean): void {
-  saving = next;
+  saveState.saving = next;
   listeners.forEach((listener) => {
     listener();
   });
 }
 
-export const isTeamSaving = () => saving;
+export const isTeamSaving = () => saveState.saving;
 
 export async function holdTeamSave(work: () => Promise<void>): Promise<void> {
   setSaving(true);
@@ -30,7 +30,7 @@ function subscribe(listener: () => void): () => void {
 
 export function onTeamSaveSettled(settled: () => void): () => void {
   return subscribe(() => {
-    if (!saving) settled();
+    if (!saveState.saving) settled();
   });
 }
 

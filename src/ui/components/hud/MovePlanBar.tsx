@@ -46,7 +46,7 @@ export function MovePlanBar({
   if (plan) return <PhonePlanBar eventBus={eventBus} plan={plan} />;
 
   const online = getActiveOnlineMatch();
-  const mine = online ? online.myTeamId === activeTeamId : true;
+  const mine = !online || online.myTeamId === activeTeamId;
   if (!mine) return null;
   return <MovePlanBarView selected={selected} activeTeamId={activeTeamId} />;
 }

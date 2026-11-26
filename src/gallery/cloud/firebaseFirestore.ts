@@ -99,16 +99,16 @@ function asQuery(source: CollectionRef | CloudQuery): CloudQuery {
   };
 }
 
-const fieldOf = (data: Data, field: string): unknown =>
-  field
-    .split(".")
-    .reduce<unknown>(
-      (value, key) =>
-        typeof value === "object" && value !== null
-          ? Object.entries(value).find(([name]) => name === key)?.[1]
-          : undefined,
-      data
-    );
+const fieldOf = (data: Data, field: string): unknown => {
+  let value: unknown = data;
+  for (const key of field.split(".")) {
+    value =
+      typeof value === "object" && value !== null
+        ? Object.entries(value).find(([name]) => name === key)?.[1]
+        : undefined;
+  }
+  return value;
+};
 
 export function where(field: string, op: string, wanted: unknown): Constraint {
   return {
@@ -116,7 +116,7 @@ export function where(field: string, op: string, wanted: unknown): Constraint {
       const value = fieldOf(data, field);
       if (op === "array-contains")
         return Array.isArray(value) && value.includes(wanted);
-      return op === "==" ? value === wanted : true;
+      return op !== "==" || value === wanted;
     },
   };
 }
@@ -128,12 +128,15 @@ export function query(
   source: CollectionRef | CloudQuery,
   ...constraints: Constraint[]
 ): CloudQuery {
-  const base = asQuery(source);
-  return constraints.reduce<CloudQuery>((built, constraint) => {
-    if ("keep" in constraint)
-      return { ...built, keeps: [...built.keeps, constraint.keep] };
-    return "most" in constraint ? { ...built, most: constraint.most } : built;
-  }, base);
+  let built = asQuery(source);
+  for (const constraint of constraints) {
+    if ("keep" in constraint) {
+      built = { ...built, keeps: [...built.keeps, constraint.keep] };
+    } else if ("most" in constraint) {
+      built = { ...built, most: constraint.most };
+    }
+  }
+  return built;
 }
 
 function documentSnapshot(path: string) {
@@ -225,14 +228,11 @@ function withField(data: Data, path: string[], value: unknown): Data {
 }
 
 function change(ref: DocumentRef, data: Data) {
-  const before = readDocument(ref.path) ?? {};
-  write(
-    ref,
-    Object.entries(data).reduce<Data>(
-      (next, [field, value]) => withField(next, field.split("."), value),
-      before
-    )
-  );
+  let next: Data = readDocument(ref.path) ?? {};
+  for (const [field, value] of Object.entries(data)) {
+    next = withField(next, field.split("."), value);
+  }
+  write(ref, next);
 }
 
 const settled = (work: () => void) => Promise.resolve().then(work);
