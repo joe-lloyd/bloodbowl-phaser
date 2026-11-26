@@ -435,6 +435,6 @@ function dodgeRoll(
   return {
     kind: "dodge",
     target: requiredRoll(player.stats.AG, modifier + twoHeads),
-    ...(tackled ? { noSkillReroll: true as const } : {}),
+    ...(tackled && { noSkillReroll: true as const }),
   };
 }

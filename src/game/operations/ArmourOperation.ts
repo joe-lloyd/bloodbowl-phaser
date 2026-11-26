@@ -172,11 +172,9 @@ export class ArmourOperation extends InjuryPartiesOperation {
       ),
       {
         player,
-        ...(causedBy === undefined ? {} : { causedBy: causedBy }),
+        ...(causedBy !== undefined && { causedBy: causedBy }),
         cause: this.casualtyCause(),
-        ...(this.fall?.cause === "dodge"
-          ? { vacatedSquare: this.fall.vacatedSquare }
-          : {}),
+        ...((this.fall?.cause === "dodge") && { vacatedSquare: this.fall.vacatedSquare }),
         knockedDown: true,
         roll,
         armourModifier: this.armourModifier,
@@ -232,9 +230,7 @@ export class ArmourOperation extends InjuryPartiesOperation {
       flowManager.add(
         new InjuryOperation(this.playerId, {
           modifier: injuryModifier,
-          ...(this.causedById === undefined
-            ? {}
-            : { causedById: this.causedById }),
+          ...(this.causedById !== undefined && { causedById: this.causedById }),
           cause: this.casualtyCause(),
           stunnedIsKnockedOut: armourSkipped,
         }),

@@ -103,22 +103,22 @@ function spendReroll(
     if (!gate.success) {
       deps.eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: player.id,
-        skill: String(SkillType.PRO),
+        skill: SkillType.PRO,
         effect: "Pro: the attempt fails — no other re-roll may be used",
       });
       return false;
     }
     deps.eventBus.emit(GameEventNames.SkillTriggered, {
       playerId: player.id,
-      skill: String(SkillType.PRO),
+      skill: SkillType.PRO,
       effect: `Pro: re-roll the failed ${rollKind}`,
     });
   } else if (chosen === "skill" && skillSource) {
     arbiter.consumeSkillReroll(player, skillSource);
     deps.eventBus.emit(GameEventNames.SkillTriggered, {
       playerId: player.id,
-      skill: String(skillSource),
-      effect: `${String(skillSource)}: reroll the failed ${rollKind}`,
+      skill: skillSource,
+      effect: `${skillSource}: reroll the failed ${rollKind}`,
     });
   } else if (chosen === "veteran") {
     arbiter.consumeVeteranReroll(player);
@@ -166,11 +166,11 @@ export async function withRerollOffer<T extends RollLike>(
     playerId: player.id,
     chooserTeamId: player.teamId,
     rollKind,
-    ...(opts?.rollName ? { rollName: opts.rollName } : {}),
+    ...(opts?.rollName && { rollName: opts.rollName }),
     sources,
-    ...(skillSource ? { skill: String(skillSource) } : {}),
+    ...(skillSource && { skill: skillSource }),
     roll: first.roll,
-    ...(needed === undefined ? {} : { needed }),
+    ...(needed !== undefined && { needed }),
   });
   if (!answer.accept) return first;
 
@@ -189,9 +189,7 @@ export async function withRerollOffer<T extends RollLike>(
     playerId: player.id,
     source: chosen,
     rollKind,
-    ...(chosen === "skill" && skillSource
-      ? { skill: String(skillSource) }
-      : {}),
+    ...(chosen === "skill" && skillSource && { skill: skillSource }),
     before: first.roll,
     after: second.roll,
   });

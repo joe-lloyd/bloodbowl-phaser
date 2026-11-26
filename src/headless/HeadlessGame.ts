@@ -221,7 +221,7 @@ export class HeadlessGame {
       response.legalActions = enumerateLegalActions({
         ctx: this.ctx,
         pending: this.pending,
-        ...(cmd.playerId === undefined ? {} : { focusPlayerId: cmd.playerId }),
+        ...(cmd.playerId !== undefined && { focusPlayerId: cmd.playerId }),
       });
       return response;
     }
@@ -373,7 +373,7 @@ export class HeadlessGame {
       selectedPlayerIds: [...step.selectedPlayerIds],
       movedPlayerIds: [...step.movedPlayerIds],
       awaitingPlacement: [...step.awaitingPlacement],
-      ...(step.landingSquare ? { landingSquare: { ...step.landingSquare } } : {}),
+      ...(step.landingSquare && { landingSquare: { ...step.landingSquare } }),
     };
   }
 
@@ -399,7 +399,7 @@ export class HeadlessGame {
   private respond(ok: boolean, reason?: string): CommandResponse {
     const base = {
       ok,
-      ...(reason ? { reason } : {}),
+      ...(reason && { reason }),
       events: [...this.eventLog],
       pendingDecision: this.pending,
     };

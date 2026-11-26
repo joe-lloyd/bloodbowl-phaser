@@ -82,7 +82,7 @@ export class ActivationGateOperation extends GameOperation {
         player,
         "activation",
         doRoll,
-        { rollName: String(gate.skill) }
+        { rollName: gate.skill }
       );
       if (result.success) {
         gameService.commitAction(this.playerId);

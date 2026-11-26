@@ -140,7 +140,7 @@ function declarationOf(
     return {};
   }
   const replacement = active.blockReplacementUsed ? undefined : active.blockReplacement;
-  return { action: active.action, ...(replacement === undefined ? {} : { replacement }) };
+  return { action: active.action, ...(replacement !== undefined && { replacement }) };
 }
 
 async function attackInsteadOfBlock(

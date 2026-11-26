@@ -78,9 +78,7 @@ export function declareAction({
     parts,
     playerId,
     action,
-    ...(requestedReplacement === undefined
-      ? {}
-      : { blockReplacement: requestedReplacement }),
+    ...(requestedReplacement !== undefined && { blockReplacement: requestedReplacement }),
     options,
     activating,
   });

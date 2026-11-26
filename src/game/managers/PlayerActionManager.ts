@@ -25,7 +25,7 @@ export function openActivation(
     id: active.id,
     action: null,
     squigRageSettled: true,
-    ...(active.stalling === undefined ? {} : { stalling: active.stalling }),
+    ...(active.stalling !== undefined && { stalling: active.stalling }),
   };
 }
 
@@ -56,12 +56,8 @@ export class PlayerActionManager {
       id: playerId,
       action: action,
 
-      ...(action === "foul" && this.state.turn.hasFouled
-        ? { grudgeMatch: true }
-        : {}),
-      ...(blockReplacement
-        ? { blockReplacement, blockReplacementUsed: false }
-        : {}),
+      ...(action === "foul" && this.state.turn.hasFouled && { grudgeMatch: true }),
+      ...(blockReplacement && { blockReplacement, blockReplacementUsed: false }),
     };
 
     this.eventBus.emit(
@@ -138,7 +134,7 @@ export class PlayerActionManager {
       this.state.activePlayer = {
         id: playerId,
         action: firstAction,
-        ...(active.bloodlustUnsated ? { bloodlustUnsated: true } : {}),
+        ...(active.bloodlustUnsated && { bloodlustUnsated: true }),
         committed: true,
         razzleDazzle: { actions: [firstAction], awaitingSecond: true },
       };

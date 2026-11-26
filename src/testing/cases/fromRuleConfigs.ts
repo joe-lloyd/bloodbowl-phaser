@@ -70,7 +70,7 @@ function scenarioCaseFromRuleConfig(
     return {
       id: outcome.id,
       name: outcome.name,
-      ...(outcome.description ? { description: outcome.description } : {}),
+      ...(outcome.description && { description: outcome.description }),
 
       seed: seed ?? NaN,
       expectedOutcome: outcome.name,
@@ -86,10 +86,9 @@ function scenarioCaseFromRuleConfig(
     capability: capabilityFor(skill),
     interactions: [`rule-config:${config.id}`],
     setup: config.setup,
-    ...(config.rerolls ? { rerolls: config.rerolls } : {}),
-    ...(config.decisionPolicy ? { decisionPolicy: config.decisionPolicy } : {}),
-    ...(config.skillProvenance
-      ? {
+    ...(config.rerolls && { rerolls: config.rerolls }),
+    ...(config.decisionPolicy && { decisionPolicy: config.decisionPolicy }),
+    ...(config.skillProvenance && {
           syntheticGrants: config.skillProvenance
             .filter((entry) => entry.source === "scenario-isolation")
             .map((entry) => ({
@@ -97,12 +96,11 @@ function scenarioCaseFromRuleConfig(
               skill: entry.skill,
               reason: entry.reason,
             })),
-        }
-      : {}),
+        }),
     steps: stepsFor(config),
     layers: ["engine"],
     interactive: true,
-    tags: ["rule-catalog", String(skill)],
+    tags: ["rule-catalog", skill],
     source: { kind: "rule-config", id: config.id },
     variants,
 

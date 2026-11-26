@@ -35,14 +35,14 @@ export class DiceController {
   private reportSingleRoll(reason: string, roll: number, options: { diceType: string; teamId?: string }): number {
     this.emitDiceRoll({ rollType: reason, diceType: options.diceType, value: roll, total: roll,
       description: `${reason}: ${String(roll)}`, resultState: "none",
-      ...(options.teamId === undefined ? {} : { teamId: options.teamId }),
+      ...(options.teamId !== undefined && { teamId: options.teamId }),
     });
     return roll;
   }
 
   public rollD3(reason: string, teamId?: string): number {
     const roll = Math.ceil(this.rng.rollDie(6) / 2);
-    return this.reportSingleRoll(reason, roll, { diceType: "1d3", ...(teamId === undefined ? {} : { teamId }) });
+    return this.reportSingleRoll(reason, roll, { diceType: "1d3", ...(teamId !== undefined && { teamId }) });
   }
 
   public tossCoin(
@@ -64,7 +64,7 @@ export class DiceController {
 
   public rollD6(reason: string, teamId?: string): number {
     const roll = this.rng.rollDie(6);
-    return this.reportSingleRoll(reason, roll, { diceType: "1d6", ...(teamId === undefined ? {} : { teamId }) });
+    return this.reportSingleRoll(reason, roll, { diceType: "1d6", ...(teamId !== undefined && { teamId }) });
   }
 
   public rollMultipleD6(
@@ -81,7 +81,7 @@ export class DiceController {
       total,
       description: `${reason}: ${rolls.join(", ")} (Total: ${String(total)})`,
       resultState: "none",
-      ...(teamId === undefined ? {} : { teamId: teamId }),
+      ...(teamId !== undefined && { teamId: teamId }),
     });
     return rolls;
   }
@@ -96,7 +96,7 @@ export class DiceController {
       total,
       description: `${reason}: ${rolls.join(" + ")} = ${String(total)}`,
       resultState: "none",
-      ...(teamId === undefined ? {} : { teamId: teamId }),
+      ...(teamId !== undefined && { teamId: teamId }),
     });
     return total;
   }
@@ -111,14 +111,14 @@ export class DiceController {
       total: lower,
       description: `${reason}: ${rolls.join(", ")} (lower: ${String(lower)})`,
       resultState: "none",
-      ...(teamId === undefined ? {} : { teamId: teamId }),
+      ...(teamId !== undefined && { teamId: teamId }),
     });
     return lower;
   }
 
   public rollD8(reason: string, teamId?: string): number {
     const roll = this.rng.rollDie(8);
-    return this.reportSingleRoll(reason, roll, { diceType: "1d8", ...(teamId === undefined ? {} : { teamId }) });
+    return this.reportSingleRoll(reason, roll, { diceType: "1d8", ...(teamId !== undefined && { teamId }) });
   }
 
   public rollMultipleD8(
@@ -134,14 +134,14 @@ export class DiceController {
       total: rolls.reduce((sum, v) => sum + v, 0),
       description: `${reason}: ${rolls.join(", ")}`,
       resultState: "none",
-      ...(teamId === undefined ? {} : { teamId: teamId }),
+      ...(teamId !== undefined && { teamId: teamId }),
     });
     return rolls;
   }
 
   public rollD16(reason: string, teamId?: string): number {
     const roll = this.rng.rollDie(16);
-    return this.reportSingleRoll(reason, roll, { diceType: "1d16", ...(teamId === undefined ? {} : { teamId }) });
+    return this.reportSingleRoll(reason, roll, { diceType: "1d16", ...(teamId !== undefined && { teamId }) });
   }
 
   public rollBlockDice(numDice: number, teamId?: string): BlockResult[] {
@@ -157,7 +157,7 @@ export class DiceController {
       total: numDice,
       description: `Rolled ${String(numDice)} block dice: ${results.map((r) => r.type).join(", ")}`,
       resultState: "none",
-      ...(teamId === undefined ? {} : { teamId: teamId }),
+      ...(teamId !== undefined && { teamId: teamId }),
     });
 
     return results;
@@ -185,7 +185,7 @@ export class DiceController {
       total: effectiveTotal,
       description: `${fullReason}: ${String(roll)}, needs ${String(needed)}+`,
       resultState: success ? "success" : "failure",
-      ...(teamId === undefined ? {} : { teamId: teamId }),
+      ...(teamId !== undefined && { teamId: teamId }),
     });
 
     return {
@@ -215,7 +215,7 @@ export class DiceController {
       total,
       description,
       resultState: broken ? "success" : "failure",
-      ...(teamId === undefined ? {} : { teamId: teamId }),
+      ...(teamId !== undefined && { teamId: teamId }),
     });
 
     return { broken, roll: total, rolls };
@@ -240,7 +240,7 @@ export class DiceController {
         ? `${rollType}: ${String(rolls[0])} + ${String(rolls[1])} = ${String(total)}`
         : `${label}: ${String(rolls[0])}+${String(rolls[1])} = ${String(total)}`,
       resultState: "none",
-      ...(teamId === undefined ? {} : { teamId: teamId }),
+      ...(teamId !== undefined && { teamId: teamId }),
     });
 
     return { total, rolls };

@@ -35,7 +35,7 @@ export function coachFor(difficulty: Difficulty): Coach & { close?(): void } {
       name: "standard",
       variety: STANDARD_VARIETY,
     });
-  const cores = globalThis.navigator.hardwareConcurrency;
+  const cores = navigator.hardwareConcurrency;
   return createWorkerSearchCoach({
     budget: BUDGETS[difficulty],
     workers: Math.max(1, Math.min(MAX_WORKERS, cores - 1)),

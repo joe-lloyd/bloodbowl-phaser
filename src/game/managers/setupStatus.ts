@@ -93,8 +93,7 @@ export function teamSetupStatus(input: {
         (restriction) => !restriction.satisfiable || restriction.satisfied
       ) && concessionDecision !== "pending",
     concessionDecision,
-    ...(swarm
-      ? {
+    ...(swarm && {
           swarming: {
             roll: swarm.roll,
             additionalPlayerCount: positions.filter(
@@ -105,7 +104,6 @@ export function teamSetupStatus(input: {
               swarmReserveCount(swarm, eligible)
             ),
           },
-        }
-      : {}),
+        }),
   };
 }

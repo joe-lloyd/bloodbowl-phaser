@@ -43,7 +43,7 @@ export function recordPendingDevelopment(
   if (raisedDeadPlayerId) offerRaisedDeadRecruit(team, raisedDeadPlayerId);
   offerJourneymen(team, matchId, {
     leagueFixture: !!game.leagueFixture,
-    ...(game.playedIds === undefined ? {} : { playedIds: game.playedIds }),
+    ...(game.playedIds !== undefined && { playedIds: game.playedIds }),
   });
   if (team.advancementMode === "sevens-skill-selection") {
     const eligible = eligibleSkillSelectionPlayers(team);

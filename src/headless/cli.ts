@@ -141,7 +141,7 @@ function renderStatus(snapshot: GameSnapshot): string {
 
 function renderEvents(response: CommandResponse): string {
   return response.events
-    .filter((e) => !String(e.name).startsWith("ui:"))
+    .filter((e) => !e.name.startsWith("ui:"))
     .map((e) => `  • ${e.name}${e.data ? " " + safeJson(e.data) : ""}`)
     .join("\n");
 }

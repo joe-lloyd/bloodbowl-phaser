@@ -58,7 +58,7 @@ function rulebookRoll(
 ): { casualtyRoll?: ApothecaryCasualtyRoll } {
   if (!rulebook) return {};
   return {
-    casualtyRoll: { grade, ...(lasting ? { lasting: lasting.stat } : {}) },
+    casualtyRoll: { grade, ...(lasting && { lasting: lasting.stat }) },
   };
 }
 
@@ -87,7 +87,7 @@ export class CasualtyOperation extends InjuryPartiesOperation {
   } {
     const { player, causedBy } = parties;
     return {
-      ...(this.causedById === undefined ? {} : { killerId: this.causedById }),
+      ...(this.causedById !== undefined && { killerId: this.causedById }),
       armsPlagueRidden:
         !!causedBy && plagueRiddenApplies(causedBy, player, this.cause),
     };
@@ -101,8 +101,8 @@ export class CasualtyOperation extends InjuryPartiesOperation {
 
     const preCtx: CasualtyContext = {
       player,
-      ...(causedBy === undefined ? {} : { causedBy: causedBy }),
-      ...(this.cause === undefined ? {} : { cause: this.cause }),
+      ...(causedBy !== undefined && { causedBy: causedBy }),
+      ...(this.cause !== undefined && { cause: this.cause }),
       decisions: gameService.getDecisionService(),
       flow: context.flowManager,
       arbiter: gameService.getRerollArbiter(),

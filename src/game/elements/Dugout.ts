@@ -89,7 +89,7 @@ export class Dugout {
     }
 
     this.visibleBeforeRefresh = new Set(
-      Array.from(this.playerSprites.entries())
+      Array.from(this.playerSprites)
         .filter(([, sprite]) => sprite.visible)
         .map(([id]) => id)
     );

@@ -52,7 +52,7 @@ export async function playBenchGame(
     seed: job.seed,
     rosters: job.rosters,
     coaches,
-    ...(rerolls === undefined ? {} : { rerolls: rerolls }),
+    ...(rerolls !== undefined && { rerolls: rerolls }),
   });
   const ours = job.candidateSide;
   const theirs = ours === 0 ? 1 : 0;

@@ -60,7 +60,7 @@ function rerollAnswer(policy: DecisionPolicy): HeadlessCommand {
   return {
     type: "use-reroll",
     accept: true,
-    ...(typeof setting === "string" ? { source: setting } : {}),
+    ...((typeof setting === "string") && { source: setting }),
   };
 }
 
@@ -76,7 +76,7 @@ function interceptionAnswer(
   )[0];
   return {
     type: "choose-interception",
-    ...(best ? { playerId: best.playerId } : {}),
+    ...(best && { playerId: best.playerId }),
   };
 }
 
@@ -114,8 +114,8 @@ function inducementAnswer(
     ? { type: "choose-inducement" }
     : {
         type: "choose-inducement",
-        ...(pending.playerIds[0] ? { playerId: pending.playerIds[0] } : {}),
-        ...(pending.skills?.[0] ? { skill: pending.skills[0] } : {}),
+        ...(pending.playerIds[0] && { playerId: pending.playerIds[0] }),
+        ...(pending.skills?.[0] && { skill: pending.skills[0] }),
       };
 }
 

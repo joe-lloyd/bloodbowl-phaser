@@ -313,9 +313,7 @@ export class TurnManager {
       this.state.activeTeamId = null;
       this.state.result ??= {
         reason: "completed",
-        ...(undecidedGame && this.callbacks.shootout
-          ? { penalties: this.callbacks.shootout() }
-          : {}),
+        ...(undecidedGame && this.callbacks.shootout && { penalties: this.callbacks.shootout() }),
       };
       this.callbacks.onPhaseChanged(GamePhase.GAME_OVER);
       return null;
@@ -413,7 +411,7 @@ export class TurnManager {
       category: "action",
       headline: "TURNOVER",
       detail: `${who}: ${reason}`,
-      ...(activeTeamId == null ? {} : { teamId: activeTeamId }),
+      ...(activeTeamId != null && { teamId: activeTeamId }),
     });
     this.eventBus.emit(GameEventNames.Turnover, {
       teamId: this.state.activeTeamId || "",
@@ -421,7 +419,7 @@ export class TurnManager {
     return {
       teamId: this.state.activeTeamId || "",
       reason,
-      ...(player ? { playerName: player.playerName } : {}),
+      ...(player && { playerName: player.playerName }),
     };
   }
 

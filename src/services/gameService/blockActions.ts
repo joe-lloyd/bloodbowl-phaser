@@ -217,9 +217,7 @@ export async function followUpPush(
     from,
     to: { ...targetSquare },
     path: [from, { ...targetSquare }],
-    ...(carriedBall
-      ? { ballFrom: from, ballPath: [from, { ...targetSquare }] }
-      : {}),
+    ...(carriedBall && { ballFrom: from, ballPath: [from, { ...targetSquare }] }),
     ballJoinStep: 0,
   });
 

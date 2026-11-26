@@ -24,7 +24,7 @@ function mergeLayer(
       layer,
       status: "excluded",
       cases: [],
-      ...(excluded.exclusion ? { exclusion: excluded.exclusion } : {}),
+      ...(excluded.exclusion && { exclusion: excluded.exclusion }),
     };
   }
 

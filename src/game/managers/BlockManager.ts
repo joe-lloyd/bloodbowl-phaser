@@ -403,7 +403,7 @@ export class BlockManager extends BlockPushChain {
       passType: result.passType,
       accurate: result.accurate,
       finalPosition,
-      ...(scatterPath ? { scatterPath } : {}),
+      ...(scatterPath && { scatterPath }),
     });
 
     gs.setBallPosition(finalPosition.x, finalPosition.y);

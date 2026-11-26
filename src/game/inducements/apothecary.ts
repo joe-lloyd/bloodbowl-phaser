@@ -120,12 +120,12 @@ export async function offerApothecary(
     playerId: player.id,
     resultKind: opts.resultKind,
     ...(opts.resultKind === "ko"
-      ? { location: opts.location, ...(opts.position === undefined ? {} : { position: opts.position }) }
+      ? { location: opts.location, ...(opts.position !== undefined && { position: opts.position }) }
       : {
           casualtyType: opts.casualtyType,
-          ...(opts.casualtyRoll ? { casualtyRoll: opts.casualtyRoll } : {}),
-          ...(opts.killerId ? { killerId: opts.killerId } : {}),
-          ...(opts.armsPlagueRidden ? { armsPlagueRidden: true } : {}),
+          ...(opts.casualtyRoll && { casualtyRoll: opts.casualtyRoll }),
+          ...(opts.killerId && { killerId: opts.killerId }),
+          ...(opts.armsPlagueRidden && { armsPlagueRidden: true }),
         }),
   };
   inducements.pendingApothecaryDecision = request;
@@ -283,7 +283,7 @@ function rulebookPatchUp(
   const rolled = rollCasualty(gameService.getDiceController(), player, "standard");
   const second: ApothecaryCasualtyRoll = {
     grade: rolled.grade,
-    ...(rolled.lasting ? { lasting: rolled.lasting.stat } : {}),
+    ...(rolled.lasting && { lasting: rolled.lasting.stat }),
   };
   const kept = milderGrade(first.grade, second.grade) === first.grade ? first : second;
   eventBus.emit(

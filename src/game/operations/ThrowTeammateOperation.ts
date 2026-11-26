@@ -539,9 +539,7 @@ export class ThrowTeammateOperation extends GameOperation {
       to: { ...landing },
       path: [{ ...landing }],
       thrown: true,
-      ...(carriesBall
-        ? { ballFrom: origin, ballPath: [{ ...landing }], ballJoinStep: 0 }
-        : {}),
+      ...(carriesBall && { ballFrom: origin, ballPath: [{ ...landing }], ballJoinStep: 0 }),
     });
     return { carriesBall, occupant };
   }

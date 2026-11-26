@@ -49,13 +49,11 @@ async function loadFrozenPlanner(
   const frozen = (await import(file)) as typeof import("../ai/planner");
   return frozen.createPlannerCoach({
     name: "champion",
-    ...(weightsFile
-      ? {
+    ...(weightsFile && {
           weights: parseWeights(
             JSON.parse(fs.readFileSync(weightsFile, "utf8"))
           ),
-        }
-      : {}),
+        }),
   });
 }
 
@@ -160,11 +158,9 @@ export async function runBench(options: BenchOptions): Promise<number> {
             makeCoach(options.coach, [], options.weights),
             options.puzzleSeeds
           ),
-          ...(options.vs === options.coach &&
+          ...(!(options.vs === options.coach &&
           !options.vsModule &&
-          options.weights === options.vsWeights
-            ? {}
-            : {
+          options.weights === options.vsWeights) && {
                 [baselineName(options)]: await solveRates(
                   options.vsModule
                     ? await loadFrozenPlanner(

@@ -98,7 +98,7 @@ interface BridgePhaserGame {
 }
 
 function phaserGame(): BridgePhaserGame | undefined {
-  return (window as unknown as { game?: BridgePhaserGame }).game;
+  return (globalThis as unknown as { game?: BridgePhaserGame }).game;
 }
 
 function activeScenes(): BridgeScene[] {
@@ -178,11 +178,11 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
     },
   };
 
-  (window as unknown as Record<string, unknown>)[TEST_BRIDGE_KEY] = bridge;
+  (globalThis as unknown as Record<string, unknown>)[TEST_BRIDGE_KEY] = bridge;
 }
 
 export function uninstallBrowserTestBridge(): void {
   if (!bridgeAllowed() || typeof window === "undefined") return;
   observer = null;
-  delete (window as unknown as Record<string, unknown>)[TEST_BRIDGE_KEY];
+  delete (globalThis as unknown as Record<string, unknown>)[TEST_BRIDGE_KEY];
 }

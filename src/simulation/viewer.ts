@@ -188,8 +188,8 @@ export async function buildMatchDump(
           label: step.label,
           team: step.team,
           ok: response.ok,
-          ...(response.reason === undefined ? {} : { reason: response.reason }),
-          ...(step.note === undefined ? {} : { note: step.note }),
+          ...(response.reason !== undefined && { reason: response.reason }),
+          ...(step.note !== undefined && { note: step.note }),
         },
         narrate(response.events),
         problems

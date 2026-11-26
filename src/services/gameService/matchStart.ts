@@ -43,7 +43,7 @@ export function createMatchState({
     team1,
     team2,
     startingPhase,
-    ...(startingSubPhase === undefined ? {} : { startingSubPhase }),
+    ...(startingSubPhase !== undefined && { startingSubPhase }),
   });
   if (fixture.paysWinnings) state.paysWinnings = true;
   if (competition) state.competition = true;
@@ -68,7 +68,7 @@ export function createInitialState({
 }): GameState {
   return {
     phase: startingPhase,
-    ...(startingSubPhase === undefined ? {} : { subPhase: startingSubPhase }),
+    ...(startingSubPhase !== undefined && { subPhase: startingSubPhase }),
     activeTeamId: null,
     turn: freshTurn(),
     score: {

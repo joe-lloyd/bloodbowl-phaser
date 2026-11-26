@@ -123,7 +123,7 @@ export function parseAllegiance(
     (item) => item === raw.favouredOf
   );
   return {
-    ...(league ? { league } : {}),
-    ...(favouredOf ? { favouredOf } : {}),
+    ...(league && { league }),
+    ...(favouredOf && { favouredOf }),
   };
 }

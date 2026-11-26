@@ -173,10 +173,10 @@ function recordedStep(
   return {
     command,
     ok: response.ok,
-    ...(response.reason ? { reason: response.reason } : {}),
+    ...(response.reason && { reason: response.reason }),
     team,
     label,
-    ...(note ? { note } : {}),
+    ...(note && { note }),
   };
 }
 
@@ -531,7 +531,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     rerolls,
     lineup: "sevens-lineup",
     inducements,
-    ...(format.gameType === DEFAULT_GAME_TYPE ? {} : { matchFormat: format }),
+    ...(format.gameType !== DEFAULT_GAME_TYPE && { matchFormat: format }),
     steps,
     final: summarize(final),
     findings,

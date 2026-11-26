@@ -334,7 +334,7 @@ function rollIndexes(
 ): number[] {
   return r.events.flatMap((e, i) =>
     e.name === GameEventNames.DiceRoll &&
-    new RegExp(`^${rollKind}( \\(|$)`).test(
+    new RegExp(String.raw`^${rollKind}( \(|$)`).test(
       z.object({ rollType: z.string().exactOptional() }).parse(e.data)
         .rollType ?? ""
     )

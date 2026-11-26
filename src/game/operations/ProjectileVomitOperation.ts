@@ -49,7 +49,7 @@ export class ProjectileVomitOperation extends AdjacentTargetOperation {
       gatherParticipants(causedBy ?? victim, causedBy ? victim : undefined, []),
       {
         player: victim,
-        ...(causedBy === undefined ? {} : { causedBy: causedBy }),
+        ...(causedBy !== undefined && { causedBy: causedBy }),
         cause: "special",
         knockedDown: false,
         roll: armour.roll,

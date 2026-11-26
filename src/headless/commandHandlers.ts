@@ -205,10 +205,10 @@ async function chooseInducement(
     validStat &&
       validSpell &&
       host.ctx.gameService.answerInducementChoice({
-        ...(cmd.playerId === undefined ? {} : { playerId: cmd.playerId }),
-        ...(cmd.skill === undefined ? {} : { skill: cmd.skill }),
-        ...(stat === undefined ? {} : { stat: stat }),
-        ...(spell === undefined ? {} : { spell: spell }),
+        ...(cmd.playerId !== undefined && { playerId: cmd.playerId }),
+        ...(cmd.skill !== undefined && { skill: cmd.skill }),
+        ...(stat !== undefined && { stat: stat }),
+        ...(spell !== undefined && { spell: spell }),
         ...square,
       }),
     "invalid-inducement-choice"
@@ -336,7 +336,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
     ) {
       throw new Error("invalid-block-replacement");
     }
-    const declared = ctx.gameService.declareAction({ playerId: cmd.playerId, action: cmd.action, ...(cmd.blockReplacement === undefined ? {} : { blockReplacement: cmd.blockReplacement }), options: cmd.razzleDazzle === undefined ? {} : { razzleDazzle: cmd.razzleDazzle } }
+    const declared = ctx.gameService.declareAction({ playerId: cmd.playerId, action: cmd.action, ...(cmd.blockReplacement !== undefined && { blockReplacement: cmd.blockReplacement }), options: cmd.razzleDazzle === undefined ? {} : { razzleDazzle: cmd.razzleDazzle } }
     );
     if (!declared) throw new Error("illegal-action-declaration");
   },
@@ -396,7 +396,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
     }
   },
   "throw-teammate": async ({ ctx }, cmd) => {
-    await ctx.gameService.throwTeammate({ throwerId: cmd.throwerId, teammateId: cmd.teammateId, x: cmd.x, y: cmd.y, ...(cmd.mode === undefined ? {} : { mode: cmd.mode }), ...(cmd.swoopFacing === undefined ? {} : { swoopFacing: cmd.swoopFacing }) }
+    await ctx.gameService.throwTeammate({ throwerId: cmd.throwerId, teammateId: cmd.teammateId, x: cmd.x, y: cmd.y, ...(cmd.mode !== undefined && { mode: cmd.mode }), ...(cmd.swoopFacing !== undefined && { swoopFacing: cmd.swoopFacing }) }
     );
   },
   "throw-bomb": async ({ ctx }, cmd) => {

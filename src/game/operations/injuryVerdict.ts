@@ -186,7 +186,7 @@ export function recordSeriousKnockout(
     `Serious Knock-out: ${player.playerName} counts as a Casualty and recovers only on a 5+`
   );
   context.eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
-    ...(blame.causedById === undefined ? {} : { causerId: blame.causedById }),
+    ...(blame.causedById !== undefined && { causerId: blame.causedById }),
     victimId: player.id,
     cause: blame.cause,
     sppEligible: earnsCasualtySpp(

@@ -160,8 +160,8 @@ export abstract class BlockManagerBase {
     const flow = this.callbacks.getFlowManager?.();
     const decisions = this.decisions();
     return {
-      ...(decisions ? { decisions } : {}),
-      ...(flow ? { flow } : {}),
+      ...(decisions && { decisions }),
+      ...(flow && { flow }),
     };
   }
 

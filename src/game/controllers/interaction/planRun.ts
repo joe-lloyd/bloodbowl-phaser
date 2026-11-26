@@ -1,4 +1,5 @@
 import { settleActivationRoll } from "./activationRoll";
+import { errorText } from "../../../ui/errorText";
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "@/network/OnlineMatch";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
@@ -78,8 +79,8 @@ async function declarePlanned(c: GameplayInteractionController, playerId: string
   const declared = c.gameService.declareAction({
     playerId,
     action: planned.action,
-    ...(planned.blockReplacement ? { blockReplacement: planned.blockReplacement } : {}),
-    ...(planned.razzleDazzle ? { options: { razzleDazzle: true } } : {}),
+    ...(planned.blockReplacement && { blockReplacement: planned.blockReplacement }),
+    ...(planned.razzleDazzle && { options: { razzleDazzle: true } }),
   });
   if (!declared) {
     stopPlan(c, playerId, `Cannot declare ${planned.action} now.`);
@@ -98,7 +99,7 @@ async function standPlanned(c: GameplayInteractionController, playerId: string):
   try {
     await c.gameService.standUp(playerId);
   } catch (error) {
-    stopPlan(c, playerId, `Cannot stand up: ${String(error)}`);
+    stopPlan(c, playerId, `Cannot stand up: ${errorText(error)}`);
     return false;
   } finally {
     c.isBusy = false;
@@ -121,7 +122,7 @@ async function walkPlanned(c: GameplayInteractionController, playerId: string, r
     walked = await walkRoute(c, playerId, route);
   } catch (error) {
     c.isBusy = false;
-    stopPlan(c, playerId, `Cannot move: ${String(error)}`);
+    stopPlan(c, playerId, `Cannot move: ${errorText(error)}`);
     return false;
   } finally {
     c.isBusy = false;

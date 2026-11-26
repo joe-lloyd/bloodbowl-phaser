@@ -57,7 +57,7 @@ export function endsAt(
   return {
     id: `${ref}-ends-at-${String(square.x)}-${String(square.y)}`,
     description: `${ref} finishes on (${String(square.x)},${String(square.y)})`,
-    ...(layers ? { layers } : {}),
+    ...(layers && { layers }),
     assert(observed) {
       const player = playerIn(observed, ref);
       checkpointAssert(
@@ -78,7 +78,7 @@ export function ballEndsAt(
   return {
     id: `ball-ends-at-${String(square.x)}-${String(square.y)}`,
     description: `the ball comes to rest on (${String(square.x)},${String(square.y)})`,
-    ...(layers ? { layers } : {}),
+    ...(layers && { layers }),
     assert(observed) {
       const ball = observed.snapshot.ballPosition;
       checkpointAssert(
@@ -94,7 +94,7 @@ export function noTurnover(layers?: ExecutionLayer[]): ExpectedCheckpoint {
   return {
     id: "no-turnover",
     description: "the activation does not cause a turnover",
-    ...(layers ? { layers } : {}),
+    ...(layers && { layers }),
     assert(observed) {
       checkpointAssert(
         !sawEventNamed(observed, GameEventNames.Turnover),
@@ -110,7 +110,7 @@ export function exactlyOneTurnover(
   return {
     id: "exactly-one-turnover",
     description: "the mistake causes exactly one turnover",
-    ...(layers ? { layers } : {}),
+    ...(layers && { layers }),
     assert(observed) {
       const count = observed.events.filter(
         (event) => event.name === GameEventNames.Turnover
@@ -131,7 +131,7 @@ export function endsWithStatus(
   return {
     id: `${ref}-ends-${status}`,
     description: `${ref} ends the run ${status}`,
-    ...(layers ? { layers } : {}),
+    ...(layers && { layers }),
     assert(observed) {
       const player = playerIn(observed, ref);
       checkpointAssert(
@@ -192,7 +192,7 @@ export function endsInPhase(
   return {
     id: `ends-in-${phase}`,
     description: `the run ends in ${phase}`,
-    ...(layers ? { layers } : {}),
+    ...(layers && { layers }),
     assert(observed) {
       checkpointAssert(
         observed.snapshot.phase === phase,
@@ -209,7 +209,7 @@ export function notEmitted(
   return {
     id: `not-emitted-${name}`,
     description: `the run does not emit ${name}`,
-    ...(layers ? { layers } : {}),
+    ...(layers && { layers }),
     assert(observed) {
       checkpointAssert(
         !sawEventNamed(observed, name),
@@ -226,7 +226,7 @@ export function raisedDecision(
   return {
     id: `decision-${type}`,
     description: `the run pauses on a '${type}' decision`,
-    ...(layers ? { layers } : {}),
+    ...(layers && { layers }),
     assert(observed) {
       checkpointAssert(
         observed.decisions.some((decision) => decision.type === type),
@@ -244,7 +244,7 @@ export function emitted(
   return {
     id: `emitted-${name}`,
     description: `the run emits ${name}`,
-    ...(layers ? { layers } : {}),
+    ...(layers && { layers }),
     assert(observed) {
       checkpointAssert(
         sawEventNamed(observed, name),

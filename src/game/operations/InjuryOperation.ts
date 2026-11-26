@@ -43,7 +43,7 @@ export async function resolveInjuryRoll(
   const total = roll + modifier;
   const ctx: InjuryRollContext = {
     player,
-    ...(causedBy === undefined ? {} : { causedBy: causedBy }),
+    ...(causedBy !== undefined && { causedBy: causedBy }),
     roll,
     modifier,
     table: "standard",
@@ -88,7 +88,7 @@ function resolvedInjury(
   verdict: InjuryVerdict
 ): ResolvedInjury {
   return Object.assign(ctx, {
-    ...(verdict.casualty === undefined ? {} : { casualty: verdict.casualty }),
+    ...(verdict.casualty !== undefined && { casualty: verdict.casualty }),
     seriousKnockout: verdict.seriousKnockout,
   });
 }
@@ -204,7 +204,7 @@ export class InjuryOperation extends InjuryPartiesOperation {
     const patchedUp = await offerApothecary(gameService, eventBus, player, {
       resultKind: "ko",
       location: "pitch",
-      ...(player.gridPosition ? { position: player.gridPosition } : {}),
+      ...(player.gridPosition && { position: player.gridPosition }),
     });
     if (patchedUp) return;
     const box = knockedOutBox(
@@ -237,15 +237,13 @@ export class InjuryOperation extends InjuryPartiesOperation {
       result: reportedInjury(gameService, player.id, result),
       rollType: `Injury Roll (${player.playerName})`,
       diceTeamId: player.teamId,
-      ...(this.opts.stunnedToReserves ? { stunnedToReserves: true } : {}),
+      ...(this.opts.stunnedToReserves && { stunnedToReserves: true }),
     });
   }
 
   private seriousKnockout(context: FlowContext, player: Player): void {
     recordSeriousKnockout(context, player, {
-      ...(this.opts.causedById === undefined
-        ? {}
-        : { causedById: this.opts.causedById }),
+      ...(this.opts.causedById !== undefined && { causedById: this.opts.causedById }),
       cause: this.opts.cause ?? "special",
     });
   }
@@ -259,9 +257,7 @@ export class InjuryOperation extends InjuryPartiesOperation {
     eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
     player.status = PlayerStatus.INJURED;
     eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
-      ...(this.opts.causedById === undefined
-        ? {}
-        : { causerId: this.opts.causedById }),
+      ...(this.opts.causedById !== undefined && { causerId: this.opts.causedById }),
       victimId: player.id,
       cause: this.opts.cause ?? "special",
       sppEligible: earnsCasualtySpp(

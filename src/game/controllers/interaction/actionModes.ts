@@ -1,4 +1,5 @@
 import type { ActionType, MovementHalf } from "@/types/events";
+import { errorText } from "../../../ui/errorText";
 import { GameEventNames } from "@/types/events";
 import { PlayerStatus } from "@/types/Player";
 import { type GameState } from "@/types/GameState";
@@ -51,7 +52,7 @@ export function enterActionMode(
   c.eventBus.emit(GameEventNames.ActionModeChanged, {
     playerId: playerId,
     action: action,
-    ...(blockReplacement ? { blockReplacement } : {}),
+    ...(blockReplacement && { blockReplacement }),
     autoSelectMove: true,
   });
 
@@ -115,7 +116,7 @@ function declareNow(
   data: Parameters<typeof selectAction>[1],
   blockReplacement: BlockReplacement | null
 ): void {
-  const success = c.gameService.declareAction({ playerId: data.playerId, action: data.action, ...(blockReplacement ? { blockReplacement } : {}), ...(data.razzleDazzle ? { options: { razzleDazzle: true } } : {}) }
+  const success = c.gameService.declareAction({ playerId: data.playerId, action: data.action, ...(blockReplacement && { blockReplacement }), ...(data.razzleDazzle && { options: { razzleDazzle: true } }) }
   );
   if (success) {
     enterActionMode({ c,playerId: data.playerId,action: data.action,blockReplacement });
@@ -147,7 +148,7 @@ function standUpStep(c: GameplayInteractionController, playerId: string): void {
     .catch((error: unknown) => {
       c.eventBus.emit(
         GameEventNames.UI_Notification,
-        `Cannot Stand Up: ${String(error)}`
+        `Cannot Stand Up: ${errorText(error)}`
       );
     });
 }

@@ -107,15 +107,13 @@ function scenarioOptionalFields(
 ): Partial<Pick<GameState, "matchInducements" | "bribes">> {
   const matchInducements = scenarioMeasures(scenario, team1, team2);
   return {
-    ...(matchInducements ? { matchInducements } : {}),
-    ...(scenario.setup.bribes
-      ? {
+    ...(matchInducements && { matchInducements }),
+    ...(scenario.setup.bribes && {
           bribes: {
             [team1.id]: scenario.setup.bribes.team1 ?? 0,
             [team2.id]: scenario.setup.bribes.team2 ?? 0,
           },
-        }
-      : {}),
+        }),
   };
 }
 
