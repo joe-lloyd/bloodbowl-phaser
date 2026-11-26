@@ -463,7 +463,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
       const push = rolled.pendingDecision.options.findIndex(
         (o) => o.type === "push"
       );
-      if (push < 0) continue;
+      if (push === -1) continue;
       await game.execute({ type: "choose-block-result", index: push });
       const pushed = await game.execute({
         type: "choose-push-direction",

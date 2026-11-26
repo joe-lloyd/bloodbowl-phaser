@@ -185,8 +185,7 @@ describe("GameplayInteractionController", () => {
 
     function lastPlanStages() {
       const plan = eventBusSpies.emit.mock.calls
-        .filter(([name, data]) => name === GameEventNames.UI_ActionPlan && data)
-        .at(-1)?.[1];
+        .findLast(([name, data]) => name === GameEventNames.UI_ActionPlan && data)?.[1];
       return z.object({ stages: z.array(z.object({ label: z.string(), rolls: z.array(z.object({ kind: z.string() })) })) }).parse(plan).stages;
     }
   });

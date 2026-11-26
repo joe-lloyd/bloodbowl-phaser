@@ -20,7 +20,7 @@ export interface SeedResult {
 
 export function findSeedForDiceSequence(
   sequence: number[],
-  maxAttempts = 100000
+  maxAttempts = 100_000
 ): SeedResult | null {
   for (let seed = 1; seed <= maxAttempts; seed++) {
     const rng = new RNGService(seed);
@@ -44,7 +44,7 @@ export function findSeedForDiceSequence(
 
 export function findSeedForBlockOutcome(
   outcome: BlockResult["type"][],
-  maxAttempts = 100000
+  maxAttempts = 100_000
 ): SeedResult | null {
   const eventBus = new EventBus();
 
@@ -65,7 +65,7 @@ export function findSeedForBlockOutcome(
 
 export function findSeedForInjuryChain(
   options: InjuryChainOptions,
-  maxAttempts = 100000
+  maxAttempts = 100_000
 ): SeedResult | null {
   const eventBus = new EventBus();
   const numBlockDice = options.numBlockDice || 1;

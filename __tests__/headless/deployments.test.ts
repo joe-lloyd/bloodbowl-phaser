@@ -48,7 +48,12 @@ function dwarfs() {
 async function deploy(name: string, kicking: boolean) {
   const team1 = dwarfs();
   const game = new HeadlessGame({ seed: 5, team1 });
-  if (!kicking) {
+  if (kicking) {
+    await game.execute({
+      type: "start-setup",
+      kickingTeamId: game.ctx.team1.id,
+    });
+  } else {
     await game.execute({
       type: "start-setup",
       kickingTeamId: game.ctx.team2.id,
@@ -64,11 +69,6 @@ async function deploy(name: string, kicking: boolean) {
       formation: theirs.positions,
     });
     await game.execute({ type: "confirm-setup", teamId: game.ctx.team2.id });
-  } else {
-    await game.execute({
-      type: "start-setup",
-      kickingTeamId: game.ctx.team1.id,
-    });
   }
   const formation = fixtureValue(
     new FormationManager()

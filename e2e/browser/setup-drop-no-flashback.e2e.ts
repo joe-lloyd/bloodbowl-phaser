@@ -124,7 +124,7 @@ function at(square: Square) {
 }
 
 function lastFrame(log: FrameLog): Frame {
-  return fixtureValue(log.frames[log.frames.length - 1]);
+  return fixtureValue(log.frames.at(-1));
 }
 
 function framesAt(
@@ -215,8 +215,8 @@ async function dragAndRecord(
         setTimeout(() => sample("release"), 0);
       };
       game.events.on("postrender", onRender);
-      window.addEventListener("pointerdown", onDown, true);
-      window.addEventListener("pointerup", onUp, true);
+      window.addEventListener("pointerdown", onDown, {capture: true});
+      window.addEventListener("pointerup", onUp, {capture: true});
       (window as unknown as Record<string, unknown>)["__dropRecorder"] = () => {
         game.events.off("postrender", onRender);
         window.removeEventListener("pointerdown", onDown, true);

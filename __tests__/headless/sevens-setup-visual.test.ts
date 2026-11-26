@@ -12,7 +12,7 @@ describe("fixed-viewport Sevens setup visual baselines", () => {
       resolve(process.cwd(), "__tests__", "headless", "screenshots", file),
       "utf8"
     )
-      .replace(/\r\n/g, "\n")
+      .replaceAll('\r\n', "\n")
       .trim();
     expect(renderSetupBaseline(isTeam1)).toBe(expected);
     expect(expected).toContain('width="1200" height="660"');

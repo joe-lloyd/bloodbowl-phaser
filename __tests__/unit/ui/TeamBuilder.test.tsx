@@ -24,7 +24,7 @@ describe("post-match team management", () => {
   beforeEach(() => {
     localStorage.clear();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -258,7 +258,7 @@ describe("TeamBuilder detail page", () => {
   beforeEach(() => {
     localStorage.clear();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -275,7 +275,7 @@ describe("TeamBuilder detail page", () => {
       .withId("detail-team-1")
       .withName("The Detail Dwarfs")
       .withPlayers(4)
-      .withTreasury(90000)
+      .withTreasury(90_000)
       .withStats(2, 0, 1)
       .build();
     saveTeams([team]);
@@ -304,7 +304,7 @@ describe("TeamBuilder opening a player", () => {
   beforeEach(() => {
     localStorage.clear();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

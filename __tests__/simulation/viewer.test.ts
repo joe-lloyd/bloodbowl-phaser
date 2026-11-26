@@ -20,7 +20,7 @@ describe("match playback page", () => {
 
     expect(recording.steps).toHaveLength(100);
     expect(dump.frames).toHaveLength(recording.steps.length + 1);
-    const last = dump.frames[dump.frames.length - 1];
+    const last = dump.frames.at(-1);
     expect(fixtureValue(last).ball).toEqual(
       final.ballPosition ? [final.ballPosition.x, final.ballPosition.y] : null
     );

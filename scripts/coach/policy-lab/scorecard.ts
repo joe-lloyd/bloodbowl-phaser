@@ -60,7 +60,7 @@ function parseTeamGames(text: string): TeamGame[] {
   const columns = head.split(",");
   const at = (name: string) => {
     const i = columns.indexOf(name);
-    if (i < 0) throw new Error(`team-games.csv has no ${name} column`);
+    if (i === -1) throw new Error(`team-games.csv has no ${name} column`);
     return i;
   };
   const c = {
@@ -227,8 +227,8 @@ export function strengthIntervals(
   const field = new Set(games.flatMap((g) => [g.roster, g.opponent])).size;
   let seed = 1;
   const random = () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
+    seed = (seed * 1_664_525 + 1_013_904_223) % 4_294_967_296;
+    return seed / 4_294_967_296;
   };
   const samples = new Map<string, number[]>();
   let unfitted = 0;
@@ -304,7 +304,7 @@ function verdictOf(
       ? `scores in ${tenth(scores)} of games, under ${pct(bar.scores)}`
       : "",
   ].filter(Boolean);
-  return { verdict: misses.length ? "below" : "meets", misses };
+  return { verdict: misses.length > 0 ? "below" : "meets", misses };
 }
 
 function foulsOf(
@@ -374,7 +374,7 @@ export function scorecard(
     const xs = teamGames
       .filter((r) => r.roster === roster && r.policy === policy)
       .map((r) => r.points);
-    return xs.length ? mean(xs) : null;
+    return xs.length > 0 ? mean(xs) : null;
   };
   const changeOf = (roster: string) => {
     const candidate = pointsUnder(roster, "candidate");
@@ -448,7 +448,7 @@ const num = (x: number) => x.toFixed(2);
 
 const signed = (x: number) => `${x >= 0 ? "+" : ""}${(100 * x).toFixed(1)}`;
 const esc = (s: string) =>
-  s.replace(
+  s.replaceAll(
     /[&<>"]/g,
     (c) => `&${String({ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[c])};`
   );

@@ -34,8 +34,8 @@ describe("GameService", () => {
       rollDie: vi.fn().mockReturnValue(1),
       rollMultipleDice: vi
         .fn()
-        .mockImplementation((count) => Array(count).fill(1)),
-      getSeed: vi.fn().mockReturnValue(12345),
+        .mockImplementation((count: number) => Array.from({ length: count }, () => 1)),
+      getSeed: vi.fn().mockReturnValue(12_345),
     };
 
     mockBlockResolutionService = {

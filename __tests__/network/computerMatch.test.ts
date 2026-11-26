@@ -142,9 +142,9 @@ describe("whose turn it is against the computer", () => {
       const finish = candidates.findIndex(
         (c) => c.commands[0]?.type === "end-activation"
       );
-      if (finish >= 0) return { index: finish };
+      if (finish !== -1) return { index: finish };
       const declare = candidates.findIndex((c) => c.kind === "declare");
-      if (declare >= 0) return { index: declare };
+      if (declare !== -1) return { index: declare };
       return plannerCoach.choose(input);
     },
   };
@@ -275,7 +275,7 @@ describe("a match against the computer", () => {
       const rng = createCoachRng(5);
       let humanCommands = 0;
       let refused = 0;
-      for (let i = 0; i < 40000; i++) {
+      for (let i = 0; i < 40_000; i++) {
         await whenEngineQuiet();
         const snapshot = game.snapshot();
         if (snapshot.phase === GamePhase.GAME_OVER) break;

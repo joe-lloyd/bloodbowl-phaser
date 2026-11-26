@@ -112,7 +112,7 @@ export async function visibleButtons(page: Page): Promise<string[]> {
     [...document.querySelectorAll("button")]
       .filter((b) => (b).offsetParent !== null)
       .map((b) =>
-        (b.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 40)
+        (b.textContent ?? "").trim().replaceAll(/\s+/g, " ").slice(0, 40)
       )
   );
 }
@@ -222,14 +222,13 @@ export async function perform(
       case "place-player":
       case "auto-setup":
       case "confirm-setup":
-      case "setup": {
+      case "setup":
         await pickFormation(page, /balanced/i);
         await page.waitForTimeout(600);
         await clickIf(page, /CONFIRM SETUP/);
         await page.waitForTimeout(1200);
         return;
-      }
-      case "kick-ball": {
+      case "kick-ball":
         await app.pitch.clickPlayer(command["playerId"] as string);
         await page.waitForTimeout(300);
         await app.pitch.clickSquare({
@@ -242,7 +241,6 @@ export async function perform(
         await brainCall(page, "noteKicker", next.teamId);
         await page.waitForTimeout(2500);
         break;
-      }
       case "declare-action":
         await app.hud.declareAction(
           command["playerId"] as string,

@@ -34,7 +34,7 @@ describe("RollBanner under a match moment", () => {
   beforeEach(async () => {
     bus = new EventBus();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
     await act(async () => {
       root.render(<RollBanner eventBus={bus} />);

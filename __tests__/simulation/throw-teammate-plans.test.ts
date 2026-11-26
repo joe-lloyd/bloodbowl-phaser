@@ -141,12 +141,12 @@ describe("Throw Team-mate plans", () => {
         ],
       });
       const point = await enumerateDecision(subject, null);
-      const plans = activations({
+      const plan = activations({
         board: readBoard(subject, "team1"),
         w: DEFAULT_WEIGHTS,
         available: availableActions(point.candidates),
-      }).filter((a) => a.action === "throwTeamMate");
-      return plans[0]?.value ?? -Infinity;
+      }).find((a) => a.action === "throwTeamMate");
+      return plan?.value ?? -Infinity;
     };
     const thrown = await launchValue(SkillType.THROW_TEAM_MATE);
     const kicked = await launchValue(SkillType.KICK_TEAM_MATE);

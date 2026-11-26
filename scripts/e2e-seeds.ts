@@ -22,7 +22,7 @@ const argv = process.argv.slice(2);
 const refresh = argv.includes("--refresh");
 const flag = (name: string): string | undefined => {
   const index = argv.indexOf(`--${name}`);
-  return index >= 0 ? argv[index + 1] : undefined;
+  return index === -1 ? undefined : argv[index + 1];
 };
 const onlyConfig = flag("config");
 const limitOverride = flag("limit") ? Number(flag("limit")) : undefined;
@@ -67,7 +67,7 @@ async function main(): Promise<void> {
       const found = await findSeed(
         config,
         outcome.id,
-        limitOverride !== undefined ? { limit: limitOverride } : undefined
+        limitOverride === undefined ? undefined : { limit: limitOverride }
       );
       seeds[key] = found.seed;
       discovered++;
@@ -85,11 +85,13 @@ async function main(): Promise<void> {
     `\n${String(discovered)} discovered, ${String(kept)} already pinned, ` +
       `${String(unreachable.length)} unreachable → ${OUTPUT}`
   );
-  if (unreachable.length > 0) {
-    console.log("\nUnreachable outcomes (widen the range or fix the config):");
-    for (const item of unreachable) {
-      console.log(`  ${item.configId}/${item.outcomeId}`);
-    }
+  if (unreachable.length === 0) {
+    return;
+  }
+
+  console.log("\nUnreachable outcomes (widen the range or fix the config):");
+  for (const item of unreachable) {
+    console.log(`  ${item.configId}/${item.outcomeId}`);
   }
 }
 

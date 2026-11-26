@@ -278,7 +278,7 @@ describe("lockstep sessions", () => {
       },
     });
     for (const step of recording.steps) {
-      if (step.command.type === "move" && seen.length) break;
+      if (step.command.type === "move" && seen.length > 0) break;
       const response = await host.run(step.command);
       if (!response.ok) await watcher.run(step.command);
       await settle(host, watcher);

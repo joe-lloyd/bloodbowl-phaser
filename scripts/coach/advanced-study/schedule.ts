@@ -52,7 +52,7 @@ function comparisonJobs(
         pair,
         cohort: "advanced",
         comparison: `${arm}-vs-${other}` as AdvancedJob["comparison"],
-        seed: 9_000_000 + replicate * 10000 + offset * 100 + index,
+        seed: 9_000_000 + replicate * 10_000 + offset * 100 + index,
         templates: reverse ? [opponent, id] : [id, opponent],
         variantIds: reverse ? [b, a] : [a, b],
         coaches: ["planner", "planner"],

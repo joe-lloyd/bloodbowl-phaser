@@ -69,8 +69,8 @@ export async function expectVisualCheckpoint(
     animations: "disabled",
     caret: "hide",
     ...(options.clip ? { clip: options.clip } : {}),
-    ...(options.maxDiffPixelRatio !== undefined
-      ? { maxDiffPixelRatio: options.maxDiffPixelRatio }
-      : {}),
+    ...(options.maxDiffPixelRatio === undefined
+      ? {}
+      : { maxDiffPixelRatio: options.maxDiffPixelRatio }),
   });
 }

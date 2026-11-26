@@ -66,7 +66,7 @@ describe("dice tray on a later drive", () => {
   it("lands the kick-off deviation after setup cut the last drive's die short", async () => {
     const bus = new EventBus();
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(<DiceTray eventBus={bus} />);
@@ -83,7 +83,7 @@ describe("dice tray on a later drive", () => {
         description: "KO Recovery: 2, stays out",
       });
     });
-    await until(() => !!container.querySelector("canvas"), 2_000);
+    await until(() => !!container.querySelector("canvas"), 2000);
     await act(async () => {
       bus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.SETUP });
     });

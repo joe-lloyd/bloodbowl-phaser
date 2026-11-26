@@ -330,7 +330,7 @@ describe("networked sessions", () => {
       const pushIndex = dice.options.findIndex((o) =>
         ["push", "pow", "pow-dodge"].includes(o.type)
       );
-      if (pushIndex < 0) continue;
+      if (pushIndex === -1) continue;
 
       await match.host.executeLocal({
         type: "choose-block-result",

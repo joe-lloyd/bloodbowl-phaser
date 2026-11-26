@@ -15,7 +15,7 @@ export function createOpportunityLog() {
   ) {
     const command = context.point.candidates[choice.index]?.commands[0];
     const available = availableActions(context.point.candidates);
-    if (available.size) {
+    if (available.size > 0) {
       const board = readBoard(context.game, context.point.teamId);
       const plans = activations({ board: board, w: DEFAULT_WEIGHTS, available: available });
       for (const actions of available.values())

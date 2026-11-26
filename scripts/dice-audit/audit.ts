@@ -134,7 +134,7 @@ const isFaces = (dice: Reroll["before"]): dice is string[] =>
   Array.isArray(dice) && dice.every((d) => typeof d === "string");
 
 const sameAnyOrder = (a: string[], b: string[]) =>
-  [...a].sort().join() === [...b].sort().join();
+  [...a].sort().join(',') === [...b].sort().join(',');
 
 interface Tally {
   count: number;

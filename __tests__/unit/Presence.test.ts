@@ -17,7 +17,7 @@ describe("isPlayerOnline", () => {
   });
 
   it("is offline once the heartbeat is older than the threshold", () => {
-    expect(isPlayerOnline({ lobby: lobbyWith(NOW-20000),uid: "p1",thresholdMs: THRESHOLD,now: NOW })).toBe(
+    expect(isPlayerOnline({ lobby: lobbyWith(NOW-20_000),uid: "p1",thresholdMs: THRESHOLD,now: NOW })).toBe(
       false
     );
   });

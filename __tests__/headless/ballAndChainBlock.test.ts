@@ -303,7 +303,7 @@ describe("a Ball & Chain collision is a normal Block", () => {
       const pending = response.pendingDecision;
       if (!straight(response) || pending?.type !== "block-dice") return null;
       const push = pending.options.findIndex((o) => o.type === "push");
-      if (push < 0) return null;
+      if (push === -1) return null;
       await game.execute({ type: "choose-block-result", index: push });
       return {
         game,
@@ -329,7 +329,7 @@ describe("a Ball & Chain collision is a normal Block", () => {
   });
 
   it("chain-pushes a boxed-in target, then moves in without a follow-up choice", async () => {
-    const run = await firstSeed(async (seed) => {
+    const { game, fanatic, push } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({
         seed,
         team2: [
@@ -344,9 +344,8 @@ describe("a Ball & Chain collision is a normal Block", () => {
       const pending = response.pendingDecision;
       if (!straight(response) || pending?.type !== "block-dice") return null;
       const push = pending.options.findIndex((o) => o.type === "push");
-      return push < 0 ? null : { game, fanatic, push };
+      return push === -1 ? null : { game, fanatic, push };
     });
-    const { game, fanatic, push } = run;
     const [target, , behind] = game.ctx.team2.players;
 
     const first = await game.execute({
@@ -397,7 +396,7 @@ describe("a Ball & Chain collision is a normal Block", () => {
       if (!straight(response) || pending?.type !== "block-dice") return null;
       expect(pending.chooserTeamId).toBe(game.ctx.team1.id);
       const pow = pending.options.findIndex((o) => o.type === "pow");
-      if (pow < 0) return null;
+      if (pow === -1) return null;
       let reply = await game.execute({
         type: "choose-block-result",
         index: pow,
@@ -602,7 +601,7 @@ describe("a Ball & Chain player getting hurt", () => {
       const pending = response.pendingDecision;
       if (pending?.type !== "block-dice") return null;
       const skull = pending.options.findIndex((o) => o.type === "skull");
-      if (skull < 0) return null;
+      if (skull === -1) return null;
       const chosen = await game.execute({
         type: "choose-block-result",
         index: skull,
@@ -610,7 +609,7 @@ describe("a Ball & Chain player getting hurt", () => {
       const rolls = dice(chosen).filter((d) => d.includes("(Fanatic #7)"));
 
       const injury = rolls.find((d) => d.startsWith("Injury Roll"));
-      return injury && Number(injury.split("= ")[1]) <= 6
+      return injury && Number(injury.split("= ", 2)[1]) <= 6
         ? { fanatic, rolls }
         : null;
     });
@@ -626,7 +625,7 @@ describe("a Ball & Chain player getting hurt", () => {
       const injury = dice(response).find((d) =>
         d.startsWith("Injury by the Crowd (Fanatic #7)")
       );
-      return injury && Number(injury.split("= ")[1]) <= 6
+      return injury && Number(injury.split("= ", 2)[1]) <= 6
         ? { game, fanatic }
         : null;
     });
@@ -657,7 +656,7 @@ describe("a Ball & Chain player getting hurt", () => {
       const pending = response.pendingDecision;
       if (pending?.type !== "block-dice") return null;
       const pow = pending.options.findIndex((o) => o.type === "pow");
-      if (pow < 0) return null;
+      if (pow === -1) return null;
       const chosen = await game.execute({
         type: "choose-block-result",
         index: pow,

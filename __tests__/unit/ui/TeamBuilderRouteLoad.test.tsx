@@ -23,7 +23,7 @@ describe("TeamBuilder loading a team from its route", () => {
   beforeEach(() => {
     localStorage.clear();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -227,7 +227,7 @@ describe("TeamBuilder loading a team from its route", () => {
     const Library = () =>
       useTeamLibrary()[0]
         .map(({ name }) => name)
-        .join();
+        .join(',');
     const settle = await duringRejectedSave(() => {
       act(() => {
         root.render(<Library />);

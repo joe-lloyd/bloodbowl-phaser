@@ -60,7 +60,7 @@ const flag = (name: string) => args.includes(`--${name}`);
 
 const option = (name: string): string | undefined => {
   const i = args.indexOf(`--${name}`);
-  if (i < 0) return undefined;
+  if (i === -1) return undefined;
   const value = args[i + 1];
   if (value === undefined || value.startsWith("--"))
     throw new Error(`--${name} needs a value`);
@@ -73,7 +73,7 @@ if (!Number.isInteger(runs) || runs < 1)
     `--runs must be a positive whole number, not ${String(runs)}`
   );
 const configArg = option("config");
-if (configArg !== undefined && !CONFIGS.some((c) => c === configArg))
+if (configArg !== undefined && CONFIGS.every((c) => c !== configArg))
   throw new Error(`--config must be one of ${CONFIGS.join(", ")}`);
 const configs = CONFIGS.filter(
   (c) => configArg === undefined || c === configArg
@@ -136,7 +136,7 @@ function parseCpuTime(raw: string): number {
   const parts = rest.split(":").map(Number);
   while (parts.length < 3) parts.unshift(0);
   const [h = 0, m = 0, s = 0] = parts;
-  return Number(days) * 86400 + h * 3600 + m * 60 + s;
+  return Number(days) * 86_400 + h * 3600 + m * 60 + s;
 }
 
 function processTree(rootPid: number): ProcessCpu[] {
@@ -251,9 +251,7 @@ function glRenderer(page: Page): Promise<string> {
     if (!gl) return "none";
     const info = gl.getExtension("WEBGL_debug_renderer_info");
     return String(
-      info
-        ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL)
-        : gl.getParameter(gl.RENDERER)
+      gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER)
     );
   });
 }
@@ -491,7 +489,7 @@ async function main() {
       { encoding: "utf8" }
     ).trim() !== "";
   const summary = summarise(results);
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const stamp = new Date().toISOString().replaceAll(/[:.]/g, "-");
   mkdirSync("perf-results", { recursive: true });
   const file = `perf-results/${stamp}.json`;
   writeFileSync(

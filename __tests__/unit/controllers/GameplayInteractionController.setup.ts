@@ -153,7 +153,7 @@ export async function dispatchAction(data: AllEvents[typeof GameEventNames.UI_Ac
 
 export async function answerStepPrompt(confirmed: boolean) {
   await new Promise((resolve) => setTimeout(resolve, 0));
-  const ask = eventBusSpies.emit.mock.calls.filter(([name]) => name === GameEventNames.UI_RequestConfirmation).at(-1);
+  const ask = eventBusSpies.emit.mock.calls.findLast(([name]) => name === GameEventNames.UI_RequestConfirmation);
   if (!ask) throw new Error("no Dodge/Rush prompt was raised");
   const payload = confirmationSchema.parse(ask[1]);
   mockEventBus.emit(GameEventNames.UI_ConfirmationResult, { confirmed, actionId: payload.actionId });

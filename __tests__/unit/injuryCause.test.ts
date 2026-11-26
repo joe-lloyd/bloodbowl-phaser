@@ -27,7 +27,7 @@ it("keeps a failed dodge as the casualty cause through armour and injury", async
     }),
     true
   );
-  for (let i = 0; i < 50 && !events.length; i++)
+  for (let i = 0; i < 50 && events.length === 0; i++)
     await new Promise((resolve) => setImmediate(resolve));
   expect(events).toEqual([
     {
@@ -50,7 +50,7 @@ it("does not invent a crowd cause when an injury has no causer", async () => {
     new InjuryOperation(fixtureValue(player).id, { roll: 10 }),
     true
   );
-  for (let i = 0; i < 50 && !events.length; i++)
+  for (let i = 0; i < 50 && events.length === 0; i++)
     await new Promise((resolve) => setImmediate(resolve));
   expect(events[0]?.cause).toBe("special");
 });

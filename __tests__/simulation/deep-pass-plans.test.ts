@@ -173,7 +173,7 @@ describe("two-step pass", () => {
     expect(declared.filter((d) => d.endsWith("moves to deep"))).toEqual([
       `${fixtureValue(first).id}: moves to deep`,
     ]);
-    expect(declared.map((d) => d.split(":")[0])).toEqual([
+    expect(declared.map((d) => d.split(":", 1)[0])).toEqual([
       fixtureValue(first).id,
       fixtureValue(second).id,
       fixtureValue(third).id,
@@ -196,7 +196,7 @@ describe("two-step pass", () => {
     expect(declared.filter((d) => d.endsWith("moves to deep"))).toEqual([
       `${fixtureValue(catcher).id}: moves to deep`,
     ]);
-    expect(declared.map((d) => d.split(":")[0])).toEqual([
+    expect(declared.map((d) => d.split(":", 1)[0])).toEqual([
       fixtureValue(catcher).id,
       fixtureValue(surer).id,
     ]);

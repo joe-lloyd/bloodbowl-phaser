@@ -216,8 +216,8 @@ describe("saving a match against the computer", () => {
   });
 
   it.each([
-    { landing: "touchback", seed: 510522575 },
-    { landing: "on the pitch", seed: 764218399 },
+    { landing: "touchback", seed: 510_522_575 },
+    { landing: "on the pitch", seed: 764_218_399 },
   ])(
     "resumes on the same board, score and turn after landing $landing",
     async ({ seed }) => {
@@ -287,7 +287,7 @@ describe("saving a match against the computer", () => {
     let reloads = 0;
     let sinceReload = 0;
     let resumedFrom = "";
-    for (let i = 0; i < 60000; i++) {
+    for (let i = 0; i < 60_000; i++) {
       if (liveGame().snapshot().phase === GamePhase.GAME_OVER) break;
       sinceReload += await humanStep(live, rng);
       if (sinceReload < 25) continue;

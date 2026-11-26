@@ -70,7 +70,7 @@ for (const entry of RULE_SCENARIOS) {
           {
             outcomes,
             missing: Object.values(SkillType).filter(
-              (skill) => !RULE_SCENARIOS.some((e) => e.skill === skill)
+              (skill) => RULE_SCENARIOS.every((e) => e.skill !== skill)
             ),
           },
           null,

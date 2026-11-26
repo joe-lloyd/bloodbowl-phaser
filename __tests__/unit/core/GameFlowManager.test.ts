@@ -35,8 +35,7 @@ describe("GameFlowManager", () => {
     });
 
     const op2 = new MockOperation("Op2", async () => {
-      sequence.push("Op2 Start");
-      sequence.push("Op2 End");
+      sequence.push("Op2 Start", "Op2 End");
     });
 
     flowManager.add(op1);

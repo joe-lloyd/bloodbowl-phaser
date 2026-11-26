@@ -64,7 +64,7 @@ describe("the All leagues control on a competition page", () => {
   beforeEach(() => {
     localStorage.clear();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

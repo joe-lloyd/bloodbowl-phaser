@@ -14,7 +14,7 @@ describe("action plan review fixes", () => {
   ] as const)("opens a Block from one click when %s", async (_, skills, rolls) => {
     const { game, controller } = board(
       [
-        { playerIndex: 0, x: 10, y: 5, skills: [...skills, ...(skills.length ? [] : [SkillType.SQUIG_RAGE])] },
+        { playerIndex: 0, x: 10, y: 5, skills: [...skills, ...(skills.length > 0 ? [] : [SkillType.SQUIG_RAGE])] },
         { playerIndex: 1, x: 9, y: 5, skills: [SkillType.SQUIG_RESTRAINT] },
       ],
       [{ playerIndex: 0, x: 11, y: 5 }]

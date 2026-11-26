@@ -115,7 +115,7 @@ function dbFor(uid: string): Firestore {
   const app = initializeApp({ projectId: PROJECT }, uid);
   apps.push(app);
   const db = getFirestore(app);
-  const [host, port] = fixtureValue(EMULATOR).split(":");
+  const [host, port] = fixtureValue(EMULATOR).split(":", 2);
   connectFirestoreEmulator(
     db,
     fixtureValue(host),
@@ -228,14 +228,14 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
 
   describe("the house bot", () => {
     it("closes a lobby it hosts, with a coach still seated", async () => {
-      const code = (await as(BOT, () => createLobby(BOT, "House Bot"))).code;
+      const {code} = await as(BOT, () => createLobby(BOT, "House Bot"));
       await as(GUEST, () => joinLobby(code, GUEST, "Guest"));
       await as(BOT, () => closeHostedLobby(code, BOT));
       expect((await getDoc(game(ADMIN, code))).exists()).toBe(false);
     });
 
     it("keeps its pointer when an invite moved it first", async () => {
-      const code = (await as(BOT, () => createLobby(BOT, "House Bot"))).code;
+      const {code} = await as(BOT, () => createLobby(BOT, "House Bot"));
       await setDoc(doc(dbFor(BOT), "users", BOT), { activeMatchCode: "NEWER1" }, { merge: true });
       await as(BOT, () => closeHostedLobby(code, BOT));
       expect((await getDoc(doc(dbFor(ADMIN), "users", BOT))).data()?.["activeMatchCode"]).toBe("NEWER1");
@@ -329,7 +329,7 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
 
     it("cannot change anything else while taking the seat", async () => {
       const code = await openLobby();
-      const players = (await stored(code)).players;
+      const {players} = await stored(code);
       const mine = {
         uid: STRANGER,
         displayName: "S",
@@ -1491,7 +1491,7 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
         })
       );
       const code = await openLobby();
-      const players = (await stored(code)).players;
+      const {players} = await stored(code);
       await denied(
         updateDoc(game(STRANGER, code), {
           guestUid: STRANGER,

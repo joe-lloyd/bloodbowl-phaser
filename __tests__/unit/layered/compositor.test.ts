@@ -143,7 +143,7 @@ function portraitMismatches(model: string): string[] {
       const full = readIndex(`${base}/${name}`).frames;
       const wanted = Object.keys(full).filter((frame) => frame.startsWith("idle/se/")).sort();
       const got = readIndex(small).frames;
-      const same = wanted.every((frame) => got[frame]?.slice(0, 4).join() === full[frame]?.slice(0, 4).join());
+      const same = wanted.every((frame) => got[frame]?.slice(0, 4).join(',') === full[frame]?.slice(0, 4).join(','));
       return same && Object.keys(got).length === wanted.length ? [] : [`${small} does not hold the idle/se frames`];
     })
   );

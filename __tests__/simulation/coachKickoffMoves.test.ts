@@ -87,7 +87,7 @@ describe("the computer coach plays its kick-off moves", () => {
     expect(commands).not.toContain("kickoff-skip");
     expect(notes.length).toBeGreaterThan(0);
     expect(notes.every((note) => note.startsWith(`${event}: `))).toBe(true);
-    expect(notes.join()).not.toMatch(/%|\d in \d/);
+    expect(notes.join(',')).not.toMatch(/%|\d in \d/);
   });
 
   it("High Kick: places the player it had picked when the match resumes", async () => {
@@ -165,7 +165,7 @@ describe("the computer coach plays its kick-off moves", () => {
     away(0).stats.ST = 2;
     const { commands, notes } = await coachPlays(game);
     expect(commands).toContain("block");
-    expect(notes.join()).toContain("Charge!: blitzes");
+    expect(notes.join(',')).toContain("Charge!: blitzes");
   });
 
   it("Charge!: a declared Blitz carries on past the landing square", async () => {

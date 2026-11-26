@@ -230,13 +230,15 @@ describe("knocked-out players leave the pitch immediately", () => {
     const { InjuryOperation } =
       await import("../../src/game/operations/InjuryOperation");
     const flow = game.ctx.gameService.getFlowContext().flowManager;
-    for (let attempt = 0; attempt < 40 && !announced.length; attempt++) {
+    for (let attempt = 0; attempt < 40 && announced.length === 0; attempt++) {
       flow.add(new InjuryOperation(fixtureValue(victim).id, { modifier: 4 }));
       await flow.whenIdle();
-      if (fixtureValue(victim).status !== PlayerStatus.KO) {
-        fixtureValue(victim).status = PlayerStatus.ACTIVE;
-        fixtureValue(victim).gridPosition = { x: 11, y: 5 };
+      if (fixtureValue(victim).status === PlayerStatus.KO) {
+        continue;
       }
+
+      fixtureValue(victim).status = PlayerStatus.ACTIVE;
+      fixtureValue(victim).gridPosition = { x: 11, y: 5 };
     }
     expect(announced).toContain(fixtureValue(victim).id);
   });
@@ -356,7 +358,7 @@ describe("Punt declares a kick presentation event", () => {
           name === GameEventNames.BallThrownIn ||
           name === GameEventNames.PassAttempted)
     );
-    if (firstMovement >= 0) expect(declaredAt).toBeLessThan(firstMovement);
+    if (firstMovement !== -1) expect(declaredAt).toBeLessThan(firstMovement);
 
     const declared = z
       .object({

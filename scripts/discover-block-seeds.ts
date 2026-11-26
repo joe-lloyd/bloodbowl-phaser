@@ -15,7 +15,7 @@ const stunSeed = findSeedForInjuryChain(
     armorBreak: true,
     injuryTotal: 2,
   },
-  500000
+  500_000
 );
 
 if (stunSeed) {
@@ -36,7 +36,7 @@ const koSeed = findSeedForInjuryChain(
     armorBreak: true,
     injuryTotal: 8,
   },
-  500000
+  500_000
 );
 
 if (koSeed) {
@@ -57,7 +57,7 @@ const casualtySeed = findSeedForInjuryChain(
     armorBreak: true,
     injuryTotal: 10,
   },
-  500000
+  500_000
 );
 
 if (casualtySeed) {
@@ -81,7 +81,7 @@ const deathSeed = findSeedForInjuryChain(
     injuryTotal: 10,
     casualtyRoll: 15,
   },
-  500000
+  500_000
 );
 
 if (deathSeed) {

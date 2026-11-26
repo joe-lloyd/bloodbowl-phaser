@@ -31,7 +31,7 @@ function parseArgs(argv: string[]): Args {
   const positional = argv.filter((arg) => !arg.startsWith("--"));
   const flag = (name: string): string | undefined => {
     const index = argv.indexOf(`--${name}`);
-    return index >= 0 ? argv[index + 1] : undefined;
+    return index === -1 ? undefined : argv[index + 1];
   };
   const seedRaw = flag("seed");
   const variantId = flag("variant");
@@ -85,7 +85,7 @@ function resolveVariant(scenarioCase: ScenarioCase, args: Args): SeededVariant {
     );
   }
 
-  return args.seed !== undefined ? { ...base, seed: args.seed } : base;
+  return args.seed === undefined ? base : { ...base, seed: args.seed };
 }
 
 async function replayInEngine(

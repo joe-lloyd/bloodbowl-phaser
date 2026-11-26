@@ -43,7 +43,7 @@ describe("dice tray at the start of setup", () => {
     const trays: { thrown: number; landedThrough: number }[] = [];
     bus.on(GameEventNames.UI_DiceInAir, (data) => trays.push(data));
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(<DiceTray eventBus={bus} />);
@@ -83,7 +83,7 @@ describe("dice tray with a die that never settles", () => {
     const trays: { thrown: number; landedThrough: number }[] = [];
     bus.on(GameEventNames.UI_DiceInAir, (data) => trays.push(data));
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(<DiceTray eventBus={bus} />);
@@ -138,7 +138,7 @@ describe("dice tray closed during a read", () => {
       stages.push(`${String(seq)} ${stage}`)
     );
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(<DiceTray eventBus={bus} />);

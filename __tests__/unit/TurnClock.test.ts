@@ -25,7 +25,7 @@ describe("turn clock resume", () => {
   });
 
   it("clamps the bank at zero when the pause outlasts it (exhaustion)", () => {
-    const timer = base({ banks: { alice: 5_000, bob: 300_000 } });
+    const timer = base({ banks: { alice: 5000, bob: 300_000 } });
 
     const { remainingBankMs } = computeResume(timer, "alice", 40_000);
     expect(remainingBankMs).toBe(0);
@@ -34,14 +34,14 @@ describe("turn clock resume", () => {
 
 describe("no time limit (turnSeconds sentinel)", () => {
   it("returns an expiring deadline for a normal turnSeconds value", () => {
-    expect(nextTurnDeadline(120, 1_000)).toBe(1_000 + 120_000);
+    expect(nextTurnDeadline(120, 1000)).toBe(1000 + 120_000);
   });
 
   it("returns null when turnSeconds is 0 (no time limit)", () => {
-    expect(nextTurnDeadline(0, 1_000)).toBeNull();
+    expect(nextTurnDeadline(0, 1000)).toBeNull();
   });
 
   it("returns null for any non-positive turnSeconds (defensive)", () => {
-    expect(nextTurnDeadline(-5, 1_000)).toBeNull();
+    expect(nextTurnDeadline(-5, 1000)).toBeNull();
   });
 });

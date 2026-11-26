@@ -197,7 +197,7 @@ describe("pitch exits", () => {
       const done = playPitchExit({ scene: scene as never, sprite: sprite as unknown as PlayerSprite, route: route, exit: exit, kit: kit }
       );
       expect(fixtureValue(chains[0]).targets).not.toContain(sprite);
-      expect(props[0]).toMatchObject(fixtureValue(route[route.length - 1]));
+      expect(props[0]).toMatchObject(fixtureValue(route.at(-1)));
       expect(fixtureValue(chains[0]).tweens.map(({ x, y }) => ({ x, y }))).toEqual(
         [...route].reverse().slice(1)
       );
@@ -213,7 +213,7 @@ describe("pitch exits", () => {
       await finishNext();
       await done;
       expect(sprite).toMatchObject({
-        ...route[route.length - 1],
+        ...route.at(-1),
         visible: true,
       });
       expect(fixtureValue(props[0])["destroy"]).toHaveBeenCalledOnce();

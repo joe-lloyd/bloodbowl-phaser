@@ -111,8 +111,7 @@ export function watchDrives(
     const t = tallies[open.side];
     const now = holder();
     if (scored) t.scored++;
-    else if (now?.side !== open.side) t.lost++;
-    else {
+    else if (now?.side === open.side) {
       const gain = open.toGo - now.toGo;
       t.kept++;
       t.gained += gain;
@@ -122,6 +121,7 @@ export function watchDrives(
       }
       if (gain <= 0) t[open.marked ? "stalledMarked" : "stalledFree"]++;
     }
+    else {t.lost++;}
     open = null;
   };
   const halfOver = () => {
@@ -172,20 +172,20 @@ export function driveArgs(argv: string[]) {
   if (!dir) throw new Error(USAGE);
   const at = rest.indexOf("--shard");
   let shard: [number, number] = [0, 1];
-  if (at >= 0) {
+  if (at !== -1) {
     const match = /^(\d+)\/(\d+)$/.exec(rest[at + 1] ?? "");
     const [i, n] = match ? [Number(match[1]), Number(match[2])] : [-1, 0];
     if (!(n > 0 && i >= 0 && i < n)) throw new Error(USAGE);
     shard = [i, n];
   }
   const roster = rest.find(
-    (a, k) => !a.startsWith("--") && (at < 0 || k !== at + 1)
+    (a, k) => !a.startsWith("--") && (at === -1 || k !== at + 1)
   );
   if (roster !== undefined && !ROSTERS.has(roster))
     throw new Error(`${roster} is not a roster. ${USAGE}`);
 
   const scope = [
-    roster ? roster.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "",
+    roster ? roster.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-") : "",
     shard[1] > 1 ? `${String(shard[0])}-of-${String(shard[1])}` : "",
   ].filter(Boolean);
   return {

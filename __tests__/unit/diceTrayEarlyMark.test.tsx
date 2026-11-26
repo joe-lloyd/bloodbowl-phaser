@@ -54,7 +54,7 @@ const mount = async () => {
   throws.length = 0;
   const bus = new EventBus();
   const container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   const root = createRoot(container);
   await act(async () => {
     root.render(<DiceTray eventBus={bus} />);
@@ -87,7 +87,7 @@ describe("block dice picked before the tray has thrown them", () => {
   it("marks the picked die once the dice land", async () => {
     const bus = new EventBus();
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(<DiceTray eventBus={bus} />);

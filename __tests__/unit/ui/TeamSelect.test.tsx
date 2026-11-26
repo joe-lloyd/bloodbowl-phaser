@@ -24,7 +24,7 @@ describe("TeamSelect filtering", () => {
   beforeEach(() => {
     localStorage.clear();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -138,7 +138,7 @@ describe("TeamSelect match look", () => {
   beforeEach(() => {
     localStorage.clear();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

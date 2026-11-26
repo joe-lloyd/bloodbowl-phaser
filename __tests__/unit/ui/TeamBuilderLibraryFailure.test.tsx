@@ -82,7 +82,7 @@ describe("Edit Team when the signed-in library fails to load", () => {
     fetches.length = 0;
     vi.spyOn(console, "error").mockImplementation(() => {});
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -242,7 +242,7 @@ describe("Team Management seed actions while the library is not loaded", () => {
   beforeEach(() => {
     localStorage.clear();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

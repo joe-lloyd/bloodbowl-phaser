@@ -116,7 +116,7 @@ describe("saving across the kick-off", () => {
     await ready;
 
     const started = Date.now();
-    await whenEngineQuiet(5_000);
-    expect(Date.now() - started).toBeLessThan(1_000);
+    await whenEngineQuiet(5000);
+    expect(Date.now() - started).toBeLessThan(1000);
   }, 30_000);
 });

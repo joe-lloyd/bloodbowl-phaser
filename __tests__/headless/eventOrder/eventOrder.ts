@@ -67,9 +67,9 @@ export function eventOrder(events: EmittedEvent[]): string[] {
     });
     const parts = [
       ...details,
-      ...(identity.length ? [identity.join(" ")] : []),
+      ...(identity.length > 0 ? [identity.join(" ")] : []),
     ];
-    return parts.length ? `${name}: ${parts.join(" | ")}` : name;
+    return parts.length > 0 ? `${name}: ${parts.join(" | ")}` : name;
   });
 }
 
@@ -81,7 +81,7 @@ export const acceptAll: Answer = (pending) => {
   if (pending.type === "reroll") return { type: "use-reroll", accept: true };
   if (pending.type === "follow-up")
     return { type: "choose-follow-up", followUp: true };
-  return undefined;
+  return;
 };
 
 const REPLY_CAP = 40;

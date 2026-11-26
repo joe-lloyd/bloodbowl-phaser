@@ -66,7 +66,7 @@ function* csvRows(file: string): Generator<string[]> {
     }
   }
   fs.closeSync(fd);
-  if (state.field || state.row.length) yield [...state.row, state.field];
+  if (state.field || state.row.length > 0) yield [...state.row, state.field];
 }
 
 function* records(file: string): Generator<Record<string, string>> {

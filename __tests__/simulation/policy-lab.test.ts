@@ -38,8 +38,8 @@ describe("repeatable Sevens policy lab", () => {
     expect(random.developmentBudget).toBe(48);
     expect(coherent.sppSpent).toBe(24);
     expect(random.sppSpent).toBe(28);
-    expect(coherent.teamValue).toBe(690000);
-    expect(random.teamValue).toBe(770000);
+    expect(coherent.teamValue).toBe(690_000);
+    expect(random.teamValue).toBe(770_000);
     expect(new Set(coherent.allocations.map((a) => a.player)).size).toBe(4);
     expect(
       random.team.players
@@ -187,7 +187,7 @@ describe("repeatable Sevens policy lab", () => {
   });
 
   it("retains a required Vampire sentinel in a bounded pilot", () => {
-    const jobs = policySchedule(variants, true, 30000000, true);
+    const jobs = policySchedule(variants, true, 30_000_000, true);
     const vampire = fixtureValue(
       variants.find((v) => v.team.rosterName.includes("Vampire"))
     );

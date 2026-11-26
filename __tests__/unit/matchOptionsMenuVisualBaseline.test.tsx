@@ -10,7 +10,7 @@ import { computeMatchOptionsMenu } from "../../src/ui/components/hud/computeMatc
 const baselinePath = (file: string) =>
   resolve(process.cwd(), "__tests__", "unit", "screenshots", file);
 
-const normalize = (html: string) => html.replace(/\r\n/g, "\n").trim();
+const normalize = (html: string) => html.replaceAll('\r\n', "\n").trim();
 
 describe("MatchOptionsMenu fixed-viewport baseline", () => {
   let container: HTMLDivElement;
@@ -21,7 +21,7 @@ describe("MatchOptionsMenu fixed-viewport baseline", () => {
 
     container.style.width = "1280px";
     container.style.height = "720px";
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

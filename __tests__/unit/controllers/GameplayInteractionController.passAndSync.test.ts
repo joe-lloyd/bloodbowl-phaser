@@ -168,7 +168,7 @@ describe("GameplayInteractionController", () => {
       mockGameService.getPlayerById.mockImplementation((id) => {
         if (id === "p1") return blitzer;
         if (id === "p2") return mockOpponent;
-        return undefined;
+        return;
       });
       mockScene.team1.players = [blitzer];
       mockScene.team2.players = [mockOpponent];
@@ -182,8 +182,7 @@ describe("GameplayInteractionController", () => {
       void (controller).onSquareClicked(10, 10);
       expect(serviceSpies.previewBlock).not.toHaveBeenCalled();
       const plan = eventBusSpies.emit.mock.calls
-        .filter(([name, data]) => name === GameEventNames.UI_ActionPlan && data)
-        .at(-1);
+        .findLast(([name, data]) => name === GameEventNames.UI_ActionPlan && data);
       expect(JSON.stringify(plan?.[1])).toContain("ST 4 vs 3");
 
       eventBusSpies.emit.mockClear();

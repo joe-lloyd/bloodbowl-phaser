@@ -162,7 +162,7 @@ export class HudPage {
           (await confirm.isVisible()) ||
           (await planned.isVisible()) ||
           (await this.bridge.snapshot()).activePlayer?.id === id,
-        { timeout: 3_000 }
+        { timeout: 3000 }
       )
       .toBe(true)
       .catch(() => {});

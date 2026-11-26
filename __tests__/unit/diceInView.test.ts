@@ -15,7 +15,7 @@ vi.mock("three", async (importOriginal) => {
     shadowMap = { enabled: false, type: 0 };
     toneMapping = 0;
     setPixelRatio() {
-      return undefined;
+      return;
     }
     setSize(width: number, height: number) {
       worst.canvas = [width, height];

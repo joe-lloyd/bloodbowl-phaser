@@ -25,7 +25,7 @@ function teamWith(templates: PlayerTemplate[]) {
   return team;
 }
 
-const repeat = (t: PlayerTemplate, n: number) => Array(n).fill(t);
+const repeat = (t: PlayerTemplate, n: number) => Array.from({ length: n }, () => t);
 
 describe("rosterLegality", () => {
   it("accepts a legal squad", () => {

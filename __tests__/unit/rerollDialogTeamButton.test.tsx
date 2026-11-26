@@ -24,7 +24,7 @@ describe("RerollDialog team button", () => {
     ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
     teamId = game.ctx.team1.id;
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 

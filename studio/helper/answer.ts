@@ -113,12 +113,12 @@ function sendFile(response: ServerResponse, file: string): void {
 }
 
 export function answerSprite(request: IncomingMessage, response: ServerResponse): void {
-  const file = path.join(SPRITES, (request.url ?? "/").split("?")[0] ?? "/");
+  const file = path.join(SPRITES, (request.url ?? "/").split("?", 1)[0] ?? "/");
   sendFile(response, file.startsWith(SPRITES + path.sep) ? file : "");
 }
 
 function actionOf(request: IncomingMessage): string[] {
-  return (request.url ?? "/").slice(1).split("?")[0]?.split("/") ?? [];
+  return (request.url ?? "/").slice(1).split("?", 1)[0]?.split("/") ?? [];
 }
 
 export async function answerApi(request: IncomingMessage, response: ServerResponse): Promise<void> {

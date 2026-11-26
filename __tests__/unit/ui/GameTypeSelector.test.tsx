@@ -9,7 +9,7 @@ describe("GameTypeSelector", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -99,7 +99,7 @@ describe("GameTypeSelector", () => {
 
   it("keeps one tab stop on the focused card, and returns it to the checked card when focus leaves", () => {
     const outside = document.createElement("button");
-    document.body.appendChild(outside);
+    document.body.append(outside);
     act(() => {
       root.render(<GameTypeSelector value="sevens" onChange={vi.fn()} />);
     });

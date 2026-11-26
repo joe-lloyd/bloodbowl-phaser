@@ -13,7 +13,7 @@ function team() {
     "Test",
     RosterName.HUMAN,
     { primary: 0, secondary: 0 },
-    50000
+    50_000
   );
 }
 

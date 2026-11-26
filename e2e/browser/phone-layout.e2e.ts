@@ -98,7 +98,7 @@ test("a tap selects, a tap plans, Go walks", async ({
   await tapSquare(page, app, start);
   await expect(page.getByTestId("player-chip")).toBeVisible();
   await app.pitch.waitForCameraToSettle();
-  const zoom = (await cameraState(page)).zoom;
+  const {zoom} = await cameraState(page);
   await expect(page.getByTestId("action-move")).toBeVisible();
 
   await page.getByTestId("player-chip").tap();

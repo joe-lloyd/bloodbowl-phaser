@@ -13,7 +13,7 @@ describe("TeamManagement overview card", () => {
   beforeEach(() => {
     localStorage.clear();
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -29,7 +29,7 @@ describe("TeamManagement overview card", () => {
     const team = new TeamTestBuilder()
       .withName("The Overview Orcs")
       .withPlayers(3)
-      .withTreasury(60000)
+      .withTreasury(60_000)
       .withStats(4, 1, 2)
       .build();
     saveTeams([team]);

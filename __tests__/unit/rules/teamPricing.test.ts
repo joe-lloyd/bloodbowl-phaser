@@ -18,7 +18,7 @@ function draftTeam(
     "Test",
     rosterName,
     { primary: 0, secondary: 0 },
-    60000,
+    60_000,
     2_000_000,
     advancementMode
   );
@@ -33,8 +33,8 @@ function activeTeam(rosterName: RosterName = RosterName.HUMAN) {
 describe("team re-rolls (D4)", () => {
   it("cost 100,000 at the draft whatever the roster", () => {
     const team = draftTeam();
-    expect(priceOf(team, { type: "reroll" })).toEqual({ amount: 100000 });
-    expect(purchase(team, { type: "reroll" })).toEqual({ amount: 100000 });
+    expect(priceOf(team, { type: "reroll" })).toEqual({ amount: 100_000 });
+    expect(purchase(team, { type: "reroll" })).toEqual({ amount: 100_000 });
     expect(team.rerolls).toBe(1);
     expect(team.treasury).toBe(1_900_000);
   });
@@ -73,7 +73,7 @@ describe("Assistant Coaches and Cheerleaders (D5)", () => {
   ] as const)("%s costs 20,000 and stops at 3", (type, field) => {
     const team = draftTeam();
     for (let i = 0; i < 3; i++) {
-      expect(purchase(team, { type })).toEqual({ amount: 20000 });
+      expect(purchase(team, { type })).toEqual({ amount: 20_000 });
     }
     expect(purchase(team, { type }).amount).toBeNull();
     expect(team[field]).toBe(3);
@@ -82,8 +82,8 @@ describe("Assistant Coaches and Cheerleaders (D5)", () => {
 
   it("can be bought by an active league team", () => {
     const team = activeTeam();
-    expect(purchase(team, { type: "coach" })).toEqual({ amount: 20000 });
-    expect(purchase(team, { type: "cheerleader" })).toEqual({ amount: 20000 });
+    expect(purchase(team, { type: "coach" })).toEqual({ amount: 20_000 });
+    expect(purchase(team, { type: "cheerleader" })).toEqual({ amount: 20_000 });
     expect(team.coaches).toBe(1);
     expect(team.cheerleaders).toBe(1);
   });
@@ -92,7 +92,7 @@ describe("Assistant Coaches and Cheerleaders (D5)", () => {
 describe("Apothecary (D6)", () => {
   it("costs 80,000, at most one", () => {
     const team = draftTeam(RosterName.HUMAN);
-    expect(purchase(team, { type: "apothecary" })).toEqual({ amount: 80000 });
+    expect(purchase(team, { type: "apothecary" })).toEqual({ amount: 80_000 });
     expect(team.apothecary).toBe(true);
     expect(purchase(team, { type: "apothecary" }).amount).toBeNull();
     expect(team.treasury).toBe(1_920_000);
@@ -137,7 +137,7 @@ describe("Dedicated Fans (D7)", () => {
     const team = draftTeam(RosterName.HUMAN, "advanced-league");
     for (let i = 0; i < 4; i++) {
       expect(purchase(team, { type: "dedicated-fan" })).toEqual({
-        amount: 20000,
+        amount: 20_000,
       });
     }
     expect(purchase(team, { type: "dedicated-fan" }).amount).toBeNull();
@@ -161,17 +161,17 @@ describe("team value", () => {
     purchase(team, { type: "coach" });
     purchase(team, { type: "cheerleader" });
     purchase(team, { type: "dedicated-fan" });
-    expect(calculateTeamValue(team)).toBe(100000 + 80000 + 20000 + 20000);
+    expect(calculateTeamValue(team)).toBe(100_000 + 80_000 + 20_000 + 20_000);
   });
 });
 
 describe("players", () => {
   it("an eligible player is roster price in both draft and active mode", () => {
-    expect(priceOf(draftTeam(), { type: "player", cost: 70000 }).amount).toBe(
-      70000
+    expect(priceOf(draftTeam(), { type: "player", cost: 70_000 }).amount).toBe(
+      70_000
     );
-    expect(priceOf(activeTeam(), { type: "player", cost: 70000 }).amount).toBe(
-      70000
+    expect(priceOf(activeTeam(), { type: "player", cost: 70_000 }).amount).toBe(
+      70_000
     );
   });
 });

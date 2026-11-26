@@ -58,7 +58,7 @@ export function policySchedule(
         const pair = `${smoke ? "smoke" : "confirm"}-${String(groupIndex)}-${String(offset)}-${String(index)}`;
         const seed =
           (smoke ? 12_000_000 : seedBase) +
-          groupIndex * 10000 +
+          groupIndex * 10_000 +
           offset * 100 +
           index;
         for (let leg = 0; leg < (receivingBalance ? 8 : 4); leg++) {

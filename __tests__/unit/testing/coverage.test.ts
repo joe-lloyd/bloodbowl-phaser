@@ -245,7 +245,7 @@ describe("coverage report", () => {
             {
               id: "v",
               name: "V",
-              seed: Number.NaN,
+              seed: NaN,
               expectedOutcome: "never found",
             },
           ],

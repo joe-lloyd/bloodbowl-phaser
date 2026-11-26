@@ -40,7 +40,7 @@ describe("the Bloodlust bite prompt", () => {
       pendingDecision: () => pending,
     } as OnlineMatch);
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
     await act(async () => {
       root.render(<BiteTargetPrompt eventBus={eventBus} />);

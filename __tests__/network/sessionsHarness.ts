@@ -240,7 +240,7 @@ export async function playNetworkedMatch(seed: number): Promise<{
       const kickerTeam = fixtureValue(snap.teams.find((t) => t.id === kickingTeamId));
       const kicker = fixtureValue(kickerTeam.players.find((p) => p.position));
       const isTeam1 = kickerTeam.id === fixtureValue(snap.teams[0]).id;
-      const target = isTeam1 ? { x: 15, y: 5 } : { x: 4, y: 5 };
+      const target = ({ x: isTeam1 ? 15 : 4, y: 5 });
       const kicked = await exec({
         type: "kick-ball",
         playerId: kicker.id,
@@ -352,10 +352,12 @@ async function placeTeam(
         x,
         y,
       });
-      if (response.ok) {
-        occupied.add(`${String(x)},${String(y)}`);
-        placed++;
+      if (!response.ok) {
+        continue;
       }
+
+      occupied.add(`${String(x)},${String(y)}`);
+      placed++;
     }
   }
 }

@@ -33,11 +33,11 @@ export function removeAt<Value>(list: readonly Value[], index: number): Value[] 
 }
 
 export function slug(label: string): string {
-  return label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^[_0-9]+|_+$/g, "");
+  return label.toLowerCase().replaceAll(/[^a-z0-9]+/g, "_").replaceAll(/^[_0-9]+|_+$/g, "");
 }
 
 export function words(key: string): string {
-  const text = key.replace(/_/g, " ");
+  const text = key.replaceAll('_', " ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 

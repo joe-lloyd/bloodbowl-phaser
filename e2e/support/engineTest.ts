@@ -1,4 +1,4 @@
-import { test as base, expect } from "@playwright/test";
+import { test as base,  } from "@playwright/test";
 
 export function refuseBrowserFixture(fixture: string): never {
   throw new Error(
@@ -24,4 +24,6 @@ export const test = base.extend({
   },
 });
 
-export { expect };
+
+
+export {expect} from "@playwright/test";

@@ -59,7 +59,7 @@ async function performStep(
 
     case "move":
       await app.pitch.clickPath(command.path);
-      await app.pitch.clickSquare(fixtureValue(command.path[command.path.length - 1]));
+      await app.pitch.clickSquare(fixtureValue(command.path.at(-1)));
       return;
 
     case "jump":

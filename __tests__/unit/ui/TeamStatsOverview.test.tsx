@@ -10,7 +10,7 @@ describe("TeamStatsOverview", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
   });
 
@@ -24,7 +24,7 @@ describe("TeamStatsOverview", () => {
   it("renders team value, treasury, roster count, and record", async () => {
     const team = new TeamTestBuilder()
       .withPlayers(5)
-      .withTreasury(75000)
+      .withTreasury(75_000)
       .withStats(3, 1, 2)
       .build();
 

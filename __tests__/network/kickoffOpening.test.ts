@@ -230,10 +230,9 @@ async function resolveOpening(table: Table) {
     switch (pending.event) {
       case KickoffEvent.CHARGE:
       case KickoffEvent.ALERT_DEFENCE:
-      case KickoffEvent.QUICK_SNAP: {
+      case KickoffEvent.QUICK_SNAP:
         await playMiniTurn(table, owner, pending.event);
         break;
-      }
       default:
         await play(owner, { type: "kickoff-skip" });
     }

@@ -101,7 +101,7 @@ describe("GameplayInteractionController", () => {
         sent(
           ["declareAction", "previewBlock"],
           [GameEventNames.UI_RequestConfirmation, GameEventNames.PlayerSelected]
-        ).map((call) => call.split(" {")[0])
+        ).map((call) => call.split(" {", 1)[0])
       ).toEqual([
         "ui:requestConfirmation",
         "declareAction({\"playerId\":\"p1\",\"action\":\"block\"})",
@@ -122,7 +122,7 @@ describe("GameplayInteractionController", () => {
 
       expect(
         sent(["declareAction"], [GameEventNames.UI_ActionPlan]).map(
-          (call) => call.split(" {")[0]
+          (call) => call.split(" {", 1)[0]
         )
       ).toEqual(["declareAction({\"playerId\":\"p1\",\"action\":\"move\"})", "ui:actionPlan"]);
       expect(mockMovementValidator.findPath).toHaveBeenCalledTimes(1);

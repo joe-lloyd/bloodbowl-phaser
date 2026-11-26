@@ -114,7 +114,7 @@ test.describe("rule interaction shapes", () => {
 
     const followUp = app.hud.followUpDialog();
     const offered = await followUp
-      .waitFor({ state: "visible", timeout: 5_000 })
+      .waitFor({ state: "visible", timeout: 5000 })
       .then(() => true)
       .catch(() => false);
     const claims = [

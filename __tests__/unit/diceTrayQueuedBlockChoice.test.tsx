@@ -66,7 +66,7 @@ describe("block dice chosen while an earlier roll still shows", () => {
   it("closes them and plays the next roll", async () => {
     const bus = new EventBus();
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(<DiceTray eventBus={bus} />);
@@ -83,7 +83,7 @@ describe("block dice chosen while an earlier roll still shows", () => {
         description: "Dodge: 4, made",
       });
     });
-    await until(() => tray().includes("Dodge: 4, made"), 2_000);
+    await until(() => tray().includes("Dodge: 4, made"), 2000);
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
@@ -124,7 +124,7 @@ describe("block dice re-rolled while the first throw still tumbles", () => {
   it("closes the re-rolled dice once a result is picked", async () => {
     const bus = new EventBus();
     const container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
       root.render(<DiceTray eventBus={bus} />);

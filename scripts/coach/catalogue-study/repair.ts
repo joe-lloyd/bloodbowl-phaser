@@ -91,7 +91,7 @@ if (process.argv.includes("--worker")) {
   const digest = createHash("sha256")
     .update(readFileSync(entry))
     .update(
-      readFileSync(fileURLToPath(new URL("./telemetry.ts", import.meta.url)))
+      readFileSync(fileURLToPath(new URL("telemetry.ts", import.meta.url)))
     )
     .digest("hex");
   const previousFile = join(directory, "observations-v2.json");

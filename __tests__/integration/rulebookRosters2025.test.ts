@@ -417,7 +417,7 @@ describe("shared Big Guy limits", () => {
 
   it("does not count a dead league Big Guy against the limit", () => {
     const team = draft(RosterName.UNDERWORLD_DENIZENS, [
-      ...Array(6).fill("Underworld Goblin Lineman"),
+      ...Array.from({ length: 6 }, () => "Underworld Goblin Lineman"),
       "Underworld Troll",
       "Mutant Rat Ogre",
     ]);
@@ -432,7 +432,7 @@ describe("shared Big Guy limits", () => {
 
   it("refuses to hire a second Underworld Big Guy between fixtures", () => {
     const team = draft(RosterName.UNDERWORLD_DENIZENS, [
-      ...Array(6).fill("Underworld Goblin Lineman"),
+      ...Array.from({ length: 6 }, () => "Underworld Goblin Lineman"),
       "Underworld Troll",
     ]);
     team.treasury = 500_000;

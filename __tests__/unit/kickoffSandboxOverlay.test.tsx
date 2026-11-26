@@ -15,7 +15,7 @@ describe("Kickoff Table sandbox selector", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/sand-box");
     container = document.createElement("div");
-    document.body.appendChild(container);
+    document.body.append(container);
     root = createRoot(container);
     eventBus = new EventBus();
   });

@@ -79,5 +79,5 @@ test("the armour and injury rolls each get a banner, then the result", async ({
     at(/^Injury Roll/)
   );
 
-  expect(log.bannerAt - log.armourAt).toBeLessThan(7_000);
+  expect(log.bannerAt - log.armourAt).toBeLessThan(7000);
 });

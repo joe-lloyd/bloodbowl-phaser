@@ -129,7 +129,7 @@ describe("a league team that withdraws", () => {
 
     const table = new Map(after.standings.map((s) => [s.entrantId, s]));
     expect(table.get("e1")).toMatchObject({ played: 1, losses: 1, points: 0 });
-    const beatE1 = homeIsE1 ? fixtureValue(played.awayEntrantId) : fixtureValue(played.homeEntrantId);
+    const beatE1 = fixtureValue(homeIsE1 ? played.awayEntrantId : played.homeEntrantId);
     expect(table.get(beatE1)).toMatchObject({ played: 1, wins: 1, points: 3 });
     const others = ["e2", "e3", "e4"].filter((id) => id !== beatE1);
     for (const id of others)
@@ -169,9 +169,7 @@ describe("a cup team that withdraws", () => {
     const draw = await cup(4);
     const first = fixtureValue(draw.fixtures.find((f) => has(f, "e1")));
     const rival =
-      first.homeEntrantId === "e1"
-        ? fixtureValue(first.awayEntrantId)
-        : fixtureValue(first.homeEntrantId);
+      fixtureValue(first.homeEntrantId === "e1" ? first.awayEntrantId : first.homeEntrantId);
     const after = await withdraw(draw, "e1");
     const final = fixtureValue(after.fixtures.find((f) => f.id === first.nextFixtureId));
     expect([final.homeEntrantId, final.awayEntrantId]).toContain(rival);

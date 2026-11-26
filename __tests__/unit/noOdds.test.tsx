@@ -56,7 +56,7 @@ describe("no odds on a coach's screen", () => {
     "gallery variant %s shows targets only",
     async (_id, variant) => {
       const container = document.createElement("div");
-      document.body.appendChild(container);
+      document.body.append(container);
       const root = createRoot(container);
       variant.prepare?.();
       const fx = setupMatch(variant.fixture);
@@ -79,7 +79,7 @@ describe("no odds on a coach's screen", () => {
         await act(async () => {
           root.unmount();
         });
-        document.body.innerHTML = "";
+        document.body.replaceChildren();
         ServiceContainer.reset();
       }
     }
@@ -142,7 +142,7 @@ describe("no odds on a coach's screen", () => {
     ).toEqual([]);
 
     expect(
-      notes.filter((note) => /\d/.test(note.replace(/\b[2-6]\+/g, "")))
+      notes.filter((note) => /\d/.test(note.replaceAll(/\b[2-6]\+/g, "")))
     ).toEqual([]);
   }, 60_000);
 });

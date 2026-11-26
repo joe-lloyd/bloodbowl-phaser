@@ -42,8 +42,8 @@ const CLIPS: Clip[] = Object.entries(KICKOFF_TABLE)
 const outcomeId = (event: KickoffEvent) =>
   event
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/(^-|-$)/g, "");
 
 interface EngineView {
   phase: string;
@@ -93,10 +93,10 @@ function engine(page: Page): Promise<EngineView> {
         [team1.id]: gs.getTurnNumber(team1.id),
         [team2.id]: gs.getTurnNumber(team2.id),
       },
-      bribes: { ...(state.bribes ?? {}) },
+      bribes: { ...state.bribes },
       weather: String(state.weather),
-      owedAssists: { ...(state.driveEffects?.owedAssists ?? {}) },
-      freeRerolls: { ...(state.driveEffects?.freeRerolls ?? {}) },
+      owedAssists: { ...state.driveEffects?.owedAssists },
+      freeRerolls: { ...state.driveEffects?.freeRerolls },
       modifiers: JSON.parse(
         JSON.stringify(state.driveEffects?.playerModifiers ?? {})
       ),
@@ -130,13 +130,13 @@ async function caption(
       if (!box) {
         box = document.createElement("div");
         box.id = id;
-        document.body.appendChild(box);
+        document.body.append(box);
       }
       box.style.cssText = card
         ? "position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px;background:#0d1117;color:#e6edf3;font:500 22px/1.45 system-ui,sans-serif;text-align:center;padding:0 12%;pointer-events:none"
         : "position:fixed;left:12px;top:12px;z-index:2147483647;max-width:300px;background:rgba(13,17,23,0.92);color:#e6edf3;border:1px solid #30363d;border-left:4px solid #d6b25e;border-radius:8px;padding:12px 14px;font:500 14px/1.45 system-ui,sans-serif;pointer-events:none";
       const escape = (s: string) =>
-        s.replace(
+        s.replaceAll(
           /[&<>]/g,
           (c) => `&${String({ "&": "amp", "<": "lt", ">": "gt" }[c])};`
         );
@@ -281,20 +281,18 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
 
     const checked: string[] = [];
     switch (clip.event) {
-      case KickoffEvent.ALERT_DEFENCE: {
+      case KickoffEvent.ALERT_DEFENCE:
         await expect(page.getByRole("button", { name: /^Start / })).toBeVisible({
           timeout: 30_000,
         });
         checked.push(...(await stepTwo(page, app, 1)));
         break;
-      }
-      case KickoffEvent.QUICK_SNAP: {
+      case KickoffEvent.QUICK_SNAP:
         await expect(page.getByRole("button", { name: /^Start / })).toBeVisible({
           timeout: 30_000,
         });
         checked.push(...(await stepTwo(page, app, 1)));
         break;
-      }
       case KickoffEvent.HIGH_KICK: {
         const skip = page.getByRole("button", { name: "Skip" });
         await expect(skip).toBeVisible({ timeout: 30_000 });

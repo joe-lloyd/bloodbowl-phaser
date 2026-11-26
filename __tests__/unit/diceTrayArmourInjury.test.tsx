@@ -57,7 +57,7 @@ it("throws a broken armour roll and its injury roll as two throws, armour landin
   const bus = new EventBus();
   const watch = DiceWatch.shared(bus);
   const container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   const root = createRoot(container);
   await act(async () => {
     root.render(<DiceTray eventBus={bus} />);

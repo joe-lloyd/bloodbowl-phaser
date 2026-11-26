@@ -125,8 +125,8 @@ test("a full Sevens match, built and played through the UI", async ({
       continue;
     }
 
-    const answered = await answerDialog(page, app, i, rec).catch((e: Error) => {
-      log(`${String(i)} dialog failed: ${String(e.message.split("\n")[0])}`);
+    const answered = await answerDialog(page, app, i, rec).catch((error: Error) => {
+      log(`${String(i)} dialog failed: ${String(error.message.split("\n", 1)[0])}`);
       return true;
     });
     if (answered) continue;
@@ -214,10 +214,10 @@ test("a full Sevens match, built and played through the UI", async ({
     try {
       await perform(page, app, c.commands, next, rec);
       if (next.pending) await brainCall(page, "clearPending");
-    } catch (e) {
-      const msg = (e as Error).message;
+    } catch (error) {
+      const msg = (error as Error).message;
       log(
-        `${String(i)} perform failed: ${String(msg.split("\n")[0])} | ${msg
+        `${String(i)} perform failed: ${String(msg.split("\n", 1)[0])} | ${msg
           .split("\n")
           .filter((l) => /intercept|waiting|subtree/.test(l))
           .slice(0, 3)
@@ -289,7 +289,7 @@ test("a full Sevens match, built and played through the UI", async ({
       } else if (await clickIf(page, /^Roll D3$/)) {
         await page.getByText(/ learned /).waitFor({ timeout: 15_000 });
         log(
-          `  D3: ${(await page.getByText(/ learned /).first().innerText()).replace(/\s+/g, " ").slice(0, 300)}`
+          `  D3: ${(await page.getByText(/ learned /).first().innerText()).replaceAll(/\s+/g, " ").slice(0, 300)}`
         );
       } else if (await clickIf(page, /^(Pay|Keep|Release)/)) {
         log(`  drafted-player offer answered`);

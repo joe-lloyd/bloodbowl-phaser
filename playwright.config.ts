@@ -58,14 +58,8 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
 
-  reporter: isCI
-    ? [
-        ["blob", { outputDir: "./e2e-results/blob" }],
-        ["json", { outputFile: "./e2e-results/results.json" }],
-        ["list"],
-      ]
-    : [
-        ["html", { outputFolder: "./e2e-results/html", open: "never" }],
+  reporter: [
+        isCI ? ["blob", { outputDir: "./e2e-results/blob" }] : ["html", { outputFolder: "./e2e-results/html", open: "never" }],
         ["json", { outputFile: "./e2e-results/results.json" }],
         ["list"],
       ],

@@ -94,15 +94,13 @@ const {
       gameTypes: GAME_TYPE_WEIGHTS,
     };
 const candidateCoach = () =>
-  candidateKind === "standard"
-    ? createPlannerCoach({
+  createPlannerCoach(candidateKind === "standard" ? {
         name: "standard",
         variety: STANDARD_VARIETY,
         weights: candidateWeights,
         rosters: candidateRosters,
         gameTypes: candidateGameTypes,
-      })
-    : createPlannerCoach({
+      } : {
         name: "planner-skill-plans",
         weights: candidateWeights,
         rosters: candidateRosters,
@@ -302,14 +300,14 @@ if (args.includes("--worker")) {
         variants.map((v) => getTeam(v.id).rosterName)
       );
       const unknown = [...wanted].filter((name) => !known.has(name));
-      if (!listed || listed.startsWith("--") || unknown.length)
+      if (!listed || listed.startsWith("--") || unknown.length > 0)
         throw new Error(
           `--rosters needs a comma-separated list of lab rosters; unknown: ${unknown.join(", ") || "none given"}`
         );
       jobs = jobs.filter((j) =>
         j.variantIds.some((id) => wanted.has(getTeam(id).rosterName))
       );
-      if (!jobs.length) throw new Error(`No lab games for ${listed}`);
+      if (jobs.length === 0) throw new Error(`No lab games for ${listed}`);
     }
     jobs = jobs.map((j) => ({
       ...j,

@@ -34,7 +34,7 @@ describe("a Dump-Off caught in the end zone", () => {
       const touchdown = events.findIndex(
         (e) => e.name === GameEventNames.Touchdown
       );
-      if (touchdown < 0) continue;
+      if (touchdown === -1) continue;
       scored++;
       expect(
         events.some((e) => e.name === GameEventNames.BlockDiceRolled),

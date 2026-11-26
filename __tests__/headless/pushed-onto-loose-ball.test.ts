@@ -50,7 +50,7 @@ describe("a player pushed onto a loose ball", () => {
       const push = response.pendingDecision.options.findIndex(
         (o) => o.type === "push"
       );
-      if (push < 0) continue;
+      if (push === -1) continue;
       const events: string[] = [];
       game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) =>
         events.push(d.rollType)
@@ -120,7 +120,7 @@ describe("a player pushed onto a loose ball", () => {
       const push = rolled.pendingDecision.options.findIndex(
         (o) => o.type === "push"
       );
-      if (push < 0) continue;
+      if (push === -1) continue;
       const events: string[] = [];
       game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) =>
         events.push(d.rollType)
@@ -188,7 +188,7 @@ describe("a push onto a loose ball, further cases", () => {
       const index = rolled.pendingDecision.options.findIndex(
         (o) => o.type === result
       );
-      if (index < 0) continue;
+      if (index === -1) continue;
       const events: string[] = [];
       game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) =>
         events.push(d.rollType)

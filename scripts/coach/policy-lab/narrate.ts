@@ -149,7 +149,7 @@ function pitchNote(): string {
     ({ afterColumn, rows }) =>
       `between x=${String(afterColumn)} and ${String(afterColumn + 1)} on rows ${String(rows.min)}-${String(rows.max)}`
   );
-  return `${layout.label}, ${String(layout.cols)} x ${String(layout.rows)}, Lines of Scrimmage at x=${String(layout.lineOfScrimmage.team1)} and x=${String(layout.lineOfScrimmage.team2)}${layout.walledSidelines ? ", walled sidelines" : ""}${barricades.length ? `, barricades ${barricades.join("; ")}` : ""}`;
+  return `${layout.label}, ${String(layout.cols)} x ${String(layout.rows)}, Lines of Scrimmage at x=${String(layout.lineOfScrimmage.team1)} and x=${String(layout.lineOfScrimmage.team2)}${layout.walledSidelines ? ", walled sidelines" : ""}${barricades.length > 0 ? `, barricades ${barricades.join("; ")}` : ""}`;
 }
 
 async function narrate(file: string): Promise<string> {

@@ -13,7 +13,7 @@ let answers: unknown[];
 
 beforeEach(() => {
   container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   root = createRoot(container);
   bus = new EventBus();
   answers = [];
@@ -73,7 +73,7 @@ it("answers no with N", async () => {
 it("leaves the letters alone while the coach types in a field", async () => {
   await askStandFirm();
   const field = document.createElement("input");
-  document.body.appendChild(field);
+  document.body.append(field);
   await press("y", field);
   field.remove();
   expect(answers).toEqual([]);

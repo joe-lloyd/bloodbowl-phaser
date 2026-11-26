@@ -56,9 +56,9 @@ describe("friend codes", () => {
 
 describe("presence and invites", () => {
   it("count a coach online for five minutes after they were last seen", () => {
-    expect(isOnline(1_000, 1_000 + 4 * 60_000)).toBe(true);
-    expect(isOnline(1_000, 1_000 + 5 * 60_000)).toBe(false);
-    expect(isOnline(undefined, 1_000)).toBe(false);
+    expect(isOnline(1000, 1000 + 4 * 60_000)).toBe(true);
+    expect(isOnline(1000, 1000 + 5 * 60_000)).toBe(false);
+    expect(isOnline(undefined, 1000)).toBe(false);
   });
 
   it("drop a match invite two hours after it was sent", () => {

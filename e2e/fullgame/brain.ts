@@ -100,7 +100,7 @@ export async function next(dialogOpen = false) {
         c.playerId === carrier.id &&
         c.path?.length
       ) {
-        const to = c.path[c.path.length - 1];
+        const to = c.path.at(-1);
         if (
           toGoal(carrier.teamId, fixtureValue(to).x) <
           toGoal(carrier.teamId, fixtureValue(carrier.gridPosition).x)
@@ -130,7 +130,7 @@ export async function next(dialogOpen = false) {
   heuristicCoach;
   const top = point.candidates
     .map((c, i) => `${fixtureValue(scores[i]).toFixed(1)} ${c.label}`)
-    .sort((a, b) => parseFloat(b) - parseFloat(a))
+    .sort((a, b) => Number.parseFloat(b) - Number.parseFloat(a))
     .slice(0, 4);
   const candidate = runTo(
     g,
@@ -293,20 +293,22 @@ export function view() {
     let bestDistance = Infinity;
     for (const c of centres) {
       const d = Math.hypot(c.x - sprite.x, c.y - sprite.y);
-      if (d < bestDistance) {
-        bestDistance = d;
-        best = c;
+      if (!(d < bestDistance)) {
+        continue;
       }
+
+      bestDistance = d;
+      best = c;
     }
     return bestDistance <= tile * 0.6 ? fixtureValue(best).key : "off";
   };
   const players: Record<string, string> = {};
   scene.playerSprites.forEach((sprite, id) => {
-    players[id] = square(sprite) + (sprite.angle !== 0 ? " down" : "");
+    players[id] = square(sprite) + (sprite.angle === 0 ? "" : " down");
   });
   const ball = scene.ballSprite ? square(scene.ballSprite) : "none";
   const scoreboard = document.querySelector('[data-testid="scoreboard"]');
-  const hud = (scoreboard?.textContent ?? "").replace(/\s+/g, " ").trim();
+  const hud = (scoreboard?.textContent ?? "").replaceAll(/\s+/g, " ").trim();
   return { players, ball, hud };
 }
 
@@ -319,7 +321,7 @@ export function installOverlay(label: string) {
     "position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:99999;" +
     "font:600 22px/1.2 ui-monospace,Menlo,monospace;padding:6px 16px;border-radius:8px;" +
     "background:rgba(5,8,14,0.88);color:#e6e1d6;border:2px solid #444;pointer-events:none";
-  document.body.appendChild(strip);
+  document.body.append(strip);
   const tick = () => {
     if (!strip.isConnected) return;
     const match = getActiveOnlineMatch();

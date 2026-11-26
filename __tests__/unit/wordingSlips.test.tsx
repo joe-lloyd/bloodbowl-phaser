@@ -22,7 +22,7 @@ let bus: EventBus;
 beforeEach(() => {
   bus = new EventBus();
   container = document.createElement("div");
-  document.body.appendChild(container);
+  document.body.append(container);
   root = createRoot(container);
 });
 
@@ -69,7 +69,7 @@ it("logs a thrown team-mate's scatter as the team-mate's", () => {
 
 it("says one second, not one seconds", () => {
   expect(secondsLeftText(1000)).toBe("1 second left");
-  expect(secondsLeftText(15000)).toBe("15 seconds left");
+  expect(secondsLeftText(15_000)).toBe("15 seconds left");
 });
 
 it("keeps RE-ROLL whole on the re-roll button", async () => {

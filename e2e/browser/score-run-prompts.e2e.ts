@@ -67,7 +67,7 @@ async function observeMoments(page: Page) {
         lastKind = kind;
         if (
           state.phase === "SETUP" &&
-          !proof.moments.some((moment) => moment.kind === "setup")
+          proof.moments.every((moment) => moment.kind !== "setup")
         ) {
           proof.moments.push({
             kind: "setup",
