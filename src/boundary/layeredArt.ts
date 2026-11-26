@@ -19,10 +19,12 @@ const options = z
   .array(option)
   .refine((list) => list.length === 0 || list[0]?.[0] === "body", { message: 'The first look option must be "body"' });
 
+const bodyLinesSchema = z.array(z.string()).nonempty();
+
 const layered = z.object({
   density: z.number().int().positive(),
   options,
-  bodies: z.record(z.string(), z.array(z.string()).nonempty()),
+  bodies: z.record(z.string(), bodyLinesSchema),
   palette: layeredPalette,
 });
 

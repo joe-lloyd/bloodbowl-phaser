@@ -358,7 +358,7 @@ export function hydrateStoredTeam(
   const knownRoster = findRosterName(raw["rosterName"]);
   const teamId = String(raw["id"]);
   const storedPlayers = Array.isArray(raw["players"])
-    ? (raw["players"]).map(toStoredPlayer)
+    ? raw["players"].map((player: Record<string, unknown>) => toStoredPlayer(player))
     : [];
 
   for (const stored of storedPlayers) {

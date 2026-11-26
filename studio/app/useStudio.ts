@@ -27,7 +27,7 @@ export function useStudio() {
   useEffect(() => {
     const timer = setTimeout(() => {
       reload().catch(fail);
-    });
+    }, 0);
     return () => {
       clearTimeout(timer);
     };

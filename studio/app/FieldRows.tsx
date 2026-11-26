@@ -91,7 +91,7 @@ interface RowProps extends FieldRowsProps {
 
 function FieldRow({ catalog, field, inherited, layout, locked, onChange }: RowProps) {
   const id = useId();
-  const changed = field.key in layout;
+  const changed = Object.hasOwn(layout, field.key);
   const isLocked = locked.has(field.key);
   const value = layout[field.key] ?? (changed ? null : inherited[field.key]) ?? null;
   return (
@@ -117,7 +117,7 @@ function FieldRow({ catalog, field, inherited, layout, locked, onChange }: RowPr
 
 function shown(field: CatalogField, { inherited, layout }: FieldRowsProps): boolean {
   const base = inherited[field.key];
-  return field.key in layout || (base !== undefined && base !== null && base !== false);
+  return Object.hasOwn(layout, field.key) || (base !== undefined && base !== null && base !== false);
 }
 
 export function FieldRows(props: FieldRowsProps) {

@@ -1,3 +1,4 @@
+import { byCodeUnit } from "../../game/core/order";
 import { EXECUTION_LAYERS, type ExecutionLayer } from "../scenarioCase/types";
 import {
   type CoverageIssue,
@@ -15,7 +16,9 @@ function mergeLayer(
     return { layer, status: "not-required", cases: [] };
   }
 
-  const cases = [...new Set(relevant.flatMap((result) => result.cases))].sort();
+  const cases = [...new Set(relevant.flatMap((result) => result.cases))].sort(
+    (a, b) => byCodeUnit(a, b)
+  );
   if (cases.length > 0) return { layer, status: "covered", cases };
 
   const excluded = relevant.find((result) => result.status === "excluded");
@@ -56,17 +59,15 @@ export function mergeCoverageResults(
     .flatMap(([, group]) => {
       const [head] = group;
       if (!head) return [];
-      return [
-        {
-          entry: head.entry,
-          layers: EXECUTION_LAYERS.map((layer) =>
-            mergeLayer(
-              group.flatMap((entry) => entry.layers),
-              layer
-            )
-          ),
-        },
-      ];
+      return {
+        entry: head.entry,
+        layers: EXECUTION_LAYERS.map((layer) =>
+          mergeLayer(
+            group.flatMap((entry) => entry.layers),
+            layer
+          )
+        ),
+      };
     });
 
   const totals = Object.fromEntries(
@@ -123,6 +124,6 @@ export function mergeCoverageResults(
     totals,
     entries,
     issues: mergedIssues,
-    cases: [...seenCases.values()].sort((a, b) => (a.id < b.id ? -1 : 1)),
+    cases: [...seenCases.values()].sort((a, b) => byCodeUnit(a.id, b.id)),
   };
 }

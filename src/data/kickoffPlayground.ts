@@ -149,8 +149,9 @@ export function playgroundLanding(
   );
   const distance = (square: { x: number; y: number }) =>
     Math.hypot(square.x - aim.x, square.y - aim.y);
-  return open.reduce(
-    (best, square) => (distance(square) < distance(best) ? square : best),
-    open[0] ?? aim
-  );
+  let best = open[0] ?? aim;
+  for (const square of open) {
+    if (distance(square) < distance(best)) best = square;
+  }
+  return best;
 }

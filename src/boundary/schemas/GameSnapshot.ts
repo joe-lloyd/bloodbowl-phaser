@@ -18,6 +18,42 @@ import { kickRecordSchema, kickResolutionSchema } from "./KickRecord";
 import { turnManagerStateSchema } from "./TurnManagerState";
 import type { GameSnapshot } from "../../headless/serialization";
 
+const ballPositionSchema = z.looseObject({
+  x: z.number(),
+  y: z.number(),
+});
+
+const razzleDazzleSchema = z.looseObject({
+  actions: actionTypeSchema.array(),
+  awaitingSecond: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+  movementBefore: z.number().exactOptional(),
+});
+
+const activePlayerSchema = z.looseObject({
+  id: z.string(),
+  action: z.union([z.null(), actionTypeSchema]),
+  blockReplacement: blockReplacementSchema.exactOptional(),
+  blockReplacementUsed: z
+    .union([z.literal(false), z.literal(true)])
+    .exactOptional(),
+  blitzBlockUsed: z.boolean().exactOptional(),
+  committed: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+  forcedBlock: z.literal(true).exactOptional(),
+  activationRollStarted: z.literal(true).exactOptional(),
+  squigRageSettled: z.literal(true).exactOptional(),
+  bloodlustUnsated: z
+    .union([z.literal(false), z.literal(true)])
+    .exactOptional(),
+  grudgeMatch: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+  razzleDazzle: razzleDazzleSchema.exactOptional(),
+  stalling: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+});
+
+const leaderRerollsSchema = z.looseObject({
+  half: z.union([z.literal("h1"), z.literal("h2")]),
+  teamIds: z.string().array(),
+});
+
 export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   phase: gamePhaseSchema,
   subPhase: z.union([z.null(), subPhaseSchema]),
@@ -30,43 +66,8 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   gameType: gameTypeSchema.exactOptional(),
   venue: venueSchema.exactOptional(),
   weather: weatherSchema,
-  ballPosition: z.union([
-    z.null(),
-    z.looseObject({
-      x: z.number(),
-      y: z.number(),
-    }),
-  ]),
-  activePlayer: z.union([
-    z.null(),
-    z.looseObject({
-      id: z.string(),
-      action: z.union([z.null(), actionTypeSchema]),
-      blockReplacement: blockReplacementSchema.exactOptional(),
-      blockReplacementUsed: z
-        .union([z.literal(false), z.literal(true)])
-        .exactOptional(),
-      blitzBlockUsed: z.boolean().exactOptional(),
-      committed: z.union([z.literal(false), z.literal(true)]).exactOptional(),
-      forcedBlock: z.literal(true).exactOptional(),
-      activationRollStarted: z.literal(true).exactOptional(),
-      squigRageSettled: z.literal(true).exactOptional(),
-      bloodlustUnsated: z
-        .union([z.literal(false), z.literal(true)])
-        .exactOptional(),
-      grudgeMatch: z.union([z.literal(false), z.literal(true)]).exactOptional(),
-      razzleDazzle: z
-        .looseObject({
-          actions: actionTypeSchema.array(),
-          awaitingSecond: z
-            .union([z.literal(false), z.literal(true)])
-            .exactOptional(),
-          movementBefore: z.number().exactOptional(),
-        })
-        .exactOptional(),
-      stalling: z.union([z.literal(false), z.literal(true)]).exactOptional(),
-    }),
-  ]),
+  ballPosition: z.union([z.null(), ballPositionSchema]),
+  activePlayer: z.union([z.null(), activePlayerSchema]),
   setup: z.union([z.null(), setupStateSchema]).exactOptional(),
   result: matchResultSchema.exactOptional(),
   teams: teamSnapshotSchema.array(),
@@ -77,12 +78,7 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   bribes: z.record(z.string(), z.number()).exactOptional(),
   weatherReady: z.string().array().exactOptional(),
   teamRerollsUsed: z.record(z.string(), z.number()).exactOptional(),
-  leaderRerolls: z
-    .looseObject({
-      half: z.union([z.literal("h1"), z.literal("h2")]),
-      teamIds: z.string().array(),
-    })
-    .exactOptional(),
+  leaderRerolls: leaderRerollsSchema.exactOptional(),
   veteranRerollsUsed: z.string().array().exactOptional(),
   briberyRerollsUsed: z.string().array().exactOptional(),
   stallingPlayerIds: z.string().array().exactOptional(),

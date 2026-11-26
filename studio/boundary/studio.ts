@@ -38,6 +38,9 @@ const ownLooks = z
     }
   });
 
+const baseLooks = z.object({ kind: z.literal("base") });
+const usage = z.object({ roster: z.string(), position: z.string() });
+
 const characterSchema = z.object({
   key,
   label,
@@ -50,8 +53,8 @@ const characterSchema = z.object({
   layout,
   stance,
   motion,
-  looks: z.discriminatedUnion("kind", [z.object({ kind: z.literal("base") }), ownLooks]),
-  usedBy: z.array(z.object({ roster: z.string(), position: z.string() })),
+  looks: z.discriminatedUnion("kind", [baseLooks, ownLooks]),
+  usedBy: z.array(usage),
 });
 
 export type Character = z.infer<typeof characterSchema>;
@@ -60,12 +63,17 @@ export type LayoutValues = z.infer<typeof layout>;
 export type LayoutValue = z.infer<typeof scalar>;
 
 const fieldBase = { key: z.string(), generic: z.boolean(), optional: z.boolean(), layered: z.boolean() };
+const choiceValues = z.array(z.string());
 const field = z.discriminatedUnion("kind", [
   z.object({ ...fieldBase, kind: z.literal("toggle") }),
   z.object({ ...fieldBase, kind: z.literal("number"), whole: z.boolean() }),
   z.object({ ...fieldBase, kind: z.literal("material") }),
-  z.object({ ...fieldBase, kind: z.literal("choice"), values: z.array(z.string()) }),
+  z.object({ ...fieldBase, kind: z.literal("choice"), values: choiceValues }),
 ]);
+
+const bodyPair = z.tuple([z.string(), z.string()]);
+const modelValue = z.object({ value: z.string(), label: z.string() });
+const modelOption = z.object({ name: z.string(), label: z.string(), values: z.array(modelValue) });
 
 const baseModel = z.object({
   key: z.string(),
@@ -80,14 +88,17 @@ const baseModel = z.object({
   motion,
   ownKeys: z.array(z.string()),
   lookKeys: z.array(z.string()),
-  bodies: z.array(z.tuple([z.string(), z.string()])),
-  options: z.array(z.object({ name: z.string(), label: z.string(), values: z.array(z.object({ value: z.string(), label: z.string() })) })),
+  bodies: z.array(bodyPair),
+  options: z.array(modelOption),
 });
 
+const catalogRace = z.object({ key: z.string(), knobs: z.record(z.string(), knobValue), layout });
+const catalogMaterial = z.object({ key: z.string(), colors: z.array(z.string()) });
+
 const catalogSchema = z.object({
-  races: z.array(z.object({ key: z.string(), knobs: z.record(z.string(), knobValue), layout })),
+  races: z.array(catalogRace),
   knobs: z.array(z.string()),
-  materials: z.array(z.object({ key: z.string(), colors: z.array(z.string()) })),
+  materials: z.array(catalogMaterial),
   fields: z.array(field),
   models: z.array(baseModel),
   errors: z.record(z.string(), z.string()),
@@ -107,10 +118,12 @@ const jobSchema = z.object({
 
 export type StudioJob = z.infer<typeof jobSchema>;
 
+const stringList = z.array(z.string());
+
 const studioStateSchema = z.object({
   catalog: catalogSchema,
   characters: z.array(characterSchema),
-  positions: z.record(z.string(), z.array(z.string())),
+  positions: z.record(z.string(), stringList),
   models: z.array(z.string()),
   renderer: z.string(),
   job: jobSchema.nullable(),
@@ -121,9 +134,10 @@ export type StudioState = z.infer<typeof studioStateSchema>;
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
 const previewRequest = z.object({ character: characterSchema, primary: hex, secondary: hex });
 const environment = z.object({ STUDIO_BLENDER_HOST: z.string().default("jellybingus"), BLENDER: z.string().optional(), STUDIO_HOME: z.string().optional() });
+const manifestPositions = z.record(z.string(), z.string());
 const manifestSchema = z.object({
   models: z.record(z.string(), z.unknown()),
-  positions: z.record(z.string(), z.record(z.string(), z.string())),
+  positions: z.record(z.string(), manifestPositions),
 });
 
 export type PreviewRequest = z.infer<typeof previewRequest>;

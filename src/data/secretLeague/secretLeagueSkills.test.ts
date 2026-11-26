@@ -24,9 +24,9 @@ function player(
 function dice() {
   const bus = new EventBus();
   const rolls: string[] = [];
-  bus.on(GameEventNames.DiceRoll, (roll: { rollType: string }) =>
-    rolls.push(roll.rollType)
-  );
+  bus.on(GameEventNames.DiceRoll, (roll: { rollType: string }) => {
+    rolls.push(roll.rollType);
+  });
   return { controller: new DiceController(bus, new RNGService(7)), rolls };
 }
 

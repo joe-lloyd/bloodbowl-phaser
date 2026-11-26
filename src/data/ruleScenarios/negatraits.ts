@@ -45,11 +45,11 @@ const hasCondition = (r: R, ref: string, cond: PlayerCondition): boolean => {
   );
 };
 
-const activationOver = (r: R, ref: string): boolean =>
+const activationOver = (r: R): boolean =>
   sawEvent(
     r,
     GameEventNames.PlayerActivated,
-    (d) => d === resolveRef(r.game, ref)
+    (d) => d === resolveRef(r.game, "team1:0")
   );
 
 export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
@@ -83,7 +83,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "the player becomes Distracted"
               );
               assert(
-                activationOver(r, "team1:0"),
+                activationOver(r),
                 "a failed Bone Head ends the activation"
               );
             },
@@ -208,7 +208,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) => skillTriggered(r, SkillType.UNCHANNELLED_FURY),
             verify: (r) => {
               assert(
-                activationOver(r, "team1:0"),
+                activationOver(r),
                 "a failed Unchannelled Fury ends the activation"
               );
             },
@@ -254,7 +254,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "the player becomes Rooted"
               );
               assert(
-                !activationOver(r, "team1:0"),
+                !activationOver(r),
                 "a Rooted player may still perform their Action in place"
               );
             },
@@ -834,7 +834,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               );
               assert(!turnoverHappened(r), "a refused pass is not a turnover");
               assert(
-                activationOver(r, "team1:0"),
+                activationOver(r),
                 "the refusal ends the activation"
               );
             },
@@ -1260,7 +1260,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "no Block dice may be rolled"
               );
               assert(
-                activationOver(r, "team1:0"),
+                activationOver(r),
                 "the Flamesmith's activation ends after Breathe Fire"
               );
             },
@@ -1367,7 +1367,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "no Block dice may be rolled"
               );
               assert(
-                activationOver(r, "team1:0"),
+                activationOver(r),
                 "the Troll's activation ends after Projectile Vomit"
               );
             },
@@ -1505,7 +1505,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "no Block dice may be rolled"
               );
               assert(
-                activationOver(r, "team1:0"),
+                activationOver(r),
                 "the Rotter's activation ends after Chomp"
               );
             },

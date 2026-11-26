@@ -1,14 +1,14 @@
 import { z } from "zod";
 
+const probabilitiesSchema = z.record(z.string(), z.number());
+const nextAnswerSchema = z.object({
+  type: z.literal("choice"),
+  choice: z.string(),
+  confidence: z.number(),
+  probabilities: probabilitiesSchema,
+});
 const responseSchema = z.object({
-  answers: z.object({
-    next: z.object({
-      type: z.literal("choice"),
-      choice: z.string(),
-      confidence: z.number(),
-      probabilities: z.record(z.string(), z.number()),
-    }),
-  }),
+  answers: z.object({ next: nextAnswerSchema }),
   usage: z.object({ input_tokens: z.number(), output_tokens: z.number() }).optional(),
 });
 
@@ -41,7 +41,8 @@ export async function requestCoachChoice(request: ChoiceRequest) {
     }),
   });
   if (!response.ok) {
-    throw new Error(`TypeSafe API ${String(response.status)}: ${(await response.text()).slice(0, 200)}`);
+    const text = await response.text();
+    throw new Error(`TypeSafe API ${String(response.status)}: ${text.slice(0, 200)}`);
   }
   const value: unknown = await response.json();
   const body = responseSchema.parse(value);

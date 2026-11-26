@@ -5069,114 +5069,6 @@
       "count": 5
     }
   },
-  "src/boundary/designTokens.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 17
-    }
-  },
-  "src/boundary/firebaseLobby.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 1
-    }
-  },
-  "src/boundary/jev.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 6
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 1
-    }
-  },
-  "src/boundary/layeredArt.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 1
-    }
-  },
-  "src/boundary/pwa.ts": {
-    "unicorn/no-top-level-assignment-in-function": {
-      "count": 1
-    }
-  },
-  "src/boundary/schemas/ApothecaryDecisionRequest.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 10
-    }
-  },
-  "src/boundary/schemas/Envelope.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 16
-    }
-  },
-  "src/boundary/schemas/GameSnapshot.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 45
-    }
-  },
-  "src/boundary/schemas/HeadlessCommand.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 11
-    }
-  },
-  "src/boundary/schemas/KickRecord.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 11
-    }
-  },
-  "src/boundary/schemas/KickoffTurn.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 5
-    }
-  },
-  "src/boundary/schemas/LobbyDoc.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 16
-    }
-  },
-  "src/boundary/schemas/MatchGrant.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 5
-    }
-  },
-  "src/boundary/schemas/MatchRecording.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 2
-    }
-  },
-  "src/boundary/schemas/PendingDecision.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 19
-    }
-  },
-  "src/boundary/schemas/PendingDevelopment.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 10
-    }
-  },
-  "src/boundary/schemas/PlayerSnapshot.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 2
-    }
-  },
-  "src/boundary/schemas/SetupState.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 5
-    }
-  },
-  "src/boundary/schemas/VariantInducementsState.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 4
-    }
-  },
-  "src/boundary/secretLeague.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 2
-    }
-  },
-  "src/boundary/stadium.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 3
-    }
-  },
   "src/competition/computerTeamTemplates.ts": {
     "complexity": {
       "count": 1
@@ -5289,11 +5181,6 @@
       "count": 38
     }
   },
-  "src/data/kickoffPlayground.ts": {
-    "unicorn/no-array-reduce": {
-      "count": 1
-    }
-  },
   "src/data/kickoffScenarios.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
@@ -5329,48 +5216,10 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 3
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    }
-  },
-  "src/data/ruleScenarios/agility.ts": {
-    "unicorn/no-unnecessary-parameters": {
-      "count": 2
-    }
-  },
-  "src/data/ruleScenarios/devious.ts": {
-    "unicorn/prefer-array-some": {
-      "count": 1
-    }
-  },
-  "src/data/ruleScenarios/negatraits.ts": {
-    "unicorn/no-unnecessary-parameters": {
-      "count": 1
-    }
-  },
-  "src/data/ruleScenarios/throwTeammate.ts": {
-    "unicorn/no-unnecessary-parameters": {
-      "count": 3
-    }
-  },
-  "src/data/ruleScenarios/traits.ts": {
-    "unicorn/no-unnecessary-parameters": {
-      "count": 1
     }
   },
   "src/data/scenarios.ts": {
     "max-lines": {
-      "count": 1
-    }
-  },
-  "src/data/secretLeague/secretLeagueSkills.test.ts": {
-    "unicorn/no-return-array-push": {
-      "count": 1
-    }
-  },
-  "src/data/secretLeague/secretPositions.ts": {
-    "unicorn/prefer-spread": {
       "count": 1
     }
   },
@@ -7581,9 +7430,6 @@
   "src/testing/cases/drive-transition.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "unicorn/no-chained-comparison": {
-      "count": 1
     }
   },
   "src/testing/cases/fromRuleConfigs.ts": {
@@ -7641,33 +7487,8 @@
       "count": 3
     }
   },
-  "src/testing/coverage/inventory.ts": {
-    "no-nested-ternary": {
-      "count": 1
-    },
-    "unicorn/prefer-simple-sort-comparator": {
-      "count": 1
-    }
-  },
   "src/testing/coverage/merge.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-array-flat-map": {
-      "count": 1
-    },
-    "unicorn/prefer-simple-sort-comparator": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 1
-    }
-  },
-  "src/testing/coverage/observed.ts": {
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
       "count": 1
     }
   },
@@ -7677,18 +7498,6 @@
     },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 2
-    },
-    "unicorn/prefer-simple-sort-comparator": {
-      "count": 1
-    },
-    "unicorn/prefer-single-call": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 2
     }
   },
   "src/testing/diagnostics/bundle.ts": {
@@ -7712,9 +7521,6 @@
       "count": 9
     },
     "no-nested-ternary": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
       "count": 1
     }
   },
@@ -7759,12 +7565,6 @@
     },
     "max-params": {
       "count": 2
-    },
-    "unicorn/no-return-array-push": {
-      "count": 2
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 3
     }
   },
   "src/testing/seeds/findVariantSeed.ts": {
@@ -9004,50 +8804,6 @@
   "src/vite-env.d.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 2
-    }
-  },
-  "studio/app/LooksEditor.tsx": {
-    "unicorn/no-useless-recursion": {
-      "count": 1
-    }
-  },
-  "studio/app/useStudio.ts": {
-    "unicorn/explicit-timer-delay": {
-      "count": 1
-    }
-  },
-  "studio/boundary/studio.ts": {
-    "unicorn/max-nested-calls": {
-      "count": 21
-    }
-  },
-  "studio/helper/blender.ts": {
-    "unicorn/consistent-function-scoping": {
-      "count": 1
-    }
-  },
-  "studio/helper/characterFiles.ts": {
-    "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-unreadable-for-of-expression": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 1
-    }
-  },
-  "studio/helper/jobs.ts": {
-    "unicorn/no-return-array-push": {
-      "count": 1
-    }
-  },
-  "studio/helper/main.ts": {
-    "unicorn/no-declarations-before-early-exit": {
-      "count": 3
-    },
-    "unicorn/prefer-top-level-await": {
-      "count": 1
     }
   },
   "vite.config.ts": {

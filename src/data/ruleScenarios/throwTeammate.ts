@@ -108,13 +108,11 @@ const ttm = (opts: TtmOpts): ScenarioSetup => {
 const script = ({
   mode,
   x,
-  y,
   mateRef = MATE,
   swoopFacing,
 }: {
   mode: "throw" | "kick";
   x: number;
-  y: number;
   mateRef?: string;
   swoopFacing?: SwoopFacing;
 }) => [
@@ -128,22 +126,22 @@ const script = ({
     throwerId: throwerRef(mode),
     teammateId: mateRef,
     x,
-    y,
+    y: 5,
     mode,
     ...(swoopFacing && { swoopFacing }),
   },
 ];
 
-const ring = (cx: number, cy: number, count = 7) =>
+const ring = (count = 7) =>
   [
-    { x: cx - 1, y: cy - 1 },
-    { x: cx, y: cy - 1 },
-    { x: cx + 1, y: cy - 1 },
-    { x: cx - 1, y: cy },
-    { x: cx + 1, y: cy },
-    { x: cx - 1, y: cy + 1 },
-    { x: cx, y: cy + 1 },
-    { x: cx + 1, y: cy + 1 },
+    { x: 13, y: 4 },
+    { x: 14, y: 4 },
+    { x: 15, y: 4 },
+    { x: 13, y: 5 },
+    { x: 15, y: 5 },
+    { x: 13, y: 6 },
+    { x: 14, y: 6 },
+    { x: 15, y: 6 },
   ].slice(0, count);
 
 const injuryOf = (r: Result, ref: string) =>
@@ -161,12 +159,12 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         setup: ttm({
           mode: "throw",
           extraMateSkills: [SkillType.LETHAL_FLIGHT],
-          opponents: ring(14, 5, 8).map((opponent) => ({
+          opponents: ring(8).map((opponent) => ({
             ...opponent,
             stats: { AV: 5 },
           })),
         }),
-        script: script({ mode: "throw", x: 14, y: 5 }),
+        script: script({ mode: "throw", x: 14 }),
         seedSearch: { from: 1, limit: 5000 },
         outcomes: [
           {
@@ -199,7 +197,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "An Ogre Blocker throws a Gnoblar at a nearby square: it scatters and attempts to land; a fumble bounces from the Ogre and attempts to land at -1",
         setup: ttm({ mode: "throw" }),
-        script: script({ mode: "throw", x: 14, y: 5 }),
+        script: script({ mode: "throw", x: 14 }),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
@@ -278,7 +276,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           thrower: { x: 2, y: 5 },
           mate: { x: 3, y: 5 },
         }),
-        script: script({ mode: "throw", x: 13, y: 5 }),
+        script: script({ mode: "throw", x: 13 }),
         seedSearch: { from: 1, limit: 400 },
         outcomes: [
           {
@@ -307,7 +305,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
             { x: 9, y: 4 },
           ],
         }),
-        script: script({ mode: "throw", x: 12, y: 5 }),
+        script: script({ mode: "throw", x: 12 }),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
@@ -328,8 +326,8 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Throw Team-mate — crash into an occupied square",
         description:
           "When the thrown Gnoblar scatters onto an occupied square, both it and the occupant are Knocked Down and take an Armour Roll — no turnover without the ball",
-        setup: ttm({ mode: "throw", opponents: ring(14, 5) }),
-        script: script({ mode: "throw", x: 14, y: 5 }),
+        setup: ttm({ mode: "throw", opponents: ring() }),
+        script: script({ mode: "throw", x: 14 }),
         seedSearch: { from: 1, limit: 1200 },
         outcomes: [
           {
@@ -358,7 +356,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           mode: "throw",
           ball: { x: 11, y: 5 },
         }),
-        script: script({ mode: "throw", x: 14, y: 5 }),
+        script: script({ mode: "throw", x: 14 }),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
@@ -406,7 +404,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           mateAG: 5,
           ball: { x: 11, y: 5 },
         }),
-        script: script({ mode: "throw", x: 14, y: 5 }),
+        script: script({ mode: "throw", x: 14 }),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
@@ -439,7 +437,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "An Ogre Runt Punter kicks a Gnoblar: it resolves like Throw Team-mate, but a fumble removes the kicked player from play and forces an immediate Injury Roll",
         setup: ttm({ mode: "kick" }),
-        script: script({ mode: "kick", x: 14, y: 5 }),
+        script: script({ mode: "kick", x: 14 }),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
@@ -493,8 +491,8 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Kick Team-mate — crash into an occupied square",
         description:
           "A kicked Gnoblar scattering onto an occupied square crashes exactly like a thrown one",
-        setup: ttm({ mode: "kick", opponents: ring(14, 5) }),
-        script: script({ mode: "kick", x: 14, y: 5 }),
+        setup: ttm({ mode: "kick", opponents: ring() }),
+        script: script({ mode: "kick", x: 14 }),
         seedSearch: { from: 1, limit: 1200 },
         outcomes: [
           {
@@ -521,7 +519,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "A Gnoblar (Right Stuff) makes the landing roll after being thrown; a success lands it Standing, a failure Places it Prone",
         setup: ttm({ mode: "throw" }),
-        script: script({ mode: "throw", x: 14, y: 5 }),
+        script: script({ mode: "throw", x: 14 }),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
@@ -554,7 +552,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "A thrown Gnoblar with high Agility passes the landing roll on most results",
         setup: ttm({ mode: "throw", mateAG: 5 }),
-        script: script({ mode: "throw", x: 14, y: 5 }),
+        script: script({ mode: "throw", x: 14 }),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
@@ -581,7 +579,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           team2Placements: [{ playerIndex: 0, x: 1, y: 1 }],
           ballPosition: { x: 18, y: 9 },
         }),
-        script: script({ mode: "throw", x: 14, y: 5, mateRef: "team1:1" }),
+        script: script({ mode: "throw", x: 14, mateRef: "team1:1" }),
         seedSearch: { from: 1, limit: 400 },
         outcomes: [
           {
@@ -604,7 +602,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "Even with Right Stuff, a team-mate with Strength above 3 is not a legal Throw / Kick Team-mate target",
         setup: ttm({ mode: "throw", mateST: 4 }),
-        script: script({ mode: "throw", x: 14, y: 5 }),
+        script: script({ mode: "throw", x: 14 }),
         seedSearch: { from: 1, limit: 400 },
         outcomes: [
           {
@@ -634,7 +632,6 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         script: script({
           mode: "throw",
           x: 14,
-          y: 5,
           mateRef: MATE,
           swoopFacing: "east",
         }),
@@ -666,7 +663,6 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         script: script({
           mode: "throw",
           x: 14,
-          y: 5,
           mateRef: MATE,
           swoopFacing: "east",
         }),
@@ -696,7 +692,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "On a Superb Throw (a natural 6 on the Passing Ability Test), a thrower with Bullseye lands the Gnoblar dead on the target square with no Scatter — it still makes its Right Stuff landing roll there",
         setup: ttm({ mode: "throw", extraThrowerSkills: [SkillType.BULLSEYE] }),
-        script: script({ mode: "throw", x: 14, y: 5 }),
+        script: script({ mode: "throw", x: 14 }),
         seedSearch: { from: 1, limit: 2000 },
         outcomes: [
           {
@@ -734,7 +730,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           mode: "throw",
           extraThrowerSkills: [SkillType.STRONG_ARM],
         }),
-        script: script({ mode: "throw", x: 14, y: 5 }),
+        script: script({ mode: "throw", x: 14 }),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
@@ -759,7 +755,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           mode: "throw",
           extraThrowerSkills: [SkillType.STRONG_ARM],
         }),
-        script: script({ mode: "throw", x: 12, y: 5 }),
+        script: script({ mode: "throw", x: 12 }),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
@@ -786,7 +782,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           mode: "kick",
           extraThrowerSkills: [SkillType.STRONG_ARM],
         }),
-        script: script({ mode: "kick", x: 14, y: 5 }),
+        script: script({ mode: "kick", x: 14 }),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {

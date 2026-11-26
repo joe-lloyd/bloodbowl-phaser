@@ -8,6 +8,7 @@ import {
   type LayerSupport,
   type ValidationIssue,
 } from "../scenarioCase/validate";
+import { byCodeUnit } from "../../game/core/order";
 import { auditSetupFixtures } from "../fixtures/validateFixtures";
 import {
   buildInventory,
@@ -166,7 +167,7 @@ export function buildCoverage(
       kind: caseIssueKind(issue),
       message: `${issue.caseId} · ${issue.field}: ${issue.message}`,
     }));
-  issues.push(...cases.flatMap(fixtureIssues));
+  issues.push(...cases.flatMap((scenarioCase) => fixtureIssues(scenarioCase)));
 
   const knownIds = new Set(inventory.map((entry) => entry.id));
   for (const exclusionIssue of validateExclusions(exclusions, knownIds)) {
@@ -202,7 +203,7 @@ export function buildCoverage(
             covers(scenarioCase, layer, entry.id)
         )
         .map((scenarioCase) => scenarioCase.id)
-        .sort();
+        .sort((a, b) => byCodeUnit(a, b));
 
       if (covering.length > 0) {
         return { layer, status: "covered", cases: covering };
@@ -220,7 +221,7 @@ export function buildCoverage(
     }),
   }));
 
-  issues.push(...entries.flatMap(missingCoverageIssues));
+  issues.push(...entries.flatMap((entry) => missingCoverageIssues(entry)));
 
   const totals = Object.fromEntries(
     EXECUTION_LAYERS.map((layer) => {
@@ -255,7 +256,7 @@ export function buildCoverage(
         variants: scenarioCase.variants.map((variant) => variant.id),
         ...(scenarioCase.regression && { regressionId: scenarioCase.regression.id }),
       }))
-      .sort((a, b) => (a.id < b.id ? -1 : 1)),
+      .sort((a, b) => byCodeUnit(a.id, b.id)),
   };
 }
 
@@ -283,7 +284,8 @@ export function renderCoverageReport(result: CoverageResult): string {
     byKind.set(entry.entry.kind, bucket);
   }
 
-  for (const [kind, group] of [...byKind].sort()) {
+  const kinds = [...byKind].sort(([a], [b]) => byCodeUnit(a, b));
+  for (const [kind, group] of kinds) {
     const missing = group.filter((entry) =>
       entry.layers.some((layer) => layer.status === "missing")
     );
@@ -313,8 +315,7 @@ export function renderCoverageReport(result: CoverageResult): string {
   }
 
   if (result.issues.length > 0) {
-    lines.push("");
-    lines.push(`${String(result.issues.length)} issue(s):`);
+    lines.push("", `${String(result.issues.length)} issue(s):`);
     for (const issue of result.issues) {
       lines.push(`    [${issue.kind}] ${issue.message}`);
     }

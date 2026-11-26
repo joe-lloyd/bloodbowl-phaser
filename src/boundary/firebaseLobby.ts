@@ -16,12 +16,14 @@ export function readLobbySeats(value: unknown) {
   return seatsSchema.safeParse(value).data;
 }
 
+const replaySchema = z.array(z.unknown());
+
 const appliedCountSchema = z
   .object({
     resume: z
       .object({
         applied: z.number(),
-        replay: z.array(z.unknown()).exactOptional(),
+        replay: replaySchema.exactOptional(),
       })
       .nullable()
       .exactOptional(),

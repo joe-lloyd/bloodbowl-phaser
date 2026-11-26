@@ -23,8 +23,11 @@ const NEW_VALUE = { value: "new", label: "New", layout: {} };
 
 function freeName(label: string, taken: readonly string[], fallback: string): string {
   const name = slug(label) || fallback;
-  if (!taken.includes(name) && name !== "body") return name;
-  return freeName(`${name}_2`, taken, fallback);
+  let candidate = name;
+  while (taken.includes(candidate) || candidate === "body") {
+    candidate = slug(`${candidate}_2`) || fallback;
+  }
+  return candidate;
 }
 
 interface OptionEditorProps extends LooksEditorProps {

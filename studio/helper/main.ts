@@ -6,10 +6,6 @@ import { studioEnvironment } from "../boundary/studio";
 import { answerApi, answerSprite } from "./answer";
 import { refreshTree } from "./publish";
 
-const PORT = 3941;
-const API = "/studio-api";
-const SPRITES = "/sprites";
-
 function readToken(home: string): Buffer {
   const token = readFileSync(path.join(home, "token"), "utf8").trim();
   if (token.length < 32) throw new Error("The helper token is missing or too short");
@@ -23,6 +19,9 @@ function allowed(request: IncomingMessage, token: Buffer): boolean {
 
 const { STUDIO_HOME } = studioEnvironment();
 if (STUDIO_HOME === undefined) throw new Error("Set STUDIO_HOME to the helper's folder");
+const PORT = 3941;
+const API = "/studio-api";
+const SPRITES = "/sprites";
 const token = readToken(STUDIO_HOME);
 
 const server = createServer((request, response) => {
@@ -40,10 +39,10 @@ const server = createServer((request, response) => {
   }
 });
 
-refreshTree()
-  .catch((error: unknown) => {
-    console.error("Could not refresh the art tree", error);
-  })
-  .finally(() => {
-    server.listen(PORT);
-  });
+try {
+  await refreshTree();
+} catch (error: unknown) {
+  console.error("Could not refresh the art tree", error);
+} finally {
+  server.listen(PORT);
+}

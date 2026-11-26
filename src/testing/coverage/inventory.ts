@@ -3,6 +3,7 @@ import { RULE_SCENARIOS } from "../../data/ruleScenarios";
 import { GamePhase } from "../../types/GameState";
 import { type HeadlessCommand } from "../../headless/protocol";
 import { type ExecutionLayer } from "../scenarioCase/types";
+import { byCodeUnit } from "../../game/core/order";
 
 type InventoryKind =
   | "sandbox-scenario"
@@ -187,5 +188,5 @@ export function buildInventory(): InventoryEntry[] {
     });
   }
 
-  return [...entries].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return [...entries].sort((a, b) => byCodeUnit(a.id, b.id));
 }

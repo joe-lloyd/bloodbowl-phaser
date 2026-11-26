@@ -5,7 +5,26 @@ import { blockResultSchema } from "./BlockResult";
 import { rerollSourceSchema } from "./RerollSource";
 import { inducementChoiceDecisionRequestSchema } from "./InducementChoiceDecisionRequest";
 import { foulAssistsDecisionRequestSchema } from "./FoulAssistsDecisionRequest";
+import { apothecaryRequestFields } from "./ApothecaryDecisionRequest";
 import type { PendingDecision } from "../../headless/protocol";
+
+const flagSchema = z.union([z.literal(false), z.literal(true)]);
+
+const blockChoiceStageSchema = z.union([
+  z.literal("attacker-reroll"),
+  z.literal("pick"),
+]);
+
+const interceptionCandidateSchema = z.looseObject({
+  playerId: z.string(),
+  modifier: z.number(),
+});
+
+const casualtyTypeSchema = z.union([
+  z.literal("badly-hurt"),
+  z.literal("seriously-hurt"),
+  z.literal("dead"),
+]);
 
 export const pendingDecisionSchema: z.ZodType<PendingDecision> = z.union([
   z.looseObject({
@@ -24,19 +43,11 @@ export const pendingDecisionSchema: z.ZodType<PendingDecision> = z.union([
     defenderId: z.string(),
     chooserTeamId: z.string(),
     options: blockResultSchema.array(),
-    choiceStage: z
-      .union([z.literal("attacker-reroll"), z.literal("pick")])
-      .exactOptional(),
-    teamRerollAvailable: z
-      .union([z.literal(false), z.literal(true)])
-      .exactOptional(),
-    proAvailable: z.union([z.literal(false), z.literal(true)]).exactOptional(),
-    brawlerAvailable: z
-      .union([z.literal(false), z.literal(true)])
-      .exactOptional(),
-    veteranRerollAvailable: z
-      .union([z.literal(false), z.literal(true)])
-      .exactOptional(),
+    choiceStage: blockChoiceStageSchema.exactOptional(),
+    teamRerollAvailable: flagSchema.exactOptional(),
+    proAvailable: flagSchema.exactOptional(),
+    brawlerAvailable: flagSchema.exactOptional(),
+    veteranRerollAvailable: flagSchema.exactOptional(),
   }),
   z.looseObject({
     type: z.literal("push-direction"),
@@ -85,28 +96,12 @@ export const pendingDecisionSchema: z.ZodType<PendingDecision> = z.union([
     type: z.literal("interception"),
     chooserTeamId: z.string(),
     passerId: z.string(),
-    candidates: z
-      .looseObject({
-        playerId: z.string(),
-        modifier: z.number(),
-      })
-      .array(),
+    candidates: interceptionCandidateSchema.array(),
   }),
   z.looseObject({
-    type: z.literal("apothecary"),
-    id: z.string(),
-    chooserTeamId: z.string(),
-    playerId: z.string(),
-    resultKind: z.union([z.literal("ko"), z.literal("casualty")]),
-    location: z.union([z.literal("pitch"), z.literal("crowd")]).exactOptional(),
+    ...apothecaryRequestFields,
     position: gridPositionSchema.exactOptional(),
-    casualtyType: z
-      .union([
-        z.literal("badly-hurt"),
-        z.literal("seriously-hurt"),
-        z.literal("dead"),
-      ])
-      .exactOptional(),
+    casualtyType: casualtyTypeSchema.exactOptional(),
   }),
   inducementChoiceDecisionRequestSchema,
   foulAssistsDecisionRequestSchema,

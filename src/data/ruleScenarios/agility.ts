@@ -23,8 +23,8 @@ import {
 import { GameEventNames } from "../../types/events";
 import { PlayerStatus } from "../../types/Player";
 
-const straightPath = (fromX: number, y: number, steps: number) =>
-  Array.from({ length: steps }, (_, i) => ({ x: fromX + 1 + i, y }));
+const straightPath = (steps: number) =>
+  Array.from({ length: steps }, (_, i) => ({ x: 3 + i, y: 5 }));
 
 export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
   {
@@ -501,7 +501,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
         script: [
           { type: "declare-action", playerId: "team1:0", action: "move" },
 
-          { type: "move", playerId: "team1:0", path: straightPath(2, 5, 7) },
+          { type: "move", playerId: "team1:0", path: straightPath(7) },
         ],
       }),
     ],
@@ -523,7 +523,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
         script: [
           { type: "declare-action", playerId: "team1:0", action: "move" },
 
-          { type: "move", playerId: "team1:0", path: straightPath(2, 5, 9) },
+          { type: "move", playerId: "team1:0", path: straightPath(9) },
         ],
         outcomes: [
           {

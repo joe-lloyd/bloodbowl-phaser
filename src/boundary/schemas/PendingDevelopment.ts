@@ -4,6 +4,28 @@ import { skillTypeSchema } from "./SkillType";
 import { skillRollCandidateSchema } from "./SkillRollCandidate";
 import type { PendingDevelopment } from "../../types/Team";
 
+const primaryProgressSchema = z.looseObject({
+  route: z.literal("primary"),
+  playerId: z.string(),
+  category: skillCategorySchema,
+  named: skillTypeSchema.array(),
+});
+
+const secondaryProgressSchema = z.looseObject({
+  route: z.literal("secondary"),
+  playerId: z.string(),
+  rolled: z
+    .looseObject({
+      category: skillCategorySchema,
+      candidates: skillRollCandidateSchema.array(),
+    })
+    .exactOptional(),
+});
+
+const skillSelectionProgressSchema = z
+  .union([primaryProgressSchema, secondaryProgressSchema])
+  .exactOptional();
+
 export const pendingDevelopmentSchema: z.ZodType<PendingDevelopment> = z.union([
   z.looseObject({
     id: z.string(),
@@ -23,26 +45,7 @@ export const pendingDevelopmentSchema: z.ZodType<PendingDevelopment> = z.union([
     matchId: z.string(),
     eligibleParticipantIds: z.string().array(),
     createdAt: z.number(),
-    progress: z
-      .union([
-        z.looseObject({
-          route: z.literal("primary"),
-          playerId: z.string(),
-          category: skillCategorySchema,
-          named: skillTypeSchema.array(),
-        }),
-        z.looseObject({
-          route: z.literal("secondary"),
-          playerId: z.string(),
-          rolled: z
-            .looseObject({
-              category: skillCategorySchema,
-              candidates: skillRollCandidateSchema.array(),
-            })
-            .exactOptional(),
-        }),
-      ])
-      .exactOptional(),
+    progress: skillSelectionProgressSchema,
   }),
   z.looseObject({
     id: z.string(),

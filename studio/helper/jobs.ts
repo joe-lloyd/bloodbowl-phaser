@@ -24,7 +24,7 @@ export class JobQueue {
   private async start(job: StudioJob, work: Work): Promise<void> {
     job.status = "running";
     try {
-      await work((line) => job.log.push(line));
+      await work((line) => { job.log.push(line); });
       job.status = "done";
     } catch (error) {
       job.log.push(error instanceof Error ? error.message : String(error));
