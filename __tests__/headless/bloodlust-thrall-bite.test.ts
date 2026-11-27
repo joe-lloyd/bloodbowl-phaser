@@ -39,7 +39,12 @@ function scenario(thrallX: number, ball: { x: number; y: number }): Scenario {
   };
 }
 
-async function failBloodlustThenEnd(thrallX: number, ball = { x: 1, y: 1 }) {
+const DEFAULT_BALL = { x: 1, y: 1 };
+
+async function failBloodlustThenEnd(
+  thrallX: number,
+  ball = DEFAULT_BALL
+) {
   const game = new HeadlessGame({
     scenario: scenario(thrallX, ball),
     seed: BLOODLUST_FAILS_SEED,

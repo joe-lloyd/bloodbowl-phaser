@@ -43,8 +43,12 @@ describe("a Team Re-roll on block dice", () => {
     game.ctx.team1.rerolls = 3;
     const rolls: BlockRollData[] = [];
     const rerolls: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.BlockDiceRolled, (d) => rolls.push(d));
-    game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => rerolls.push(d));
+    game.ctx.eventBus.on(GameEventNames.BlockDiceRolled, (d) => {
+      rolls.push(d);
+    });
+    game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => {
+      rerolls.push(d);
+    });
     const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
     const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
 
@@ -78,7 +82,9 @@ describe("a Team Re-roll on block dice", () => {
   it("keeps the first roll's dice when Pro re-rolls one of them", async () => {
     const game = new HeadlessGame({ scenario: proScenario, seed: PRO_SEED });
     const rolls: BlockRollData[] = [];
-    game.ctx.eventBus.on(GameEventNames.BlockDiceRolled, (d) => rolls.push(d));
+    game.ctx.eventBus.on(GameEventNames.BlockDiceRolled, (d) => {
+      rolls.push(d);
+    });
     const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
     const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
 
@@ -99,7 +105,9 @@ describe("a Team Re-roll on block dice", () => {
   it("names both rolls' faces when Pro re-rolls a die", async () => {
     const game = new HeadlessGame({ scenario: proScenario, seed: PRO_SEED });
     const rerolls: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => rerolls.push(d));
+    game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => {
+      rerolls.push(d);
+    });
     const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
     const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
 

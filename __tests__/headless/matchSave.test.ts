@@ -20,7 +20,6 @@ const scrimmage = fixtureValue(SCENARIOS.find(
 
 function saveCurrent(
   game: ReturnType<typeof createHeadlessGame>,
-  savedAt = 1234,
   competition?: CompetitionContext
 ) {
   return createMatchSave({
@@ -34,7 +33,7 @@ function saveCurrent(
     matchStats: game.matchStats.captureState(),
     turnManager: game.gameService.captureTurnManagerState(),
     ...(competition !== undefined && { competition: competition }),
-    savedAt,
+    savedAt: 1234,
   });
 }
 
@@ -46,7 +45,7 @@ describe("resumable match save", () => {
       competitionId: "league-1",
       fixtureId: "fixture-7",
     };
-    const save = saveCurrent(game, 1234, competition);
+    const save = saveCurrent(game, competition);
     const restored = deserializeMatchSave(serializeMatchSave(save));
 
     expect(restored).toEqual(save);

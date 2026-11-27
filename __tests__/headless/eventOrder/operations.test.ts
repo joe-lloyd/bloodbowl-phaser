@@ -295,12 +295,11 @@ describe("operation events keep their order", () => {
         );
       });
       expect(bySeed).toMatchSnapshot();
-      if (variant.answer === intercepting) {
-        const rolls = Object.values(bySeed).flat();
-        expect(
-          rolls.some((line) => line.startsWith("diceRoll: Interception"))
-        ).toBe(true);
-      }
+      if (variant.answer !== intercepting) return;
+      const rolls = Object.values(bySeed).flat();
+      expect(
+        rolls.some((line) => line.startsWith("diceRoll: Interception"))
+      ).toBe(true);
     });
   }
 

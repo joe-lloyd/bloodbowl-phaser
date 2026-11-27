@@ -2,7 +2,7 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
+import path from "node:path";
 import { labInventory } from "../../scripts/coach/policy-lab/teams";
 import { validateRecovery } from "../../scripts/coach/policy-lab/recover";
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
@@ -80,9 +80,9 @@ describe("repeatable Sevens policy lab", () => {
   });
 
   it("rejects recovery after an AI, schedule or archived-source change", () => {
-    const root = mkdtempSync(join(tmpdir(), "bb7-recovery-inputs-"));
-    const old = join(root, "old"),
-      current = join(root, "current");
+    const root = mkdtempSync(path.join(tmpdir(), "bb7-recovery-inputs-"));
+    const old = path.join(root, "old"),
+      current = path.join(root, "current");
     const inputs = [
       "src/engine.ts",
       "package.json",
@@ -101,8 +101,8 @@ describe("repeatable Sevens policy lab", () => {
     try {
       for (const base of [old, current])
         for (const name of inputs) {
-          const file = join(base, name);
-          mkdirSync(dirname(file), { recursive: true });
+          const file = path.join(base, name);
+          mkdirSync(path.dirname(file), { recursive: true });
           writeFileSync(file, "stable");
         }
       const manifest = {
@@ -115,20 +115,20 @@ describe("repeatable Sevens policy lab", () => {
       expect(validateRecovery(manifest, manifest, old, current)).toHaveLength(
         64
       );
-      writeFileSync(join(current, "src/engine.ts"), "changed AI");
+      writeFileSync(path.join(current, "src/engine.ts"), "changed AI");
       expect(() => validateRecovery(manifest, manifest, old, current)).toThrow(
         "changed engine or AI"
       );
-      writeFileSync(join(current, "src/engine.ts"), "stable");
+      writeFileSync(path.join(current, "src/engine.ts"), "stable");
       writeFileSync(
-        join(current, "scripts/coach/policy-study/run.ts"),
+        path.join(current, "scripts/coach/policy-study/run.ts"),
         "changed coach construction"
       );
       expect(() => validateRecovery(manifest, manifest, old, current)).toThrow(
         "changed gameplay input"
       );
       writeFileSync(
-        join(current, "scripts/coach/policy-study/run.ts"),
+        path.join(current, "scripts/coach/policy-study/run.ts"),
         "stable"
       );
       expect(() =>
@@ -175,7 +175,7 @@ describe("repeatable Sevens policy lab", () => {
         "schedule"
       );
       writeFileSync(
-        join(old, "scripts/coach/catalogue-study/play.ts"),
+        path.join(old, "scripts/coach/catalogue-study/play.ts"),
         "tampered archive"
       );
       expect(() => validateRecovery(manifest, manifest, old, current)).toThrow(
@@ -198,7 +198,7 @@ describe("repeatable Sevens policy lab", () => {
   });
 
   it("executes the requested first receiver through a complete match and replay", async () => {
-    const out = mkdtempSync(join(tmpdir(), "bb7-lab-receive-"));
+    const out = mkdtempSync(path.join(tmpdir(), "bb7-lab-receive-"));
     try {
       const job = policySchedule(variants, false, 30_000_000, true)[4];
       const result = await playStudyGame(fixtureValue(job), out, undefined, [
@@ -209,7 +209,7 @@ describe("repeatable Sevens policy lab", () => {
       expect(result.completed).toBe(true);
       expect(result.findings).toEqual([]);
       const replay = await replayStudyTrace(
-        join(out, "traces", fixtureValue(job).id + ".json.gz")
+        path.join(out, "traces", fixtureValue(job).id + ".json.gz")
       );
       expect(replay.observations.counters).toEqual(result.counters);
     } finally {
@@ -218,7 +218,7 @@ describe("repeatable Sevens policy lab", () => {
   });
 
   it("reports the forced receiver when the opening drive is an automatic touchback", async () => {
-    const out = mkdtempSync(join(tmpdir(), "bb7-lab-touchback-"));
+    const out = mkdtempSync(path.join(tmpdir(), "bb7-lab-touchback-"));
     try {
       const templates = [
         "halfling-best-stuff-roster",
@@ -239,7 +239,7 @@ describe("repeatable Sevens policy lab", () => {
       };
       const result = await playStudyGame(job, out, [halflings, dwarfs]);
       const { steps } = openTrace(
-        join(out, "traces", job.id + ".json.gz")
+        path.join(out, "traces", job.id + ".json.gz")
       ).recording;
       expect([
         result.initialReceivingSide,
@@ -251,7 +251,7 @@ describe("repeatable Sevens policy lab", () => {
   }, 60_000);
 
   it("gives a cheap Halfling preset its petty cash and buys the Master Chef", async () => {
-    const out = mkdtempSync(join(tmpdir(), "bb7-lab-petty-cash-"));
+    const out = mkdtempSync(path.join(tmpdir(), "bb7-lab-petty-cash-"));
     try {
       const job: StudyJob = {
         id: "halfling-petty-cash",
@@ -264,7 +264,7 @@ describe("repeatable Sevens policy lab", () => {
         inducements: true,
       };
       const result = await playStudyGame(job, out);
-      const trace = join(out, "traces", job.id + ".json.gz");
+      const trace = path.join(out, "traces", job.id + ".json.gz");
       const opening = openTrace(trace);
       const inducements = () =>
         opening.game.ctx.gameService.getState().inducements;
@@ -329,7 +329,7 @@ describe("repeatable Sevens policy lab", () => {
   it.each([true, false])(
     "plays a Street Bowl game with one free potion a team and replays it, petty cash %s",
     async (inducements) => {
-      const out = mkdtempSync(join(tmpdir(), "bb7-lab-street-"));
+      const out = mkdtempSync(path.join(tmpdir(), "bb7-lab-street-"));
       try {
         const job: StudyJob = {
           id: "street-potions",
@@ -342,7 +342,7 @@ describe("repeatable Sevens policy lab", () => {
           format: { gameType: "street-bowl", venue: "street" },
         };
         const result = await playStudyGame(job, out);
-        const trace = join(out, "traces", job.id + ".json.gz");
+        const trace = path.join(out, "traces", job.id + ".json.gz");
         const { recording, game } = openTrace(trace);
         const inducementSteps = new Set([
           "select-inducement",

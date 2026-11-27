@@ -93,8 +93,8 @@ describe("GameplayInteractionController", () => {
           ([square]) => `${String(square.x)},${String(square.y)}`
         )
       );
-      expect([...green].sort()).toEqual(
-        ["4,4", "4,5", "4,6", "5,4", "5,6", "6,4", "6,5"].sort()
+      expect([...green].sort((a, b) => a.localeCompare(b))).toEqual(
+        ["4,4", "4,5", "4,6", "5,4", "5,6", "6,4", "6,5"].sort((a, b) => a.localeCompare(b))
       );
     });
 

@@ -170,12 +170,10 @@ const foulers: Scenario = {
 async function foul({
   game,
   playerId,
-  x,
   y,
 }: {
   game: HeadlessGame;
   playerId: string;
-  x: number;
   y: number;
 }) {
   const declared = await game.execute({
@@ -184,7 +182,7 @@ async function foul({
     action: "foul",
   });
   if (!declared.ok) return declared;
-  return game.execute({ type: "foul", playerId, x, y });
+  return game.execute({ type: "foul", playerId, x: 11, y });
 }
 
 describe("Grudge Match", () => {
@@ -197,7 +195,6 @@ describe("Grudge Match", () => {
     const offered = await foul({
       game: game,
       playerId: fixtureValue(first).id,
-      x: 11,
       y: 3,
     });
     expect(offered.pendingDecision).toMatchObject({
@@ -210,7 +207,6 @@ describe("Grudge Match", () => {
     const second2 = await foul({
       game: game,
       playerId: fixtureValue(second).id,
-      x: 11,
       y: 7,
     });
     expect(second2.ok).toBe(true);
@@ -225,11 +221,10 @@ describe("Grudge Match", () => {
     const game = new HeadlessGame({ scenario: foulers, seed: 1 });
     const [first, second] = game.ctx.team1.players;
     forceDice(game.ctx.rng, [2, 3]);
-    await foul({ game: game, playerId: fixtureValue(first).id, x: 11, y: 3 });
+    await foul({ game: game, playerId: fixtureValue(first).id, y: 3 });
     const refused = await foul({
       game: game,
       playerId: fixtureValue(second).id,
-      x: 11,
       y: 7,
     });
     expect(refused.ok).toBe(false);

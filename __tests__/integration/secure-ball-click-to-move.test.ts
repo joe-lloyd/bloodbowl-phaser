@@ -97,9 +97,9 @@ describe("Secure the Ball on the board", () => {
       eventBus.on(GameEventNames.UI_ActionPlan, (next) => {
         plan = next ?? plan;
       });
-      eventBus.on(GameEventNames.DiceRoll, (roll) =>
-        dice.push(roll.description)
-      );
+      eventBus.on(GameEventNames.DiceRoll, (roll) => {
+        dice.push(roll.description);
+      });
       forceDice(game.ctx.rng, [target]);
       try {
         controller.handlePlayerClick(fixtureValue(player).id);

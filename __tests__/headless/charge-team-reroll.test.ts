@@ -169,7 +169,8 @@ describe("a save taken during Charge!", () => {
 
     const resumed = new HeadlessGame({ matchSave: save });
     const gs = resumed.ctx.gameService;
-    expect((await resumed.execute({ type: "end-turn" })).ok).toBe(true);
+    const endTurn = await resumed.execute({ type: "end-turn" });
+    expect(endTurn.ok).toBe(true);
     await settle();
     expect(gs.getState().phase).toBe(GamePhase.PLAY);
     expect(gs.getState().turn.teamId).toBe(resumed.ctx.team2.id);

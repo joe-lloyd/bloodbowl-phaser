@@ -10,6 +10,48 @@ import { GameEventNames } from "../../src/types/events";
 import { ISO } from "../../src/game/elements/GridUtils";
 import { squareHitAreaContains } from "../../src/game/elements/InteractiveHitArea";
 
+const figureSprite = () =>
+  ({
+    displayOriginX: 28,
+    displayOriginY: 40,
+    input: {
+      enabled: true,
+      hitArea: { width: 56, height: 82 },
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+    },
+    setInteractive: vi.fn(),
+    disableInteractive: vi.fn(),
+    setAlpha: vi.fn(),
+    setDepth: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+  }) as unknown as Phaser.GameObjects.Container;
+
+const dugoutSprite = (home: { x: number; y: number }) => {
+  const handlers = new Map<string, (...args: unknown[]) => void>();
+  const data = new Map<string, unknown>();
+  const sprite = {
+    ...home,
+    displayOriginX: 0,
+    displayOriginY: 0,
+    input: {},
+    setInteractive: vi.fn(),
+    disableInteractive: vi.fn(),
+    setAlpha: vi.fn(),
+    on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+      handlers.set(event, handler);
+    }),
+    off: vi.fn((event: string) => handlers.delete(event)),
+    setData: vi.fn((key: string, value: unknown) => data.set(key, value)),
+    getData: vi.fn((key: string) => data.get(key)),
+    getWorldTransformMatrix: () => ({ tx: sprite.x, ty: sprite.y }),
+    fire: (event: string, ...args: unknown[]) =>
+      handlers.get(event)?.(...args),
+  };
+  return sprite;
+};
+
+
 const mockPitch = {
   getContainer: () => ({ x: 0, y: 0 }),
 } as unknown as Pitch;
@@ -148,23 +190,6 @@ describe("PlayerPlacementController", () => {
   });
 
   describe("setup hit areas", () => {
-    const figureSprite = () =>
-      ({
-        displayOriginX: 28,
-        displayOriginY: 40,
-        input: {
-          enabled: true,
-          hitArea: { width: 56, height: 82 },
-          hitAreaCallback: Phaser.Geom.Rectangle.Contains,
-        },
-        setInteractive: vi.fn(),
-        disableInteractive: vi.fn(),
-        setAlpha: vi.fn(),
-        setDepth: vi.fn(),
-        on: vi.fn(),
-        off: vi.fn(),
-      }) as unknown as Phaser.GameObjects.Container;
-
     it("gives a sprite the dugout adds during setup the square hit area", () => {
       controller.enablePlacement(team, true, dugoutSprites);
 
@@ -325,63 +350,40 @@ describe("PlayerPlacementController", () => {
   });
 });
 
+const dropOn = (
+  square: { x: number; y: number },
+  isAvailable?: (playerId: string) => boolean
+) => {
+  const pitch = {
+    getContainer: () => ({ x: 0, y: 0 }),
+    worldToGrid: () => square,
+  } as unknown as Pitch;
+  const controller = new PlayerPlacementController({
+    _scene: {} as Phaser.Scene,
+    pitch,
+    validator: new SetupValidator(),
+    ...(isAvailable && { isAvailable }),
+  });
+  const sprite = dugoutSprite({ x: 900, y: 40 });
+  const team = {
+    id: "team-1",
+    players: [{ id: "p1", teamId: "team-1", status: "Reserve" }],
+  } as unknown as Team;
+  controller.enablePlacement(
+    team,
+    true,
+    new Map([["p1", sprite as unknown as Phaser.GameObjects.Container]])
+  );
+  sprite.fire("dragstart");
+
+  sprite.x = 300;
+  sprite.y = 200;
+  sprite.fire("dragend", { worldX: 300, worldY: 200 });
+  return sprite;
+};
+
+
 describe("PlayerPlacementController dugout drops", () => {
-  const dugoutSprite = (home: { x: number; y: number }) => {
-    const handlers = new Map<string, (...args: unknown[]) => void>();
-    const data = new Map<string, unknown>();
-    const sprite = {
-      ...home,
-      displayOriginX: 0,
-      displayOriginY: 0,
-      input: {},
-      setInteractive: vi.fn(),
-      disableInteractive: vi.fn(),
-      setAlpha: vi.fn(),
-      on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-        handlers.set(event, handler);
-      }),
-      off: vi.fn((event: string) => handlers.delete(event)),
-      setData: vi.fn((key: string, value: unknown) => data.set(key, value)),
-      getData: vi.fn((key: string) => data.get(key)),
-      getWorldTransformMatrix: () => ({ tx: sprite.x, ty: sprite.y }),
-      fire: (event: string, ...args: unknown[]) =>
-        handlers.get(event)?.(...args),
-    };
-    return sprite;
-  };
-
-  const dropOn = (
-    square: { x: number; y: number },
-    isAvailable?: (playerId: string) => boolean
-  ) => {
-    const pitch = {
-      getContainer: () => ({ x: 0, y: 0 }),
-      worldToGrid: () => square,
-    } as unknown as Pitch;
-    const controller = new PlayerPlacementController({
-      _scene: {} as Phaser.Scene,
-      pitch,
-      validator: new SetupValidator(),
-      ...(isAvailable && { isAvailable }),
-    });
-    const sprite = dugoutSprite({ x: 900, y: 40 });
-    const team = {
-      id: "team-1",
-      players: [{ id: "p1", teamId: "team-1", status: "Reserve" }],
-    } as unknown as Team;
-    controller.enablePlacement(
-      team,
-      true,
-      new Map([["p1", sprite as unknown as Phaser.GameObjects.Container]])
-    );
-    sprite.fire("dragstart");
-
-    sprite.x = 300;
-    sprite.y = 200;
-    sprite.fire("dragend", { worldX: 300, worldY: 200 });
-    return sprite;
-  };
-
   it("leaves a placed player's dugout sprite where it was dropped", () => {
     const sprite = dropOn({ x: 1, y: 1 });
     expect({ x: sprite.x, y: sprite.y }).toEqual({ x: 300, y: 200 });

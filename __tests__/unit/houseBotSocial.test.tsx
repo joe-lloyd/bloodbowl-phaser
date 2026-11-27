@@ -35,6 +35,7 @@ vi.mock("../../src/firebase/lobby", () => ({
   fetchLobby: () => Promise.resolve({ code: "OWN001", hostUid: "bot", ...world.current }),
 }));
 
+const ignore = () => undefined;
 const invite: Invite = { kind: "match", fromUid: "joe", toUid: "bot", code: "FRIEND", createdAt: Date.now() };
 
 function Lobby() {
@@ -113,7 +114,7 @@ describe("the house bot's browser", () => {
 
   it("takes the next invite once a slow first one fails", async () => {
     const second: Invite = { ...invite, fromUid: "ann", code: "SECOND" };
-    let failFirst: (error: Error) => void = () => undefined;
+    let failFirst: (error: Error) => void = ignore;
     world.acceptLobbyInvite.mockImplementationOnce(
       () => new Promise<string>((_resolve, reject) => { failFirst = reject; })
     );

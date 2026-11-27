@@ -65,8 +65,8 @@ describe("dehydrate/hydrate round trip", () => {
         expect(hydrated.spp).toBe(player.spp);
         expect(hydrated.level).toBe(player.level);
         expect(hydrated.injuries).toEqual(player.injuries);
-        expect(hydrated.skills.map((s) => s.type).sort()).toEqual(
-          player.skills.map((s) => s.type).sort()
+        expect(hydrated.skills.map((s) => s.type).sort((a, b) => a.localeCompare(b))).toEqual(
+          player.skills.map((s) => s.type).sort((a, b) => a.localeCompare(b))
         );
       }
     });
@@ -160,8 +160,8 @@ describe("team hydration and the tolerant reader", () => {
     expect(reloaded.teamValue).toBe(calculateTeamValue(reloaded));
     for (const [index, player] of reloaded.players.entries()) {
       expect(player.stats).toEqual(fixtureValue(team.players[index]).stats);
-      expect(player.skills.map((s) => s.type).sort()).toEqual(
-        fixtureValue(team.players[index]).skills.map((s) => s.type).sort()
+      expect(player.skills.map((s) => s.type).sort((a, b) => a.localeCompare(b))).toEqual(
+        fixtureValue(team.players[index]).skills.map((s) => s.type).sort((a, b) => a.localeCompare(b))
       );
     }
   });
@@ -182,8 +182,10 @@ describe("Matched Play draft-list inducements (MP2)", () => {
     team.advancementMode = "matched-play";
     team.draftInducements = [{ inducement: Inducement.BRIBE, quantity: 2 }];
     const stored = JSON.parse(JSON.stringify(dehydrateTeam(team)));
-    stored.draftInducements.push({ inducement: "Gold Bar", quantity: 1 });
-    stored.draftInducements.push({ inducement: "Bribe", quantity: -1 });
+    stored.draftInducements.push(
+      { inducement: "Gold Bar", quantity: 1 },
+      { inducement: "Bribe", quantity: -1 }
+    );
 
     const { team: reloaded } = hydrateStoredTeam(stored);
 

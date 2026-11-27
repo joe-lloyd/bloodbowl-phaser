@@ -314,9 +314,9 @@ describe("defer-action-commitment", () => {
 
     const eventBus = new EventBus();
     const rejections: unknown[] = [];
-    eventBus.on(GameEventNames.NetworkCommandRejected, (data) =>
-      rejections.push(data)
-    );
+    eventBus.on(GameEventNames.NetworkCommandRejected, (data) => {
+      rejections.push(data);
+    });
 
     const networked = new NetworkedGameService({
       inner: local.gameService,

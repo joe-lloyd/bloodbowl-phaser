@@ -60,14 +60,16 @@ async function findOfferSeed(): Promise<number> {
   throw new Error("no failing pickup found in seed range");
 }
 
+const arbiter = (game: HeadlessGame) =>
+  game.ctx.gameService.getRerollArbiter();
+
 describe("reroll decisions (headless protocol)", () => {
   it("keeps this turn's spent Team Re-roll through a save", async () => {
-    const arbiter = (game: HeadlessGame) =>
-      game.ctx.gameService.getRerollArbiter();
     for (let seed = 1; seed <= 100; seed++) {
       const game = newGame(seed);
       const team1Id = game.ctx.team1.id;
-      if ((await moveOntoBall(game)).pendingDecision?.type !== "reroll")
+      const pickup = await moveOntoBall(game);
+      if (pickup.pendingDecision?.type !== "reroll")
         continue;
       await game.execute({ type: "use-reroll", accept: true, source: "team" });
 
@@ -237,20 +239,21 @@ describe("reroll decisions (headless protocol)", () => {
   });
 });
 
+const makeState = (): GameState => {
+  const state = new HeadlessGame({ seed: 1 }).ctx.gameService.getState();
+  state.turn.teamId = "t1";
+  state.turn.turnNumber = 1;
+  state.turn.isHalf2 = false;
+  return state;
+};
+const player = (id: string): Player =>
+  createTestPlayer({ id, teamId: "t1" });
+
 describe("RerollArbiter constraint matrix", () => {
-  const makeState = (teamId: string, turnNumber = 1): GameState => {
-    const state = new HeadlessGame({ seed: 1 }).ctx.gameService.getState();
-    state.turn.teamId = teamId;
-    state.turn.turnNumber = turnNumber;
-    state.turn.isHalf2 = false;
-    return state;
-  };
-  const player = (id: string, teamId: string): Player =>
-    createTestPlayer({ id, teamId });
 
   it("team reroll: own turn only, bank > 0, once per turn, decrements", () => {
     const team: Team = { ...createTestTeam(), id: "t1", rerolls: 2 };
-    const state = makeState("t1");
+    const state = makeState();
     const arbiter = new RerollArbiter(state, () => team);
 
     expect(arbiter.teamRerollAvailable("t2")).toBe(false);
@@ -271,11 +274,11 @@ describe("RerollArbiter constraint matrix", () => {
   });
 
   it("skill reroll: once per action per player, independent across players", () => {
-    const state = makeState("t1");
+    const state = makeState();
     const arbiter = new RerollArbiter(state, () => undefined);
     const dodge = SkillType.DODGE;
-    const p1 = player("p1", "t1");
-    const p2 = player("p2", "t1");
+    const p1 = player("p1");
+    const p2 = player("p2");
 
     expect(arbiter.skillRerollAvailable(p1, dodge)).toBe(true);
     arbiter.consumeSkillReroll(p1, dodge);

@@ -50,6 +50,8 @@ function clickAt(
   controller.handlePointerDown({ worldX: 0, worldY: 0 }, false);
 }
 
+const noop = () => {};
+
 describe("GameplayInteractionController", () => {
   let controller: GameplayInteractionController;
 
@@ -129,7 +131,7 @@ describe("GameplayInteractionController", () => {
     });
 
     it("aims Hypnotic Gaze at an adjacent opponent, and lets the gazer go once it resolves", async () => {
-      let resolveGaze: (ok: boolean) => void = () => {};
+      let resolveGaze: (ok: boolean) => void = noop;
       mockGameService.performSpecialAction.mockImplementation(
         () => new Promise<boolean>((resolve) => (resolveGaze = resolve))
       );
@@ -165,7 +167,7 @@ describe("GameplayInteractionController", () => {
       });
       mockScene.team1.players = [player1, mate];
       mockGameService.getTeammates.mockReturnValue([mate]);
-      let resolveHandoff: () => void = () => {};
+      let resolveHandoff: () => void = noop;
       mockGameService.handOffBall.mockImplementation(
         () => new Promise<{ success: boolean }>((resolve) => { resolveHandoff = () => { resolve({ success: true }); }; })
       );

@@ -18,10 +18,10 @@ const sha256 = async (text: string) =>
     .join("");
 
 async function lobbyWith(
-  hostSecret: string,
   guestSecret: string,
   revealGuest = guestSecret
 ): Promise<LobbyDoc> {
+  const hostSecret = "aaaa";
   return {
     code: "SEED01",
     hostUid: "host",
@@ -40,23 +40,23 @@ async function lobbyWith(
 
 describe("joint seed", () => {
   it("both coaches derive the same seed from both secrets", async () => {
-    const lobby = await lobbyWith("aaaa", "bbbb");
+    const lobby = await lobbyWith("bbbb");
     expect(seedReady(lobby)).toBe(true);
     const seed = await seedFor(lobby);
     expect(seed).toBe(await seedFor(structuredClone(lobby)));
     expect(Number.isSafeInteger(seed)).toBe(true);
     expect(seed).toBeGreaterThanOrEqual(0);
 
-    expect(await seedFor(await lobbyWith("aaaa", "cccc"))).not.toBe(seed);
+    expect(await seedFor(await lobbyWith("cccc"))).not.toBe(seed);
   });
 
   it("refuses a secret that does not match its commitment", async () => {
-    const lobby = await lobbyWith("aaaa", "bbbb", "swapped-after-seeing-yours");
+    const lobby = await lobbyWith("bbbb", "swapped-after-seeing-yours");
     await expect(seedFor(lobby)).rejects.toThrow(/does not match/);
   });
 
   it("is not ready until both coaches have revealed", async () => {
-    const lobby = await lobbyWith("aaaa", "bbbb");
+    const lobby = await lobbyWith("bbbb");
     delete fixtureValue(lobby.seedReveals)["guest"];
     expect(seedReady(lobby)).toBe(false);
   });

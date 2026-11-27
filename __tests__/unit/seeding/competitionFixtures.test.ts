@@ -22,14 +22,15 @@ describe("competitionFixtures", () => {
       const states = competitions
         .filter((d) => d.type === type)
         .map((d) => d.status)
-        .sort();
+        .sort((a, b) => a.localeCompare(b));
       expect(states).toEqual(["active", "complete", "draft"]);
     }
   });
 
   it("draft competitions have no results and zeroed standings", () => {
     const { competitions } = build();
-    for (const doc of competitions.filter((d) => d.status === "draft")) {
+    for (const doc of competitions) {
+      if (doc.status !== "draft") continue;
       expect(doc.fixtures.every((f) => f.status !== "complete")).toBe(true);
       expect(doc.fixtures.every((f) => !f.result)).toBe(true);
       expect(doc.standings.every((s) => s.played === 0)).toBe(true);
@@ -48,8 +49,8 @@ describe("competitionFixtures", () => {
     expect(final.result).toBeUndefined();
 
     const winners = semis.map((f) => fixtureValue(f.result).winnerEntrantId);
-    expect([final.homeEntrantId, final.awayEntrantId].sort()).toEqual(
-      [...winners].sort()
+    expect([final.homeEntrantId, final.awayEntrantId].sort((a, b) => String(a).localeCompare(String(b)))).toEqual(
+      [...winners].sort((a, b) => String(a).localeCompare(String(b)))
     );
     expect(active.championEntrantId).toBeUndefined();
   });
@@ -82,7 +83,8 @@ describe("competitionFixtures", () => {
   it("assigns each team to at most one active competition", () => {
     const { teams, competitions } = build();
     const activeByTeam = new Map<string, string>();
-    for (const doc of competitions.filter((d) => d.status === "active")) {
+    for (const doc of competitions) {
+      if (doc.status !== "active") continue;
       for (const entrant of doc.entrants) {
         activeByTeam.set(entrant.teamId, doc.id);
       }

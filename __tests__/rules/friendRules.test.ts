@@ -76,9 +76,8 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
           findCoachByFriendCode(profile.friendCode)
         )
       ).toBe(alice);
-      expect(
-        (await as(alice, () => ensureCoachProfile(alice))).friendCode
-      ).toBe(profile.friendCode);
+      const coach = await as(alice, () => ensureCoachProfile(alice));
+      expect(coach.friendCode).toBe(profile.friendCode);
     });
 
     it("is made once when two pages ask for it at the same moment", async () => {
@@ -89,9 +88,8 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
       ]);
 
       expect(second.friendCode).toBe(first.friendCode);
-      expect(
-        (await as(alice, () => ensureCoachProfile(alice))).friendCode
-      ).toBe(first.friendCode);
+      const coach = await as(alice, () => ensureCoachProfile(alice));
+      expect(coach.friendCode).toBe(first.friendCode);
     });
 
     it("keeps the name a coach chose before profiles existed", async () => {
@@ -100,9 +98,8 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
         coachName: "Grim Gutrot",
       });
 
-      expect(
-        (await as(alice, () => ensureCoachProfile(alice))).coachName
-      ).toBe("Grim Gutrot");
+      const coach = await as(alice, () => ensureCoachProfile(alice));
+      expect(coach.coachName).toBe("Grim Gutrot");
       await as(alice, () => setCoachName(alice, "Snotling Sam"));
       expect(await as(alice, () => getCoachName(alice))).toBe("Snotling Sam");
     });
@@ -113,9 +110,8 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
         coachName: "Grimgor Ironhide, Da Biggest Boss of Da Black Crag Boyz",
       });
 
-      expect(
-        (await as(alice, () => ensureCoachProfile(alice))).coachName
-      ).toBe("Grimgor Ironhide, Da Biggest Boss of Da");
+      const coach = await as(alice, () => ensureCoachProfile(alice));
+      expect(coach.coachName).toBe("Grimgor Ironhide, Da Biggest Boss of Da");
       await as(alice, () => setCoachName(alice, "Grim"));
       expect(await as(alice, () => getCoachName(alice))).toBe("Grim");
     });
@@ -127,9 +123,8 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
         coachName: `${"A".repeat(39)}🏈 and more`,
       });
 
-      expect(
-        (await as(alice, () => ensureCoachProfile(alice))).coachName
-      ).toBe(`${"A".repeat(39)}🏈`);
+      const coach = await as(alice, () => ensureCoachProfile(alice));
+      expect(coach.coachName).toBe(`${"A".repeat(39)}🏈`);
       await as(alice, () => setCoachName(alice, `${"B".repeat(39)}${family}${family}`));
       expect(await as(alice, () => getCoachName(alice))).toBe(`${"B".repeat(39)}${family}`);
     });
@@ -141,9 +136,8 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
         coachName: family.repeat(40),
       });
 
-      expect(
-        (await as(alice, () => ensureCoachProfile(alice))).coachName
-      ).toBe(family.repeat(8));
+      const coach = await as(alice, () => ensureCoachProfile(alice));
+      expect(coach.coachName).toBe(family.repeat(8));
       await as(alice, () => setCoachName(alice, family.repeat(40)));
       expect(await as(alice, () => getCoachName(alice))).toBe(family.repeat(8));
     });
@@ -211,7 +205,7 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
         setDoc(
           doc(dbFor(carol), "friendships", friendshipKey(alice, carol)),
           {
-            uids: [alice, carol].sort(),
+            uids: [alice, carol].sort((a, b) => a.localeCompare(b)),
             requesterUid: alice,
             status: "accepted",
             createdAt: Date.now(),
@@ -255,14 +249,12 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
       const joined = await as(bob, () => acceptLobbyInvite(invite));
 
       expect(joined).toBe(code);
-      expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBe(bob);
-      expect(
-        (
-          await getDocs(
-            query(collection(dbFor(bob), "invites"), where("toUid", "==", bob))
-          )
-        ).size
-      ).toBe(0);
+      const lobby = await as(alice, () => fetchLobby(code));
+      expect(lobby?.guestUid).toBe(bob);
+      const remaining = await getDocs(
+        query(collection(dbFor(bob), "invites"), where("toUid", "==", bob))
+      );
+      expect(remaining.size).toBe(0);
     });
 
     it("reuses the host's open lobby for a second friend", async () => {
@@ -314,7 +306,8 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
           acceptLobbyInvite({ kind: "match", fromUid: alice, toUid: bob, code, createdAt: 1 })
         )
       ).rejects.toThrow("Finish your current match before accepting an invite.");
-      expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBeNull();
+      const lobby = await as(alice, () => fetchLobby(code));
+      expect(lobby?.guestUid).toBeNull();
     });
 
     it("cannot pull a coach away from a coach seated with them", async () => {
@@ -329,7 +322,8 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
           acceptLobbyInvite({ kind: "match", fromUid: alice, toUid: bob, code, createdAt: 1 })
         )
       ).rejects.toThrow("Leave your current game before accepting an invite.");
-      expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBeNull();
+      const lobby = await as(alice, () => fetchLobby(code));
+      expect(lobby?.guestUid).toBeNull();
     });
 
     it("closes the empty lobby the coach was hosting when they accept", async () => {
@@ -341,16 +335,18 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
         acceptLobbyInvite({ kind: "match", fromUid: alice, toUid: bob, code, createdAt: 1 })
       );
       expect(await as(bob, () => fetchLobby(own.code))).toBeNull();
-      expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBe(bob);
+      const lobby = await as(alice, () => fetchLobby(code));
+      expect(lobby?.guestUid).toBe(bob);
     });
 
     it("is cleared only if it is still the one the coach answered", async () => {
       const [alice, bob] = await friends();
       const first = await as(alice, () => createLobby(alice, "Alice"));
       await as(alice, () => sendMatchInvite({ fromUid: alice, toUid: bob, code: first.code }));
-      const answered = (
-        await getDocs(query(collection(dbFor(bob), "invites"), where("toUid", "==", bob)))
-      ).docs.map((entry) => readInvite(entry.data()))[0];
+      const answeredSnapshot = await getDocs(
+        query(collection(dbFor(bob), "invites"), where("toUid", "==", bob))
+      );
+      const answered = answeredSnapshot.docs.map((entry) => readInvite(entry.data()))[0];
       if (!answered) throw new Error("no invite");
       await new Promise((resolve) => setTimeout(resolve, 5));
       await as(alice, () => sendMatchInvite({ fromUid: alice, toUid: bob, code: "NEWONE" }));
@@ -368,9 +364,10 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
       const now = vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
       try {
         await as(alice, () => sendMatchInvite({ fromUid: alice, toUid: bob, code: "FIRST1" }));
-        const answered = (
-          await getDocs(query(collection(dbFor(bob), "invites"), where("toUid", "==", bob)))
-        ).docs.map((entry) => readInvite(entry.data()))[0];
+        const answeredSnapshot = await getDocs(
+          query(collection(dbFor(bob), "invites"), where("toUid", "==", bob))
+        );
+        const answered = answeredSnapshot.docs.map((entry) => readInvite(entry.data()))[0];
         if (!answered) throw new Error("no invite");
         await as(alice, () => sendMatchInvite({ fromUid: alice, toUid: bob, code: "SECOND" }));
 

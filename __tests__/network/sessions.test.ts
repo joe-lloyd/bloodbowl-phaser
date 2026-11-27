@@ -11,6 +11,33 @@ import {
   kickoffInteractionScenario,
 } from "./sessionsHarness";
 
+async function findKickoffSeed(event: KickoffEvent): Promise<number> {
+  for (let seed = 1; seed < 400; seed++) {
+    const probe = new HeadlessGame({
+      scenario: kickoffInteractionScenario,
+      seed,
+    });
+    const response = await probe.execute({
+      type: "kick-ball",
+      playerId: fixtureValue(probe.ctx.team1.players[0]).id,
+      x: 14,
+      y: 5,
+    });
+    const result = response.events.find((e) => e.name === "kickoffResult")
+      ?.data as { event?: KickoffEvent } | undefined;
+    if (
+      result?.event === event &&
+      response.pendingDecision?.type === "kickoff-event"
+    ) {
+      return seed;
+    }
+    if (response.pendingDecision?.type === "kickoff-event") {
+      await probe.execute({ type: "kickoff-skip" });
+    }
+  }
+  throw new Error(`no seed found for ${event}`);
+}
+
 describe("networked sessions", () => {
   it("proxies a guest Quick Snap selection to the host and mirrors the board", async () => {
     let quickSnapSeed = 0;
@@ -126,36 +153,6 @@ describe("networked sessions", () => {
       match.game.snapshot().ballPosition
     );
   });
-
-  async function findKickoffSeed(
-    event: KickoffEvent,
-    maxSeed = 400
-  ): Promise<number> {
-    for (let seed = 1; seed < maxSeed; seed++) {
-      const probe = new HeadlessGame({
-        scenario: kickoffInteractionScenario,
-        seed,
-      });
-      const response = await probe.execute({
-        type: "kick-ball",
-        playerId: fixtureValue(probe.ctx.team1.players[0]).id,
-        x: 14,
-        y: 5,
-      });
-      const result = response.events.find((e) => e.name === "kickoffResult")
-        ?.data as { event?: KickoffEvent } | undefined;
-      if (
-        result?.event === event &&
-        response.pendingDecision?.type === "kickoff-event"
-      ) {
-        return seed;
-      }
-      if (response.pendingDecision?.type === "kickoff-event") {
-        await probe.execute({ type: "kickoff-skip" });
-      }
-    }
-    throw new Error(`no seed found for ${event}`);
-  }
 
   it("proxies a guest High Kick placement to the host and mirrors the board", async () => {
     const match = createMatch({

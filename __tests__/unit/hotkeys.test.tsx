@@ -17,10 +17,12 @@ beforeEach(() => {
   root = createRoot(container);
   bus = new EventBus();
   answers = [];
-  bus.on(GameEventNames.UI_ReactionResponse, (answer) => answers.push(answer));
-  bus.on(GameEventNames.UI_ConfirmationResult, (answer) =>
-    answers.push(answer)
-  );
+  bus.on(GameEventNames.UI_ReactionResponse, (answer) => {
+    answers.push(answer);
+  });
+  bus.on(GameEventNames.UI_ConfirmationResult, (answer) => {
+    answers.push(answer);
+  });
 });
 
 afterEach(async () => {

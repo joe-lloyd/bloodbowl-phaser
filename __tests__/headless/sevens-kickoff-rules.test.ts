@@ -96,10 +96,11 @@ describe("K3: Time-Out", () => {
   );
 });
 
+async function alertDefence() {
+  return kick([5, 1, 1, 1, 3, 6], { x: 15, y: 5 });
+}
+
 describe("K4: Alert Defence", () => {
-  async function alertDefence() {
-    return kick([5, 1, 1, 1, 3, 6], { x: 15, y: 5 });
-  }
 
   it("gives the kicking coach D3+1 Open players", async () => {
     const { response } = await alertDefence();

@@ -7,12 +7,14 @@ import { GameEventNames } from "../../../src/types/events";
 import { followMatchWithCamera } from "../../../src/scenes/matchCamera";
 import type { GameScene } from "../../../src/scenes/GameScene";
 
+const acknowledgeNothing = () => {};
+
 function setup() {
   const game = new HeadlessGame({
     scenario: fixtureValue(SCENARIOS.find((s) => s.id === "camera-spread-team")),
     seed: 1,
   });
-  let acknowledge = () => {};
+  let acknowledge = acknowledgeNothing;
   const gate = new Promise<void>((resolve) => {
     acknowledge = resolve;
   });

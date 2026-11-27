@@ -7,10 +7,13 @@ import { SubPhase } from "../../src/types/GameState";
 import { Inducement } from "../../src/types/Inducements";
 
 async function ready(game: HeadlessGame) {
-  for (const team of [game.ctx.team2, game.ctx.team1])
-    expect(
-      (await game.execute({ type: "ready-weather", teamId: team.id })).ok
-    ).toBe(true);
+  for (const team of [game.ctx.team2, game.ctx.team1]) {
+    const readied = await game.execute({
+      type: "ready-weather",
+      teamId: team.id,
+    });
+    expect(readied.ok).toBe(true);
+  }
 }
 
 const team2Confirms = { type: "confirm-inducements", teamId: "team2" } as const;
@@ -25,14 +28,16 @@ describe("graphical match pregame through the protocol", () => {
   it("requires both ready and the coach with petty cash confirmed before any coin toss or setup mutation", async () => {
     const game = pregameGame();
     const rng = game.ctx.rng.captureState();
-    expect((await game.execute(buyTraining)).reason).toContain(
-      "teams-not-ready"
-    );
-    expect((await game.execute({ type: "coin-flip" })).ok).toBe(false);
+    const unreadyBuy = await game.execute(buyTraining);
+    expect(unreadyBuy.reason).toContain("teams-not-ready");
+    const flipped = await game.execute({ type: "coin-flip" });
+    expect(flipped.ok).toBe(false);
     expect(game.ctx.rng.captureState()).toEqual(rng);
-    expect(
-      (await game.execute({ type: "start-setup", kickingTeamId: "team2" })).ok
-    ).toBe(false);
+    const earlySetup = await game.execute({
+      type: "start-setup",
+      kickingTeamId: "team2",
+    });
+    expect(earlySetup.ok).toBe(false);
     expect(game.driveKickingTeamId()).toBeNull();
     await ready(game);
 
@@ -40,11 +45,15 @@ describe("graphical match pregame through the protocol", () => {
       team1: false,
       team2: true,
     });
-    expect((await game.execute(team2Confirms)).ok).toBe(true);
-    expect(
-      (await game.execute({ type: "start-setup", kickingTeamId: "team2" })).ok
-    ).toBe(false);
-    expect((await game.execute(buyTraining)).ok).toBe(true);
+    const team2Confirmed = await game.execute(team2Confirms);
+    expect(team2Confirmed.ok).toBe(true);
+    const setupTooSoon = await game.execute({
+      type: "start-setup",
+      kickingTeamId: "team2",
+    });
+    expect(setupTooSoon.ok).toBe(false);
+    const bought = await game.execute(buyTraining);
+    expect(bought.ok).toBe(true);
     await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().inducements?.inventory).toEqual([
       expect.objectContaining({
@@ -53,9 +62,11 @@ describe("graphical match pregame through the protocol", () => {
         ownerTeamId: "team1",
       }),
     ]);
-    expect(
-      (await game.execute({ type: "start-setup", kickingTeamId: "team2" })).ok
-    ).toBe(true);
+    const setupAllowed = await game.execute({
+      type: "start-setup",
+      kickingTeamId: "team2",
+    });
+    expect(setupAllowed.ok).toBe(true);
     expect(game.snapshot().subPhase).toBe(SubPhase.SETUP_KICKING);
   });
 
@@ -75,9 +86,11 @@ describe("graphical match pregame through the protocol", () => {
       original.ctx.gameService.getInducementOffer()
     );
 
-    expect(
-      (await game.execute({ ...buyTraining, teamId: "team2" })).reason
-    ).toContain("not-your-turn-to-buy");
+    const otherCoachBuy = await game.execute({
+      ...buyTraining,
+      teamId: "team2",
+    });
+    expect(otherCoachBuy.reason).toContain("not-your-turn-to-buy");
     await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().pregameInducements?.complete).toBe(true);
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
@@ -88,7 +101,8 @@ describe("graphical match pregame through the protocol", () => {
     expect(
       fixtureValue(game.snapshot().inducements?.inventory[0]).remainingUses
     ).toBe(0);
-    expect((await game.execute(buyTraining)).ok).toBe(false);
+    const rebuy = await game.execute(buyTraining);
+    expect(rebuy.ok).toBe(false);
   });
 
   it("defers draft loading, preserves zero Matched Play petty cash, and loads its list once", async () => {
@@ -103,7 +117,8 @@ describe("graphical match pregame through the protocol", () => {
       "team1",
     ]);
     expect(game.snapshot().pregameInducements?.complete).toBe(true);
-    expect((await game.execute(buyTraining)).ok).toBe(false);
+    const lateBuy = await game.execute(buyTraining);
+    expect(lateBuy.ok).toBe(false);
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
     expect(
       fixtureValue(game.snapshot().inducements?.inventory[0]).quantity
@@ -137,18 +152,24 @@ describe("graphical match pregame through the protocol", () => {
       initialState: { ...deserializeGameState(snapshot), paysWinnings: true },
       seed: 23,
     });
-    for (const teamId of fixtureValue(pregame.buyOrder))
-      expect(
-        (await game.execute({ type: "confirm-inducements", teamId })).ok
-      ).toBe(true);
+    for (const teamId of fixtureValue(pregame.buyOrder)) {
+      const confirmed = await game.execute({
+        type: "confirm-inducements",
+        teamId,
+      });
+      expect(confirmed.ok).toBe(true);
+    }
     for (let asked = 0; asked < 2; asked++) {
       expect(game.pendingDecision()).toMatchObject({ kind: "team-captain" });
-      expect((await game.execute({ type: "choose-inducement" })).ok).toBe(true);
+      const chosen = await game.execute({ type: "choose-inducement" });
+      expect(chosen.ok).toBe(true);
     }
     expect(game.snapshot().pregameInducements?.resolving).toBe(false);
-    expect(
-      (await game.execute({ type: "start-setup", kickingTeamId: "team1" })).ok
-    ).toBe(true);
+    const team1Setup = await game.execute({
+      type: "start-setup",
+      kickingTeamId: "team1",
+    });
+    expect(team1Setup.ok).toBe(true);
   });
 
   it.each(["sevens", "street-bowl", "beach-bowl", "gutter-bowl"] as const)(
@@ -173,14 +194,11 @@ describe("graphical match pregame through the protocol", () => {
       ...buyTraining,
       inducement: Inducement.PRAYERS_TO_NUFFLE,
     });
-    expect(
-      (
-        await game.execute({
-          ...buyTraining,
-          inducement: Inducement.DESPERATE_MEASURES,
-        })
-      ).ok
-    ).toBe(true);
+    const desperate = await game.execute({
+      ...buyTraining,
+      inducement: Inducement.DESPERATE_MEASURES,
+    });
+    expect(desperate.ok).toBe(true);
     const confirmed = await game.execute({
       type: "confirm-inducements",
       teamId: "team1",
@@ -197,9 +215,11 @@ describe("graphical match pregame through the protocol", () => {
     expect(game.ctx.rng.captureState()).toEqual(rng);
     expect(game.snapshot()).toEqual(before);
     expect(() => game.matchSave()).toThrow("Finish pregame choices");
-    expect(
-      (await game.execute({ type: "start-setup", kickingTeamId: "team2" })).ok
-    ).toBe(false);
+    const setupBeforePrayers = await game.execute({
+      type: "start-setup",
+      kickingTeamId: "team2",
+    });
+    expect(setupBeforePrayers.ok).toBe(false);
     const pending = game.pendingDecision();
     if (pending?.type !== "inducement-choice")
       throw new Error("missing prayer choice");
@@ -228,8 +248,10 @@ describe("graphical match pregame through the protocol", () => {
         fixtureValue(hangover.playerIds[0])
       ]?.confinedToReserves
     ).toBe(true);
-    expect(
-      (await game.execute({ type: "start-setup", kickingTeamId: "team2" })).ok
-    ).toBe(true);
+    const setupAfterPrayers = await game.execute({
+      type: "start-setup",
+      kickingTeamId: "team2",
+    });
+    expect(setupAfterPrayers.ok).toBe(true);
   });
 });

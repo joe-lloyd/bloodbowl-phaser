@@ -84,7 +84,7 @@ function startNew(
   return match;
 }
 
-function resume(save: MatchSave, pace: number) {
+function resume(save: MatchSave) {
   const restored = restoreMatchSave(save);
   const eventBus = new EventBus();
   rollKickoffsAtOnce(eventBus);
@@ -93,7 +93,7 @@ function resume(save: MatchSave, pace: number) {
     team1: restored.teams[0],
     team2: restored.teams[1],
     computerTeamId: fixtureValue(save.computer).computerTeamId,
-    pace,
+    pace: 0,
     resume: restored,
     autosave,
   });
@@ -138,7 +138,8 @@ async function humanStep(
     rng,
   });
   let commands = 0;
-  for (const command of fixtureValue(point.candidates[index]).commands) {
+  const { commands: sequence } = fixtureValue(point.candidates[index]);
+  for (const command of sequence) {
     const response = await live.run(command);
     expect(response.reason).toBeUndefined();
     commands++;
@@ -230,7 +231,7 @@ describe("saving a match against the computer", () => {
       );
       live.close();
 
-      resume(save, 0);
+      resume(save);
 
       const { turnManager, ...resumed } = liveGame().snapshot();
       const { turnManager: _saved, ...saved } = save.snapshot;
@@ -251,7 +252,7 @@ describe("saving a match against the computer", () => {
     const save = await savedTurn("team2");
     live.close();
 
-    const { boardReady } = resume(save, 0);
+    const { boardReady } = resume(save);
     const before = JSON.stringify(liveGame().snapshot());
     await ms(400);
     expect(JSON.stringify(liveGame().snapshot())).toBe(before);
@@ -299,7 +300,7 @@ describe("saving a match against the computer", () => {
       }
       resumedFrom = saved;
       live.close();
-      const next = resume(save, 0);
+      const next = resume(save);
       live = next.live;
       next.boardReady();
       reloads++;

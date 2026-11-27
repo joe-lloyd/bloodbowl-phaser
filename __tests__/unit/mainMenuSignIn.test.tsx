@@ -30,7 +30,9 @@ const sdk = vi.hoisted(() => {
     reject: (error: Error) => void;
   }
   const deferred = <T,>(list: Deferred<T>[]) =>
-    new Promise<T>((resolve, reject) => list.push({ resolve, reject }));
+    new Promise<T>((resolve, reject) => {
+      list.push({ resolve, reject });
+    });
   interface FakeAuthState {
     current: FakeUser | null;
     onChange: (user: FakeUser | null) => void;
@@ -187,11 +189,12 @@ describe("signing in from the main menu", () => {
     container.remove();
   });
 
+  const hasClubMenu = () =>
+    [...container.querySelectorAll("button")].some(
+      (button) => button.textContent.trim() === "My Clubs"
+    );
+
   it("shows the Club menu only to an admin", () => {
-    const hasClubMenu = () =>
-      [...container.querySelectorAll("button")].some(
-        (button) => button.textContent.trim() === "My Clubs"
-      );
     expect(hasClubMenu()).toBe(false);
 
     vi.stubEnv("VITE_ADMIN_EMAILS", "admin@example.com");

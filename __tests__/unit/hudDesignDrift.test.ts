@@ -1,9 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
-const UI_DIR = join(ROOT, "src/ui");
+const UI_DIR = path.join(ROOT, "src/ui");
 const SHARED = "src/ui/components/componentWarehouse/";
 
 interface Rule {
@@ -110,7 +110,7 @@ function scan(file: string, source: string): Finding[] {
 const uiFiles = () =>
   readdirSync(UI_DIR, { recursive: true, encoding: "utf8" })
     .filter((name) => name.endsWith(".tsx"))
-    .map((name) => join(UI_DIR, name));
+    .map((name) => path.join(UI_DIR, name));
 
 describe("the design rules", () => {
   it("flags each kind of drift", () => {
@@ -153,7 +153,7 @@ describe("the design rules", () => {
     const files = uiFiles();
     expect(files.length).toBeGreaterThan(100);
     const drift = files
-      .flatMap((path) => scan(relative(ROOT, path), readFileSync(path, "utf8")))
+      .flatMap((file) => scan(path.relative(ROOT, file), readFileSync(file, "utf8")))
       .filter(({ file, match }) => !ALLOWED.has(`${file}: ${match}`))
       .map(
         ({ file, line, rule, match }) =>

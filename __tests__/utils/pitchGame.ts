@@ -35,11 +35,13 @@ export function pitchGame({ format, team1 = [], team2 = [], ball }: Pitch) {
   };
   const game = new HeadlessGame({ scenario, seed: 1, format });
   const rolls: string[] = [];
-  game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) =>
-    rolls.push(`${roll.rollType} ${String(roll.value)}`)
-  );
+  game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) => {
+    rolls.push(`${roll.rollType} ${String(roll.value)}`);
+  });
   const wallHits: unknown[] = [];
-  game.ctx.eventBus.on(GameEventNames.BallHitWall, (hit) => wallHits.push(hit));
+  game.ctx.eventBus.on(GameEventNames.BallHitWall, (hit) => {
+    wallHits.push(hit);
+  });
   return { game, rolls, wallHits };
 }
 

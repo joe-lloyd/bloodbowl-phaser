@@ -148,7 +148,8 @@ const isFree = (game: HeadlessGame, x: number, y: number) =>
   !game.ctx.gameService.getPlayerAt(x, y);
 
 function mover(game: HeadlessGame, teamId: string, skip: string[] = []) {
-  for (const player of fixtureValue(game.ctx.gameService.getTeam(teamId)).players) {
+  const players = fixtureValue(game.ctx.gameService.getTeam(teamId)).players;
+  for (const player of players) {
     const at = player.gridPosition;
     if (!at || player.status !== PlayerStatus.ACTIVE) continue;
     if (skip.includes(player.id)) continue;
@@ -174,7 +175,8 @@ async function playMiniTurn(
   const second = mover(game, owner, [first.id]).player;
   for (const { id } of [first, second])
     await play(owner, { type: "kickoff-select-player", playerId: id });
-  expect((await play(owner, { type: "kickoff-confirm" })).ok).toBe(true);
+  const confirmed = await play(owner, { type: "kickoff-confirm" });
+  expect(confirmed.ok).toBe(true);
 
   const other = [game.ctx.team1.id, game.ctx.team2.id].find((id) => id !== owner);
   if (guarded) {
@@ -227,17 +229,25 @@ async function resolveOpening(table: Table) {
     if (pending.type !== "kickoff-event") {
       throw new Error(`unexpected ${pending.type} in the opening`);
     }
-    switch (pending.event) {
-      case KickoffEvent.CHARGE:
-      case KickoffEvent.ALERT_DEFENCE:
-      case KickoffEvent.QUICK_SNAP:
-        await playMiniTurn(table, owner, pending.event);
-        break;
-      default:
-        await play(owner, { type: "kickoff-skip" });
-    }
+    await resolveKickoffEvent(table, owner, pending.event);
   }
   throw new Error("the opening never settled");
+}
+
+async function resolveKickoffEvent(
+  table: Table,
+  owner: string,
+  event: KickoffEvent
+) {
+  switch (event) {
+    case KickoffEvent.CHARGE:
+    case KickoffEvent.ALERT_DEFENCE:
+    case KickoffEvent.QUICK_SNAP:
+      await playMiniTurn(table, owner, event);
+      return;
+    default:
+      await table.play(owner, { type: "kickoff-skip" });
+  }
 }
 
 const EVENTS = [...new Set(Object.values(KICKOFF_TABLE))];
@@ -262,15 +272,12 @@ describe.each([
         activeTeamId: game.ctx.team2.id,
       });
       const { player, to } = mover(game, game.ctx.team2.id);
-      expect(
-        (
-          await play(game.ctx.team2.id, {
-            type: "declare-action",
-            playerId: player.id,
-            action: "move",
-          })
-        ).ok
-      ).toBe(true);
+      const declared = await play(game.ctx.team2.id, {
+        type: "declare-action",
+        playerId: player.id,
+        action: "move",
+      });
+      expect(declared.ok).toBe(true);
       const moved = await play(game.ctx.team2.id, {
         type: "move",
         playerId: player.id,

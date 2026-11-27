@@ -22,6 +22,8 @@ const empty = (): DriveTally => ({
   stalledMarked: 0,
 });
 
+const file = (argv: string[]) => driveArgs(argv).out;
+
 describe("policy-lab drives", () => {
   it("keeps the ball through the last turn of a half and holds the half", async () => {
     const game = new HeadlessGame({
@@ -44,8 +46,10 @@ describe("policy-lab drives", () => {
     const tallies: [DriveTally, DriveTally] = [empty(), empty()];
     const watch = watchDrives(game, tallies);
 
-    for (let i = 0; i < 3; i++)
-      expect((await game.execute({ type: "end-turn" })).ok).toBe(true);
+    for (let i = 0; i < 3; i++) {
+      const result = await game.execute({ type: "end-turn" });
+      expect(result.ok).toBe(true);
+    }
     expect(game.ctx.gameService.getState().ballPosition).toBeNull();
     watch.finish();
 
@@ -62,7 +66,6 @@ describe("policy-lab drives", () => {
   });
 
   it("keeps filtered and sharded probes off the stage summary", () => {
-    const file = (argv: string[]) => driveArgs(argv).out;
     expect(file(["run"])).toBe("drives-summary.json");
     expect(file(["run", "Dwarf"])).toBe("drives-summary-dwarf.json");
     expect(file(["run", "Tomb Kings", "--shard", "2/8"])).toBe(

@@ -24,15 +24,15 @@ const scenario: Scenario = {
 it("raises the turnover banner after the armour and injury dice", async () => {
   const game = new HeadlessGame({ scenario, seed: 1 });
   const seen: string[] = [];
-  game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ rollType }) =>
-    seen.push(rollType)
-  );
-  game.ctx.eventBus.on(GameEventNames.UI_Turnover, ({ reason }) =>
-    seen.push(`banner: ${reason}`)
-  );
-  game.ctx.eventBus.on(GameEventNames.UI_Announce, (moment) =>
-    seen.push(`announce: ${moment.kind}`)
-  );
+  game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ rollType }) => {
+    seen.push(rollType);
+  });
+  game.ctx.eventBus.on(GameEventNames.UI_Turnover, ({ reason }) => {
+    seen.push(`banner: ${reason}`);
+  });
+  game.ctx.eventBus.on(GameEventNames.UI_Announce, (moment) => {
+    seen.push(`announce: ${moment.kind}`);
+  });
 
   forceDice(game.ctx.rng, [1, 6, 6, 1, 2]);
   const mover = game.ctx.team1.players[0];

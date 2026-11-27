@@ -9,8 +9,10 @@ type SnapshotListener = (snapshot: {
 }) => void;
 let snapshotListener: SnapshotListener | null = null;
 
-vi.mock("firebase/firestore", async (importOriginal) => ({
-  Timestamp: (await importOriginal<typeof import("firebase/firestore")>()).Timestamp,
+vi.mock("firebase/firestore", async (importOriginal) => {
+  const original = await importOriginal<typeof import("firebase/firestore")>();
+  return {
+  Timestamp: original.Timestamp,
   collection: vi.fn(),
   deleteDoc: vi.fn(),
   doc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join("/") })),
@@ -29,7 +31,8 @@ vi.mock("firebase/firestore", async (importOriginal) => ({
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
   writeBatch: vi.fn(),
-}));
+  };
+});
 vi.mock("../../src/firebase/config", () => ({ getDb: vi.fn(() => ({})) }));
 
 import {
@@ -96,6 +99,12 @@ describe("this coach's own connection comes first", () => {
   });
 });
 
+const snapshot = (fromCache: boolean) => ({
+  metadata: { fromCache, hasPendingWrites: false },
+  exists: () => true,
+  data: () => lobbyDoc([]),
+});
+
 describe("subscribeMatchLobby's own link", () => {
   let seen: boolean[];
   let stop: () => void;
@@ -120,11 +129,6 @@ describe("subscribeMatchLobby's own link", () => {
   });
 
   it("counts a lost server link as offline once the server has been reached", () => {
-    const snapshot = (fromCache: boolean) => ({
-      metadata: { fromCache, hasPendingWrites: false },
-      exists: () => true,
-      data: () => lobbyDoc([]),
-    });
     snapshotListener?.(snapshot(true));
     snapshotListener?.(snapshot(false));
     snapshotListener?.(snapshot(true));

@@ -2,7 +2,7 @@ import { createTestPlayer } from "../fixtures/players";
 import { shouldUpdateVisualBaselines } from "../../src/boundary/testEnvironment";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderMatchStateBaseline } from "./matchStateVisualBaseline";
 import { type GameState } from "../../src/types/GameState";
@@ -112,7 +112,7 @@ const CHECKPOINTS: [string, () => string][] = [
 ];
 
 const baselinePath = (file: string) =>
-  resolve(process.cwd(), "__tests__", "headless", "screenshots", file);
+  path.resolve(process.cwd(), "__tests__", "headless", "screenshots", file);
 
 describe("fixed-viewport match-state visual baselines", () => {
   it.each(CHECKPOINTS)("matches the %s checkpoint", (file, render) => {

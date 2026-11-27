@@ -15,7 +15,8 @@ describe("late-half scoring and preservation", () => {
         { playerIndex: 1, x: 19, y: 5, stats: { MA: 1, AG: 5 } },
       ],
     });
-    expect((await coachStep(game, createPlannerCoach())).command).toMatchObject(
+    const stepped1 = await coachStep(game, createPlannerCoach());
+    expect(stepped1.command).toMatchObject(
       {
         type: "declare-action",
         action: "pass",
@@ -64,7 +65,8 @@ describe("late-half scoring and preservation", () => {
         { playerIndex: 1, x: 19, y: 5, stats: { MA: 1, AG: 5 } },
       ],
     });
-    expect((await coachStep(game, createPlannerCoach())).command).toMatchObject(
+    const stepped2 = await coachStep(game, createPlannerCoach());
+    expect(stepped2.command).toMatchObject(
       {
         type: "declare-action",
         action: "handoff",
@@ -190,11 +192,13 @@ describe("late-half scoring and preservation", () => {
     );
     fixtureValue(game.ctx.team1.players[0]).cost = 600_000;
     const coach = createPlannerCoach();
-    expect((await coachStep(game, coach)).command).toMatchObject({
+    const stepped3 = await coachStep(game, coach);
+    expect(stepped3.command).toMatchObject({
       type: "declare-action",
       action: "move",
     });
-    expect((await coachStep(game, coach)).command).toMatchObject({
+    const stepped4 = await coachStep(game, coach);
+    expect(stepped4.command).toMatchObject({
       type: "move",
       path: [{ x: 8 }],
     });
@@ -218,7 +222,8 @@ describe("late-half scoring and preservation", () => {
       },
       { league: true, opponentTurnsPlayed: 5 }
     );
-    expect((await coachStep(game, createPlannerCoach())).note).toBe(
+    const stepped5 = await coachStep(game, createPlannerCoach());
+    expect(stepped5.note).toBe(
       "moves to screen"
     );
   });
@@ -248,9 +253,8 @@ describe("late-half scoring and preservation", () => {
         { league: true, opponentTurnsPlayed: 5 }
       );
       fixtureValue(game.ctx.team1.players[0]).cost = 600_000;
-      expect(
-        (await coachStep(game, createPlannerCoach())).command
-      ).toMatchObject({ type: "declare-action", action });
+      const stepped = await coachStep(game, createPlannerCoach());
+      expect(stepped.command).toMatchObject({ type: "declare-action", action });
     }
   );
 
@@ -272,11 +276,10 @@ describe("late-half scoring and preservation", () => {
       },
       { league: true, opponentTurnsPlayed: 5 }
     );
-    expect((await coachStep(game, createPlannerCoach())).command).toMatchObject(
-      {
-        type: "declare-action",
-        action: "block",
-      }
-    );
+    const stepped = await coachStep(game, createPlannerCoach());
+    expect(stepped.command).toMatchObject({
+      type: "declare-action",
+      action: "block",
+    });
   });
 });

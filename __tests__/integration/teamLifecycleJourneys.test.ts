@@ -60,8 +60,10 @@ describe("draft repair and legal finalization journey", () => {
     const violations = validateRosterLegality(persisted, humanRoster);
     expect(violations.some((v) => v.rule === "roster-size")).toBe(true);
 
-    persisted.players.push(createPlayer(lineman, persisted.id, 6));
-    persisted.players.push(createPlayer(lineman, persisted.id, 7));
+    persisted.players.push(
+      createPlayer(lineman, persisted.id, 6),
+      createPlayer(lineman, persisted.id, 7)
+    );
     expect(
       validateRosterLegality(persisted, humanRoster).map((v) => v.rule)
     ).toEqual(["veteran"]);

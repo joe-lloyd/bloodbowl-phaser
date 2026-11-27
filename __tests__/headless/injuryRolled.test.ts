@@ -7,34 +7,34 @@ import { turnIntoFrog } from "../../src/game/inducements/matchInducements";
 import { CrowdInjuryOperation } from "../../src/game/operations/CrowdInjuryOperation";
 import { forceDice } from "../utils/test-helpers";
 
-describe("InjuryRolled", () => {
-  async function injure(
-    opts: ConstructorParameters<typeof InjuryOperation>[1],
-    frog = false
-  ) {
-    const game = turnGame({
-      seed: 1,
-      team1: [{ x: 10, y: 5 }],
-      team2: [{ x: 11, y: 5 }],
-      ballPosition: {
-        x: 2,
-        y: 2,
-      },
-    });
-    const [victim] = game.ctx.team2.players;
-    if (frog)
-      turnIntoFrog(game.ctx.gameService.getState(), fixtureValue(victim));
-    const reported: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.InjuryRolled, (data) =>
-      reported.push(data)
-    );
-    const { flowManager } = game.ctx.gameService.getFlowContext();
-    await flowManager.runToRest(
-      new InjuryOperation(fixtureValue(victim).id, opts)
-    );
-    return { reported, victim };
-  }
+async function injure(
+  opts: ConstructorParameters<typeof InjuryOperation>[1],
+  frog = false
+) {
+  const game = turnGame({
+    seed: 1,
+    team1: [{ x: 10, y: 5 }],
+    team2: [{ x: 11, y: 5 }],
+    ballPosition: {
+      x: 2,
+      y: 2,
+    },
+  });
+  const [victim] = game.ctx.team2.players;
+  if (frog)
+    turnIntoFrog(game.ctx.gameService.getState(), fixtureValue(victim));
+  const reported: unknown[] = [];
+  game.ctx.eventBus.on(GameEventNames.InjuryRolled, (data) => {
+    reported.push(data);
+  });
+  const { flowManager } = game.ctx.gameService.getFlowContext();
+  await flowManager.runToRest(
+    new InjuryOperation(fixtureValue(victim).id, opts)
+  );
+  return { reported, victim };
+}
 
+describe("InjuryRolled", () => {
   it("reports a 12 as Dead", async () => {
     const { reported, victim } = await injure({ roll: 12 });
     expect(reported).toEqual([
@@ -70,9 +70,9 @@ describe("InjuryRolled", () => {
     const [victim] = game.ctx.team2.players;
     turnIntoFrog(game.ctx.gameService.getState(), fixtureValue(victim));
     const reported: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.InjuryRolled, (data) =>
-      reported.push(data)
-    );
+    game.ctx.eventBus.on(GameEventNames.InjuryRolled, (data) => {
+      reported.push(data);
+    });
     forceDice(game.ctx.rng, [6, 6]);
     const { flowManager } = game.ctx.gameService.getFlowContext();
     await flowManager.runToRest(

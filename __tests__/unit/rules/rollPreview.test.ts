@@ -19,10 +19,7 @@ import { createTestPlayer } from "../../fixtures/players";
 import { GameStateBuilder } from "../../utils/test-builders";
 import type { Weather } from "../../../src/game/rules/weather";
 import { passModifier } from "../../../src/game/kickoff/ballConditions";
-import {
-  type Souvenir,
-  getVariantInducements,
-} from "../../../src/game/inducements/variantState";
+import { getVariantInducements } from "../../../src/game/inducements/variantState";
 import { PlayerStatus } from "../../../src/types/Player";
 import { SkillType, getSkill } from "../../../src/types/Skills";
 import { BlockValidator } from "../../../src/game/validators/BlockValidator";
@@ -151,12 +148,11 @@ describe("roll preview analysis", () => {
     };
     const souvenir = (
       state: ReturnType<typeof inWeather>,
-      item: Souvenir,
       playerId: string
     ) => {
       getVariantInducements(state).souvenirs.push({
         teamId: "any",
-        souvenir: item,
+        souvenir: "Sticky Bun",
         playerId,
       });
       return state;
@@ -171,7 +167,7 @@ describe("roll preview analysis", () => {
           player,
           square,
           [],
-          souvenir(inWeather("Nice"), "Sticky Bun", player.id)
+          souvenir(inWeather("Nice"), player.id)
         ),
       ],
       catch: [
@@ -185,13 +181,13 @@ describe("roll preview analysis", () => {
           legs,
           -3,
           [player],
-          souvenir(inWeather("Nice"), "Sticky Bun", legs.id)
+          souvenir(inWeather("Nice"), legs.id)
         ),
       ],
       pass: [
         throwConditions(beachBall, player, "Short Pass"),
         throwConditions(
-          souvenir(inWeather("Nice"), "Sticky Bun", player.id),
+          souvenir(inWeather("Nice"), player.id),
           player,
           "Short Pass"
         ),

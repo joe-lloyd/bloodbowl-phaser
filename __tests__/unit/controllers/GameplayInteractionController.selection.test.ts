@@ -25,12 +25,44 @@ import {
   createController,
 } from "./GameplayInteractionController.setup";
 
+function confirmationsAsked(): number {
+  return eventBusSpies.emit.mock.calls.filter(([name]) => name === GameEventNames.UI_RequestConfirmation).length;
+}
+
+function lastPlanStages() {
+  const plan = eventBusSpies.emit.mock.calls
+    .findLast(([name, data]) => name === GameEventNames.UI_ActionPlan && data)?.[1];
+  return z.object({ stages: z.array(z.object({ label: z.string(), rolls: z.array(z.object({ kind: z.string() })) })) }).parse(plan).stages;
+}
+
 describe("GameplayInteractionController", () => {
   let controller: GameplayInteractionController;
 
   beforeEach(() => {
     controller = createController();
   });
+
+  function armBoneHead() {
+    const boneHead = playerWith({
+      ...player1,
+      id: "bone",
+      skills: [getSkill(SkillType.BONE_HEAD)],
+    });
+    const mate = playerWith({ ...player1, id: "mate", gridPosition: { x: 2, y: 2 } });
+    mockScene.team1.players = [boneHead, mate];
+    mockGameService.getState.mockReturnValue(stateWith({
+      activeTeamId: team1Id,
+      weather: "Nice",
+      activePlayer: null,
+    }));
+    mockGameService.getPlayerById.mockImplementation(
+      (id: string) => ({ bone: boneHead, mate })[id]
+    );
+    mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+    mockGameService.getAvailableMovements.mockReturnValue([]);
+    controller.selectPlayer("bone");
+    return { boneHead };
+  }
 
   describe("Negatrait confirm", () => {
     it("is let go, unanswered, when the board is torn down", async () => {
@@ -157,37 +189,6 @@ describe("GameplayInteractionController", () => {
       }
     });
 
-    function armBoneHead() {
-      const boneHead = playerWith({
-        ...player1,
-        id: "bone",
-        skills: [getSkill(SkillType.BONE_HEAD)],
-      });
-      const mate = playerWith({ ...player1, id: "mate", gridPosition: { x: 2, y: 2 } });
-      mockScene.team1.players = [boneHead, mate];
-      mockGameService.getState.mockReturnValue(stateWith({
-        activeTeamId: team1Id,
-        weather: "Nice",
-        activePlayer: null,
-      }));
-      mockGameService.getPlayerById.mockImplementation(
-        (id: string) => ({ bone: boneHead, mate })[id]
-      );
-      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
-      mockGameService.getAvailableMovements.mockReturnValue([]);
-      controller.selectPlayer("bone");
-      return { boneHead };
-    }
-
-    function confirmationsAsked(): number {
-      return eventBusSpies.emit.mock.calls.filter(([name]) => name === GameEventNames.UI_RequestConfirmation).length;
-    }
-
-    function lastPlanStages() {
-      const plan = eventBusSpies.emit.mock.calls
-        .findLast(([name, data]) => name === GameEventNames.UI_ActionPlan && data)?.[1];
-      return z.object({ stages: z.array(z.object({ label: z.string(), rolls: z.array(z.object({ kind: z.string() })) })) }).parse(plan).stages;
-    }
   });
 
   describe("Player Selection", () => {
@@ -346,12 +347,13 @@ describe("GameplayInteractionController", () => {
   });
 });
 
+const endFromUi = () => { fixtureValue(eventBusSpies.on.mock.calls.find(
+    ([event]) => event === GameEventNames.UI_EndActivation
+  ))[1](); };
+
 describe("explicit End activation camera intent", () => {
   let controller: GameplayInteractionController;
   let state: GameState;
-  const endFromUi = () => { fixtureValue(eventBusSpies.on.mock.calls.find(
-      ([event]) => event === GameEventNames.UI_EndActivation
-    ))[1](); };
 
   beforeEach(() => {
     controller = createController();

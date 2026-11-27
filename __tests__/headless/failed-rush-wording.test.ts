@@ -26,9 +26,9 @@ describe("a failed Rush", () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
     const banners: string[] = [];
     const log: string[] = [];
-    game.ctx.eventBus.on(GameEventNames.UI_Turnover, ({ reason }) =>
-      banners.push(reason)
-    );
+    game.ctx.eventBus.on(GameEventNames.UI_Turnover, ({ reason }) => {
+      banners.push(reason);
+    });
     game.ctx.eventBus.on(GameEventNames.UI_LogEntry, (entry) => {
       if (entry.headline === "TURNOVER") log.push(entry.detail ?? "");
     });

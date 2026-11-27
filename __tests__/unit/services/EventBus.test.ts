@@ -70,7 +70,9 @@ describe("EventBus", () => {
   describe("off", () => {
     it("defers a replacement listener until the next emission", () => {
       const calls: string[] = [];
-      const replacement = () => calls.push("replacement");
+      const replacement = () => {
+        calls.push("replacement");
+      };
       const original = () => {
         calls.push("original");
         eventBus.off("test-event", original);
@@ -204,7 +206,9 @@ describe("EventBus", () => {
         calls.push("first");
         eventBus.removeAllListeners("test-event");
       });
-      eventBus.on("test-event", () => calls.push("second"));
+      eventBus.on("test-event", () => {
+        calls.push("second");
+      });
 
       eventBus.emit("test-event", undefined);
       expect(calls).toEqual(["first", "second"]);

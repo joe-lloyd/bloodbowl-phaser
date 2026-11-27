@@ -90,11 +90,13 @@ function watch(game: HeadlessGame) {
   const prompts: string[] = [];
   const dice: { rollType: string; target?: number; modifier?: number }[] = [];
   eventBus.on(GameEventNames.UI_ActionPlan, (plan) => {
-    for (const stage of plan?.stages ?? [])
+    const stages = plan?.stages ?? [];
+    for (const stage of stages)
       for (const roll of stage.rolls) plannedRolls.push(roll.kind);
   });
   eventBus.on(GameEventNames.UI_RoutePreview, (route) => {
-    for (const roll of route?.rolls ?? []) plannedRolls.push(roll.type);
+    const rolls = route?.rolls ?? [];
+    for (const roll of rolls) plannedRolls.push(roll.type);
   });
 
   eventBus.on(GameEventNames.UI_RequestConfirmation, (request) => {
@@ -122,7 +124,6 @@ async function chargeTo(
   game: HeadlessGame,
   controller: GameplayInteractionController,
   chargerId: string,
-  to: { x: number; y: number }
 ) {
   const gs = game.ctx.gameService;
   const { eventBus } = game.ctx;
@@ -134,8 +135,8 @@ async function chargeTo(
     playerId: chargerId,
   });
 
-  controller.handlePointerDown({ worldX: to.x, worldY: to.y }, false);
-  controller.handlePointerDown({ worldX: to.x, worldY: to.y }, false);
+  controller.handlePointerDown({ worldX: LANDING.x, worldY: LANDING.y }, false);
+  controller.handlePointerDown({ worldX: LANDING.x, worldY: LANDING.y }, false);
   await settle();
 }
 
@@ -153,7 +154,7 @@ describe("Moving under a kicked ball that is still in the air", () => {
     const controller = board(game);
     const charger = team1.players[1];
 
-    await chargeTo(game, controller, fixtureValue(charger).id, LANDING);
+    await chargeTo(game, controller, fixtureValue(charger).id);
 
     expect(
       fixtureValue(gs.getPlayerById(fixtureValue(charger).id)).gridPosition
@@ -175,7 +176,7 @@ describe("Moving under a kicked ball that is still in the air", () => {
     const controller = board(game);
     const charger = team1.players[1];
 
-    await chargeTo(game, controller, fixtureValue(charger).id, LANDING);
+    await chargeTo(game, controller, fixtureValue(charger).id);
     eventBus.emit(GameEventNames.UI_EndActivation, undefined);
     await settle();
 
@@ -204,7 +205,7 @@ describe("Moving under a kicked ball that is still in the air", () => {
       y: LANDING.y,
     };
 
-    await chargeTo(game, controller, fixtureValue(charger).id, LANDING);
+    await chargeTo(game, controller, fixtureValue(charger).id);
     expect(seen.plannedRolls).not.toContain("pickup");
     expect(pickupRolls(seen.dice)).toEqual([]);
     eventBus.emit(GameEventNames.UI_EndActivation, undefined);

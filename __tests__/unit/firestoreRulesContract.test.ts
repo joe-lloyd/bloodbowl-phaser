@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const rules = readFileSync(join(process.cwd(), "firestore.rules"), "utf8");
+const rules = readFileSync(path.join(process.cwd(), "firestore.rules"), "utf8");
 
 describe("competition Firestore rule contract", () => {
   it("makes a coach's live team authenticated-readable and owner-writable", () => {

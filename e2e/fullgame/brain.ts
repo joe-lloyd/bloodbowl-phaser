@@ -213,12 +213,13 @@ function runTo(g: HeadlessGame, c: Candidate): Candidate {
     (sq.x - at.x) * dir.x +
     (sq.y - at.y) * dir.y -
     (marked(sq) ? 3 : 0);
-  const dest =
-    pickup ||
-    reach.reduce<Square>(
-      (best, sq) => (gain(sq) > gain(best) ? sq : best),
-      fixtureValue(step)
-    );
+  let dest = pickup;
+  if (!dest) {
+    dest = fixtureValue(step);
+    for (const sq of reach) {
+      if (gain(sq) > gain(dest)) dest = sq;
+    }
+  }
   if (dest.x === fixtureValue(step).x && dest.y === fixtureValue(step).y) return c;
   return {
     ...c,
@@ -314,7 +315,7 @@ export function view() {
 
 export function installOverlay(label: string) {
   const id = "bb-recording-strip";
-  document.getElementById(id)?.remove();
+  document.querySelector(`#${id}`)?.remove();
   const strip = document.createElement("div");
   strip.id = id;
   strip.style.cssText =

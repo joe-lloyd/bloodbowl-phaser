@@ -22,6 +22,24 @@ function entrant(id: string, seed: number): CompetitionEntrant {
   };
 }
 
+function cupOf(ids: string[]): TournamentDoc {
+  const entrants = ids.map((id, index) => entrant(id, index + 1));
+  return {
+    id: "cup",
+    type: "tournament",
+    name: "Cup",
+    organizerUid: null,
+    participantUids: [],
+    status: "active",
+    format: "single-elimination",
+    entrants,
+    fixtures: generateSingleElimination(entrants),
+    standings: [],
+    createdAt: 1,
+    updatedAt: 1,
+  };
+}
+
 describe("single-elimination brackets", () => {
   it("pairs deterministic seeds and advances winners to a champion", () => {
     vi.spyOn(Date, "now").mockReturnValue(123);
@@ -63,24 +81,6 @@ describe("single-elimination brackets", () => {
     expect(tournament.status).toBe("complete");
     expect(tournament.championEntrantId).toBe("three");
   });
-
-  function cupOf(ids: string[]): TournamentDoc {
-    const entrants = ids.map((id, index) => entrant(id, index + 1));
-    return {
-      id: "cup",
-      type: "tournament",
-      name: "Cup",
-      organizerUid: null,
-      participantUids: [],
-      status: "active",
-      format: "single-elimination",
-      entrants,
-      fixtures: generateSingleElimination(entrants),
-      standings: [],
-      createdAt: 1,
-      updatedAt: 1,
-    };
-  }
 
   it("sends a level game's Penalty Shoot-out winner through", () => {
     let cup = cupOf(["one", "two"]);
@@ -152,7 +152,9 @@ describe("round robin and standings", () => {
     const fixtures = generateRoundRobin(entrants);
     expect(fixtures).toHaveLength(3);
     const pairs = fixtures.map((fixture) =>
-      [fixture.homeEntrantId, fixture.awayEntrantId].sort().join(":")
+      [fixture.homeEntrantId, fixture.awayEntrantId]
+        .sort((a, b) => String(a).localeCompare(String(b)))
+        .join(":")
     );
     expect(new Set(pairs)).toEqual(
       new Set(["one:two", "one:three", "three:two"])

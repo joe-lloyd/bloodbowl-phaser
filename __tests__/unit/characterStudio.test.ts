@@ -35,6 +35,13 @@ const RAIDER: Character = {
   usedBy: [],
 };
 
+const own = (layout: Character["layout"]): Character => ({
+  ...RAIDER,
+  looks: { kind: "own", bodies: ["m"], options: [{ name: "a", label: "A", values: [{ value: "b", label: "B", layout }] }] },
+});
+
+const helm = (name: string) => ({ name, label: name, values: [{ value: "a", label: "A", layout: { helm: "open" } }] });
+
 function catalogWith(...characters: readonly object[]) {
   const folder = mkdtempSync(path.join(tmpdir(), "characters-"));
   for (const [index, character] of characters.entries()) {
@@ -77,10 +84,6 @@ describe("character studio catalogue", () => {
 
   it("refuses a character with no skin or a look option that changes the body", () => {
     const catalog = catalogWith();
-    const own = (layout: Character["layout"]): Character => ({
-      ...RAIDER,
-      looks: { kind: "own", bodies: ["m"], options: [{ name: "a", label: "A", values: [{ value: "b", label: "B", layout }] }] },
-    });
     expect(() => { checkCharacter({ ...RAIDER, layout: { skin: null } }, catalog); }).toThrow("skin always needs a value");
     expect(() => { checkCharacter(own({ skin: null }), catalog); }).toThrow("skin always needs a value");
     expect(() => { checkCharacter(own({ head: "skull" }), catalog); }).toThrow("head changes the body");
@@ -130,7 +133,6 @@ describe("character files", () => {
   });
 
   it("rejects two look options that set the same part", () => {
-    const helm = (name: string) => ({ name, label: name, values: [{ value: "a", label: "A", layout: { helm: "open" } }] });
     const problem = characterProblem({ ...RAIDER, looks: { kind: "own", bodies: ["m"], options: [helm("hat"), helm("head")] } });
     expect(problem).toContain("Two look options both set helm");
   });

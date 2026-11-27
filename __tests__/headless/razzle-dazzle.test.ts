@@ -51,8 +51,8 @@ function measure(game: HeadlessGame) {
 }
 
 async function actionsOf(game: HeadlessGame, playerId: string) {
-  const legal = (await game.execute({ type: "legal-actions", playerId }))
-    .legalActions;
+  const response = await game.execute({ type: "legal-actions", playerId });
+  const legal = response.legalActions;
   return legal?.players.find((p) => p.playerId === playerId)?.actions ?? [];
 }
 
@@ -233,15 +233,12 @@ describe("Razzle-Dazzle", () => {
     expect(
       gs.declareAction({ playerId: fixtureValue(player).id, action: "move" })
     ).toBe(true);
-    expect(
-      (
-        await game.execute({
-          type: "move",
-          playerId: fixtureValue(player).id,
-          path: [{ x: 9, y: 5 }],
-        })
-      ).ok
-    ).toBe(true);
+    const stepped = await game.execute({
+      type: "move",
+      playerId: fixtureValue(player).id,
+      path: [{ x: 9, y: 5 }],
+    });
+    expect(stepped.ok).toBe(true);
   });
 
   it("settles failed Bloodlust after the second Action, beside the newly reachable Thrall", async () => {
@@ -266,16 +263,13 @@ describe("Razzle-Dazzle", () => {
     const [vampire, thrall] = game.ctx.team1.players;
     const state = game.ctx.gameService.getState();
     forceDice(game.ctx.rng, [1]);
-    expect(
-      (
-        await game.execute({
-          type: "declare-action",
-          playerId: fixtureValue(vampire).id,
-          action: "block",
-          razzleDazzle: true,
-        })
-      ).ok
-    ).toBe(true);
+    const declaredBlock = await game.execute({
+      type: "declare-action",
+      playerId: fixtureValue(vampire).id,
+      action: "block",
+      razzleDazzle: true,
+    });
+    expect(declaredBlock.ok).toBe(true);
     expect(game.pendingDecision()).toMatchObject({
       type: "reaction",
       skill: SkillType.BLOODLUST,
@@ -289,46 +283,34 @@ describe("Razzle-Dazzle", () => {
     });
     expect(fixtureValue(vampire).conditions ?? []).toEqual([]);
     expect(fixtureValue(thrall).status).toBe(PlayerStatus.ACTIVE);
-    expect(
-      (
-        await game.execute({
-          type: "declare-action",
-          playerId: fixtureValue(vampire).id,
-          action: "move",
-        })
-      ).ok
-    ).toBe(true);
+    const declaredMove = await game.execute({
+      type: "declare-action",
+      playerId: fixtureValue(vampire).id,
+      action: "move",
+    });
+    expect(declaredMove.ok).toBe(true);
     expect(state.activePlayer?.bloodlustUnsated).toBe(true);
 
-    expect(
-      (
-        await game.execute({
-          type: "cancel-action",
-          playerId: fixtureValue(vampire).id,
-        })
-      ).ok
-    ).toBe(true);
+    const cancelled = await game.execute({
+      type: "cancel-action",
+      playerId: fixtureValue(vampire).id,
+    });
+    expect(cancelled.ok).toBe(true);
     expect(state.activePlayer?.bloodlustUnsated).toBe(true);
-    expect(
-      (
-        await game.execute({
-          type: "declare-action",
-          playerId: fixtureValue(vampire).id,
-          action: "move",
-        })
-      ).ok
-    ).toBe(true);
+    const redeclaredMove = await game.execute({
+      type: "declare-action",
+      playerId: fixtureValue(vampire).id,
+      action: "move",
+    });
+    expect(redeclaredMove.ok).toBe(true);
     expect(state.activePlayer?.bloodlustUnsated).toBe(true);
     forceDice(game.ctx.rng, [6]);
-    expect(
-      (
-        await game.execute({
-          type: "move",
-          playerId: fixtureValue(vampire).id,
-          path: [{ x: 8, y: 6 }],
-        })
-      ).ok
-    ).toBe(true);
+    const steppedUp = await game.execute({
+      type: "move",
+      playerId: fixtureValue(vampire).id,
+      path: [{ x: 8, y: 6 }],
+    });
+    expect(steppedUp.ok).toBe(true);
     await game.execute({
       type: "end-activation",
       playerId: fixtureValue(vampire).id,
@@ -338,9 +320,8 @@ describe("Razzle-Dazzle", () => {
       skill: SkillType.BLOODLUST,
     });
     forceDice(game.ctx.rng, [1, 1]);
-    expect(
-      (await game.execute({ type: "use-reaction", accept: true })).ok
-    ).toBe(true);
+    const reacted = await game.execute({ type: "use-reaction", accept: true });
+    expect(reacted.ok).toBe(true);
     expect(fixtureValue(thrall).status).toBe(PlayerStatus.STUNNED);
     expect(
       fixtureValue(vampire).conditions?.map((c) => c.type) ?? []

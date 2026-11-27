@@ -126,7 +126,7 @@ async function caption(
     ({ lines, card }) => {
       const id = card ? "kickoff-video-card" : "kickoff-video-caption";
       document.querySelector("#kickoff-video-card")?.remove();
-      let box = document.getElementById(id);
+      let box = document.querySelector<HTMLElement>(`#${id}`);
       if (!box) {
         box = document.createElement("div");
         box.id = id;
@@ -167,9 +167,8 @@ async function kickoffResult(app: GameApp) {
   await expect
     .poll(
       async () => {
-        const event = (await app.bridge.events()).find(
-          (e) => e.name === "kickoffResult"
-        );
+        const events = await app.bridge.events();
+        const event = events.find((e) => e.name === "kickoffResult");
         found = event?.data as typeof found;
         return !!found;
       },
@@ -181,10 +180,9 @@ async function kickoffResult(app: GameApp) {
 
 function stepFrom(
   view: EngineView,
-  at: { x: number; y: number },
-  dx: number
+  at: { x: number; y: number }
 ): { x: number; y: number } {
-  const to = { x: at.x + dx, y: at.y };
+  const to = { x: at.x + 1, y: at.y };
   const taken = view.players.some(
     (p) => p.at && p.at.x === to.x && p.at.y === to.y
   );
@@ -192,7 +190,7 @@ function stepFrom(
   return to;
 }
 
-async function stepTwo(page: Page, app: GameApp, dx: number) {
+async function stepTwo(page: Page, app: GameApp) {
   const before = await engine(page);
   const team = fixtureValue(before.step).teamId;
   const movers = before.players
@@ -206,9 +204,12 @@ async function stepTwo(page: Page, app: GameApp, dx: number) {
     const from = fixtureValue(fixtureValue(view.players.find((p) => p.id === mover.id)).at);
     await app.pitch.clickSquare(from);
     await page.waitForTimeout(700);
-    await app.pitch.clickSquare(stepFrom(view, from, dx));
+    await app.pitch.clickSquare(stepFrom(view, from));
     await expect
-      .poll(async () => fixtureValue((await engine(page)).players.find((p) => p.id === mover.id)).at)
+      .poll(async () => {
+        const latest = await engine(page);
+        return fixtureValue(latest.players.find((p) => p.id === mover.id)).at;
+      })
       .not.toEqual(from);
     await page.waitForTimeout(900);
   }
@@ -280,78 +281,79 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
     expect(result.roll).toBe(clip.roll);
 
     const checked: string[] = [];
-    switch (clip.event) {
-      case KickoffEvent.ALERT_DEFENCE:
-        await expect(page.getByRole("button", { name: /^Start / })).toBeVisible({
-          timeout: 30_000,
-        });
-        checked.push(...(await stepTwo(page, app, 1)));
-        break;
-      case KickoffEvent.QUICK_SNAP:
-        await expect(page.getByRole("button", { name: /^Start / })).toBeVisible({
-          timeout: 30_000,
-        });
-        checked.push(...(await stepTwo(page, app, 1)));
-        break;
-      case KickoffEvent.HIGH_KICK: {
-        const skip = page.getByRole("button", { name: "Skip" });
-        await expect(skip).toBeVisible({ timeout: 30_000 });
-        const view = await engine(page);
-        const landing = fixtureValue(fixtureValue(view.step).landingSquare);
+    if (
+      clip.event === KickoffEvent.ALERT_DEFENCE ||
+      clip.event === KickoffEvent.QUICK_SNAP
+    ) {
+      await expect(page.getByRole("button", { name: /^Start / })).toBeVisible({
+        timeout: 30_000,
+      });
+      checked.push(...(await stepTwo(page, app)));
+    } else if (clip.event === KickoffEvent.HIGH_KICK) {
+      const skip = page.getByRole("button", { name: "Skip" });
+      await expect(skip).toBeVisible({ timeout: 30_000 });
+      const view = await engine(page);
+      const landing = fixtureValue(fixtureValue(view.step).landingSquare);
 
-        const gap = (p: EngineView["players"][number]) =>
-          Math.max(
-            Math.abs(fixtureValue(p.at).x - landing.x),
-            Math.abs(fixtureValue(p.at).y - landing.y)
-          );
-        const receiver = view.players
-          .filter((p) => p.teamId === receiving && p.at)
-          .sort((a, b) => gap(a) - gap(b))[0];
-        await page.waitForTimeout(1200);
-        await app.pitch.clickSquare(fixtureValue(fixtureValue(receiver).at));
-        await expect
-          .poll(
-            async () =>
-              fixtureValue((await engine(page)).players.find((p) => p.id === fixtureValue(receiver).id)).at
-          )
-          .toEqual(landing);
-        await page.waitForTimeout(1200);
+      const gap = (p: EngineView["players"][number]) =>
+        Math.max(
+          Math.abs(fixtureValue(p.at).x - landing.x),
+          Math.abs(fixtureValue(p.at).y - landing.y)
+        );
+      const receiver = view.players
+        .filter((p) => p.teamId === receiving && p.at)
+        .sort((a, b) => gap(a) - gap(b))[0];
+      await page.waitForTimeout(1200);
+      await app.pitch.clickSquare(fixtureValue(fixtureValue(receiver).at));
+      await expect
+        .poll(async () => {
+          const latest = await engine(page);
+          return fixtureValue(
+            latest.players.find((p) => p.id === fixtureValue(receiver).id)
+          ).at;
+        })
+        .toEqual(landing);
+      await page.waitForTimeout(1200);
 
-        checked.push(
-          `${fixtureValue(receiver).name} (${String(view.teamNames[fixtureValue(receiving)])}) placed under the ball at (${String(landing.x)},${String(landing.y)})`
-        );
-        break;
-      }
-      case KickoffEvent.CHARGE: {
-        const charge = page.getByRole("button", { name: /charge!/i });
-        await expect(charge).toBeVisible({ timeout: 30_000 });
-        const charger = before.players.filter((p) => p.teamId === kicking)[2];
-        await app.pitch.clickSquare(fixtureValue(fixtureValue(charger).at));
-        await page.waitForTimeout(800);
-        await charge.click();
-        await app.pitch.clickSquare(fixtureValue(fixtureValue(charger).at));
-        await expect(app.hud.actionMenu()).toBeVisible({ timeout: 10_000 });
-        await app.hud.actionButton("move").click();
-        const to = { x: fixtureValue(fixtureValue(charger).at).x + 1, y: fixtureValue(fixtureValue(charger).at).y };
-        await app.pitch.clickSquare(to);
-        await app.pitch.clickSquare(to);
-        await expect
-          .poll(
-            async () =>
-              fixtureValue((await engine(page)).players.find((p) => p.id === fixtureValue(charger).id)).at
-          )
-          .toEqual(to);
-        await page.waitForTimeout(800);
-        await page.getByRole("button", { name: /end activation/i }).click();
-        checked.push(
-          `${fixtureValue(charger).name} (${String(before.teamNames[fixtureValue(kicking)])}) took a free Move before the drive: (${String(fixtureValue(fixtureValue(charger).at).x)},${String(fixtureValue(fixtureValue(charger).at).y)}) → (${String(to.x)},${String(to.y)})`
-        );
-        break;
-      }
+      checked.push(
+        `${fixtureValue(receiver).name} (${String(view.teamNames[fixtureValue(receiving)])}) placed under the ball at (${String(landing.x)},${String(landing.y)})`
+      );
+    } else if (clip.event === KickoffEvent.CHARGE) {
+      const charge = page.getByRole("button", { name: /charge!/i });
+      await expect(charge).toBeVisible({ timeout: 30_000 });
+      const charger = before.players.filter((p) => p.teamId === kicking)[2];
+      await app.pitch.clickSquare(fixtureValue(fixtureValue(charger).at));
+      await page.waitForTimeout(800);
+      await charge.click();
+      await app.pitch.clickSquare(fixtureValue(fixtureValue(charger).at));
+      await expect(app.hud.actionMenu()).toBeVisible({ timeout: 10_000 });
+      await app.hud.actionButton("move").click();
+      const to = { x: fixtureValue(fixtureValue(charger).at).x + 1, y: fixtureValue(fixtureValue(charger).at).y };
+      await app.pitch.clickSquare(to);
+      await app.pitch.clickSquare(to);
+      await expect
+        .poll(async () => {
+          const latest = await engine(page);
+          return fixtureValue(
+            latest.players.find((p) => p.id === fixtureValue(charger).id)
+          ).at;
+        })
+        .toEqual(to);
+      await page.waitForTimeout(800);
+      await page.getByRole("button", { name: /end activation/i }).click();
+      checked.push(
+        `${fixtureValue(charger).name} (${String(before.teamNames[fixtureValue(kicking)])}) took a free Move before the drive: (${String(fixtureValue(fixtureValue(charger).at).x)},${String(fixtureValue(fixtureValue(charger).at).y)}) → (${String(to.x)},${String(to.y)})`
+      );
     }
 
     await expect
-      .poll(async () => (await engine(page)).phase, { timeout: 60_000 })
+      .poll(
+        async () => {
+          const latest = await engine(page);
+          return latest.phase;
+        },
+        { timeout: 60_000 }
+      )
       .toBe("PLAY");
     await page.waitForTimeout(1500);
     const after = await engine(page);
@@ -360,85 +362,71 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
     const who = (p: { name: string; teamId: string }) =>
       `${p.name} (${String(name(p.teamId))})`;
 
-    switch (clip.event) {
-      case KickoffEvent.GET_THE_REF:
-        expect(after.bribes).toEqual({ [fixtureValue(kicking)]: 1, [fixtureValue(receiving)]: 1 });
-        checked.push("Each team now holds one Bribe");
-        break;
-      case KickoffEvent.TIME_OUT: {
-        const was = before.turns[fixtureValue(kicking)];
-        const now = after.turns[fixtureValue(kicking)];
-        expect(now).toBe(late ? fixtureValue(was) - 1 : fixtureValue(was) + 1);
-        checked.push(
-          `Kicking team's marker on turn ${String(was)}, so both markers moved ${late ? "back" : "forward"}: ${String(was)} → ${String(now)}`
-        );
-        break;
-      }
-      case KickoffEvent.CHEERING_FANS: {
-        const owed = Object.keys(after.owedAssists);
-        expect(owed.length).toBeGreaterThan(0);
-        checked.push(
-          `Extra assist on the next first Block: ${owed.map((element) => name(element)).join(" and ")}`
-        );
-        break;
-      }
-      case KickoffEvent.BRILLIANT_COACHING: {
-        const free = Object.entries(after.freeRerolls).filter(([, n]) => n > 0);
-        expect(free.length).toBeGreaterThan(0);
-        checked.push(
-          ...free.map(
-            ([team, n]) =>
-              `${String(name(team))}: ${String(n)} free re-roll this drive`
-          )
-        );
-        break;
-      }
-      case KickoffEvent.CHANGING_WEATHER: {
-        const events = await app.bridge.events();
-        expect(events.some((e) => e.name === "weatherChanged")).toBe(true);
-        checked.push(`Weather re-rolled: ${before.weather} → ${after.weather}`);
+    if (clip.event === KickoffEvent.GET_THE_REF) {
+      expect(after.bribes).toEqual({ [fixtureValue(kicking)]: 1, [fixtureValue(receiving)]: 1 });
+      checked.push("Each team now holds one Bribe");
+    } else if (clip.event === KickoffEvent.TIME_OUT) {
+      const was = before.turns[fixtureValue(kicking)];
+      const now = after.turns[fixtureValue(kicking)];
+      expect(now).toBe(late ? fixtureValue(was) - 1 : fixtureValue(was) + 1);
+      checked.push(
+        `Kicking team's marker on turn ${String(was)}, so both markers moved ${late ? "back" : "forward"}: ${String(was)} → ${String(now)}`
+      );
+    } else if (clip.event === KickoffEvent.CHEERING_FANS) {
+      const owed = Object.keys(after.owedAssists);
+      expect(owed.length).toBeGreaterThan(0);
+      checked.push(
+        `Extra assist on the next first Block: ${owed.map((element) => name(element)).join(" and ")}`
+      );
+    } else if (clip.event === KickoffEvent.BRILLIANT_COACHING) {
+      const free = Object.entries(after.freeRerolls).filter(([, n]) => n > 0);
+      expect(free.length).toBeGreaterThan(0);
+      checked.push(
+        ...free.map(
+          ([team, n]) =>
+            `${String(name(team))}: ${String(n)} free re-roll this drive`
+        )
+      );
+    } else if (clip.event === KickoffEvent.CHANGING_WEATHER) {
+      const events = await app.bridge.events();
+      expect(events.some((e) => e.name === "weatherChanged")).toBe(true);
+      checked.push(`Weather re-rolled: ${before.weather} → ${after.weather}`);
 
-        const scatter = events.find(
-          (e) =>
-            e.name === "ballScattered" &&
-            String((e.data as { reason?: string }).reason).startsWith(
-              "Changing Weather"
-            )
-        )?.data as
-          | { from: { x: number; y: number }; to: { x: number; y: number } }
-          | undefined;
-        expect(!!scatter).toBe(after.weather === "Nice");
-        if (scatter)
-          checked.push(
-            `Perfect Conditions, so the ball scattered in the air: (${String(scatter.from.x)},${String(scatter.from.y)}) → (${String(scatter.to.x)},${String(scatter.to.y)})`
-          );
-        break;
-      }
-      case KickoffEvent.DODGY_SNACK: {
-        const hit = Object.entries(after.modifiers);
-        expect(hit.length).toBeGreaterThan(0);
-        for (const [id, modifier] of hit) {
-          const p = fixtureValue(after.players.find((q) => q.id === id));
-          if (modifier.confinedToReserves) {
-            expect(p.at).toBeNull();
-            checked.push(`${who(p)} sent to the Reserves for the drive`);
-          } else {
-            expect([p.ma, p.av]).toEqual([p.baseMa - 1, p.baseAv - 1]);
-            checked.push(
-              `${who(p)}: MA ${String(p.baseMa)} → ${String(p.ma)}, AV ${String(p.baseAv)} → ${String(p.av)} for the drive`
-            );
-          }
-        }
-        break;
-      }
-      case KickoffEvent.PITCH_INVASION: {
-        const stunned = after.players.filter((p) => p.status === "Stunned");
-        expect(stunned.length).toBeGreaterThan(0);
+      const scatter = events.find(
+        (e) =>
+          e.name === "ballScattered" &&
+          String((e.data as { reason?: string }).reason).startsWith(
+            "Changing Weather"
+          )
+      )?.data as
+        | { from: { x: number; y: number }; to: { x: number; y: number } }
+        | undefined;
+      expect(!!scatter).toBe(after.weather === "Nice");
+      if (scatter)
         checked.push(
-          ...stunned.map((p) => `${who(p)} Placed Prone and Stunned`)
+          `Perfect Conditions, so the ball scattered in the air: (${String(scatter.from.x)},${String(scatter.from.y)}) → (${String(scatter.to.x)},${String(scatter.to.y)})`
         );
-        break;
+    } else if (clip.event === KickoffEvent.DODGY_SNACK) {
+      const hit = Object.entries(after.modifiers);
+      expect(hit.length).toBeGreaterThan(0);
+      for (const [id, modifier] of hit) {
+        const p = fixtureValue(after.players.find((q) => q.id === id));
+        if (modifier.confinedToReserves) {
+          expect(p.at).toBeNull();
+          checked.push(`${who(p)} sent to the Reserves for the drive`);
+        } else {
+          expect([p.ma, p.av]).toEqual([p.baseMa - 1, p.baseAv - 1]);
+          checked.push(
+            `${who(p)}: MA ${String(p.baseMa)} → ${String(p.ma)}, AV ${String(p.baseAv)} → ${String(p.av)} for the drive`
+          );
+        }
       }
+    } else if (clip.event === KickoffEvent.PITCH_INVASION) {
+      const stunned = after.players.filter((p) => p.status === "Stunned");
+      expect(stunned.length).toBeGreaterThan(0);
+      checked.push(
+        ...stunned.map((p) => `${who(p)} Placed Prone and Stunned`)
+      );
     }
     expect(after.activeTeamId).toBe(receiving);
     checked.push(`${String(name(fixtureValue(receiving)))}'s turn begins`);

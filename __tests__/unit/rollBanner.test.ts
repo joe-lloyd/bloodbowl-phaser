@@ -78,24 +78,24 @@ describe("roll banner text", () => {
   });
 });
 
-describe("RollBook", () => {
-  const armour = (
-    name: string,
-    roll: number,
-    broken: boolean,
-    diceTeamId = "team2",
-    rollType = `Armour Roll (${name})`
-  ) => ({
-    kind: "armour" as const,
-    playerName: name,
-    playerId: name,
-    roll,
-    armor: 9,
-    broken,
-    rollType,
-    diceTeamId,
-  });
+const armour = (
+  name: string,
+  roll: number,
+  broken: boolean,
+  diceTeamId = "team2",
+  rollType = `Armour Roll (${name})`
+) => ({
+  kind: "armour" as const,
+  playerName: name,
+  playerId: name,
+  roll,
+  armor: 9,
+  broken,
+  rollType,
+  diceTeamId,
+});
 
+describe("RollBook", () => {
   it("gives a Lone Fouler re-roll the outcome, and marks the first throw re-rolled", () => {
     const book = new RollBook();
     book.queued(1, "Foul Armour Roll (Grimgor)", "team2");

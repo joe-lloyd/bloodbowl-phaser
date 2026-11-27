@@ -69,8 +69,8 @@ function foulGame(format: MatchFormat) {
   });
 }
 
-const rounded = (value: number | null, places = 3) =>
-  value === null ? null : Number(value.toFixed(places));
+const rounded = (value: number | null) =>
+  value === null ? null : Number(value.toFixed(3));
 
 async function foulValue(format: MatchFormat): Promise<number | null> {
   const subject = foulGame(format);
@@ -82,6 +82,19 @@ async function foulValue(format: MatchFormat): Promise<number | null> {
   }).find((a) => a.action === "foul");
   return rounded(foul?.value ?? null);
 }
+async function kickRow(coach = createPlannerCoach()) {
+  const game = variantGame({ format: STREET, setup: STREET_SETUP });
+  const point = await enumerateDecision(game, "team1");
+  const choice = await coach.choose({
+    game,
+    snapshot: game.snapshot(),
+    point,
+    rng: createCoachRng(1),
+  });
+  const [command] = fixtureValue(point.candidates[choice.index]).commands;
+  return command.type === "kick-ball" ? command.y : null;
+}
+
 
 describe("game type rules in the planner's prices", () => {
   it("prices the same lone Foul by each game type's referee and retribution", async () => {
@@ -116,18 +129,6 @@ describe("game type rules in the planner's prices", () => {
     ]);
   });
 
-  async function kickRow(coach = createPlannerCoach()) {
-    const game = variantGame({ format: STREET, setup: STREET_SETUP });
-    const point = await enumerateDecision(game, "team1");
-    const choice = await coach.choose({
-      game,
-      snapshot: game.snapshot(),
-      point,
-      rng: createCoachRng(1),
-    });
-    const [command] = fixtureValue(point.candidates[choice.index]).commands;
-    return command.type === "kick-ball" ? command.y : null;
-  }
 
   it("kicks to the middle row of the seven-row Street Bowl pitch, unless its game type weights say wide", async () => {
     const wide = createPlannerCoach({
@@ -192,18 +193,21 @@ function pendingFor(
     ...extra,
   };
 }
+function streetSquad() {
+  const game = variantGame({ format: STREET, setup: STREET_SETUP });
+  const players = game.ctx.team1.players;
+  const lineman = players[0];
+  const blitzer = players[3];
+  fixtureValue(blitzer).cost = 85_000;
+  return {
+    game,
+    lineman: fixtureValue(lineman),
+    blitzer: fixtureValue(blitzer),
+  };
+}
+
 
 describe("computer inducement choices", () => {
-  function streetSquad() {
-    const game = variantGame({ format: STREET, setup: STREET_SETUP });
-    const [lineman, , , blitzer] = game.ctx.team1.players;
-    fixtureValue(blitzer).cost = 85_000;
-    return {
-      game,
-      lineman: fixtureValue(lineman),
-      blitzer: fixtureValue(blitzer),
-    };
-  }
 
   it("gives a Magic Potion to the most valuable casualty, and keeps it when nobody is hurt", () => {
     const { game, lineman, blitzer } = streetSquad();

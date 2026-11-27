@@ -30,8 +30,8 @@ function scenario(weather: Weather): Scenario {
   };
 }
 
-async function scoreTouchdown(weather: Weather, seed: number) {
-  const game = new HeadlessGame({ scenario: scenario(weather), seed });
+async function scoreTouchdown(weather: Weather) {
+  const game = new HeadlessGame({ scenario: scenario(weather), seed: 7 });
   const carrier = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({
     type: "declare-action",
@@ -67,7 +67,7 @@ function benched(game: HeadlessGame): string[][] {
 
 describe("Sweltering Heat", () => {
   it("benches D3 players per team who were on the pitch for the next drive", async () => {
-    const { game, res, dice } = await scoreTouchdown("Sweltering Heat", 7);
+    const { game, res, dice } = await scoreTouchdown("Sweltering Heat");
 
     expect(res.snapshot.phase).toBe(GamePhase.SETUP);
     expect(dice).toEqual([
@@ -101,7 +101,7 @@ describe("Sweltering Heat", () => {
   });
 
   it("benches nobody in Perfect Conditions", async () => {
-    const { game } = await scoreTouchdown("Nice", 7);
+    const { game } = await scoreTouchdown("Nice");
 
     expect(benched(game)).toEqual([[], []]);
   });

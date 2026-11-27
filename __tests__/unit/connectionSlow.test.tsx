@@ -10,8 +10,10 @@ interface Snapshot {
 let snapshotListener: ((snapshot: Snapshot) => void) | null = null;
 const listens = vi.hoisted(() => ({ count: 0 }));
 
-vi.mock("firebase/firestore", async (importOriginal) => ({
-  Timestamp: (await importOriginal<typeof import("firebase/firestore")>()).Timestamp,
+vi.mock("firebase/firestore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("firebase/firestore")>();
+  return {
+  Timestamp: actual.Timestamp,
   collection: vi.fn(),
   deleteDoc: vi.fn(),
   doc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join("/") })),
@@ -31,7 +33,8 @@ vi.mock("firebase/firestore", async (importOriginal) => ({
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
   writeBatch: vi.fn(),
-}));
+  };
+});
 vi.mock("../../src/firebase/config", () => ({ getDb: vi.fn(() => ({})) }));
 
 import {
@@ -47,6 +50,7 @@ import { ConnectionBanner } from "../../src/ui/pages/ConnectionBanner";
 import { lobbyDoc, lobbyPlayer } from "../fixtures/lobby";
 
 const NOW = 1_000_000;
+const noop = () => {};
 const lobbyWith = (opponentSeenAgo: number) =>
   ({
     players: {
@@ -54,6 +58,13 @@ const lobbyWith = (opponentSeenAgo: number) =>
       opponent: { uid: "opponent", lastSeen: NOW - opponentSeenAgo },
     },
   }) as unknown as LobbyDoc;
+
+const doc = (lastSeen: number) => lobbyDoc([lobbyPlayer("me", lastSeen)]);
+const snap = (hasPendingWrites: boolean, lastSeen = 500): Snapshot => ({
+  metadata: { fromCache: false, hasPendingWrites },
+  exists: () => true,
+  data: () => doc(lastSeen),
+});
 
 describe("a slow link is not a disconnect", () => {
   it("reads a 16 s silence from the other coach as slow, not gone", () => {
@@ -123,7 +134,7 @@ describe("a slow link is not a disconnect", () => {
 
 describe("heartbeat", () => {
   it("resolves with its stamp once the server holds it", async () => {
-    let acknowledge: () => void = () => {};
+    let acknowledge: () => void = noop;
     vi.mocked(updateDoc).mockReturnValueOnce(
       new Promise<void>((resolve) => (acknowledge = resolve))
     );
@@ -145,17 +156,6 @@ describe("subscribeMatchLobby", () => {
   let lobbies: (LobbyDoc | null)[];
   let links: OwnLink[];
   let stop: () => void;
-  const doc = (lastSeen: number) => lobbyDoc([lobbyPlayer("me", lastSeen)]);
-  const snap = (
-    fromCache: boolean,
-    hasPendingWrites: boolean,
-    lastSeen = 500
-  ): Snapshot => ({
-    metadata: { fromCache, hasPendingWrites },
-    exists: () => true,
-    data: () => doc(lastSeen),
-  });
-
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
@@ -163,7 +163,17 @@ describe("subscribeMatchLobby", () => {
     lobbies = [];
     links = [];
     stop = subscribeMatchLobby(
-      { code: "ABCD",uid: "me",onLobby: (lobby) => lobbies.push(lobby),onLink: (link) => links.push(link) }    );
+      {
+        code: "ABCD",
+        uid: "me",
+        onLobby: (lobby) => {
+          lobbies.push(lobby);
+        },
+        onLink: (link) => {
+          links.push(link);
+        },
+      }
+    );
   });
   afterEach(() => {
     stop();
@@ -171,20 +181,20 @@ describe("subscribeMatchLobby", () => {
   });
 
   it("reads the lobby and this coach's link from one listener", () => {
-    snapshotListener?.(snap(false, false, 900));
+    snapshotListener?.(snap(false, 900));
     expect(listens.count).toBe(1);
     expect(lobbies).toEqual([doc(900)]);
     expect(links.at(-1)).toEqual({ state: "online", confirmedSeen: 900 });
   });
 
   it("calls the link slow while its writes wait over 6 s for the server", async () => {
-    snapshotListener?.(snap(false, false, 900));
-    snapshotListener?.(snap(false, true, 7000));
+    snapshotListener?.(snap(false, 900));
+    snapshotListener?.(snap(true, 7000));
     await vi.advanceTimersByTimeAsync(5000);
     expect(links.at(-1)?.state).toBe("online");
     await vi.advanceTimersByTimeAsync(2000);
     expect(links.at(-1)).toEqual({ state: "slow", confirmedSeen: 900 });
-    snapshotListener?.(snap(false, false, 7000));
+    snapshotListener?.(snap(false, 7000));
     expect(links.at(-1)).toEqual({ state: "online", confirmedSeen: 7000 });
   });
 

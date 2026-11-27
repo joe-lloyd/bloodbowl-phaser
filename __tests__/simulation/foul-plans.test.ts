@@ -98,17 +98,17 @@ async function foulValues(
     },
   });
   const point = await enumerateDecision(subject, null);
-  const plans = activations({
+  const plan = activations({
     board: readBoard(subject, "team1"),
     w: DEFAULT_WEIGHTS,
     available: availableActions(point.candidates),
-  }).filter(
+  }).find(
     (a) =>
       a.action === "foul" &&
       a.player.id ===
         fixtureValue(subject.ctx.team1.players[fouler.playerIndex]).id
   );
-  return plans[0]?.value ?? null;
+  return plan?.value ?? null;
 }
 
 describe("who fouls", () => {

@@ -45,7 +45,7 @@ function quietPitch(): InteractionPitch {
 export function board(
   team1Placements: PlayerPlacement[],
   team2Placements: PlayerPlacement[],
-  ballPosition = { x: 1, y: 1 }
+  ballPosition?: { x: number; y: number }
 ) {
   const game = new HeadlessGame({
     seed: 1,
@@ -59,7 +59,9 @@ export function board(
         activeTeam: "team1",
         phase: GamePhase.PLAY,
         subPhase: SubPhase.TURN_RECEIVING,
-        ...(team1Placements.every((p) => !p.hasBall) && { ballPosition }),
+        ...(team1Placements.every((p) => !p.hasBall) && {
+          ballPosition: ballPosition ?? { x: 1, y: 1 },
+        }),
       },
     },
   });
@@ -87,8 +89,12 @@ export function board(
   eventBus.on(GameEventNames.UI_ActionPlan, (plan) => {
     seen.plan = plan;
   });
-  eventBus.on(GameEventNames.UI_Notification, (note) => seen.notes.push(note));
-  eventBus.on(GameEventNames.DiceRoll, (roll) => seen.dice.push(roll.description));
+  eventBus.on(GameEventNames.UI_Notification, (note) => {
+    seen.notes.push(note);
+  });
+  eventBus.on(GameEventNames.DiceRoll, (roll) => {
+    seen.dice.push(roll.description);
+  });
   const act = (index: number, action: ActionType) => {
     const id = fixtureValue(game.ctx.team1.players[index]).id;
     controller.handlePlayerClick(id);

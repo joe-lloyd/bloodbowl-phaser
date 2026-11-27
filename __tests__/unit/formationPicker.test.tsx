@@ -5,26 +5,36 @@ import { FormationManager } from "../../src/game/managers/FormationManager";
 import { FormationPicker } from "../../src/ui/components/hud/FormationPicker";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 
+const options = () => [
+  ...document.querySelectorAll<HTMLButtonElement>("[role=option]"),
+];
+const press = (key: string) => {
+  act(() => {
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true })
+    );
+  });
+};
+
+const dotXs = (name: string) =>
+  [
+    ...fixtureValue(
+      options().find((option) => option.textContent === name)
+    ).querySelectorAll("circle"),
+  ].map((dot) => Number(dot.getAttribute("cx")));
+
 describe("FormationPicker", () => {
   let container: HTMLDivElement;
   let root: Root;
   let picked: string[];
   const manager = new FormationManager();
 
-  const options = () => [
-    ...document.querySelectorAll<HTMLButtonElement>("[role=option]"),
-  ];
   const trigger = () =>
     fixtureValue(
       container.querySelector<HTMLButtonElement>(
         '[data-testid="formation-menu"]'
       )
     );
-  const press = (key: string) => { act(() => {
-      document.activeElement?.dispatchEvent(
-        new KeyboardEvent("keydown", { key, bubbles: true })
-      );
-    }); };
   const open = (
     isTeam1: boolean,
     kicking: boolean,
@@ -40,7 +50,9 @@ describe("FormationPicker", () => {
           isTeam1={isTeam1}
           kicking={kicking}
           disabled={false}
-          onPick={(name) => picked.push(name)}
+          onPick={(name) => {
+            picked.push(name);
+          }}
         />
       );
     });
@@ -48,12 +60,6 @@ describe("FormationPicker", () => {
       trigger().click();
     });
   };
-  const dotXs = (name: string) =>
-    [
-      ...fixtureValue(
-        options().find((option) => option.textContent === name)
-      ).querySelectorAll("circle"),
-    ].map((dot) => Number(dot.getAttribute("cx")));
 
   beforeEach(() => {
     localStorage.clear();

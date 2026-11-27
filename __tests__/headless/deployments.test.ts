@@ -93,6 +93,49 @@ async function deploy(name: string, kicking: boolean) {
   );
 }
 
+async function kickingBunker(format: MatchFormat) {
+  const game = new HeadlessGame({ seed: 5, team1: dwarfs(), format });
+  await game.execute({
+    type: "start-setup",
+    kickingTeamId: game.ctx.team1.id,
+  });
+  const bunker = fixtureValue(
+    new FormationManager()
+      .getBuiltInFormations(true)
+      .find((f) => f.name === "Bunker")
+  );
+  await game.execute({
+    type: "apply-formation",
+    teamId: game.ctx.team1.id,
+    formation: bunker.positions,
+  });
+  const line = game.ctx.gameService.getState().setup;
+  const los = format.gameType === "sevens" ? 6 : 12;
+  expect(line?.kickingTeamId).toBe(game.ctx.team1.id);
+  return game.ctx.team1.players
+    .filter((p) => p.gridPosition?.x === los)
+    .map((p) => p.positionName)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+const flankRows = (format: MatchFormat) =>
+  withMatchFormat(format, () =>
+    fixtureValue(
+      new FormationManager()
+        .getBuiltInFormations(true)
+        .find((f) => f.name === "Kick: Blitz line")
+    )
+      .positions.filter((p) => p.role === "flank")
+      .map((p) => p.y)
+      .sort((a, b) => a - b)
+  );
+
+const command = (role: unknown) => ({
+  type: "apply-formation",
+  teamId: "team1",
+  formation: [{ playerId: "0", x: 6, y: 5, role }],
+});
+
 describe("deployments", () => {
   it("offers the general, kicking and receiving formations on the Sevens pitch", () => {
     for (const isTeam1 of [true, false])
@@ -140,43 +183,7 @@ describe("deployments", () => {
     expect(placed["Troll Slayer"]).toMatch(/^6,/);
   });
 
-  async function kickingBunker(format: MatchFormat) {
-    const game = new HeadlessGame({ seed: 5, team1: dwarfs(), format });
-    await game.execute({
-      type: "start-setup",
-      kickingTeamId: game.ctx.team1.id,
-    });
-    const bunker = fixtureValue(
-      new FormationManager()
-        .getBuiltInFormations(true)
-        .find((f) => f.name === "Bunker")
-    );
-    await game.execute({
-      type: "apply-formation",
-      teamId: game.ctx.team1.id,
-      formation: bunker.positions,
-    });
-    const line = game.ctx.gameService.getState().setup;
-    const los = format.gameType === "sevens" ? 6 : 12;
-    expect(line?.kickingTeamId).toBe(game.ctx.team1.id);
-    return game.ctx.team1.players
-      .filter((p) => p.gridPosition?.x === los)
-      .map((p) => p.positionName)
-      .sort();
-  }
-
   it("stands the Blitz line's flankers on the inner row of each Wide Zone", () => {
-    const flankRows = (format: MatchFormat) =>
-      withMatchFormat(format, () =>
-        fixtureValue(
-          new FormationManager()
-            .getBuiltInFormations(true)
-            .find((f) => f.name === "Kick: Blitz line")
-        )
-          .positions.filter((p) => p.role === "flank")
-          .map((p) => p.y)
-          .sort((a, b) => a - b)
-      );
     expect({
       sevens: flankRows({ gameType: "sevens", venue: "stadium" }),
       beach: flankRows({ gameType: "beach-bowl", venue: "beach" }),
@@ -195,11 +202,6 @@ describe("deployments", () => {
   });
 
   it("refuses a formation square with a role it does not know", () => {
-    const command = (role: unknown) => ({
-      type: "apply-formation",
-      teamId: "team1",
-      formation: [{ playerId: "0", x: 6, y: 5, role }],
-    });
     expect(headlessCommandSchema.safeParse(command("line")).success).toBe(true);
     expect(headlessCommandSchema.safeParse(command("bogus")).success).toBe(
       false
@@ -218,15 +220,12 @@ describe("deployments", () => {
         .getBuiltInFormations(true)
         .find((f) => f.name === "Kick: Press")
     );
-    expect(
-      (
-        await game.execute({
-          type: "apply-formation",
-          teamId: game.ctx.team1.id,
-          formation: press.positions,
-        })
-      ).ok
-    ).toBe(true);
+    const applied = await game.execute({
+      type: "apply-formation",
+      teamId: game.ctx.team1.id,
+      formation: press.positions,
+    });
+    expect(applied.ok).toBe(true);
     const before = game.ctx.team1.players.map((p) => p.gridPosition);
     const refused = await game.execute({
       type: "apply-formation",

@@ -24,6 +24,12 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
+const screen = (visible: boolean) => (
+  <MemoryRouter>
+    <MatchResultsScreen visible={visible} />
+  </MemoryRouter>
+);
+
 describe("MatchResultsScreen", () => {
   const h = resultsHarness();
 
@@ -58,11 +64,6 @@ describe("MatchResultsScreen", () => {
 
   it("opens at full time on a HUD that was already mounted during play", async () => {
     setup(false);
-    const screen = (visible: boolean) => (
-      <MemoryRouter>
-        <MatchResultsScreen visible={visible} />
-      </MemoryRouter>
-    );
     await act(async () => {
       h.root.render(screen(false));
     });

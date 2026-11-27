@@ -528,89 +528,90 @@ describe("stunned recovery at turn end", () => {
   });
 });
 
-describe("block-injury scenarios (seeded)", () => {
-  async function runInjuryChain(id: string): Promise<{
-    defenderStatus: string;
-    events: string[];
-    notifications: string[];
-    activeTeamId: string | null;
-    defenderTeamId: string;
-  }> {
-    const game = new HeadlessGame({ scenario: scenario(id) });
-    const snap = game.snapshot();
-    const defender = fixtureValue(
-      fixtureValue(snap.teams[0]).players.find((p) => p.position)
-    );
-    const attacker = fixtureValue(
-      fixtureValue(snap.teams[1]).players.find((p) => p.position)
-    );
+async function runInjuryChain(id: string): Promise<{
+  defenderStatus: string;
+  events: string[];
+  notifications: string[];
+  activeTeamId: string | null;
+  defenderTeamId: string;
+}> {
+  const game = new HeadlessGame({ scenario: scenario(id) });
+  const snap = game.snapshot();
+  const defender = fixtureValue(
+    fixtureValue(snap.teams[0]).players.find((p) => p.position)
+  );
+  const attacker = fixtureValue(
+    fixtureValue(snap.teams[1]).players.find((p) => p.position)
+  );
 
-    await game.execute({
-      type: "declare-action",
-      playerId: attacker.id,
-      action: "block",
-    });
-    let rolled = await game.execute({
-      type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
-    });
+  await game.execute({
+    type: "declare-action",
+    playerId: attacker.id,
+    action: "block",
+  });
+  let rolled = await game.execute({
+    type: "block",
+    attackerId: attacker.id,
+    defenderId: defender.id,
+  });
 
-    if (rolled.pendingDecision?.type === "reaction") {
-      rolled = await game.execute({ type: "use-reaction", accept: false });
-    }
-    if (rolled.pendingDecision?.type !== "block-dice") {
-      throw new Error(`no block decision for ${id}`);
-    }
-    const powIndex = rolled.pendingDecision.options.findIndex(
-      (o) => o.type === "pow" || o.type === "pow-dodge"
-    );
-    if (powIndex === -1) {
-      throw new Error(
-        `seed for ${id} did not roll POW: ${rolled.pendingDecision.options
-          .map((o) => o.type)
-          .join(", ")}`
-      );
-    }
-
-    let response = await game.execute({
-      type: "choose-block-result",
-      index: powIndex,
-    });
-    let events = [...rolled.events, ...response.events];
-    if (response.pendingDecision?.type === "push-direction") {
-      const dir = response.pendingDecision.options[0];
-      response = await game.execute({
-        type: "choose-push-direction",
-        x: fixtureValue(dir).x,
-        y: fixtureValue(dir).y,
-      });
-      events = [...events, ...response.events];
-    }
-    if (response.pendingDecision?.type === "follow-up") {
-      response = await game.execute({
-        type: "choose-follow-up",
-        followUp: false,
-      });
-      events = [...events, ...response.events];
-    }
-
-    const defenderAfter = fixtureValue(
-      fixtureValue(game.snapshot().teams[0]).players.find(
-        (p) => p.id === defender.id
-      )
-    );
-    const notifications = events
-      .filter((e) => e.name === GameEventNames.UI_Notification)
-      .map((e) => z.string().parse(e.data));
-    return {
-      defenderStatus: defenderAfter.status,
-      notifications,
-      activeTeamId: game.snapshot().activeTeamId,
-      defenderTeamId: fixtureValue(snap.teams[0]).id,
-      events: events.map((e) => e.name),
-    };
+  if (rolled.pendingDecision?.type === "reaction") {
+    rolled = await game.execute({ type: "use-reaction", accept: false });
   }
+  if (rolled.pendingDecision?.type !== "block-dice") {
+    throw new Error(`no block decision for ${id}`);
+  }
+  const powIndex = rolled.pendingDecision.options.findIndex(
+    (o) => o.type === "pow" || o.type === "pow-dodge"
+  );
+  if (powIndex === -1) {
+    throw new Error(
+      `seed for ${id} did not roll POW: ${rolled.pendingDecision.options
+        .map((o) => o.type)
+        .join(", ")}`
+    );
+  }
+
+  let response = await game.execute({
+    type: "choose-block-result",
+    index: powIndex,
+  });
+  let events = [...rolled.events, ...response.events];
+  if (response.pendingDecision?.type === "push-direction") {
+    const dir = response.pendingDecision.options[0];
+    response = await game.execute({
+      type: "choose-push-direction",
+      x: fixtureValue(dir).x,
+      y: fixtureValue(dir).y,
+    });
+    events = [...events, ...response.events];
+  }
+  if (response.pendingDecision?.type === "follow-up") {
+    response = await game.execute({
+      type: "choose-follow-up",
+      followUp: false,
+    });
+    events = [...events, ...response.events];
+  }
+
+  const defenderAfter = fixtureValue(
+    fixtureValue(game.snapshot().teams[0]).players.find(
+      (p) => p.id === defender.id
+    )
+  );
+  const notifications = events
+    .filter((e) => e.name === GameEventNames.UI_Notification)
+    .map((e) => z.string().parse(e.data));
+  return {
+    defenderStatus: defenderAfter.status,
+    notifications,
+    activeTeamId: game.snapshot().activeTeamId,
+    defenderTeamId: fixtureValue(snap.teams[0]).id,
+    events: events.map((e) => e.name),
+  };
+}
+
+describe("block-injury scenarios (seeded)", () => {
 
   it("block-injury-stun: defender is stunned, and stays so as their turn starts", async () => {
     const result = await runInjuryChain("block-injury-stun");

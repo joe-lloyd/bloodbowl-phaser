@@ -111,7 +111,8 @@ describe("Charge! as a miniature turn", () => {
   it("reopens the picks until somebody has moved", async () => {
     const { game, gs, home } = await rehearse(KickoffEvent.CHARGE, { players: 2 });
     await choose(game, [home(1).id, home(2).id]);
-    expect((await game.execute({ type: "kickoff-reselect" })).ok).toBe(true);
+    const reselected = await game.execute({ type: "kickoff-reselect" });
+    expect(reselected.ok).toBe(true);
     expect(game.pendingDecision()).toMatchObject({
       type: "kickoff-event",
       selectedPlayerIds: [home(1).id, home(2).id],
@@ -120,7 +121,8 @@ describe("Charge! as a miniature turn", () => {
     await choose(game, [home(3).id]);
     expect(gs.canActivate(home(2).id)).toBe(false);
     expect(await walk(game, home(3).id)).toEqual(played);
-    expect((await game.execute({ type: "kickoff-reselect" })).ok).toBe(false);
+    const lateReselect = await game.execute({ type: "kickoff-reselect" });
+    expect(lateReselect.ok).toBe(false);
   });
 
   it("allows one Blitz with its Block, and only Moves after it", async () => {
@@ -240,7 +242,8 @@ describe("Charge! as a miniature turn", () => {
     const stood = await game.execute({ type: "stand-up", playerId: home(1).id });
     expect(stood.ok).toBe(true);
     expect(home(1).status).toBe(PlayerStatus.ACTIVE);
-    expect((await walk(game, home(1).id)).moved).toBe(true);
+    const walked = await walk(game, home(1).id);
+    expect(walked.moved).toBe(true);
   });
 
   it("allows one Throw Team-mate, whose passenger may be anyone", async () => {
@@ -293,7 +296,9 @@ describe("Charge! as a miniature turn", () => {
     });
     forceDice(game.ctx.rng, [1, 1, 1]);
     const turnovers: unknown[] = [];
-    game.ctx.eventBus.on("turnover", (data) => turnovers.push(data));
+    game.ctx.eventBus.on("turnover", (data) => {
+      turnovers.push(data);
+    });
     await game.execute({
       type: "move",
       playerId: home(1).id,
@@ -305,14 +310,16 @@ describe("Charge! as a miniature turn", () => {
     expect(home(1).status).not.toBe(PlayerStatus.ACTIVE);
     expectReceivingTurn(game);
     expect(gs.isTurnoverInProgress()).toBe(false);
-    expect((await walk(game, away(2).id, -1)).moved).toBe(true);
+    const retreat = await walk(game, away(2).id, -1);
+    expect(retreat.moved).toBe(true);
   });
 
   it("ends early on end-turn", async () => {
     const { game, home } = await rehearse(KickoffEvent.CHARGE, { players: 3 });
     await choose(game, [home(1).id, home(2).id, home(3).id]);
     await walk(game, home(2).id);
-    expect((await game.execute({ type: "end-turn" })).ok).toBe(true);
+    const ended = await game.execute({ type: "end-turn" });
+    expect(ended.ok).toBe(true);
     await settle();
     expectReceivingTurn(game);
   });
@@ -400,11 +407,16 @@ describe.each([
         y,
       });
     };
-    expect((await step(1, 2)).ok).toBe(false);
-    expect((await step(3, 1)).ok).toBe(false);
-    expect((await step(1, -1)).ok).toBe(true);
-    expect((await step(1, 1)).ok).toBe(false);
-    expect((await walk(game, player(2).id)).moved).toBe(false);
+    const wide = await step(1, 2);
+    expect(wide.ok).toBe(false);
+    const unpicked = await step(3, 1);
+    expect(unpicked.ok).toBe(false);
+    const single = await step(1, -1);
+    expect(single.ok).toBe(true);
+    const again = await step(1, 1);
+    expect(again.ok).toBe(false);
+    const walked = await walk(game, player(2).id);
+    expect(walked.moved).toBe(false);
     await game.execute({ type: "end-turn" });
     await settle();
     expectReceivingTurn(game);
@@ -430,7 +442,8 @@ describe("the other kick-off turns", () => {
     home(1).gridPosition = { x: 9, y: 5 };
     away(1).gridPosition = { x: 10, y: 5 };
     await choose(game, [home(1).id]);
-    expect((await walk(game, home(1).id, -1)).declared).toBe(false);
+    const walkedAway = await walk(game, home(1).id, -1);
+    expect(walkedAway.declared).toBe(false);
     const block = await game.execute({
       type: "declare-action",
       playerId: home(1).id,

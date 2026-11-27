@@ -6,7 +6,7 @@ import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import type { CommandResponse } from "../../src/headless/protocol";
 
-function scenario(ball = { x: 16, y: 5 }): Scenario {
+function scenario(ball?: { x: number; y: number }): Scenario {
   return {
     id: "ttm-touchdown",
     name: "Throw Team-mate touchdown",
@@ -26,7 +26,7 @@ function scenario(ball = { x: 16, y: 5 }): Scenario {
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: ball,
+      ballPosition: ball ?? { x: 16, y: 5 },
     },
   };
 }
@@ -39,9 +39,9 @@ const FALLS_IN_END_ZONE_SEED = 12;
 
 async function throwCarrier(
   aimX: number,
-  seed = LANDS_ON_TARGET_SEED,
-  ball?: { x: number; y: number }
+  options: { seed?: number; ball?: { x: number; y: number } }
 ) {
+  const { seed = LANDS_ON_TARGET_SEED, ball } = options;
   const game = new HeadlessGame({ scenario: scenario(ball), seed });
   const throwerId = fixtureValue(game.ctx.team1.players[0]).id;
   const teammateId = fixtureValue(game.ctx.team1.players[1]).id;
@@ -65,13 +65,13 @@ async function throwCarrier(
 
 describe("Throw Team-mate touchdown", () => {
   it("scores when the thrown carrier lands Standing in the end zone", async () => {
-    const snapshot = await throwCarrier(19);
+    const snapshot = await throwCarrier(19, {});
 
     expect(snapshot.score).toEqual({ team1: 1, team2: 0 });
   });
 
   it("does not score short of the end zone", async () => {
-    const snapshot = await throwCarrier(18, LANDS_SHORT_SEED);
+    const snapshot = await throwCarrier(18, { seed: LANDS_SHORT_SEED });
 
     expect(
       fixtureValue(fixtureValue(snapshot.teams[0]).players[1]).status
@@ -83,7 +83,7 @@ describe("Throw Team-mate touchdown", () => {
   });
 
   it("does not score when the carrier lands Prone in the end zone", async () => {
-    const snapshot = await throwCarrier(18, FALLS_IN_END_ZONE_SEED);
+    const snapshot = await throwCarrier(18, { seed: FALLS_IN_END_ZONE_SEED });
 
     expect(
       fixtureValue(fixtureValue(snapshot.teams[0]).players[1]).position
@@ -93,9 +93,9 @@ describe("Throw Team-mate touchdown", () => {
   });
 
   it("does not score for a player without the ball who lands on it in the end zone", async () => {
-    const snapshot = await throwCarrier(19, LANDS_ON_TARGET_SEED, {
-      x: 19,
-      y: 5,
+    const snapshot = await throwCarrier(19, {
+      seed: LANDS_ON_TARGET_SEED,
+      ball: { x: 19, y: 5 },
     });
 
     expect(snapshot.score).toEqual({ team1: 0, team2: 0 });

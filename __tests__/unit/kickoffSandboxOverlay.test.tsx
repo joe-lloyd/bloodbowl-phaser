@@ -33,7 +33,9 @@ describe("Kickoff Table sandbox selector", () => {
       seed?: number;
       outcomeId?: string;
     }[] = [];
-    eventBus.on(GameEventNames.UI_LoadScenario, (data) => loads.push(data));
+    eventBus.on(GameEventNames.UI_LoadScenario, (data) => {
+      loads.push(data);
+    });
 
     await act(async () => {
       root.render(

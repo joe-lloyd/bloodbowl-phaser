@@ -72,6 +72,16 @@ function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+function signIn(uid: string) {
+  auth.resolved = true;
+  fixtureValue(auth.listener)({ uid });
+}
+
+function signOut() {
+  auth.resolved = true;
+  fixtureValue(auth.listener)(null);
+}
+
 describe("team library pending", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -85,16 +95,6 @@ describe("team library pending", () => {
     vi.restoreAllMocks();
     localStorage.clear();
   });
-
-  function signIn(uid: string) {
-    auth.resolved = true;
-    fixtureValue(auth.listener)({ uid });
-  }
-
-  function signOut() {
-    auth.resolved = true;
-    fixtureValue(auth.listener)(null);
-  }
 
   it("is pending while the session restores, and settles signed out", () => {
     connectTeamPersistenceToAuth(() => false);

@@ -21,6 +21,21 @@ function activeTeam() {
   return t;
 }
 
+function activeRoster(rosterName: RosterName, positions: string[]) {
+  const roster = getRosterByRosterName(rosterName);
+  const t = createTeam("Old", rosterName, { primary: 0, secondary: 0 }, roster.rerollCost);
+  const templates = roster.playerTemplates;
+  t.players = positions.map((name, index) =>
+    createPlayer(
+      fixtureValue(templates.find((template) => template.positionName === name)),
+      t.id,
+      index + 1
+    )
+  );
+  stampFirstCompletedMatch(t, 1);
+  return t;
+}
+
 describe("canEdit", () => {
   it("allows every operation on a draft team", () => {
     const t = draftTeam();
@@ -59,21 +74,6 @@ describe("canEdit", () => {
     const t = activeTeam();
     expect(canEdit(t, { type: "hire-player" }).allowed).toBe(true);
   });
-
-  function activeRoster(rosterName: RosterName, positions: string[]) {
-    const roster = getRosterByRosterName(rosterName);
-    const t = createTeam("Old", rosterName, { primary: 0, secondary: 0 }, roster.rerollCost);
-    const templates = roster.playerTemplates;
-    t.players = positions.map((name, index) =>
-      createPlayer(
-        fixtureValue(templates.find((template) => template.positionName === name)),
-        t.id,
-        index + 1
-      )
-    );
-    stampFirstCompletedMatch(t, 1);
-    return t;
-  }
 
   it("lets an active team release a player above a corrected maximum", () => {
     const t = activeRoster(RosterName.DARK_ELF, [

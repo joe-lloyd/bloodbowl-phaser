@@ -14,9 +14,9 @@ it("keeps a failed dodge as the casualty cause through armour and injury", async
   const player = game.ctx.team1.players[0];
   fixtureValue(player).skills = [];
   const events: AllEvents[typeof GameEventNames.PlayerCasualtyInflicted][] = [];
-  game.ctx.eventBus.on(GameEventNames.PlayerCasualtyInflicted, (data) =>
-    events.push(data)
-  );
+  game.ctx.eventBus.on(GameEventNames.PlayerCasualtyInflicted, (data) => {
+    events.push(data);
+  });
   vi.spyOn(game.ctx.gameService.getDiceController(), "roll2D6").mockReturnValue(
     10
   );
@@ -43,9 +43,9 @@ it("does not invent a crowd cause when an injury has no causer", async () => {
   const game = new HeadlessGame({ seed: 1 });
   const player = game.ctx.team1.players[0];
   const events: AllEvents[typeof GameEventNames.PlayerCasualtyInflicted][] = [];
-  game.ctx.eventBus.on(GameEventNames.PlayerCasualtyInflicted, (data) =>
-    events.push(data)
-  );
+  game.ctx.eventBus.on(GameEventNames.PlayerCasualtyInflicted, (data) => {
+    events.push(data);
+  });
   game.ctx.gameService.flowManager.add(
     new InjuryOperation(fixtureValue(player).id, { roll: 10 }),
     true

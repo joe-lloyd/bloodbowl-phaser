@@ -15,6 +15,8 @@ import { routesFor } from "../../src/simulation/ai/routes";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createCoachRng } from "../../src/simulation/rng";
 
+const die = (type: "pow" | "skull") => ({ type, icon: "", label: type });
+
 describe("the planner's scoring run", () => {
   it("never abandons a run it has started for a carrier step", async () => {
     const recording = await runMatch({
@@ -193,7 +195,6 @@ describe("the planner's block re-roll", () => {
       },
       seed: 1,
     });
-    const die = (type: "pow" | "skull") => ({ type, icon: "", label: type });
     game.adoptPending({
       type: "block-dice",
       attackerId: fixtureValue(game.ctx.team1.players[0]).id,
@@ -215,45 +216,47 @@ describe("the planner's block re-roll", () => {
     ).toBe("team-reroll-block");
   });
 });
+const carrierGame = (carrierAt: { x: number; y: number }) =>
+  new HeadlessGame({
+    scenario: {
+      id: "planner-carrier-hit",
+      name: "Planner carrier hit",
+      description: "",
+      setup: {
+        team1Placements: [
+          {
+            playerIndex: 0,
+            x: carrierAt.x - 3,
+            y: carrierAt.y,
+            stats: { ST: 3 },
+          },
+          {
+            playerIndex: 1,
+            x: carrierAt.x - 2,
+            y: carrierAt.y + 2,
+            stats: { ST: 3 },
+          },
+        ],
+        team2Placements: [
+          {
+            playerIndex: 0,
+            x: carrierAt.x,
+            y: carrierAt.y,
+            stats: { ST: 3 },
+            hasBall: true,
+          },
+        ],
+        activeTeam: "team1",
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+      },
+    },
+    seed: 1,
+  });
+
+
 
 describe("the planner's hit on their carrier", () => {
-  const carrierGame = (carrierAt: { x: number; y: number }) =>
-    new HeadlessGame({
-      scenario: {
-        id: "planner-carrier-hit",
-        name: "Planner carrier hit",
-        description: "",
-        setup: {
-          team1Placements: [
-            {
-              playerIndex: 0,
-              x: carrierAt.x - 3,
-              y: carrierAt.y,
-              stats: { ST: 3 },
-            },
-            {
-              playerIndex: 1,
-              x: carrierAt.x - 2,
-              y: carrierAt.y + 2,
-              stats: { ST: 3 },
-            },
-          ],
-          team2Placements: [
-            {
-              playerIndex: 0,
-              x: carrierAt.x,
-              y: carrierAt.y,
-              stats: { ST: 3 },
-              hasBall: true,
-            },
-          ],
-          activeTeam: "team1",
-          phase: GamePhase.PLAY,
-          subPhase: SubPhase.TURN_RECEIVING,
-        },
-      },
-      seed: 1,
-    });
 
   it("walks the helper to a square that assists, past one that does not", async () => {
     const game = new HeadlessGame({
@@ -287,7 +290,8 @@ describe("the planner's hit on their carrier", () => {
         point,
         rng,
       });
-      for (const command of fixtureValue(point.candidates[index]).commands) {
+      const commands = fixtureValue(point.candidates[index]).commands;
+      for (const command of commands) {
         const response = await game.execute(command);
         expect(response.ok).toBe(true);
         if (command.type !== "block") continue;
@@ -313,7 +317,8 @@ describe("the planner's hit on their carrier", () => {
         point,
         rng,
       });
-      for (const command of fixtureValue(point.candidates[index]).commands) {
+      const commands = fixtureValue(point.candidates[index]).commands;
+      for (const command of commands) {
         const response = await game.execute(command);
         expect(response.ok).toBe(true);
         if (command.type !== "block") continue;

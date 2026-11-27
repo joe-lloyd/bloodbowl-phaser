@@ -8,10 +8,11 @@ import { RosterName } from "../../src/types/Team";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+const build = () =>
+  createSimGame(5150, [RosterName.HUMAN, RosterName.ORC], 3);
+
 describe("a full resync onto an engine with flags the peer lacks", () => {
   it("clears Charge!, Knockout and pays-winnings flags", async () => {
-    const build = () =>
-      createSimGame(5150, [RosterName.HUMAN, RosterName.ORC], 3);
     const hostGame = build();
     const guestGame = build();
     const [hostEnd, guestEnd] = createInMemoryTransportPair();
@@ -28,7 +29,7 @@ describe("a full resync onto an engine with flags the peer lacks", () => {
         myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
         peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
         hostTeamId: game.ctx.team1.id,
-        onDesync: (detail) => desyncs.push(`${side}: ${detail}`),
+        onDesync: (detail) => { desyncs.push(`${side}: ${detail}`); },
       });
     const host = session(hostGame, hostEnd, "host");
     const guest = session(guestGame, guestEnd, "guest");

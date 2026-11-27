@@ -12,13 +12,12 @@ import { RosterName } from "../../../src/types/Team";
 
 function computerShopping(
   rosterName: RosterName,
-  pettyCash: number,
   basket: InducementSelectionLine[] = []
 ) {
   const profile = buildSeventsInducementProfile({ advancedLeague: false });
   const session = new InducementSession(
     profile,
-    { computer: pettyCash, human: 0 },
+    { computer: 130_000, human: 0 },
     { computer: sevensInducementCatalog({ rosterName }), human: [] },
     { selections: { computer: basket }, confirmed: {} }
   );
@@ -42,7 +41,7 @@ function computerShopping(
       return session
         .getSelection("computer")
         .map((line) => `${line.inducement} x${String(line.quantity)}`)
-        .sort();
+        .sort((a, b) => a.localeCompare(b));
     if (command?.type !== "select-inducement")
       throw new Error(`Unexpected ${String(command?.type)}`);
     const inducement = Object.values(Inducement).find(
@@ -57,7 +56,7 @@ function computerShopping(
 
 describe("the computer's pregame inducements", () => {
   it("buys a Halfling team the Master Chef first", () => {
-    expect(computerShopping(RosterName.HALFLING, 130_000)).toEqual([
+    expect(computerShopping(RosterName.HALFLING)).toEqual([
       "Halfling Master Chef x1",
       "Part-time Assistant Coach x2",
     ]);
@@ -65,14 +64,14 @@ describe("the computer's pregame inducements", () => {
 
   it("drops an older basket's Extra Team Training before buying a Halfling team the Chef", () => {
     expect(
-      computerShopping(RosterName.HALFLING, 130_000, [
+      computerShopping(RosterName.HALFLING, [
         { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 1 },
       ])
     ).toEqual(["Halfling Master Chef x1", "Part-time Assistant Coach x2"]);
   });
 
   it("buys other teams Extra Team Training first", () => {
-    expect(computerShopping(RosterName.HUMAN, 130_000)).toEqual([
+    expect(computerShopping(RosterName.HUMAN)).toEqual([
       "Extra Team Training x1",
     ]);
   });

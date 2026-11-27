@@ -65,7 +65,8 @@ function shortTeam(
   treasury: number
 ): Team {
   const team = leagueTeam(roster, { players: listed, treasury });
-  for (const player of team.players.slice(listed - missing))
+  const benched = team.players.slice(listed - missing);
+  for (const player of benched)
     player.injuries = [InjuryType.MISS_NEXT_GAME];
   return team;
 }

@@ -6,12 +6,12 @@ import {
   OPPONENT_DISCONNECT_MS,
 } from "../../src/firebase/lobby";
 
-describe("describeOpponentConnection", () => {
-  const lobbyWith = (lastSeen: number | undefined): LobbyDoc =>
-    ({
-      players: { opponent: { uid: "opponent", lastSeen } },
-    }) as unknown as LobbyDoc;
+const lobbyWith = (lastSeen: number | undefined): LobbyDoc =>
+  ({
+    players: { opponent: { uid: "opponent", lastSeen } },
+  }) as unknown as LobbyDoc;
 
+describe("describeOpponentConnection", () => {
   const NOW = 1_000_000;
 
   it("is online with a recent heartbeat", () => {

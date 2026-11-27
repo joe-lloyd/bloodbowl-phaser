@@ -59,9 +59,9 @@ describe("PlayPhaseHandler board reconciliation", () => {
 
   it("drops a bounce the engine moved past before it could play, and still answers it", async () => {
     const acks: { id: string }[] = [];
-    eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) =>
-      acks.push(data)
-    );
+    eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) => {
+      acks.push(data);
+    });
     eventBus.emit(GameEventNames.PassFumbled, {
       playerId: "bounce",
       position: { x: 4, y: 4 },
@@ -79,9 +79,9 @@ describe("PlayPhaseHandler board reconciliation", () => {
 
   it("drops a bounce whose board left while its dice were in the air, and still answers it", async () => {
     const acks: { id: string }[] = [];
-    eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) =>
-      acks.push(data)
-    );
+    eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) => {
+      acks.push(data);
+    });
 
     eventBus.emit(GameEventNames.UI_DiceInAir, {
       count: 1,
@@ -105,9 +105,9 @@ describe("PlayPhaseHandler board reconciliation", () => {
 
   it("presents a declared Punt and acknowledges it when the kick lands", async () => {
     const acks: { id: string }[] = [];
-    eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) =>
-      acks.push(data)
-    );
+    eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) => {
+      acks.push(data);
+    });
 
     eventBus.emit(GameEventNames.PuntDeclared, {
       playerId: "punter",
@@ -134,9 +134,9 @@ describe("PlayPhaseHandler board reconciliation", () => {
 
   it("still acknowledges a Punt when there is nothing to animate", () => {
     const acks: { id: string }[] = [];
-    eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) =>
-      acks.push(data)
-    );
+    eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) => {
+      acks.push(data);
+    });
     scene.ballSprite = null;
 
     eventBus.emit(GameEventNames.PuntDeclared, {

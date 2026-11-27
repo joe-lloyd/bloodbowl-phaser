@@ -9,12 +9,11 @@ import { decide } from "../../src/simulation/ai/decisions";
 import { blockFaces } from "../../src/simulation/ai/wrestle";
 import type { Candidate } from "../../src/simulation/candidates";
 
+const plainTarget = { skills: [SkillType.WRESTLE], hasBall: false };
+
 function wrestleBoard(
   attackerSkills: SkillType[],
-  target: { skills: SkillType[]; hasBall: boolean; ours?: true } = {
-    skills: [SkillType.WRESTLE],
-    hasBall: false,
-  }
+  target: { skills: SkillType[]; hasBall: boolean; ours?: true } = plainTarget
 ) {
   const subject = game({
     turn: 3,

@@ -63,7 +63,8 @@ describe.each([
 
       let answer = null;
       for (const [index, step] of recording.steps.entries()) {
-        if (!(await host.run(step.command)).ok) await guest.run(step.command);
+        const hostResult = await host.run(step.command);
+        if (!hostResult.ok) await guest.run(step.command);
         await settle(host, guest);
         const pending = guestGame.pendingDecision();
         const following = recording.steps[index + 1]?.command;

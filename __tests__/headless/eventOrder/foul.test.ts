@@ -55,7 +55,9 @@ async function foulReporting(
   const { game, fouler } = foulGame(skills, false, roster);
   forceDice(game.ctx.rng, dice);
   const rerolls: unknown[] = [];
-  game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => rerolls.push(d));
+  game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => {
+    rerolls.push(d);
+  });
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(fouler).id,

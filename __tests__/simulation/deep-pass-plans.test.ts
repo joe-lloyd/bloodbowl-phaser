@@ -138,6 +138,15 @@ function pressedTurn() {
   });
 }
 
+const catcher = (playerIndex: number, y: number): PlayerPlacement => ({
+  playerIndex,
+  x: 6,
+  y,
+  stats: { MA: 8, AG: 2 },
+  skills: [SkillType.CATCH],
+});
+
+
 describe("two-step pass", () => {
   it("sends the catcher deep on the setup turn, in range of a pass and a run in", async () => {
     const subject = await setupTurn();
@@ -158,13 +167,6 @@ describe("two-step pass", () => {
   });
 
   it("sends one receiver deep when several could go", async () => {
-    const catcher = (playerIndex: number, y: number): PlayerPlacement => ({
-      playerIndex,
-      x: 6,
-      y,
-      stats: { MA: 8, AG: 2 },
-      skills: [SkillType.CATCH],
-    });
     const subject = await setupTurn({}, [catcher(2, 3), catcher(3, 7)]);
     const [, first, second, third] = subject.ctx.team1.players;
 
@@ -248,7 +250,8 @@ describe("two-step pass", () => {
       },
     });
     const players = subject.ctx.team1.players;
-    for (const p of [0, 3, 4, 5, 6].map((i) => players[i])) {
+    const starters = [0, 3, 4, 5, 6].map((i) => players[i]);
+    for (const p of starters) {
       await subject.execute({
         type: "declare-action",
         playerId: fixtureValue(p).id,
@@ -289,7 +292,8 @@ describe("two-step pass", () => {
     await playTurn(subject);
 
     expect(subject.snapshot().activeTeamId).toBe("team2");
-    expect((await subject.execute({ type: "end-turn" })).ok).toBe(true);
+    const ended = await subject.execute({ type: "end-turn" });
+    expect(ended.ok).toBe(true);
     const deep = { ...fixtureValue(fixtureValue(catcher).gridPosition) };
 
     const { declared, commands } = await playTurn(subject);

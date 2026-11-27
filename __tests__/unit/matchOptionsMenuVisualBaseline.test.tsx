@@ -1,6 +1,6 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import nodePath from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -8,9 +8,22 @@ import { MatchOptionsMenu } from "../../src/ui/components/hud/MatchOptionsMenu";
 import { computeMatchOptionsMenu } from "../../src/ui/components/hud/computeMatchOptionsMenu";
 
 const baselinePath = (file: string) =>
-  resolve(process.cwd(), "__tests__", "unit", "screenshots", file);
+  nodePath.resolve(process.cwd(), "__tests__", "unit", "screenshots", file);
 
 const normalize = (html: string) => html.replaceAll('\r\n', "\n").trim();
+
+const compare = (name: string, html: string) => {
+  const actual = normalize(html);
+  const path = baselinePath(name);
+
+  if (process.env["UPDATE_VISUAL_BASELINES"] === "1" || !existsSync(path)) {
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(path, `${actual}\n`, "utf8");
+  }
+
+  const expected = normalize(readFileSync(path, "utf8"));
+  expect(actual).toBe(expected);
+};
 
 describe("MatchOptionsMenu fixed-viewport baseline", () => {
   let container: HTMLDivElement;
@@ -31,19 +44,6 @@ describe("MatchOptionsMenu fixed-viewport baseline", () => {
     });
     container.remove();
   });
-
-  const compare = (name: string, html: string) => {
-    const actual = normalize(html);
-    const path = baselinePath(name);
-
-    if (process.env["UPDATE_VISUAL_BASELINES"] === "1" || !existsSync(path)) {
-      mkdirSync(dirname(path), { recursive: true });
-      writeFileSync(path, `${actual}\n`, "utf8");
-    }
-
-    const expected = normalize(readFileSync(path, "utf8"));
-    expect(actual).toBe(expected);
-  };
 
   it("matches the collapsed trigger (local, active match)", async () => {
     const entries = computeMatchOptionsMenu({

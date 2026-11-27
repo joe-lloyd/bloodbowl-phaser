@@ -97,13 +97,14 @@ describe("GameTypeSelector", () => {
     expect(onChange).toHaveBeenCalledWith("street-bowl");
   });
 
+  const stops = () => cards().map((button) => button.tabIndex);
+
   it("keeps one tab stop on the focused card, and returns it to the checked card when focus leaves", () => {
     const outside = document.createElement("button");
     document.body.append(outside);
     act(() => {
       root.render(<GameTypeSelector value="sevens" onChange={vi.fn()} />);
     });
-    const stops = () => cards().map((button) => button.tabIndex);
 
     act(() => {
       card("Sevens").focus();

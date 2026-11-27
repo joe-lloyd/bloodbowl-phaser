@@ -32,6 +32,26 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
+const line = (playerId: string, teamId: string, extra = {}) => ({
+  playerId,
+  teamId,
+  participated: true,
+  completions: 0,
+  attempts: 0,
+  superbThrows: 0,
+  safeLandings: 0,
+  interceptions: 0,
+  casualties: 0,
+  kills: 0,
+  touchdowns: 0,
+  mvps: 0,
+  blocks: 0,
+  yards: 0,
+  injuriesSuffered: 0,
+  sppEarned: 0,
+  ...extra,
+});
+
 describe("MatchResultsScreen", () => {
   const h = resultsHarness();
 
@@ -176,25 +196,6 @@ describe("MatchResultsScreen", () => {
   it("keeps a player who died in the game in the team's played games", async () => {
     const { services, team1, team2 } = setup(false);
     const fallen = team1.players[0];
-    const line = (playerId: string, teamId: string, extra = {}) => ({
-      playerId,
-      teamId,
-      participated: true,
-      completions: 0,
-      attempts: 0,
-      superbThrows: 0,
-      safeLandings: 0,
-      interceptions: 0,
-      casualties: 0,
-      kills: 0,
-      touchdowns: 0,
-      mvps: 0,
-      blocks: 0,
-      yards: 0,
-      injuriesSuffered: 0,
-      sppEarned: 0,
-      ...extra,
-    });
     vi.spyOn(services.matchStats, "summary").mockReturnValue({
       progressionEnabled: false,
       players: [
@@ -245,9 +246,10 @@ describe("MatchResultsScreen", () => {
       fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
         b.textContent?.includes(text)
       ));
-    for (const roll of [...h.container.querySelectorAll("button")].filter((b) =>
+    const rollButtons = [...h.container.querySelectorAll("button")].filter((b) =>
       b.textContent?.includes("Roll MVP D6")
-    ))
+    );
+    for (const roll of rollButtons)
       await act(async () => {
         roll.click();
       });

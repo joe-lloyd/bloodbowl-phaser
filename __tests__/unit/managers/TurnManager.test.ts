@@ -10,6 +10,8 @@ import { GameEventNames } from "../../../src/types/events";
 import { createInitialState } from "../../../src/services/gameService/matchStart";
 import { busWith, teamWith } from "../controllers/controllerFixtures";
 
+const noop = () => {};
+
 describe("TurnManager", () => {
   let manager: TurnManager;
   let mockEventBus: ReturnType<typeof busWith>;
@@ -205,7 +207,7 @@ describe("TurnManager", () => {
 
   describe("Automatic end of turn", () => {
     it("does not end the next team's turn when the coach presses End Turn first", async () => {
-      let autoEnd: () => void = () => {};
+      let autoEnd: () => void = noop;
       const manual = new TurnManager(
         mockEventBus,
         mockState,

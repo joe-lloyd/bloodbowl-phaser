@@ -44,9 +44,9 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
       action: "blitz",
     });
     const rolls: number[] = [];
-    game.ctx.eventBus.on(GameEventNames.DiceRoll, (data) =>
-      rolls.push(data.total)
-    );
+    game.ctx.eventBus.on(GameEventNames.DiceRoll, (data) => {
+      rolls.push(data.total);
+    });
     await game.ctx.gameService.resolveBlock(
       fixtureValue(attacker).id,
       fixtureValue(defender).id,
@@ -117,9 +117,9 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
       action: "block",
     });
     const rolls: string[] = [];
-    game.ctx.eventBus.on(GameEventNames.DiceRoll, (data) =>
-      rolls.push(data.rollType)
-    );
+    game.ctx.eventBus.on(GameEventNames.DiceRoll, (data) => {
+      rolls.push(data.rollType);
+    });
     await game.ctx.gameService.resolveBlock(
       fixtureValue(attacker).id,
       fixtureValue(defender).id,

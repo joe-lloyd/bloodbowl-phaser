@@ -207,8 +207,8 @@ describe("HeadlessGame action protocol", () => {
     expect(rolled.pendingDecision?.type).toBe("block-dice");
     expect(
       rolled.pendingDecision?.type === "block-dice" &&
-        rolled.pendingDecision.options.length
-    ).toBeGreaterThan(0);
+        rolled.pendingDecision.options.length > 0
+    ).toBe(true);
     expect(
       rolled.events.some((e) => e.name === GameEventNames.BlockDiceRolled)
     ).toBe(true);
@@ -289,11 +289,12 @@ describe("HeadlessGame action protocol", () => {
       if (!response.ok) continue;
 
       expect(
-        response.events.some(
-          (e) =>
-            e.name === GameEventNames.PassAttempted ||
-            e.name === GameEventNames.PassCompleted ||
-            e.name === GameEventNames.PassFumbled
+        response.events.some((e) =>
+          new Set<string>([
+            GameEventNames.PassAttempted,
+            GameEventNames.PassCompleted,
+            GameEventNames.PassFumbled,
+          ]).has(e.name)
         )
       ).toBe(true);
       done = true;
@@ -380,10 +381,7 @@ describe("HeadlessGame action protocol", () => {
       });
       if (!moved.ok) continue;
 
-      const turnover = moved.events.find(
-        (e) => e.name === GameEventNames.Turnover
-      );
-      if (!turnover) {
+      if (moved.events.every((e) => e.name !== GameEventNames.Turnover)) {
         continue;
       }
 

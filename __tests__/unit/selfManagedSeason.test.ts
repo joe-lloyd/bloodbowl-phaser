@@ -129,7 +129,8 @@ describe("a league season reported by score only", () => {
 
     const rounds = Math.max(...doc.fixtures.map((fixture) => fixture.round));
     for (let round = 1; round <= rounds; round++) {
-      for (const fixture of doc.fixtures.filter((f) => f.round === round)) {
+      for (const fixture of doc.fixtures) {
+        if (fixture.round !== round) continue;
         if (!fixture.homeEntrantId || !fixture.awayEntrantId) continue;
         await recordCompetitionFixture({
           context: {

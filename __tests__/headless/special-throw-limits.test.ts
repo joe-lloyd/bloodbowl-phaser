@@ -81,7 +81,8 @@ describe("once-per-Turn special throws", () => {
     });
     expect(pass.snapshot.activeTeamId).toBe("team1");
 
-    expect((await declare(game, 2, "throwTeamMate")).ok).toBe(true);
+    const teamMateDeclared = await declare(game, 2, "throwTeamMate");
+    expect(teamMateDeclared.ok).toBe(true);
   });
 
   it("allows one Throw Team-mate and one Kick Team-mate, but not a second throw", async () => {
@@ -96,13 +97,16 @@ describe("once-per-Turn special throws", () => {
     });
     expect(thrown.snapshot.activeTeamId).toBe("team1");
 
-    expect((await declare(game, 4, "throwTeamMate")).ok).toBe(false);
-    expect((await declare(game, 5, "throwTeamMate")).ok).toBe(true);
+    const fourthDeclared = await declare(game, 4, "throwTeamMate");
+    expect(fourthDeclared.ok).toBe(false);
+    const fifthDeclared = await declare(game, 5, "throwTeamMate");
+    expect(fifthDeclared.ok).toBe(true);
   });
 
   it("refuses a Move after declaring Throw Bomb", async () => {
     const game = new HeadlessGame({ scenario: bombers, seed: SEED });
-    expect((await declare(game, 0, "throwBomb")).ok).toBe(true);
+    const bombDeclared = await declare(game, 0, "throwBomb");
+    expect(bombDeclared.ok).toBe(true);
 
     const move = await game.execute({
       type: "move",
@@ -127,6 +131,7 @@ describe("once-per-Turn special throws", () => {
     expect(bomb.events.some((e) => e.name === "bombExploded")).toBe(true);
     expect(bomb.snapshot.activeTeamId).toBe("team1");
 
-    expect((await declare(game, 1, "throwBomb")).ok).toBe(false);
+    const secondBombDeclared = await declare(game, 1, "throwBomb");
+    expect(secondBombDeclared.ok).toBe(false);
   });
 });

@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GameFlowManager } from "@/game/core/GameFlowManager";
 import { GameOperation } from "@/game/core/GameOperation";
 
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const ignore = () => {};
+
 class MockOperation extends GameOperation {
   public name: string;
   private action: (context: any) => Promise<void>;
@@ -95,8 +98,6 @@ describe("GameFlowManager", () => {
   });
 
   describe("running a chain to rest", () => {
-    const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
-
     it("runs the chain, and what it queues, before the caller goes on", async () => {
       const ran: string[] = [];
       flowManager.add(
@@ -154,7 +155,7 @@ describe("GameFlowManager", () => {
 
     it("leaves a flow that was abandoned under it alone", async () => {
       const ran: string[] = [];
-      let resume = () => {};
+      let resume = ignore;
       flowManager.add(
         new MockOperation("Block", async () => {
           await tick();
@@ -202,7 +203,7 @@ describe("GameFlowManager", () => {
       await tick();
       flowManager.abandon();
 
-      let finish = () => {};
+      let finish = ignore;
       flowManager.add(
         new MockOperation(
           "Fresh",

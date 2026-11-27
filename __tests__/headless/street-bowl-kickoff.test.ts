@@ -13,8 +13,8 @@ import {
   variantKick,
 } from "./variantKickoffs";
 
-const kick = (dice: number[], extra: Partial<Parameters<typeof variantKick>[0]> = {}) =>
-  variantKick({ format: STREET, setup: STREET_SETUP, dice, ...extra });
+const kick = (dice: number[]) =>
+  variantKick({ format: STREET, setup: STREET_SETUP, dice });
 
 describe("Street Bowl kick-off table", () => {
   it("maps 2D6 to the Street Bowl events", () => {

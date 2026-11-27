@@ -85,13 +85,14 @@ describe("Time up when a turn runs out", () => {
       const shown: { text: string; subtitle?: string | undefined; at: number }[] = [];
       eventBus.on(
         GameEventNames.UI_PresentMoment,
-        (moment: MatchMoment | null) =>
+        (moment: MatchMoment | null) => {
           shown.push({
             text: moment && "headline" in moment ? moment.headline : "",
             subtitle:
               moment && "subtitle" in moment ? moment.subtitle : undefined,
             at: Date.now(),
-          })
+          });
+        }
       );
       const container = document.createElement("div");
       document.body.append(container);

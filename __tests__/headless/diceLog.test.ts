@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -52,7 +52,7 @@ const noBallScenario: Scenario = {
 };
 
 function audit(logs: DiceLog[]): string {
-  const file = join(mkdtempSync(join(tmpdir(), "dice-audit-")), "logs.json");
+  const file = path.join(mkdtempSync(path.join(tmpdir(), "dice-audit-")), "logs.json");
   writeFileSync(file, JSON.stringify(logs));
   return execFileSync(
     "pnpm",
@@ -123,6 +123,15 @@ class MemoryStorage {
     this.items.delete(key);
   }
 }
+
+const paddedLog = (id: string) => ({
+  ...createDiceLog({ id, mode: "local", seed: 1, teams: [] }),
+  entries: [],
+  padding: "x".repeat(400),
+});
+
+const plainLog = (id: string) =>
+  createDiceLog({ id, mode: "local", seed: 1, teams: [] });
 
 describe("the dice log", () => {
   it("keeps the block roll and its Team Re-roll with the dice either side", async () => {
@@ -254,26 +263,19 @@ describe("the dice log", () => {
   });
 
   it("drops older logs, not this one, when storage is full", () => {
-    const old = (id: string) => ({
-      ...createDiceLog({ id, mode: "local", seed: 1, teams: [] }),
-      entries: [],
-      padding: "x".repeat(400),
-    });
     const storage = new MemoryStorage(1200);
-    writeDiceLog(old("a"), storage);
-    writeDiceLog(old("b"), storage);
+    writeDiceLog(paddedLog("a"), storage);
+    writeDiceLog(paddedLog("b"), storage);
 
-    writeDiceLog(old("c"), storage);
+    writeDiceLog(paddedLog("c"), storage);
 
     expect(listDiceLogs(storage).map((log) => log.id)).toEqual(["b", "c"]);
   });
 
   it("drops an older log when the index write is refused", () => {
-    const old = (id: string) =>
-      createDiceLog({ id, mode: "local", seed: 1, teams: [] });
     const storage = new MemoryStorage();
-    writeDiceLog(old("a"), storage);
-    writeDiceLog(old("b"), storage);
+    writeDiceLog(plainLog("a"), storage);
+    writeDiceLog(plainLog("b"), storage);
     const refused: string[] = [];
     const setItem = storage.setItem.bind(storage);
     storage.setItem = (key: string, value: string) => {
@@ -284,7 +286,7 @@ describe("the dice log", () => {
       setItem(key, value);
     };
 
-    writeDiceLog(old("c"), storage);
+    writeDiceLog(plainLog("c"), storage);
 
     expect(refused).toEqual(['["a","b","c"]']);
     expect(listDiceLogs(storage).map((log) => log.id)).toEqual(["b", "c"]);
@@ -315,7 +317,7 @@ describe("the dice log", () => {
     await game.execute({ type: "team-reroll-block", attackerId });
     recorder.dispose();
 
-    const file = join(mkdtempSync(join(tmpdir(), "dice-audit-")), "logs.json");
+    const file = path.join(mkdtempSync(path.join(tmpdir(), "dice-audit-")), "logs.json");
     writeFileSync(file, JSON.stringify([log, { ...log, id: "guest" }]));
     const report = execFileSync(
       "pnpm",

@@ -61,6 +61,39 @@ function match(mates: Placements, opponents: Placements, seed = 7) {
 
 const OPPONENT = { playerIndex: 0, x: 11, y: 5 };
 
+async function ragedHopper() {
+  const { game, rolls } = match(
+    [
+      { playerIndex: 0, x: 14, y: 8 },
+      { playerIndex: 5, x: 14, y: 9 },
+    ],
+    [{ ...OPPONENT, x: 24 }]
+  );
+  const hopper = fixtureValue(game.ctx.team1.players[0]);
+  const receiver = fixtureValue(game.ctx.team1.players[5]);
+  game.ctx.team1.rerolls = 0;
+  const gs = game.ctx.gameService;
+  gs.getState().ballPosition = { ...fixtureValue(hopper.gridPosition) };
+  let response = await game.execute({
+    type: "declare-action",
+    playerId: hopper.id,
+    action: "handoff",
+  });
+  if (response.pendingDecision?.type === "bite-target") {
+    response = await game.execute({
+      type: "choose-bite-target",
+      playerId: receiver.id,
+    });
+  }
+  expect(response.ok).toBe(true);
+  expect(receiver.status).not.toBe(PlayerStatus.ACTIVE);
+  const declare = (
+    action: "move" | "handoff",
+    playerId = hopper.id
+  ) => game.execute({ type: "declare-action", playerId, action });
+  return { game, gs, hopper, rolls, declare };
+}
+
 describe("Squig Rage", () => {
   it("makes the Wrangler Block an adjacent opponent even with Ball & Chain", async () => {
     const { game, wrangler, declare } = match(
@@ -125,7 +158,8 @@ describe("Squig Rage", () => {
       playerId: left,
     });
     expect(game.ctx.gameService.cancelAction(wrangler.id)).toBe(false);
-    expect((await game.execute({ type: "choose-bite-target" })).ok).toBe(false);
+    const noTargetChosen = await game.execute({ type: "choose-bite-target" });
+    expect(noTargetChosen.ok).toBe(false);
     const roll = await game.execute({
       type: "choose-bite-target",
       playerId: fixtureValue(right),
@@ -166,10 +200,11 @@ describe("Squig Rage", () => {
       purpose: "squig-knock-down",
       targetIds: [target.id],
     });
-    expect(
-      (await game.execute({ type: "choose-bite-target", playerId: target.id }))
-        .ok
-    ).toBe(true);
+    const targetChosen = await game.execute({
+      type: "choose-bite-target",
+      playerId: target.id,
+    });
+    expect(targetChosen.ok).toBe(true);
     expect(target.status).not.toBe(PlayerStatus.ACTIVE);
     expect(rolls.some((type) => type.includes("Armour"))).toBe(true);
     expect(game.ctx.gameService.getState().activePlayer).toMatchObject({
@@ -177,7 +212,8 @@ describe("Squig Rage", () => {
       action: null,
     });
     const rolled = rolls.length;
-    expect((await declare()).ok).toBe(true);
+    const redeclared = await declare();
+    expect(redeclared.ok).toBe(true);
     expect(rolls).toHaveLength(rolled);
     expect(game.ctx.gameService.getState().activePlayer?.action).toBe(
       "ballAndChain"
@@ -185,44 +221,12 @@ describe("Squig Rage", () => {
   });
 
   describe("after a Hopper's Handoff knocks down its only receiver", () => {
-    async function ragedHopper() {
-      const { game, rolls } = match(
-        [
-          { playerIndex: 0, x: 14, y: 8 },
-          { playerIndex: 5, x: 14, y: 9 },
-        ],
-        [{ ...OPPONENT, x: 24 }]
-      );
-      const hopper = fixtureValue(game.ctx.team1.players[0]);
-      const receiver = fixtureValue(game.ctx.team1.players[5]);
-      game.ctx.team1.rerolls = 0;
-      const gs = game.ctx.gameService;
-      gs.getState().ballPosition = { ...fixtureValue(hopper.gridPosition) };
-      let response = await game.execute({
-        type: "declare-action",
-        playerId: hopper.id,
-        action: "handoff",
-      });
-      if (response.pendingDecision?.type === "bite-target") {
-        response = await game.execute({
-          type: "choose-bite-target",
-          playerId: receiver.id,
-        });
-      }
-      expect(response.ok).toBe(true);
-      expect(receiver.status).not.toBe(PlayerStatus.ACTIVE);
-      const declare = (
-        action: "move" | "handoff",
-        playerId = hopper.id
-      ) => game.execute({ type: "declare-action", playerId, action });
-      return { game, gs, hopper, rolls, declare };
-    }
-
     it("leaves the Handoff unspent and lets the Hopper Move without a second roll", async () => {
       const { gs, rolls, declare } = await ragedHopper();
       const rolled = rolls.length;
       expect(gs.getState().turn.hasHandedOff).toBe(false);
-      expect((await declare("move")).ok).toBe(true);
+      const moveDeclared = await declare("move");
+      expect(moveDeclared.ok).toBe(true);
       expect(gs.getState().activePlayer?.action).toBe("move");
       expect(gs.getState().turn.hasHandedOff).toBe(false);
       expect(rolls).toHaveLength(rolled);
@@ -241,7 +245,8 @@ describe("Squig Rage", () => {
         id: hopper.id,
         action: null,
       });
-      expect((await declare("move")).ok).toBe(true);
+      const moveDeclared = await declare("move");
+      expect(moveDeclared.ok).toBe(true);
       expect(rolls).toHaveLength(rolled);
       expect(gs.getState().turn.hasHandedOff).toBe(false);
     });
@@ -249,7 +254,8 @@ describe("Squig Rage", () => {
     it("ends the Hopper's activation when another player is declared", async () => {
       const { game, gs, hopper, declare } = await ragedHopper();
       const other = fixtureValue(game.ctx.team1.players[3]);
-      expect((await declare("move", other.id)).ok).toBe(true);
+      const otherDeclared = await declare("move", other.id);
+      expect(otherDeclared.ok).toBe(true);
       expect(gs.hasPlayerActed(hopper.id)).toBe(true);
       expect(gs.getState().turn.hasHandedOff).toBe(false);
     });
@@ -263,13 +269,17 @@ describe("Squig Rage", () => {
           playerId: other.id,
           action: "chomp",
         });
-      expect((await refuse()).ok).toBe(false);
+      const firstRefusal = await refuse();
+      expect(firstRefusal.ok).toBe(false);
       expect(gs.hasPlayerActed(hopper.id)).toBe(false);
-      expect((await declare("handoff")).ok).toBe(true);
+      const handoffDeclared = await declare("handoff");
+      expect(handoffDeclared.ok).toBe(true);
       const held = structuredClone(gs.getState().activePlayer);
-      expect((await refuse()).ok).toBe(false);
+      const secondRefusal = await refuse();
+      expect(secondRefusal.ok).toBe(false);
       expect(gs.getState().activePlayer).toEqual(held);
-      expect((await declare("handoff", other.id)).ok).toBe(true);
+      const otherHandoffDeclared = await declare("handoff", other.id);
+      expect(otherHandoffDeclared.ok).toBe(true);
       expect(gs.hasPlayerActed(hopper.id)).toBe(true);
       expect(gs.getState().turn.hasHandedOff).toBe(false);
     });
@@ -279,7 +289,8 @@ describe("Squig Rage", () => {
       hopper.skills.push(getSkill(SkillType.BONE_HEAD));
       const rolled = rolls.length;
       forceDice(game.ctx.rng, [1]);
-      expect((await declare("move")).ok).toBe(true);
+      const moveDeclared = await declare("move");
+      expect(moveDeclared.ok).toBe(true);
       expect(rolls.slice(rolled)).toEqual([
         expect.stringContaining("Bone Head"),
       ]);
@@ -349,7 +360,8 @@ describe("Squig Rage", () => {
 
   it("ends the activation with Distracted when there is nobody nearby", async () => {
     const { game, wrangler, declare } = match([], [{ ...OPPONENT, x: 13 }]);
-    expect((await declare()).pendingDecision).toBeNull();
+    const nobodyNearby = await declare();
+    expect(nobodyNearby.pendingDecision).toBeNull();
     expect(wrangler.conditions).toContainEqual({ type: "Distracted" });
     expect(game.ctx.gameService.hasPlayerActed(wrangler.id)).toBe(true);
   });
@@ -359,7 +371,8 @@ describe("Squig Rage", () => {
       { ...OPPONENT, x: 13 },
     ]);
     game.ctx.team1.rerolls = 1;
-    expect((await declare()).pendingDecision?.type).toBe("reroll");
+    const rerollDeclared = await declare();
+    expect(rerollDeclared.pendingDecision?.type).toBe("reroll");
     void game.ctx.gameService.ballAndChain(wrangler.id, 1, 0);
     await game.execute({ type: "use-reroll", accept: false });
     expect(wrangler.conditions).toContainEqual({ type: "Distracted" });
@@ -379,7 +392,8 @@ describe("Squig Rage", () => {
     game.ctx.eventBus.on(GameEventNames.Turnover, ({ teamId }) => {
       turnovers.push(teamId);
     });
-    expect((await declare()).pendingDecision?.type).toBe("reroll");
+    const rerollDeclared = await declare();
+    expect(rerollDeclared.pendingDecision?.type).toBe("reroll");
     void game.ctx.gameService.ballAndChain(wrangler.id, 1, 0);
     let response = await game.execute({ type: "use-reroll", accept: false });
     if (response.pendingDecision?.type === "bite-target") {
@@ -477,7 +491,8 @@ describe("Squig Rage", () => {
     await game.execute({ type: "use-reroll", accept: false });
     await game.execute({ type: "choose-bite-target", playerId: mate.id });
     expect(gs.getState().ballPosition).toEqual({ x: 15, y: 8 });
-    expect((await declare()).ok).toBe(true);
+    const declaredAgain = await declare();
+    expect(declaredAgain.ok).toBe(true);
   });
 
   it("refuses a Gaze clicked before Bloodlust changes the action to Move", async () => {
@@ -541,13 +556,15 @@ describe("Squig Rage", () => {
       [{ playerIndex: 2, x: 7, y: 8 }],
       [OPPONENT]
     );
-    expect((await declare()).pendingDecision).toBeNull();
+    const noRoll = await declare();
+    expect(noRoll.pendingDecision).toBeNull();
     expect(rolls).toEqual([]);
     expect(game.ctx.gameService.getState().activePlayer?.id).toBe(wrangler.id);
   });
 
   it("rolls with a standing Herder four squares away", async () => {
     const { declare } = match([{ playerIndex: 2, x: 6, y: 8 }], [OPPONENT]);
-    expect((await declare()).pendingDecision?.type).toBe("block-dice");
+    const blockDice = await declare();
+    expect(blockDice.pendingDecision?.type).toBe("block-dice");
   });
 });

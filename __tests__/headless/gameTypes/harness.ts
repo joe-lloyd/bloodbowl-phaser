@@ -82,7 +82,9 @@ export function session(gameType: GameType, scenario: Scenario, dice: number[]) 
   forceDice(game.ctx.rng, dice);
   const events: { name: string; data: unknown }[] = [];
   for (const name of WATCHED) {
-    game.ctx.eventBus.on(name, (data: unknown) => events.push({ name, data }));
+    game.ctx.eventBus.on(name, (data: unknown) => {
+      events.push({ name, data });
+    });
   }
   const run = async (command: unknown): Promise<CommandResponse> => {
     let response = await game.execute(command);

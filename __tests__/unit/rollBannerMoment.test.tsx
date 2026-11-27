@@ -23,9 +23,9 @@ describe("RollBanner under a match moment", () => {
   let bus: EventBus;
   const banner = () =>
     container.querySelector('[data-testid="roll-banner"]')?.textContent ?? null;
-  const throwArmour = (seq: number, stage: "queued" | "thrown") => {
+  const throwArmour = (stage: "queued" | "thrown") => {
     bus.emit(GameEventNames.UI_DiceThrow, {
-      seq,
+      seq: 1,
       rollType: "Armour Roll (Grimgor)",
       stage,
     });
@@ -55,8 +55,8 @@ describe("RollBanner under a match moment", () => {
         headline: "Casualty",
         subtitle: "Orc: Badly Hurt",
       });
-      throwArmour(1, "queued");
-      throwArmour(1, "thrown");
+      throwArmour("queued");
+      throwArmour("thrown");
     });
     expect(banner()).toBeNull();
 
@@ -68,8 +68,8 @@ describe("RollBanner under a match moment", () => {
 
   it("stays up under the turnover, which plays beneath it", async () => {
     await act(async () => {
-      throwArmour(1, "queued");
-      throwArmour(1, "thrown");
+      throwArmour("queued");
+      throwArmour("thrown");
       bus.emit(GameEventNames.UI_PresentMoment, {
         kind: "turnover",
         reason: "Knocked Down",

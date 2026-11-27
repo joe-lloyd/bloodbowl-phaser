@@ -52,7 +52,7 @@ describe("a full resync between two Team Captain appointments", () => {
         myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
         peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
         hostTeamId: game.ctx.team1.id,
-        onDesync: (detail) => errors.push(`${side}: ${detail}`),
+        onDesync: (detail) => { errors.push(`${side}: ${detail}`); },
       });
     const host = session(hostGame, hostEnd, "host");
     const guest = session(guestGame, guestEnd, "guest");
@@ -62,9 +62,8 @@ describe("a full resync between two Team Captain appointments", () => {
     await guest.run({ type: "confirm-inducements", teamId: "team2" });
     await settle(host, guest);
     const appointed = fixtureValue(hostGame.ctx.team1.players[2]).id;
-    expect(
-      (await host.run({ type: "choose-inducement", playerId: appointed })).ok
-    ).toBe(true);
+    const chose = await host.run({ type: "choose-inducement", playerId: appointed });
+    expect(chose.ok).toBe(true);
     await settle(host, guest);
     expect(guestGame.pendingDecision()).toMatchObject({
       kind: "team-captain",

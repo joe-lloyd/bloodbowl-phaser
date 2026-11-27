@@ -181,17 +181,18 @@ describe("signed-in cloud repository", () => {
   });
 });
 
+async function startedElsewhere() {
+  const draft = makeTeam("club");
+  const stale = new CloudTeamRepository("user-a", [structuredClone(draft)]);
+  const other = new CloudTeamRepository("user-a", [structuredClone(draft)]);
+  await other.saveTeams([
+    { ...structuredClone(draft), firstMatchPlayedAt: 1, wins: 1 },
+  ]);
+  return { draft, stale };
+}
+const stored = () => cloudDocuments.get("users/user-a/teams/club");
+
 describe("a stale draft in the cloud library", () => {
-  async function startedElsewhere() {
-    const draft = makeTeam("club");
-    const stale = new CloudTeamRepository("user-a", [structuredClone(draft)]);
-    const other = new CloudTeamRepository("user-a", [structuredClone(draft)]);
-    await other.saveTeams([
-      { ...structuredClone(draft), firstMatchPlayedAt: 1, wins: 1 },
-    ]);
-    return { draft, stale };
-  }
-  const stored = () => cloudDocuments.get("users/user-a/teams/club");
 
   it("keeps the re-rolls and fans of a team that played its first match on another device", async () => {
     const { draft, stale } = await startedElsewhere();

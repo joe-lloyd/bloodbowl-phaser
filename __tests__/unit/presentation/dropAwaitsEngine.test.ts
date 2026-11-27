@@ -21,6 +21,8 @@ function emitterStub() {
   };
 }
 
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe("a drop waits for the engine before redrawing", () => {
   const eventBus = new EventBus();
   let scene: any;
@@ -64,6 +66,25 @@ describe("a drop waits for the engine before redrawing", () => {
     controller = Object.assign(emitterStub(), { syncFromTeam: vi.fn() });
     scene.placementController = controller;
     scene.setupSceneSpecificListeners();
+  };
+
+  const offline = () =>
+    new NetworkedGameService({ inner: {} as never, dispatch: () => Promise.reject(new Error("connection lost")), pendingDecision: () => null, eventBus: eventBus });
+
+  const solidDefenceSprite = () => {
+    const sprite = Object.assign(emitterStub(), {
+      x: 0,
+      y: 0,
+      input: {},
+      setInteractive: vi.fn(),
+      disableInteractive: vi.fn(),
+      setDepth: vi.fn(),
+      setPosition: vi.fn(),
+    });
+    scene.playerSprites.set("p1", sprite);
+    scene.isSetupActive = false;
+    scene.setKickoffSolidDefenceDragPlayers(["p1"]);
+    return sprite;
   };
 
   afterEach(() => {
@@ -171,10 +192,6 @@ describe("a drop waits for the engine before redrawing", () => {
   });
 
   describe("a drop whose command never reaches the engine", () => {
-    const offline = () =>
-      new NetworkedGameService({ inner: {} as never, dispatch: () => Promise.reject(new Error("connection lost")), pendingDecision: () => null, eventBus: eventBus });
-    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-
     it("redraws a placement, putting the player back on their old square", async () => {
       build(true, offline());
       controller.fire(GameEventNames.PlayerPlaced, {
@@ -196,22 +213,6 @@ describe("a drop waits for the engine before redrawing", () => {
   });
 
   describe("the Solid Defence drag", () => {
-    const solidDefenceSprite = () => {
-      const sprite = Object.assign(emitterStub(), {
-        x: 0,
-        y: 0,
-        input: {},
-        setInteractive: vi.fn(),
-        disableInteractive: vi.fn(),
-        setDepth: vi.fn(),
-        setPosition: vi.fn(),
-      });
-      scene.playerSprites.set("p1", sprite);
-      scene.isSetupActive = false;
-      scene.setKickoffSolidDefenceDragPlayers(["p1"]);
-      return sprite;
-    };
-
     it("redraws at once in a hot-seat match", () => {
       build(false);
       solidDefenceSprite().fire("dragend");

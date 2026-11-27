@@ -78,6 +78,7 @@ function arrive(envelopes: Envelope[]) {
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const noop = () => {};
 
 beforeEach(() => {
   firestore.listener = null;
@@ -96,7 +97,9 @@ describe("FirestoreTransport", () => {
 
     expect(firestore.listened).toContainEqual(["where", "at", ">", newestAt]);
     const received: number[] = [];
-    transport.subscribe((incoming) => received.push(incoming.seq));
+    transport.subscribe((incoming) => {
+      received.push(incoming.seq);
+    });
     arrive([envelope(4), envelope(5, "guest-uid")]);
     expect(received).toEqual([4]);
   });
@@ -109,13 +112,15 @@ describe("FirestoreTransport", () => {
       expect.arrayContaining(["where"])
     );
     const received: number[] = [];
-    transport.subscribe((incoming) => received.push(incoming.seq));
+    transport.subscribe((incoming) => {
+      received.push(incoming.seq);
+    });
     arrive([envelope(1)]);
     expect(received).toEqual([1]);
   });
 
   it("holds sends until the listener is attached, and stamps them with the server's time", async () => {
-    let lookedUp = () => {};
+    let lookedUp = noop;
     firestore.newestLookup = new Promise((resolve) => (lookedUp = resolve));
     const transport = new FirestoreTransport("CODE", "guest-uid");
     const sent = transport.send(envelope(1, "guest-uid"));

@@ -53,6 +53,30 @@ function dice(...values: number[]) {
   return { rollDie: () => fixtureValue(values[index++ % values.length]) };
 }
 
+async function click(element: Element) {
+  await act(async () => {
+    element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+  });
+}
+
+function choose(select: HTMLSelectElement, value: string) {
+  const setter = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
+    HTMLSelectElement.prototype,
+    "value"
+  )).set);
+  act(() => {
+    setter.call(select, value);
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+function storedPlayer(teamId: string, playerId: string) {
+  return fixtureValue(fixtureValue(loadTeams()
+    .find((t) => t.id === teamId))
+    .players.find((p) => p.id === playerId));
+}
+
 describe("PlayerDevelopment", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -108,23 +132,7 @@ describe("PlayerDevelopment", () => {
     ));
   }
 
-  async function click(element: Element) {
-    await act(async () => {
-      element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-  }
 
-  function choose(select: HTMLSelectElement, value: string) {
-    const setter = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
-      HTMLSelectElement.prototype,
-      "value"
-    )).set);
-    act(() => {
-      setter.call(select, value);
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-  }
 
   const waitForDice = () =>
     vi.waitFor(
@@ -301,11 +309,6 @@ describe("PlayerDevelopment", () => {
     expect(option("random-primary").disabled).toBe(true);
   });
 
-  function storedPlayer(teamId: string, playerId: string) {
-    return fixtureValue(fixtureValue(loadTeams()
-      .find((t) => t.id === teamId))
-      .players.find((p) => p.id === playerId));
-  }
 
   async function rollCandidatesFor(category: string) {
     await click(option("random-primary"));
@@ -469,8 +472,8 @@ describe("PlayerDevelopment", () => {
       container.querySelectorAll('[data-testid="random-candidate"]').length
     ).toBeGreaterThan(0);
 
-    const other = fixtureValue(loadTeams().find((t) => t.id === team.id));
     if (roll.kind !== "random-primary") throw new Error("unexpected roll");
+    const other = fixtureValue(loadTeams().find((t) => t.id === team.id));
     applyAdvancement(fixtureValue(other.players.find((p) => p.id === playerId)), {
       kind: "random-primary",
       skill: roll.candidates[0].skill,

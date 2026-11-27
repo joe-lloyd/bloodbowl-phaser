@@ -78,9 +78,10 @@ describe("MatchResultsScreen", () => {
     expect(h.container.textContent).toContain(
       "The competition result could not be saved. Cloud offline"
     );
-    for (const button of [...h.container.querySelectorAll("button")].filter(
+    const rollButtons = [...h.container.querySelectorAll("button")].filter(
       (b) => b.textContent?.includes("Roll MVP D6")
-    ))
+    );
+    for (const button of rollButtons)
       await act(async () => {
         button.click();
       });
@@ -153,9 +154,10 @@ describe("MatchResultsScreen", () => {
       }      );
 
       await h.render();
-      for (const button of [...h.container.querySelectorAll("button")].filter(
+      const rollButtons = [...h.container.querySelectorAll("button")].filter(
         (b) => b.textContent?.includes("Roll MVP D6")
-      )) {
+      );
+      for (const button of rollButtons) {
         await act(async () => {
           button.click();
         });

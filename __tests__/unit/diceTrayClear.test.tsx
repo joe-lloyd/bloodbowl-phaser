@@ -41,7 +41,9 @@ describe("dice tray at the start of setup", () => {
   it("clears the last die and reports every roll as landed", async () => {
     const bus = new EventBus();
     const trays: { thrown: number; landedThrough: number }[] = [];
-    bus.on(GameEventNames.UI_DiceInAir, (data) => trays.push(data));
+    bus.on(GameEventNames.UI_DiceInAir, (data) => {
+      trays.push(data);
+    });
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -81,7 +83,9 @@ describe("dice tray with a die that never settles", () => {
     vi.useFakeTimers();
     const bus = new EventBus();
     const trays: { thrown: number; landedThrough: number }[] = [];
-    bus.on(GameEventNames.UI_DiceInAir, (data) => trays.push(data));
+    bus.on(GameEventNames.UI_DiceInAir, (data) => {
+      trays.push(data);
+    });
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -134,9 +138,9 @@ describe("dice tray closed during a read", () => {
     vi.useFakeTimers();
     const bus = new EventBus();
     const stages: string[] = [];
-    bus.on(GameEventNames.UI_DiceThrow, ({ seq, stage }) =>
-      stages.push(`${String(seq)} ${stage}`)
-    );
+    bus.on(GameEventNames.UI_DiceThrow, ({ seq, stage }) => {
+      stages.push(`${String(seq)} ${stage}`);
+    });
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);

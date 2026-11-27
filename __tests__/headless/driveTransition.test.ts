@@ -45,11 +45,10 @@ async function scoreTouchdown(game: HeadlessGame) {
 function knockOutAllBut(
   game: HeadlessGame,
   teamIndex: 0 | 1,
-  keep: number
 ): string[] {
   const team = teamIndex === 0 ? game.ctx.team1 : game.ctx.team2;
   const knockedOut: string[] = [];
-  for (const player of team.players.slice(keep)) {
+  for (const player of team.players.slice(3)) {
     player.status = PlayerStatus.KO;
     delete player.gridPosition;
     knockedOut.push(player.id);
@@ -140,7 +139,7 @@ describe("drive transition: touchdown -> KO recovery -> short-handed setup -> ki
 
   it("rolls KO recovery one player at a time, each roll shown before the move", async () => {
     const game = new HeadlessGame({ scenario: tdScenario, seed: 7 });
-    const knockedOut = knockOutAllBut(game, 0, 3);
+    const knockedOut = knockOutAllBut(game, 0);
     expect(knockedOut.length).toBeGreaterThan(1);
 
     const response = await scoreTouchdown(game);
@@ -175,8 +174,8 @@ describe("drive transition: touchdown -> KO recovery -> short-handed setup -> ki
   it("plays the whole transition: score, recover, field a short-handed team, kick off", async () => {
     const game = new HeadlessGame({ scenario: tdScenario, seed: 7 });
 
-    knockOutAllBut(game, 0, 3);
-    knockOutAllBut(game, 1, 3);
+    knockOutAllBut(game, 0);
+    knockOutAllBut(game, 1);
 
     const scored = await scoreTouchdown(game);
     expect(scored.ok).toBe(true);
@@ -281,7 +280,7 @@ describe("drive transition: touchdown -> KO recovery -> short-handed setup -> ki
   it("a recovered player exists exactly once and can be placed next drive", async () => {
     for (let seed = 1; seed <= 40; seed++) {
       const game = new HeadlessGame({ scenario: tdScenario, seed });
-      const knockedOut = knockOutAllBut(game, 0, 3);
+      const knockedOut = knockOutAllBut(game, 0);
 
       const response = await scoreTouchdown(game);
       const recovered = response.events

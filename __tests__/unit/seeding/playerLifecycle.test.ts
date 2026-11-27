@@ -76,7 +76,8 @@ describe("playerLifecycle", () => {
 
   it("leaves every undecorated player a rookie", () => {
     for (const team of decorated()) {
-      for (const player of team.players.filter((p) => !p.careerStats)) {
+      for (const player of team.players) {
+        if (player.careerStats) continue;
         expect(player.spp).toBe(0);
         expect(player.advancements ?? []).toHaveLength(0);
         expect(player.level).toBe(0);

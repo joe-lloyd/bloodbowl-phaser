@@ -47,6 +47,33 @@ import {
 import { type OnlineMatch } from "../../src/network/OnlineMatch";
 import { type AuthUser } from "../../src/firebase/auth";
 
+const read = (div: HTMLElement) =>
+  div
+    .querySelector('[data-testid^="turn-clock"]')
+    ?.textContent?.match(/[⏱⏸] \d:\d\d/)?.[0] ?? "";
+
+const hostMatch = () =>
+  ({
+    role: "host",
+    myTeamId: "host-team",
+    opponentName: "Guest",
+    coachName: () => "Guest",
+    pendingDecision: () => null,
+    decidingTeamId: () => null,
+    setClockPaused: vi.fn(),
+  }) as unknown as OnlineMatch;
+
+const guestStubMatch = () =>
+  ({
+    role: "guest",
+    myTeamId: "guest-team",
+    opponentName: "Host",
+    coachName: () => "Host",
+    pendingDecision: () => null,
+    decidingTeamId: () => null,
+    setClockPaused: vi.fn(),
+  }) as unknown as OnlineMatch;
+
 describe("TurnClock pauses", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -104,6 +131,9 @@ describe("TurnClock pauses", () => {
     container.remove();
     vi.useRealTimers();
   });
+
+  const clockText = () =>
+    container.querySelector('[data-testid="turn-clock"]')?.textContent ?? "";
 
   it("stops while the other coach is away, then resumes with the time that was left", async () => {
     const match = {
@@ -200,15 +230,13 @@ describe("TurnClock pauses", () => {
       render(before, false);
     });
     await act(async () => vi.advanceTimersByTime(1000));
-    const clock = () =>
-      container.querySelector('[data-testid="turn-clock"]')?.textContent ?? "";
-    expect(clock()).toContain("⏱ 0:59");
+    expect(clockText()).toContain("⏱ 0:59");
     expect(hoisted.endTurnMock).not.toHaveBeenCalled();
 
     await act(async () => {
       render(lobbyAt(Date.now() + 58_000), false);
     });
-    expect(clock()).toContain("⏱ 0:58");
+    expect(clockText()).toContain("⏱ 0:58");
   });
 
   it("pauses both clocks from the last heartbeat both coaches saw, so neither loses time", async () => {
@@ -290,90 +318,87 @@ describe("TurnClock pauses", () => {
     guestRoot.remove();
   });
 
-  describe("a drop, as both coaches see it", () => {
-    async function playCut(cut: number, seconds: number) {
-      const start = Date.now();
-      const deadline = start + 74_000;
-      const hostClock = hostMatch();
-      const guestMatch = {
-        ...hostMatch(),
-        role: "guest",
-        myTeamId: "guest-team",
-        opponentName: "Host",
-      } as unknown as OnlineMatch;
-      const guestDiv = document.createElement("div");
-      document.body.append(guestDiv);
-      const guestRoot = createRoot(guestDiv);
+  async function playCut(cut: number, seconds: number) {
+    const start = Date.now();
+    const deadline = start + 74_000;
+    const hostClock = hostMatch();
+    const guestMatch = {
+      ...hostMatch(),
+      role: "guest",
+      myTeamId: "guest-team",
+      opponentName: "Host",
+    } as unknown as OnlineMatch;
+    const guestDiv = document.createElement("div");
+    document.body.append(guestDiv);
+    const guestRoot = createRoot(guestDiv);
 
-      const lastBeat = (at: number, cutOff: boolean) => {
-        const beat = start + Math.floor((at - start) / 6000) * 6000;
-        return cutOff ? start : beat;
-      };
-      const frames: { host: string; guest: string }[] = [];
-      const show = () => {
-        const now = Date.now();
-        const cutOff = now - start < cut;
-        const lobby = {
-          ...lobbyAt(deadline),
-          players: {
-            "host-uid": { lastSeen: lastBeat(now, false) },
-            "guest-uid": { lastSeen: lastBeat(now, cutOff) },
-          },
-        } as unknown as LobbyDoc;
-        const props = (opponentUid: string, link: OwnLink) => {
-          const hold = playHold({ lobby: lobby, opponentUid: opponentUid, link: link, now: now });
-          return {
-            opponentAway: hold != null,
-            awaySince: hold?.since ?? null,
-            awayIsMe: hold?.absent === "me",
-            offline: link.state === "offline",
-          };
+    const lastBeat = (at: number, cutOff: boolean) => {
+      const beat = start + Math.floor((at - start) / 6000) * 6000;
+      return cutOff ? start : beat;
+    };
+    const frames: { host: string; guest: string }[] = [];
+    const show = () => {
+      const now = Date.now();
+      const cutOff = now - start < cut;
+      const lobby = {
+        ...lobbyAt(deadline),
+        players: {
+          "host-uid": { lastSeen: lastBeat(now, false) },
+          "guest-uid": { lastSeen: lastBeat(now, cutOff) },
+        },
+      } as unknown as LobbyDoc;
+      const props = (opponentUid: string, link: OwnLink) => {
+        const hold = playHold({ lobby: lobby, opponentUid: opponentUid, link: link, now: now });
+        return {
+          opponentAway: hold != null,
+          awaySince: hold?.since ?? null,
+          awayIsMe: hold?.absent === "me",
+          offline: link.state === "offline",
         };
-        root.render(
-          <TurnClock
-            code={code}
-            lobby={lobby}
-            match={hostClock}
-            eventBus={eventBus}
-            user={user}
-            {...props("guest-uid", {
-              state: "online",
-              confirmedSeen: lastBeat(now, false),
-            })}
-          />
-        );
-        guestRoot.render(
-          <TurnClock
-            code={code}
-            lobby={lobby}
-            match={guestMatch}
-            eventBus={eventBus}
-            user={{ uid: "guest-uid" } as AuthUser}
-            {...props("host-uid", {
-              state: cutOff ? "offline" : "online",
-              confirmedSeen: lastBeat(now, cutOff),
-            })}
-          />
-        );
       };
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={hostClock}
+          eventBus={eventBus}
+          user={user}
+          {...props("guest-uid", {
+            state: "online",
+            confirmedSeen: lastBeat(now, false),
+          })}
+        />
+      );
+      guestRoot.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={guestMatch}
+          eventBus={eventBus}
+          user={{ uid: "guest-uid" } as AuthUser}
+          {...props("host-uid", {
+            state: cutOff ? "offline" : "online",
+            confirmedSeen: lastBeat(now, cutOff),
+          })}
+        />
+      );
+    };
 
-      const read = (div: HTMLElement) =>
-        div
-          .querySelector('[data-testid^="turn-clock"]')
-          ?.textContent?.match(/[⏱⏸] \d:\d\d/)?.[0] ?? "";
-      for (let s = 0; s < seconds; s++) {
-        await act(async () => {
-          show();
-        });
-        frames.push({ host: read(container), guest: read(guestDiv) });
-        await act(async () => vi.advanceTimersByTime(1000));
-      }
+    for (let s = 0; s < seconds; s++) {
       await act(async () => {
-        guestRoot.unmount();
+        show();
       });
-      guestDiv.remove();
-      return frames;
+      frames.push({ host: read(container), guest: read(guestDiv) });
+      await act(async () => vi.advanceTimersByTime(1000));
     }
+    await act(async () => {
+      guestRoot.unmount();
+    });
+    guestDiv.remove();
+    return frames;
+  }
+
+  describe("a drop, as both coaches see it", () => {
 
     it("keeps both clocks running through a cut the host reads as slow", async () => {
       const frames = await playCut(11_000, 20);
@@ -514,17 +539,6 @@ describe("TurnClock pauses", () => {
     ).toContain("⏱ 2:00");
   });
 
-  const hostMatch = () =>
-    ({
-      role: "host",
-      myTeamId: "host-team",
-      opponentName: "Guest",
-      coachName: () => "Guest",
-      pendingDecision: () => null,
-      decidingTeamId: () => null,
-      setClockPaused: vi.fn(),
-    }) as unknown as OnlineMatch;
-
   it("does not end a new turn on the last turn's deadline before its own arrives", async () => {
     const lobby = lobbyAt(Date.now() - 1000, "guest-team:1:3");
     await act(async () => {
@@ -565,9 +579,9 @@ describe("TurnClock pauses", () => {
     slot.id = "match-strip-clock";
     container.append(slot);
     const announcements: string[] = [];
-    eventBus.on(GameEventNames.UI_Announce, (data) =>
-      announcements.push(data.headline)
-    );
+    eventBus.on(GameEventNames.UI_Announce, (data) => {
+      announcements.push(data.headline);
+    });
 
     hoisted.endTurnMock.mockImplementationOnce(() => {
       eventBus.emit(GameEventNames.TurnEnded, { teamId: "host-team" });
@@ -598,36 +612,26 @@ describe("TurnClock pauses", () => {
     });
   });
 
-  describe("Time up on the waiting coach's screen", () => {
-    const guestMatch = () =>
-      ({
-        role: "guest",
-        myTeamId: "guest-team",
-        opponentName: "Host",
-        coachName: () => "Host",
-        pendingDecision: () => null,
-        decidingTeamId: () => null,
-        setClockPaused: vi.fn(),
-      }) as unknown as OnlineMatch;
-    const watch = async (deadline: number) => {
-      const announcements: string[] = [];
-      eventBus.on(GameEventNames.UI_Announce, (data) =>
-        announcements.push(data.headline)
+  const watch = async (deadline: number) => {
+    const announcements: string[] = [];
+    eventBus.on(GameEventNames.UI_Announce, (data) => {
+      announcements.push(data.headline);
+    });
+    await act(async () => {
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobbyAt(deadline)}
+          match={guestStubMatch()}
+          eventBus={eventBus}
+          user={{ uid: "guest-uid" } as AuthUser}
+        />
       );
-      await act(async () => {
-        root.render(
-          <TurnClock
-            code={code}
-            lobby={lobbyAt(deadline)}
-            match={guestMatch()}
-            eventBus={eventBus}
-            user={{ uid: "guest-uid" } as AuthUser}
-          />
-        );
-      });
-      return announcements;
-    };
+    });
+    return announcements;
+  };
 
+  describe("Time up on the waiting coach's screen", () => {
     it("says Time up when the other coach's turn ends on the clock", async () => {
       const announcements = await watch(Date.now() + 1000);
       await act(async () => vi.advanceTimersByTime(1500));

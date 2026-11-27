@@ -10,8 +10,10 @@ import { kick, kickoffScenario } from "../headless/kickoffKicks";
 import { choose, rehearse } from "../headless/kickoffRehearsal";
 
 async function chargeSeed(): Promise<number> {
-  for (let seed = 1; seed < 400; seed++)
-    if ((await kick(seed)).result.event === KickoffEvent.CHARGE) return seed;
+  for (let seed = 1; seed < 400; seed++) {
+    const { result } = await kick(seed);
+    if (result.event === KickoffEvent.CHARGE) return seed;
+  }
   throw new Error("no seed rolls Charge!");
 }
 
@@ -37,7 +39,7 @@ describe("a resync while a Charge's uphill Block waits for its coach", () => {
         myTeamId: side === "host" ? "team1" : "team2",
         peerTeamId: side === "host" ? "team2" : "team1",
         hostTeamId: "team1",
-        onDesync: (detail) => desyncs.push(detail),
+        onDesync: (detail) => { desyncs.push(detail); },
       });
     const host = session(game, "host");
     const attacker = fixtureValue(game.ctx.team1.players[1]);
@@ -74,9 +76,8 @@ describe("a resync while a Charge's uphill Block waits for its coach", () => {
     await settle(host, guest);
     expect(rejoined.pendingDecision()).toEqual(game.pendingDecision());
 
-    expect(
-      (await host.run({ type: "keep-block-dice", attackerId: playerId })).ok
-    ).toBe(true);
+    const kept = await host.run({ type: "keep-block-dice", attackerId: playerId });
+    expect(kept.ok).toBe(true);
     await settle(host, guest);
     expect(game.pendingDecision()).toMatchObject({ choiceStage: "pick" });
     expect(rejoined.pendingDecision()).toEqual(game.pendingDecision());

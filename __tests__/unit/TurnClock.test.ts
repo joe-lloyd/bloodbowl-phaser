@@ -5,15 +5,15 @@ import {
   type TimerState,
 } from "../../src/firebase/lobby";
 
-describe("turn clock resume", () => {
-  const base = (over: Partial<TimerState>): TimerState => ({
-    deadline: 100_000,
-    pausedBy: "alice",
-    pausedAt: 10_000,
-    banks: { alice: 5 * 60_000, bob: 5 * 60_000 },
-    ...over,
-  });
+const base = (over: Partial<TimerState>): TimerState => ({
+  deadline: 100_000,
+  pausedBy: "alice",
+  pausedAt: 10_000,
+  banks: { alice: 5 * 60_000, bob: 5 * 60_000 },
+  ...over,
+});
 
+describe("turn clock resume", () => {
   it("deducts the paused duration from the pauser's bank", () => {
     const { remainingBankMs } = computeResume(base({}), "alice", 40_000);
     expect(remainingBankMs).toBe(5 * 60_000 - 30_000);

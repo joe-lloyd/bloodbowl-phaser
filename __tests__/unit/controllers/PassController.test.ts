@@ -10,6 +10,21 @@ import {
 import { type Player, PlayerStatus } from "../../../src/types/Player";
 import { GameEventNames } from "../../../src/types/events";
 
+const opponent = (
+  id: string,
+  x: number,
+  status: PlayerStatus = PlayerStatus.ACTIVE
+): Player =>
+  playerWith(({
+    id,
+    teamId: "team2",
+    playerName: id,
+    gridPosition: { x, y: 7 },
+    stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 8 },
+    status,
+    skills: [],
+  }));
+
 describe("PassController", () => {
   let controller: PassController;
   let mockEventBus = busWith();
@@ -167,22 +182,6 @@ describe("PassController", () => {
   });
 
   describe("Range Ruler interceptions", () => {
-    const opponent = (
-      id: string,
-      x: number,
-      y: number,
-      status: PlayerStatus = PlayerStatus.ACTIVE
-    ): Player =>
-      playerWith(({
-        id,
-        teamId: "team2",
-        playerName: id,
-        gridPosition: { x, y },
-        stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 8 },
-        status,
-        skills: [],
-      }));
-
     it("overlaps a square lying on the straight ruler", () => {
       expect(
         PassController.rulerOverlaps(
@@ -224,7 +223,7 @@ describe("PassController", () => {
     });
 
     it("returns only standing under-ruler opponents, with the accurate modifier", () => {
-      const opps = [opponent("o1", 5, 7), opponent("o2", 8, 7)];
+      const opps = [opponent("o1", 5), opponent("o2", 8)];
       const result = controller.checkInterceptions(
       { from: { x: 5,y: 5 },target: { x: 5,y: 10 },opponents: opps,isAccurate: true }      );
       expect(result.map((r) => r.playerId)).toEqual(["o1"]);
@@ -232,14 +231,14 @@ describe("PassController", () => {
     });
 
     it("uses the -2 modifier for an inaccurate pass", () => {
-      const opps = [opponent("o1", 5, 7)];
+      const opps = [opponent("o1", 5)];
       const result = controller.checkInterceptions(
       { from: { x: 5,y: 5 },target: { x: 5,y: 10 },opponents: opps,isAccurate: false }      );
       expect(fixtureValue(result[0]).modifier).toBe(-2);
     });
 
     it("excludes an opponent that has lost its tackle zone", () => {
-      const opps = [opponent("o1", 5, 7, PlayerStatus.PRONE)];
+      const opps = [opponent("o1", 5, PlayerStatus.PRONE)];
       const result = controller.checkInterceptions(
       { from: { x: 5,y: 5 },target: { x: 5,y: 10 },opponents: opps,isAccurate: true }      );
       expect(result).toHaveLength(0);

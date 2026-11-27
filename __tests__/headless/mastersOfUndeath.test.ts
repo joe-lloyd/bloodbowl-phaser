@@ -24,6 +24,8 @@ import { LockstepSession } from "../../src/network/LockstepSession";
 import { createInMemoryTransportPair } from "../../src/network/transport";
 import { stateChecksum } from "../../src/headless/checksum";
 
+const noop = () => undefined;
+
 function newGame(roster: RosterName = RosterName.TOMB_KINGS) {
   return new HeadlessGame({
     seed: 1,
@@ -52,7 +54,7 @@ async function injure(game: HeadlessGame, playerId: string, total = 12) {
   vi.spyOn(game.ctx.gameService.getDiceController(), "roll2D6").mockReturnValue(
     total
   );
-  let decisionRaised: () => void = () => undefined;
+  let decisionRaised: () => void = noop;
   const decision = new Promise<void>((resolve) => {
     decisionRaised = resolve;
   });
@@ -217,7 +219,7 @@ describe("Masters of Undeath in Sevens", () => {
     await injure(host, fixtureValue(host.ctx.team2.players[0]).id);
     const raised = fixtureValue(host.ctx.team1.players.at(-1));
     const [hostEnd, guestEnd] = createInMemoryTransportPair();
-    let restored: () => void = () => undefined;
+    let restored: () => void = noop;
     const done = new Promise<void>((resolve) => {
       restored = resolve;
     });
@@ -255,22 +257,23 @@ describe("Masters of Undeath in Sevens", () => {
   });
 });
 
+async function offer() {
+  const game = newGame();
+  const team = game.ctx.team1;
+  team.advancementMode = "advanced-league";
+  await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
+  const raised = fixtureValue(team.players.at(-1));
+  expect(raised.positionName).toBe("Skeleton Lineman");
+  offerRaisedDeadRecruit(team, raised.id);
+  const pending = team.pendingDevelopment?.find(
+    (entry) => entry.kind === "raised-dead-recruit"
+  );
+  if (pending?.kind !== "raised-dead-recruit")
+    throw new Error("No recruitment offer");
+  return { team, raised, pending };
+}
+
 describe("Raised Lineman post-match recruitment", () => {
-  async function offer() {
-    const game = newGame();
-    const team = game.ctx.team1;
-    team.advancementMode = "advanced-league";
-    await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
-    const raised = fixtureValue(team.players.at(-1));
-    expect(raised.positionName).toBe("Skeleton Lineman");
-    offerRaisedDeadRecruit(team, raised.id);
-    const pending = team.pendingDevelopment?.find(
-      (entry) => entry.kind === "raised-dead-recruit"
-    );
-    if (pending?.kind !== "raised-dead-recruit")
-      throw new Error("No recruitment offer");
-    return { team, raised, pending };
-  }
 
   it("persists the choice without charging treasury and keeps the player's full value", async () => {
     const { team, raised, pending } = await offer();

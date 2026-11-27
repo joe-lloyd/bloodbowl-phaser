@@ -125,7 +125,9 @@ function fakeScene() {
     events: emitter(),
     tweens: {
       add: vi.fn(),
-      chain: (chain: Chain) => chains.push(chain),
+      chain: (chain: Chain) => {
+        chains.push(chain);
+      },
       killTweensOf: vi.fn(),
     },
   };

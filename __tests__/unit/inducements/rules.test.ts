@@ -11,6 +11,16 @@ import { RosterName, type Team } from "../../../src/types/Team";
 import { InjuryType } from "../../../src/types/Player";
 import { SetupManager } from "../../../src/game/managers/SetupManager";
 
+function leagueTeams(): { missing: Team; full: Team; value: number } {
+  const missing = TeamFactory.createTestTeam(RosterName.HUMAN, "M", 0xff0000);
+  const full = TeamFactory.createTestTeam(RosterName.HUMAN, "F", 0x0000ff);
+  for (const team of [missing, full]) team.advancementMode = "advanced-league";
+  const [absentee] = missing.players;
+  if (!absentee) throw new Error("the test team has no players");
+  absentee.injuries = [InjuryType.MISS_NEXT_GAME];
+  return { missing, full, value: absentee.cost };
+}
+
 describe("calculateInducementBudgets", () => {
   it("gives the lower-TV team petty cash equal to the gap", () => {
     const cheap = TeamFactory.createTestTeam(
@@ -46,21 +56,6 @@ describe("calculateInducementBudgets", () => {
   });
 
   describe("with a league player due to miss the next game", () => {
-    function leagueTeams(): { missing: Team; full: Team; value: number } {
-      const missing = TeamFactory.createTestTeam(
-        RosterName.HUMAN,
-        "M",
-        0xff0000
-      );
-      const full = TeamFactory.createTestTeam(RosterName.HUMAN, "F", 0x0000ff);
-      for (const team of [missing, full])
-        team.advancementMode = "advanced-league";
-      const [absentee] = missing.players;
-      if (!absentee) throw new Error("the test team has no players");
-      absentee.injuries = [InjuryType.MISS_NEXT_GAME];
-      return { missing, full, value: absentee.cost };
-    }
-
     it("prices a friendly with that player, who takes the pitch", () => {
       const { missing, full } = leagueTeams();
       SetupManager.sanitizeTeam(missing, { competition: false });

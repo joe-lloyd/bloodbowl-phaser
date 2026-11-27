@@ -30,9 +30,9 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
 
   it("flies one ball up to hang over its landing square, then drops it there", async () => {
     const tracked: unknown[] = [];
-    eventBus.on(GameEventNames.Camera_TrackBall, (data) =>
-      tracked.push(data.playerId ?? "ball")
-    );
+    eventBus.on(GameEventNames.Camera_TrackBall, (data) => {
+      tracked.push(data.playerId ?? "ball");
+    });
 
     eventBus.emit(GameEventNames.BallKicked, {
       playerId: "kicker",
@@ -103,11 +103,9 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
       detail?: string;
       roll?: number | number[];
     }[] = [];
-    eventBus.on(GameEventNames.UI_LogEntry, (data) =>
-      entries.push(
-data
-      )
-    );
+    eventBus.on(GameEventNames.UI_LogEntry, (data) => {
+      entries.push(data);
+    });
 
     eventBus.emit(GameEventNames.KickoffResult, {
       roll: 6,

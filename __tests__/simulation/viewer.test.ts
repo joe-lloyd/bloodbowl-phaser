@@ -16,7 +16,8 @@ const recording = await runMatch({
 describe("match playback page", () => {
   it("has one frame per step plus the opening, ending on the replayed board", async () => {
     const dump = await buildMatchDump(recording);
-    const final = (await replayRecording(recording)).game.snapshot();
+    const replay = await replayRecording(recording);
+    const final = replay.game.snapshot();
 
     expect(recording.steps).toHaveLength(100);
     expect(dump.frames).toHaveLength(recording.steps.length + 1);

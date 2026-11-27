@@ -62,8 +62,8 @@ async function league(count: number): Promise<LeagueDoc> {
   return doc;
 }
 
-async function cup(count: number): Promise<TournamentDoc> {
-  const list = entrants(count);
+async function cup(): Promise<TournamentDoc> {
+  const list = entrants(4);
   const fixtures = generateSingleElimination(list);
   const doc: TournamentDoc = {
     id: "cup",
@@ -83,8 +83,8 @@ async function cup(count: number): Promise<TournamentDoc> {
   return doc;
 }
 
-const has = (fixture: CompetitionFixture, entrantId: string) =>
-  [fixture.homeEntrantId, fixture.awayEntrantId].includes(entrantId);
+const has = (fixture: CompetitionFixture) =>
+  [fixture.homeEntrantId, fixture.awayEntrantId].includes("e1");
 
 const report = (
   doc: LeagueDoc | TournamentDoc,
@@ -104,14 +104,14 @@ const withdraw = (doc: LeagueDoc | TournamentDoc, entrantId: string) =>
 describe("a league team that withdraws", () => {
   it("keeps its played game in the table and walks over the rest", async () => {
     const season = await league(4);
-    const played = fixtureValue(season.fixtures.find((f) => has(f, "e1")));
+    const played = fixtureValue(season.fixtures.find((f) => has(f)));
 
     const homeIsE1 = played.homeEntrantId === "e1";
     await report(season, played, homeIsE1 ? 0 : 2, homeIsE1 ? 2 : 0);
     const after = await withdraw(season, "e1");
 
     const left = after.fixtures.filter(
-      (f) => has(f, "e1") && f.id !== played.id
+      (f) => has(f) && f.id !== played.id
     );
     expect(left).toHaveLength(2);
     for (const fixture of left) {
@@ -141,10 +141,10 @@ describe("a league team that withdraws", () => {
     const season = await league(4);
     await withdraw(season, "e2");
     let latest = fixtureValue((await getCompetition("league", season.id)));
-    for (const fixture of latest.fixtures.filter(
-      (f) => f.status !== "complete"
-    ))
+    for (const fixture of latest.fixtures) {
+      if (fixture.status === "complete") continue;
       latest = await report(latest, fixture, 1, 0);
+    }
     expect(latest.status).toBe("complete");
     expect(fixtureValue((await getCompetition("league", season.id))).status).toBe(
       "complete"
@@ -166,8 +166,8 @@ describe("a league team that withdraws", () => {
 
 describe("a cup team that withdraws", () => {
   it("sends its opponent through", async () => {
-    const draw = await cup(4);
-    const first = fixtureValue(draw.fixtures.find((f) => has(f, "e1")));
+    const draw = await cup();
+    const first = fixtureValue(draw.fixtures.find((f) => has(f)));
     const rival =
       fixtureValue(first.homeEntrantId === "e1" ? first.awayEntrantId : first.homeEntrantId);
     const after = await withdraw(draw, "e1");
@@ -176,9 +176,9 @@ describe("a cup team that withdraws", () => {
   });
 
   it("walks over a game whose opponent arrives after the withdrawal", async () => {
-    const draw = await cup(4);
+    const draw = await cup();
 
-    const semi = fixtureValue(draw.fixtures.find((f) => has(f, "e1")));
+    const semi = fixtureValue(draw.fixtures.find((f) => has(f)));
     const e1Home = semi.homeEntrantId === "e1";
     await report(draw, semi, e1Home ? 2 : 0, e1Home ? 0 : 2);
     await withdraw(draw, "e1");
@@ -198,7 +198,7 @@ describe("a cup team that withdraws", () => {
   });
 
   it("frees every team when a walkover finishes the cup", async () => {
-    const draw = await cup(4);
+    const draw = await cup();
     saveTeams(
       draw.entrants.map(
         (entrant) =>
@@ -211,7 +211,7 @@ describe("a cup team that withdraws", () => {
           }) as unknown as Team
       )
     );
-    const semi = fixtureValue(draw.fixtures.find((f) => has(f, "e1")));
+    const semi = fixtureValue(draw.fixtures.find((f) => has(f)));
     const e1Home = semi.homeEntrantId === "e1";
     await report(draw, semi, e1Home ? 2 : 0, e1Home ? 0 : 2);
     await withdraw(draw, "e1");

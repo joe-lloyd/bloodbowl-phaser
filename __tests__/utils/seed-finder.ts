@@ -18,23 +18,21 @@ export interface SeedResult {
   attempts: number;
 }
 
+function rollsMatch(rng: RNGService, sequence: number[]): boolean {
+  for (const expected of sequence) {
+    if (rng.rollDie(6) !== expected) return false;
+  }
+  return true;
+}
+
 export function findSeedForDiceSequence(
   sequence: number[],
   maxAttempts = 100_000
 ): SeedResult | null {
   for (let seed = 1; seed <= maxAttempts; seed++) {
     const rng = new RNGService(seed);
-    let matches = true;
 
-    for (const expected of sequence) {
-      const roll = rng.rollDie(6);
-      if (roll !== expected) {
-        matches = false;
-        break;
-      }
-    }
-
-    if (matches) {
+    if (rollsMatch(rng, sequence)) {
       return { seed, attempts: seed };
     }
   }

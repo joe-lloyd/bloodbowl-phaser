@@ -130,9 +130,9 @@ describe("catching a bounced ball", () => {
     const catcher = game.ctx.team1.players[1];
     game.ctx.gameService.setBallPosition(9, 4);
     const rolls: string[] = [];
-    game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) =>
-      rolls.push(roll.description)
-    );
+    game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) => {
+      rolls.push(roll.description);
+    });
     await game.ctx.gameService
       .getFlowContext()
       .flowManager.runToRest(

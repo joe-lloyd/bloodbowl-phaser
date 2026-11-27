@@ -50,6 +50,18 @@ describe("GameService", () => {
     gameService.startSetup();
   });
 
+  const notificationsOf = () => {
+    const notifications: string[] = [];
+    eventBus.on(GameEventNames.UI_Notification, (msg) => {
+      notifications.push(msg);
+    });
+    const gameLog: string[] = [];
+    eventBus.on(GameEventNames.UI_GameLog, (msg) => {
+      gameLog.push(msg);
+    });
+    return { notifications, gameLog };
+  };
+
   describe("Initialization", () => {
     it("should start in SETUP phase", () => {
       expect(gameService.getPhase()).toBe(GamePhase.SETUP);
@@ -97,16 +109,6 @@ describe("GameService", () => {
   });
 
   describe("Full time announcement", () => {
-    const notificationsOf = () => {
-      const notifications: string[] = [];
-      eventBus.on(GameEventNames.UI_Notification, (msg) =>
-        notifications.push(msg)
-      );
-      const gameLog: string[] = [];
-      eventBus.on(GameEventNames.UI_GameLog, (msg) => gameLog.push(msg));
-      return { notifications, gameLog };
-    };
-
     it("announces the played score and winner on screen and in the match log", () => {
       const { notifications, gameLog } = notificationsOf();
       gameService.getState().score["team-1"] = 2;

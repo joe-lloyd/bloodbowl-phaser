@@ -49,7 +49,7 @@ function option({
   };
 }
 
-function counts(margin: number, name: string, draws = 2000) {
+function counts(margin: number, name: string) {
   const options = [
     option({ id: "best", value: 30, kind: "block" }),
     option({ id: "close", value: 25, kind: "pass" }),
@@ -57,7 +57,7 @@ function counts(margin: number, name: string, draws = 2000) {
   ];
   const rng = createCoachRng(7);
   const out: Record<string, number> = {};
-  for (let i = 0; i < draws; i++) {
+  for (let i = 0; i < 2000; i++) {
     const { id } = choosePlan({
       options: options,
       plan: plan(name),
@@ -80,7 +80,7 @@ describe("game plans", () => {
 
   it("varies between close plans, the closer the likelier, never a poor one", () => {
     const seen = counts(8, "balanced");
-    expect(Object.keys(seen).sort()).toEqual(["best", "close"]);
+    expect(Object.keys(seen).sort((a, b) => a.localeCompare(b))).toEqual(["best", "close"]);
     expect(seen["best"]).toBeGreaterThan(fixtureValue(seen["close"]));
   });
 
@@ -173,8 +173,7 @@ describe("game plans", () => {
       });
       const coach = createPlannerCoach({ variety: { margin: 8 } });
       const rng = createCoachRng(seed);
-      for (let i = 0; i < 40; i++) {
-        if (game.snapshot().activeTeamId !== "team1") break;
+      for (let i = 0; i < 40 && game.snapshot().activeTeamId === "team1"; i++) {
         const point = await enumerateDecision(game, null);
         const { index } = await coach.choose({
           game,
@@ -219,13 +218,13 @@ describe("game plans", () => {
       });
       const coach = createPlannerCoach({ variety: { margin: 8 } });
       const point = await enumerateDecision(game, null);
-      const { note } = await coach.choose({
+      const { note = "" } = await coach.choose({
         game,
         snapshot: game.snapshot(),
         point,
         rng: createCoachRng(seed),
       });
-      notes.add(note ?? "");
+      notes.add(note);
     }
     expect([...notes]).toEqual(["runs in to score"]);
   });
@@ -268,13 +267,13 @@ describe("game plans", () => {
       });
       const coach = createPlannerCoach({ variety: { margin: 8 } });
       const point = await enumerateDecision(game, null);
-      const { note } = await coach.choose({
+      const { note = "" } = await coach.choose({
         game,
         snapshot: game.snapshot(),
         point,
         rng: createCoachRng(seed),
       });
-      notes.add(note ?? "");
+      notes.add(note);
     }
     expect([...notes]).toEqual(["runs in to score"]);
   });

@@ -327,8 +327,8 @@ describe("Punt declares a kick presentation event", () => {
     },
   };
 
-  async function punt(seed: number) {
-    const game = new HeadlessGame({ scenario: puntScenario, seed });
+  async function punt() {
+    const game = new HeadlessGame({ scenario: puntScenario, seed: 11 });
     const punter = game.ctx.team1.players[0];
     await game.execute({
       type: "declare-action",
@@ -345,18 +345,19 @@ describe("Punt declares a kick presentation event", () => {
   }
 
   it("records the declaration before any ball movement and auto-acknowledges", async () => {
-    const { response } = await punt(11);
+    const { response } = await punt();
     const names = response.events.map((event) => event.name);
 
     const declaredAt = names.indexOf(GameEventNames.PuntDeclared);
     expect(declaredAt).toBeGreaterThanOrEqual(0);
 
+    const movementEvents = new Set<string>([
+      GameEventNames.BallPlaced,
+      GameEventNames.BallThrownIn,
+      GameEventNames.PassAttempted,
+    ]);
     const firstMovement = names.findIndex(
-      (name, index) =>
-        index > 0 &&
-        (name === GameEventNames.BallPlaced ||
-          name === GameEventNames.BallThrownIn ||
-          name === GameEventNames.PassAttempted)
+      (name, index) => index > 0 && movementEvents.has(name)
     );
     if (firstMovement !== -1) expect(declaredAt).toBeLessThan(firstMovement);
 
@@ -375,7 +376,7 @@ describe("Punt declares a kick presentation event", () => {
   });
 
   it("reaches the same seeded outcome the declaration announced", async () => {
-    const { game, response } = await punt(11);
+    const { game, response } = await punt();
     const declared = z
       .object({
         landing: z.object({ x: z.number(), y: z.number() }),
@@ -397,7 +398,7 @@ describe("Punt declares a kick presentation event", () => {
       expect(Math.abs(ball.y - declared.landing.y)).toBeLessThanOrEqual(1);
     }
 
-    const rerun = await punt(11);
+    const rerun = await punt();
     const again = z
       .object({
         landing: z.object({ x: z.number(), y: z.number() }),
@@ -414,7 +415,7 @@ describe("Punt declares a kick presentation event", () => {
   });
 
   it("rolls the Punt exactly once — the presentation boundary cannot re-roll it", async () => {
-    const { response } = await punt(11);
+    const { response } = await punt();
     const puntRolls = response.events.filter(
       (event) =>
         event.name === GameEventNames.DiceRoll &&
@@ -428,7 +429,7 @@ describe("Punt declares a kick presentation event", () => {
   });
 
   it("takes a save either side of the Punt, never mid-presentation", async () => {
-    const { game } = await punt(11);
+    const { game } = await punt();
 
     await game.ctx.gameService.getFlowContext().flowManager.whenIdle();
     const save = createMatchSave({

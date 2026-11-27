@@ -1,6 +1,6 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import nodePath from "node:path";
 import { describe, expect, it } from "vitest";
 import { MATCH_STYLE } from "../../src/game/presentation/matchStyle";
 import { createHeadlessGame } from "../../src/headless/createHeadlessGame";
@@ -11,7 +11,7 @@ import {
 import { SCENARIOS } from "../../src/data/scenarios";
 import { resolveMatchStart } from "../../src/scenes/matchStart";
 
-const PUBLIC = join(__dirname, "../../public");
+const PUBLIC = nodePath.join(__dirname, "../../public");
 
 describe("the match style", () => {
   it("draws the Blood Bowl stadium and sprites, which ship in public/", () => {
@@ -24,16 +24,16 @@ describe("the match style", () => {
       "away.webp",
       "preview.webp",
     ]) {
-      expect(existsSync(join(PUBLIC, MATCH_STYLE.stadiumPath, file))).toBe(
+      expect(existsSync(nodePath.join(PUBLIC, MATCH_STYLE.stadiumPath, file))).toBe(
         true
       );
     }
-    expect(existsSync(join(PUBLIC, MATCH_STYLE.spritePath))).toBe(true);
+    expect(existsSync(nodePath.join(PUBLIC, MATCH_STYLE.spritePath))).toBe(true);
   });
 
   it("ships no other stadium or sprite set", () => {
-    expect(readdirSync(join(PUBLIC, "stadium"))).toEqual(["bloodbowl"]);
-    expect(readdirSync(join(PUBLIC, "sprites"))).toEqual(["bloodbowl"]);
+    expect(readdirSync(nodePath.join(PUBLIC, "stadium"))).toEqual(["bloodbowl"]);
+    expect(readdirSync(nodePath.join(PUBLIC, "sprites"))).toEqual(["bloodbowl"]);
   });
 
   it("resumes a save written in the Neon style, and saves it without one", () => {

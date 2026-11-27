@@ -98,7 +98,7 @@ describe("a plan with a jump in it", () => {
     const set = board([CARRIER], [DOWNED, { playerIndex: 1, x: 14, y: 5 }]);
     forceDice(set.game.ctx.rng, [6, 6, 6]);
     const rolled: AllEvents[typeof GameEventNames.UI_RollBlockDice][] = [];
-    set.game.ctx.eventBus.on(GameEventNames.UI_RollBlockDice, (data) => rolled.push(data));
+    set.game.ctx.eventBus.on(GameEventNames.UI_RollBlockDice, (data) => { rolled.push(data); });
     const blitzer = set.act(0, "blitz");
     await planJump(set);
     await set.controller.onSquareClicked(14, 5);
@@ -330,7 +330,7 @@ describe("the second half of Move", () => {
   it("stands a prone Blitzer up before the block of its plan", async () => {
     const set = board([PRONE], [{ playerIndex: 0, x: 11, y: 5 }]);
     const rolled: unknown[] = [];
-    set.game.ctx.eventBus.on(GameEventNames.UI_RollBlockDice, (data) => rolled.push(data));
+    set.game.ctx.eventBus.on(GameEventNames.UI_RollBlockDice, (data) => { rolled.push(data); });
     const blitzer = set.act(0, "blitz");
     await set.controller.onSquareClicked(11, 5);
     expect(fixtureValue(set.seen.plan).stages[0]).toEqual({

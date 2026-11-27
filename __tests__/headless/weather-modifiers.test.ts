@@ -74,7 +74,7 @@ async function pass(weather: Weather, interceptor: boolean, seed: number) {
   return diceOf(events);
 }
 
-async function walkOntoBall(weather: Weather, seed: number) {
+async function walkOntoBall(weather: Weather) {
   const game = new HeadlessGame({
     scenario: scenario(weather, {
       team1Placements: [
@@ -84,7 +84,7 @@ async function walkOntoBall(weather: Weather, seed: number) {
       team2Placements: [{ playerIndex: 0, x: 18, y: 1 }],
       ballPosition: { x: 6, y: 5 },
     }),
-    seed,
+    seed: 1,
   });
   const mover = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({
@@ -100,7 +100,7 @@ async function walkOntoBall(weather: Weather, seed: number) {
   return diceOf(res.events);
 }
 
-async function rushOneSquare(weather: Weather, seed: number) {
+async function rushOneSquare(weather: Weather) {
   const game = new HeadlessGame({
     scenario: scenario(weather, {
       team1Placements: [
@@ -110,7 +110,7 @@ async function rushOneSquare(weather: Weather, seed: number) {
       team2Placements: [{ playerIndex: 0, x: 18, y: 1 }],
       ballPosition: { x: 1, y: 1 },
     }),
-    seed,
+    seed: 1,
   });
   const mover = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({
@@ -155,13 +155,13 @@ describe("weather modifiers", () => {
   });
 
   it("Pouring Rain puts -1 on the pick-up", async () => {
-    expect(await walkOntoBall("Pouring Rain", 1)).toEqual([
+    expect(await walkOntoBall("Pouring Rain")).toEqual([
       "Pickup (Human Lineman #1): 4, needs 4+",
     ]);
   });
 
   it("Blizzard puts -1 on the Rush", async () => {
-    expect(await rushOneSquare("Blizzard", 1)).toEqual([
+    expect(await rushOneSquare("Blizzard")).toEqual([
       "Rush (Human Lineman #1): 4, needs 3+",
     ]);
   });
@@ -177,10 +177,10 @@ describe("weather modifiers", () => {
       "Scatter: 5, 8, 8",
       "Bounce Direction: 3",
     ]);
-    expect(await walkOntoBall("Nice", 1)).toEqual([
+    expect(await walkOntoBall("Nice")).toEqual([
       "Pickup (Human Lineman #1): 4, needs 3+",
     ]);
-    expect(await rushOneSquare("Nice", 1)).toEqual([
+    expect(await rushOneSquare("Nice")).toEqual([
       "Rush (Human Lineman #1): 4, needs 2+",
     ]);
   });

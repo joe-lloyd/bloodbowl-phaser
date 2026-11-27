@@ -62,6 +62,43 @@ async function search(game: HeadlessGame) {
   return { index, label: fixtureValue(point.candidates[index]).label };
 }
 
+const score = (hasBall: "team1" | "team2" | null) => {
+  const scenario = position(hasBall);
+
+  scenario.setup.team2Placements[0] = {
+    ...fixtureValue(scenario.setup.team2Placements[0]),
+    x: 17,
+  };
+  const game = new HeadlessGame({ scenario, seed: 1 });
+  return evaluate(readBoard(game, game.ctx.team1.id));
+};
+
+const after = (ball: "scorer" | "gone") => {
+  const scenario = position(null);
+  scenario.setup.team1Placements[0] = {
+    playerIndex: 0,
+    x: 19,
+    y: 5,
+    ...((ball === "scorer") && { hasBall: true as const }),
+  };
+  delete scenario.setup.ballPosition;
+  const game = new HeadlessGame({ scenario, seed: 1 });
+  return evaluate(readBoard(game, game.ctx.team1.id));
+};
+
+const declaration = async () => {
+  const game = new HeadlessGame({ scenario: position(null), seed: 1 });
+  const point = await enumerateDecision(game, null);
+  const context = {
+    game,
+    snapshot: game.snapshot(),
+    point,
+    rng: createCoachRng(1),
+  };
+  const planned = await plannerCoach.choose(context);
+  return { game, point, context, planned };
+};
+
 describe("the lookahead", () => {
   it("does not touch the real dice", async () => {
     const game = new HeadlessGame({ scenario: position("team1"), seed: 3 });
@@ -84,7 +121,8 @@ describe("the lookahead", () => {
     const picks = new Set<string>();
     for (const seed of dice) {
       const game = new HeadlessGame({ scenario: position("team1"), seed });
-      picks.add((await search(game)).label);
+      const choice = await search(game);
+      picks.add(choice.label);
     }
     expect(picks.size).toBe(1);
   });
@@ -199,35 +237,12 @@ describe("the position score", () => {
       expect(Number.isFinite(EVALUATION_WEIGHTS[name]), name).toBe(true);
   });
 
-  const score = (hasBall: "team1" | "team2" | null) => {
-    const scenario = position(hasBall);
-
-    scenario.setup.team2Placements[0] = {
-      ...fixtureValue(scenario.setup.team2Placements[0]),
-      x: 17,
-    };
-    const game = new HeadlessGame({ scenario, seed: 1 });
-    return evaluate(readBoard(game, game.ctx.team1.id));
-  };
-
   it("prefers holding the ball to it lying loose or the opponent holding it", () => {
     expect(score("team1")).toBeGreaterThan(score(null));
     expect(score("team1")).toBeGreaterThan(score("team2"));
   });
 
   it("counts a touchdown once while the scorer still holds the ball", () => {
-    const after = (ball: "scorer" | "gone") => {
-      const scenario = position(null);
-      scenario.setup.team1Placements[0] = {
-        playerIndex: 0,
-        x: 19,
-        y: 5,
-        ...((ball === "scorer") && { hasBall: true as const }),
-      };
-      delete scenario.setup.ballPosition;
-      const game = new HeadlessGame({ scenario, seed: 1 });
-      return evaluate(readBoard(game, game.ctx.team1.id));
-    };
     expect(after("scorer")).toBeCloseTo(after("gone"), 9);
   });
 });
@@ -279,18 +294,6 @@ describe("the lookahead over workers", () => {
     });
   };
   const coachOn = (...workers: FakeWorker[]) => coachWithin(60_000, ...workers);
-  const declaration = async () => {
-    const game = new HeadlessGame({ scenario: position(null), seed: 1 });
-    const point = await enumerateDecision(game, null);
-    const context = {
-      game,
-      snapshot: game.snapshot(),
-      point,
-      rng: createCoachRng(1),
-    };
-    const planned = await plannerCoach.choose(context);
-    return { game, point, context, planned };
-  };
 
   it("plays the rival the workers score above the plan", async () => {
     const { context, planned } = await declaration();

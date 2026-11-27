@@ -42,33 +42,28 @@ describe("pregame lockstep purchases", () => {
     const host = session(home, a, true);
     const guest = session(away, b, false);
     try {
-      expect(
-        (await guest.run({ type: "ready-weather", teamId: "team1" })).ok
-      ).toBe(false);
-      expect(
-        (await guest.run({ type: "ready-weather", teamId: "team2" })).ok
-      ).toBe(true);
+      const earlyReady = await guest.run({ type: "ready-weather", teamId: "team1" });
+      expect(earlyReady.ok).toBe(false);
+      const guestReady = await guest.run({ type: "ready-weather", teamId: "team2" });
+      expect(guestReady.ok).toBe(true);
       await settle(host, guest);
-      expect(
-        (await host.run({ type: "ready-weather", teamId: "team1" })).ok
-      ).toBe(true);
+      const hostReady = await host.run({ type: "ready-weather", teamId: "team1" });
+      expect(hostReady.ok).toBe(true);
       await settle(host, guest);
 
-      expect(
-        (await guest.run({ type: "confirm-inducements", teamId: "team2" }))
-          .reason
-      ).toBe("not-your-turn");
+      const guestConfirm = await guest.run({
+        type: "confirm-inducements",
+        teamId: "team2",
+      });
+      expect(guestConfirm.reason).toBe("not-your-turn");
       await settle(host, guest);
-      expect(
-        (
-          await host.run({
-            type: "select-inducement",
-            teamId: "team1",
-            inducement: Inducement.BLITZERS_BEST_KEGS,
-            quantity: 1,
-          })
-        ).ok
-      ).toBe(true);
+      const hostSelect = await host.run({
+        type: "select-inducement",
+        teamId: "team1",
+        inducement: Inducement.BLITZERS_BEST_KEGS,
+        quantity: 1,
+      });
+      expect(hostSelect.ok).toBe(true);
       await settle(host, guest);
       expect(home.ctx.gameService.getInducementOffer()).toEqual(
         away.ctx.gameService.getInducementOffer()
@@ -115,9 +110,11 @@ describe("pregame lockstep purchases", () => {
           resolving: false,
         });
       }
-      expect(
-        (await host.run({ type: "start-setup", kickingTeamId: "team1" })).ok
-      ).toBe(true);
+      const setupStart = await host.run({
+        type: "start-setup",
+        kickingTeamId: "team1",
+      });
+      expect(setupStart.ok).toBe(true);
       await settle(host, guest);
       expect(stateChecksum(home)).toBe(stateChecksum(away));
     } finally {
@@ -131,7 +128,9 @@ describe("pregame lockstep purchases", () => {
     const away = pregameGame();
     const [a, b] = createInMemoryTransportPair();
     const desyncs: string[] = [];
-    const onDesync = (detail: string) => desyncs.push(detail);
+    const onDesync = (detail: string) => {
+      desyncs.push(detail);
+    };
     const host = session(home, a, true, onDesync);
     const guest = session(away, b, false, onDesync);
     const both = (

@@ -60,7 +60,9 @@ function fakeScene() {
     x: 0,
     y: 0,
     setDepth: () => container,
-    add: (child: unknown) => children.push(child),
+    add: (child: unknown) => {
+      children.push(child);
+    },
     getAll: () => children,
   };
   return {

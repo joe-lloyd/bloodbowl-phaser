@@ -93,9 +93,9 @@ describe("BlockDiceDialog — Brawler re-roll button", () => {
     await openAndRoll(true);
 
     const emitted: { attackerId: string }[] = [];
-    eventBus.on(GameEventNames.UI_BrawlerRerollBlockDie, (data) =>
-      emitted.push(data)
-    );
+    eventBus.on(GameEventNames.UI_BrawlerRerollBlockDie, (data) => {
+      emitted.push(data);
+    });
 
     const brawlerButton = fixtureValue(container.querySelector<HTMLButtonElement>(
       '[data-testid="block-brawler-reroll"]'

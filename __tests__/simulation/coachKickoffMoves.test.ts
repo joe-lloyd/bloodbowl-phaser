@@ -71,8 +71,8 @@ async function coachPlays(game: HeadlessGame, coach: Coach = plannerCoach) {
   };
 }
 
-const reach = (game: HeadlessGame, team: "team1" | "team2") =>
-  game.ctx[team].players
+const reach = (game: HeadlessGame) =>
+  game.ctx.team1.players
     .flatMap(({ gridPosition }) => gridPosition ?? [])
     .map(({ x, y }) =>
       Math.max(Math.abs(x - LANDING.x), Math.abs(y - LANDING.y))
@@ -116,9 +116,9 @@ describe("the computer coach plays its kick-off moves", () => {
     "%s: closes on the ball without rolling a die",
     async (event) => {
       const { game } = await rehearse(event, { players: 3 });
-      const before = reach(game, "team1");
+      const before = reach(game);
       const { commands } = await coachPlays(game);
-      expect(reach(game, "team1")).toBeLessThan(before - 12);
+      expect(reach(game)).toBeLessThan(before - 12);
       expect(commands.filter((c) => c === "declare-action")).toHaveLength(3);
       expect(commands).not.toContain("use-reroll");
     }
@@ -179,7 +179,8 @@ describe("the computer coach plays its kick-off moves", () => {
     await choose(game, [playerId]);
     await game.execute({ type: "declare-action", playerId, action: "blitz" });
     home(0).gridPosition = { ...LANDING };
-    expect((await coachPlays(game)).commands).toContain("block");
+    const played = await coachPlays(game);
+    expect(played.commands).toContain("block");
   });
 
   it("Charge!: a No Ball player walks on past the landing square", async () => {
@@ -214,15 +215,16 @@ describe("the computer coach plays its kick-off moves", () => {
     });
     home(0).skills = [...home(0).skills, getSkill(SkillType.BLOCK)];
     away(0).skills = [];
-    expect((await coachPlays(game)).commands).toContain("block");
+    const played = await coachPlays(game);
+    expect(played.commands).toContain("block");
   });
 
   it("Alert Defence: steps towards the ball and stays out of contact", async () => {
     const { game } = await rehearse(KickoffEvent.ALERT_DEFENCE, { players: 3 });
-    const before = reach(game, "team1");
+    const before = reach(game);
     const { commands } = await coachPlays(game);
     expect(commands.filter((c) => c === "kickoff-move-player")).toHaveLength(3);
-    expect(reach(game, "team1")).toBeLessThan(before);
+    expect(reach(game)).toBeLessThan(before);
   });
 
   it("Quick Snap: steps under the ball", async () => {
@@ -287,14 +289,16 @@ describe("the computer coach plays its kick-off moves", () => {
     });
     strong.home(0).stats.ST = 5;
     strong.away(0).stats.ST = 2;
-    expect((await coachPlays(strong.game)).commands).toContain("block");
+    const strongPlayed = await coachPlays(strong.game);
+    expect(strongPlayed.commands).toContain("block");
 
     const weak = await rehearse(KickoffEvent.QUICK_ATTACK, {
       scenario: adjacent,
     });
     weak.home(0).stats.ST = 2;
     weak.away(0).stats.ST = 5;
-    expect((await coachPlays(weak.game)).commands).toEqual(["kickoff-skip"]);
+    const weakPlayed = await coachPlays(weak.game);
+    expect(weakPlayed.commands).toEqual(["kickoff-skip"]);
   });
 
   it.each([
@@ -313,7 +317,8 @@ describe("the computer coach plays its kick-off moves", () => {
     "%s: every candidate a random coach takes is legal",
     async (event) => {
       const { game } = await rehearse(event, { players: 3 });
-      expect((await coachPlays(game, randomCoach)).open).toBe(false);
+      const randomPlayed = await coachPlays(game, randomCoach);
+      expect(randomPlayed.open).toBe(false);
     }
   );
 });

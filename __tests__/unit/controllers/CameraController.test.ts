@@ -10,8 +10,11 @@ import {
 } from "../../../src/game/controllers/CameraController";
 import { gridPointToPixel } from "../../../src/game/elements/GridUtils";
 
+const defaultViewport = { width: 1600, height: 900 };
+const noResize = () => undefined;
+
 function setup(
-  viewport = { width: 1600, height: 900 },
+  viewport = defaultViewport,
   hudRects?: () => ScreenRect[]
 ) {
   const cameraEvents = new EventEmitter();
@@ -80,7 +83,7 @@ function setup(
     zoomEffect: { isRunning: false, reset: vi.fn() },
   };
   const inputHandlers: Record<string, (...args: unknown[]) => void> = {};
-  let resize = () => undefined;
+  let resize = noResize;
   const scene = {
     events: new Phaser.Events.EventEmitter(),
     cameras: { main: camera },

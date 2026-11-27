@@ -10,6 +10,11 @@ import { LockstepSession } from "../../src/network/LockstepSession";
 import { createInMemoryTransportPair } from "../../src/network/transport";
 import { createMatch, bloodlustDesyncScenario } from "./sessionsHarness";
 
+const status = (game: HeadlessGame, id: string) =>
+  game.ctx.team2.players.find((p) => p.id === id)?.status;
+
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe("networked sessions", () => {
   it("a Bloodlust bite target is the biting coach's pick, and both boards bite that Thrall", async () => {
     const biteScenario: Scenario = {
@@ -71,8 +76,6 @@ describe("networked sessions", () => {
       });
       expect(bitten.ok).toBe(true);
 
-      const status = (game: HeadlessGame, id: string) =>
-        game.ctx.team2.players.find((p) => p.id === id)?.status;
       for (const game of [match.game, match.guestGame]) {
         expect(status(game, fixtureValue(second).id)).not.toBe(PlayerStatus.ACTIVE);
         expect(status(game, fixtureValue(first).id)).toBe(PlayerStatus.ACTIVE);
@@ -159,7 +162,9 @@ describe("networked sessions", () => {
       transport: hostEnd,
       game,
       selfId: "host-uid",
-      onSelection: (payload) => hostSeenSelections.push(payload.playerId),
+      onSelection: (payload) => {
+        hostSeenSelections.push(payload.playerId);
+      },
     });
     const guest = new LockstepSession({
       ...ids,
@@ -168,10 +173,11 @@ describe("networked sessions", () => {
       transport: guestEnd,
       game,
       selfId: "guest-uid",
-      onSelection: (payload) => guestSeenSelections.push(payload.playerId),
+      onSelection: (payload) => {
+        guestSeenSelections.push(payload.playerId);
+      },
     });
     const before = JSON.stringify(game.snapshot());
-    const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
     const hostPlayerId = fixtureValue(game.ctx.team1.players[0]).id;
     await host.sendSelection(hostPlayerId);

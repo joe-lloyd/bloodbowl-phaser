@@ -75,9 +75,9 @@ describe("match information", () => {
     );
     if (!clear) throw new Error("Clear pitch button missing");
     const actions: string[] = [];
-    fx.bus.on(GameEventNames.UI_SetupAction, (data) =>
-      actions.push(data.action)
-    );
+    fx.bus.on(GameEventNames.UI_SetupAction, (data) => {
+      actions.push(data.action);
+    });
     await act(async () =>
       clear.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }))
     );

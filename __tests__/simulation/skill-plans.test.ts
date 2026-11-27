@@ -67,9 +67,8 @@ async function choose(
     rng: createCoachRng(1),
   });
   const command = fixtureValue(point.candidates[choice.index]).commands[0];
-  expect((await subject.execute(command)).ok, JSON.stringify(command)).toBe(
-    true
-  );
+  const response = await subject.execute(command);
+  expect(response.ok, JSON.stringify(command)).toBe(true);
   return command;
 }
 
