@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 // eslint-disable-next-line n/no-unsupported-features/node-builtins -- zstd is experimental before Node 23.8; installs and CI run Node 22.15+, which has it
@@ -45,7 +45,9 @@ function pack(base: string): { before: number; after: number } {
 }
 
 const models = process.argv.slice(2);
-const dirs = (models.length > 0 ? models : readdirSync(SPRITES)).map((model) => path.join(SPRITES, model, "layered"));
+const dirs = (models.length > 0 ? models : readdirSync(SPRITES))
+  .map((model) => path.join(SPRITES, model, "layered"))
+  .filter((dir) => existsSync(dir));
 let before = 0;
 let after = 0;
 for (const dir of dirs) {
