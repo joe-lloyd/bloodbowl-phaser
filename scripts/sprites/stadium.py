@@ -214,19 +214,22 @@ def pitch(b):
 # ------------------------------------------------------------------- dugouts
 
 
-def dugout(b, side, gx0, gy0, along, depth, far):
-    """An 11 x 3 block of squares starting at grid corner (gx0, gy0).
+def dugout(b, side, gx0, gy0, along, depth, far, boxes=DUGOUT, open_end=False):
+    """A block of `boxes` (name, squares) 3 deep, starting at grid corner (gx0, gy0).
 
     `along` and `depth` are unit grid steps, (1, 0) or (0, 1) with a sign.
     Box order runs along `along`; home runs it backwards so in the "far"
     layout both reserve boxes sit by the halfway line. `far` dugouts get a back wall
     with signs; near ones would hide their own players behind a wall,
-    so they get painted labels on the pitch-side apron instead.
+    so they get painted labels on the pitch-side apron instead. An `open_end`
+    stops floor and wall flush with the last square and leaves out the end
+    posts, for a block that ends against another dugout.
     """
-    order = DUGOUT[::-1] if side == "home" else DUGOUT
+    order = boxes[::-1] if side == "home" else boxes
     ax, ay = along
     dx, dy = depth
-    length = sum(n for _, n in DUGOUT)
+    length = sum(n for _, n in boxes)
+    end = length if open_end else length + 0.2
 
     def corner(i, j):
         return (gx0 + ax * i + dx * j, gy0 + ay * i + dy * j)
@@ -237,7 +240,7 @@ def dugout(b, side, gx0, gy0, along, depth, far):
         hi = G(max(x0, x1), min(y0, y1), z1) - Vector((inset, inset, 0))
         b.box(part, lo, hi)
 
-    rect("dug_floor", -0.2, -0.2, length + 0.2, DUGOUT_ROWS + 0.2, 0.0, 0.04)
+    rect("dug_floor", -0.2, -0.2, end, DUGOUT_ROWS + 0.2, 0.0, 0.04)
     i = 0
     for name, n in order:
         b.dugouts.setdefault(side, {})[name] = [
@@ -261,14 +264,15 @@ def dugout(b, side, gx0, gy0, along, depth, far):
             x, y = corner(mid_i, -0.08)
             b.text(THEME["label"] or trim, label, G(x, y, 0.03), label_size(label, n, 1.4), (0, 0, 0) if ay == 0 else (0, 0, 90))
         i += n
+    wall_end = length if open_end else length + 0.3
     if far:
-        rect("wall", -0.3, DUGOUT_ROWS + 0.05, length + 0.3, DUGOUT_ROWS + 0.25, 0.0, 2.2)
-        rect(f"trim_{side}", -0.3, DUGOUT_ROWS + 0.0, length + 0.3, DUGOUT_ROWS + 0.05, 2.1, 2.2)
-        for e in (-0.3, length + 0.3):
+        rect("wall", -0.3, DUGOUT_ROWS + 0.05, wall_end, DUGOUT_ROWS + 0.25, 0.0, 2.2)
+        rect(f"trim_{side}", -0.3, DUGOUT_ROWS + 0.0, wall_end, DUGOUT_ROWS + 0.05, 2.1, 2.2)
+        for e in () if open_end else (-0.3, length + 0.3):
             rect("wall", e - 0.1, 0, e + 0.1, DUGOUT_ROWS + 0.25, 0.0, 1.1)
     else:
-        rect("wall", -0.3, DUGOUT_ROWS + 0.05, length + 0.3, DUGOUT_ROWS + 0.25, 0.0, 0.35)
-        rect(f"trim_{side}", -0.3, DUGOUT_ROWS + 0.0, length + 0.3, DUGOUT_ROWS + 0.05, 0.3, 0.36)
+        rect("wall", -0.3, DUGOUT_ROWS + 0.05, wall_end, DUGOUT_ROWS + 0.25, 0.0, 0.35)
+        rect(f"trim_{side}", -0.3, DUGOUT_ROWS + 0.0, wall_end, DUGOUT_ROWS + 0.05, 0.3, 0.36)
 
 
 def label_size(label, squares, most):
