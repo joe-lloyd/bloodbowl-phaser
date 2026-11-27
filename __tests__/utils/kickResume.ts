@@ -8,11 +8,17 @@ import { SetupManager } from "../../src/game/managers/SetupManager";
 import { FormationManager } from "../../src/game/managers/FormationManager";
 import { TeamFactory } from "../../src/game/TeamFactory";
 import { isStandableSquare } from "../../src/game/rules/pitchSquares";
-import { activateMatchFormat, activeLayout } from "../../src/game/variants/activeMatch";
+import {
+  activateMatchFormat,
+  activeLayout,
+} from "../../src/game/variants/activeMatch";
 import type { KickoffTableId } from "../../src/game/variants/gameTypeRules";
 import { stateChecksum } from "../../src/headless/checksum";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import type { HeadlessCommand, PendingDecision } from "../../src/headless/protocol";
+import type {
+  HeadlessCommand,
+  PendingDecision,
+} from "../../src/headless/protocol";
 import type { MatchSave } from "../../src/headless/serialization";
 import { restoreEngine } from "../../src/network/LockstepSession";
 import { GameService } from "../../src/services/GameService";
@@ -22,22 +28,12 @@ import { PlayerStatus } from "../../src/types/Player";
 import { RosterName } from "../../src/types/Team";
 import { playgroundEvent } from "../../src/data/kickoffPlayground";
 
-const TABLES = [
-  "sevens",
-  "street-bowl",
-  "beach-bowl",
-  "gutter-street",
-  "gutter-sewer",
-] as const satisfies readonly KickoffTableId[];
-
-const EVENTS = TABLES.flatMap((table) =>
-  [...new Set(Object.values(KICKOFF_TABLES[table]))].map((event) => ({
-    table,
-    event,
-  }))
-);
-
-const PACE: Record<string, number> = { "900": 2, "1000": 2, "800": 2, "200": 2 };
+const PACE: Record<string, number> = {
+  "900": 2,
+  "1000": 2,
+  "800": 2,
+  "200": 2,
+};
 
 type Watch = (ms: number) => void;
 
@@ -62,7 +58,11 @@ function line(isTeam1: boolean) {
     .map(({ x, y }) => ({ x, y }));
 }
 
-function freshGame(table: KickoffTableId, seed: number, watch: { onDelay: Watch }) {
+function freshGame(
+  table: KickoffTableId,
+  seed: number,
+  watch: { onDelay: Watch }
+) {
   const { format } = playgroundEvent(table, KickoffEvent.CHARGE);
   activateMatchFormat(format);
   const team1 = TeamFactory.createTestTeam(RosterName.HUMAN, "One", 1);
@@ -119,7 +119,14 @@ const teamOf = (game: HeadlessGame, teamId: string) =>
   fixtureValue(game.ctx.gameService.getTeam(teamId));
 
 function freeNeighbour(game: HeadlessGame, at: { x: number; y: number }) {
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1]] as const) {
+  for (const [dx, dy] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+    [1, 1],
+    [-1, -1],
+  ] as const) {
     const square = { x: at.x + dx, y: at.y + dy };
     const taken = game.ctx.gameService.getPlayerAt(square.x, square.y);
     if (!taken && isStandableSquare(square)) return square;
@@ -127,7 +134,10 @@ function freeNeighbour(game: HeadlessGame, at: { x: number; y: number }) {
   return null;
 }
 
-async function answer(game: HeadlessGame, pending: PendingDecision): Promise<HeadlessCommand> {
+async function answer(
+  game: HeadlessGame,
+  pending: PendingDecision
+): Promise<HeadlessCommand> {
   switch (pending.type) {
     case "kickoff-event":
       return chooseStep(game, pending);
@@ -159,7 +169,8 @@ async function chooseStep(
   game: HeadlessGame,
   pending: Extract<PendingDecision, { type: "kickoff-event" }>
 ): Promise<HeadlessCommand> {
-  const { selectedPlayerIds, selectionLimit, landingSquare, chooserTeamId } = pending;
+  const { selectedPlayerIds, selectionLimit, landingSquare, chooserTeamId } =
+    pending;
   const [picked] = selectedPlayerIds;
   if (landingSquare && picked)
     return { type: "kickoff-place-player", playerId: picked, ...landingSquare };
@@ -167,9 +178,17 @@ async function chooseStep(
   if (selectedPlayerIds.length >= wanted) return { type: "kickoff-confirm" };
   for (const player of teamOf(game, chooserTeamId).players) {
     if (selectedPlayerIds.includes(player.id) || !player.gridPosition) continue;
-    const chosen = await game.execute({ type: "kickoff-select-player", playerId: player.id });
-    if (chosen.ok) await game.execute({ type: "kickoff-select-player", playerId: player.id });
-    if (chosen.ok) return { type: "kickoff-select-player", playerId: player.id };
+    const chosen = await game.execute({
+      type: "kickoff-select-player",
+      playerId: player.id,
+    });
+    if (chosen.ok)
+      await game.execute({
+        type: "kickoff-select-player",
+        playerId: player.id,
+      });
+    if (chosen.ok)
+      return { type: "kickoff-select-player", playerId: player.id };
   }
   return { type: "kickoff-skip" };
 }
@@ -181,7 +200,9 @@ function playTurn(game: HeadlessGame): HeadlessCommand {
   const active = state.activePlayer;
   if (active && gs.getMovementUsed(active.id) > 0)
     return { type: "end-activation", playerId: active.id };
-  const next = turn.playerIds.find((id) => !state.turn.activatedPlayerIds.has(id));
+  const next = turn.playerIds.find(
+    (id) => !state.turn.activatedPlayerIds.has(id)
+  );
   const at = next ? gs.getPlayerById(next)?.gridPosition : undefined;
   const square = at && freeNeighbour(game, at);
   if (!next || !square) return { type: "end-turn" };
@@ -206,12 +227,19 @@ function aim(kicker: string, corner: boolean) {
   return corner ? { x: cols - 1, y: 0 } : { x: cols - 4, y };
 }
 
-async function nextCommand(game: HeadlessGame, script: Script, corner: boolean): Promise<HeadlessCommand | "next-drive" | null> {
+async function nextCommand(
+  game: HeadlessGame,
+  script: Script,
+  corner: boolean
+): Promise<HeadlessCommand | "next-drive" | null> {
   const pending = game.pendingDecision();
   if (pending) return answer(game, pending);
   const state = game.ctx.gameService.getState();
   if (kickoffTurnOf(state)) {
-    if (!script.reselected && game.ctx.gameService.getKickoffEventStep()?.canReselect) {
+    if (
+      !script.reselected &&
+      game.ctx.gameService.getKickoffEventStep()?.canReselect
+    ) {
       script.reselected = true;
       return { type: "kickoff-reselect" };
     }
@@ -220,7 +248,9 @@ async function nextCommand(game: HeadlessGame, script: Script, corner: boolean):
   if (state.phase === GamePhase.KICKOFF && !state.kick) {
     script.kicks++;
     const kicker = script.kicks === 1 ? "team1" : "team2";
-    const player = fixtureValue(teamOf(game, kicker).players.find((p) => p.gridPosition));
+    const player = fixtureValue(
+      teamOf(game, kicker).players.find((p) => p.gridPosition)
+    );
     return { type: "kick-ball", playerId: player.id, ...aim(kicker, corner) };
   }
   return script.kicks >= 2 ? null : "next-drive";
@@ -254,7 +284,11 @@ function nextDrive(game: HeadlessGame): void {
 
 async function play(
   game: HeadlessGame,
-  options: { script: Script; corner: boolean; atRest?: (label: string, script: Script) => void }
+  options: {
+    script: Script;
+    corner: boolean;
+    atRest?: (label: string, script: Script) => void;
+  }
 ): Promise<string> {
   const { script, corner, atRest } = options;
   for (let guard = 0; guard < 80; guard++) {
@@ -270,12 +304,17 @@ async function play(
     if (command.type === "kick-ball") script.kicks++;
     else if (command.type === "kickoff-reselect") script.reselected = true;
     const response = await game.execute(command);
-    if (!response.ok) throw new Error(`${command.type}: ${String(response.reason)}`);
+    if (!response.ok)
+      throw new Error(`${command.type}: ${String(response.reason)}`);
   }
   throw new Error("the script never finished");
 }
 
-function momentOf(game: HeadlessGame, label: string, script: Script): Moment & { reselected: boolean } {
+function momentOf(
+  game: HeadlessGame,
+  label: string,
+  script: Script
+): Moment & { reselected: boolean } {
   return {
     label,
     save: matchSaveSchema.parse(structuredClone(game.matchSave())),
@@ -288,14 +327,22 @@ function momentOf(game: HeadlessGame, label: string, script: Script): Moment & {
 
 const MID_AIR = new Set([900, 800, 1000, 200]);
 
-async function uninterrupted(table: KickoffTableId, seed: number, corner: boolean) {
+async function uninterrupted(
+  table: KickoffTableId,
+  seed: number,
+  corner: boolean
+) {
   const moments: ReturnType<typeof momentOf>[] = [];
   const script: Script = { kicks: 0, reselected: false };
   const watch: { onDelay: Watch } = { onDelay: () => undefined };
   const game = freshGame(table, seed, watch);
   watch.onDelay = (ms) => {
     const stage = game.ctx.gameService.getState().kick?.stage;
-    if (stage && MID_AIR.has(ms) && !game.ctx.gameService.isKickoffTableResolving())
+    if (
+      stage &&
+      MID_AIR.has(ms) &&
+      !game.ctx.gameService.isKickoffTableResolving()
+    )
       moments.push(momentOf(game, `${stage} during ${String(ms)} ms`, script));
   };
   const final = await play(game, {
@@ -309,21 +356,38 @@ async function uninterrupted(table: KickoffTableId, seed: number, corner: boolea
   return { moments, final };
 }
 
-async function restored(moment: ReturnType<typeof momentOf>, corner: boolean): Promise<string> {
+async function restored(
+  moment: ReturnType<typeof momentOf>,
+  corner: boolean
+): Promise<string> {
   const game = new HeadlessGame({
     matchSave: structuredClone(moment.save),
     delay: delayFor({ onDelay: () => undefined }),
   });
-  return play(game, { script: { kicks: moment.kicks, reselected: moment.reselected }, corner });
+  return play(game, {
+    script: { kicks: moment.kicks, reselected: moment.reselected },
+    corner,
+  });
 }
 
 async function resynced(
   table: KickoffTableId,
-  { moment, stale, corner }: { moment: ReturnType<typeof momentOf>; stale: ReturnType<typeof momentOf>; corner: boolean }
+  {
+    moment,
+    stale,
+    corner,
+  }: {
+    moment: ReturnType<typeof momentOf>;
+    stale: ReturnType<typeof momentOf>;
+    corner: boolean;
+  }
 ): Promise<string> {
   const game = freshGame(table, 1, { onDelay: () => undefined });
   const state = (from: ReturnType<typeof momentOf>) => ({
-    snapshot: { ...structuredClone(from.save.snapshot), ...(from.save.turnManager && { turnManager: from.save.turnManager }) },
+    snapshot: {
+      ...structuredClone(from.save.snapshot),
+      ...(from.save.turnManager && { turnManager: from.save.turnManager }),
+    },
     teams: structuredClone(from.save.teams),
     pending: structuredClone(from.pending),
     rng: structuredClone(from.save.rng),
@@ -333,10 +397,16 @@ async function resynced(
   restoreEngine(game, state(stale));
   await quiet(game);
   restoreEngine(game, state(moment));
-  return play(game, { script: { kicks: moment.kicks, reselected: moment.reselected }, corner });
+  return play(game, {
+    script: { kicks: moment.kicks, reselected: moment.reselected },
+    corner,
+  });
 }
 
-async function seedFor(table: KickoffTableId, event: KickoffEvent): Promise<number> {
+async function seedFor(
+  table: KickoffTableId,
+  event: KickoffEvent
+): Promise<number> {
   for (let seed = 1; seed < 400; seed++) {
     const game = freshGame(table, seed, { onDelay: () => undefined });
     await game.execute({
@@ -357,23 +427,34 @@ async function seedFor(table: KickoffTableId, event: KickoffEvent): Promise<numb
 async function touchbackSeed(table: KickoffTableId): Promise<number> {
   for (let seed = 1; seed < 200; seed++) {
     const { moments } = await uninterrupted(table, seed, true);
-    if (moments.some(({ pending }) => pending?.type === "touchback")) return seed;
+    if (moments.some(({ pending }) => pending?.type === "touchback"))
+      return seed;
   }
   throw new Error("no touchback");
 }
 
 async function sweep(table: KickoffTableId, seed: number, corner: boolean) {
   const { moments, final } = await uninterrupted(table, seed, corner);
-  const stale = [moments[0], moments.find(({ pending }) => pending !== null), moments.at(-1)];
+  const stale = [
+    moments[0],
+    moments.find(({ pending }) => pending !== null),
+    moments.at(-1),
+  ];
   const failures: string[] = [];
   for (const moment of moments) {
     const saved = await restored(moment, corner).catch(String);
     if (saved !== final) failures.push(`save at ${moment.label}: ${saved}`);
     for (const peer of stale) {
       if (!peer) continue;
-      const synced = await resynced(table, { moment, stale: peer, corner }).catch(String);
+      const synced = await resynced(table, {
+        moment,
+        stale: peer,
+        corner,
+      }).catch(String);
       if (synced !== final)
-        failures.push(`resync at ${moment.label} over ${peer.label}: ${synced}`);
+        failures.push(
+          `resync at ${moment.label} over ${peer.label}: ${synced}`
+        );
     }
   }
   return { failures, labels: moments.map(({ label }) => label) };
@@ -381,7 +462,10 @@ async function sweep(table: KickoffTableId, seed: number, corner: boolean) {
 
 const expectedStops = (event: KickoffEvent) => {
   if (event === KickoffEvent.HIGH_KICK)
-    return ["high-kick before kickoff-select-player", "high-kick before kickoff-place-player"];
+    return [
+      "high-kick before kickoff-select-player",
+      "high-kick before kickoff-place-player",
+    ];
   return kickoffTurnPlay(event)
     ? [
         ...(event === KickoffEvent.GET_READY_LADS
@@ -393,32 +477,42 @@ const expectedStops = (event: KickoffEvent) => {
     : [];
 };
 
-describe("a kick-off restored at every stage", () => {
-  it.each(EVENTS)(
-    "$event on the $table table finishes as if it had never stopped",
-    async ({ table, event }) => {
-      const { failures, labels } = await sweep(table, await seedFor(table, event), false);
-      expect(failures).toEqual([]);
-      expect(labels).toEqual(
-        expect.arrayContaining([
-          "selecting kicker before kick-ball",
-          "event during 900 ms",
-          "landing during 1000 ms",
-          "placing during 200 ms",
-          ...expectedStops(event),
-        ])
-      );
-    },
-    300_000
+export function describeKickResume(table: KickoffTableId): void {
+  const EVENTS = [...new Set(Object.values(KICKOFF_TABLES[table]))].map(
+    (event) => ({ table, event })
   );
 
-  it.each(TABLES)(
-    "a touchback on the %s table finishes as if it had never stopped",
-    async (table) => {
-      const { failures, labels } = await sweep(table, await touchbackSeed(table), true);
+  describe(`a kick-off restored at every stage on the ${table} table`, () => {
+    it.each(EVENTS)(
+      "$event on the $table table finishes as if it had never stopped",
+      async ({ table, event }) => {
+        const { failures, labels } = await sweep(
+          table,
+          await seedFor(table, event),
+          false
+        );
+        expect(failures).toEqual([]);
+        expect(labels).toEqual(
+          expect.arrayContaining([
+            "selecting kicker before kick-ball",
+            "event during 900 ms",
+            "landing during 1000 ms",
+            "placing during 200 ms",
+            ...expectedStops(event),
+          ])
+        );
+      },
+      300_000
+    );
+
+    it("a touchback finishes as if it had never stopped", async () => {
+      const { failures, labels } = await sweep(
+        table,
+        await touchbackSeed(table),
+        true
+      );
       expect(failures).toEqual([]);
       expect(labels).toContain("landed before touchback");
-    },
-    300_000
-  );
-});
+    }, 300_000);
+  });
+}

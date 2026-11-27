@@ -29,11 +29,16 @@ jobs:
       - run: pnpm exec vitest run __tests__/unit/docs-check.test.ts
       - run: pnpm docs:check
 
-  # The pre-commit hook runs this too, but a hook can be skipped.
+  # The pre-commit hook runs only the tests related to staged files, so this
+  # is the one place the whole suite runs. Runners have 4 cores.
   unit:
-    name: unit-tests
+    name: unit-tests (shard ${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -42,7 +47,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec vitest run
+      - run: >
+          pnpm exec vitest run --maxWorkers=4 --minWorkers=4
+          --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
   lint:
     name: lint

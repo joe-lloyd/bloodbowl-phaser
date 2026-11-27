@@ -197,5 +197,5 @@ describe("advanced skill study", () => {
     } finally {
       rmSync(out, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 });

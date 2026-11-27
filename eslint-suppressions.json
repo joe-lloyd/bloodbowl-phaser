@@ -121,20 +121,6 @@
   "__tests__/network/computerMatch.test.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    }
-  },
-  "__tests__/network/computerMatchSave.test.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
     }
   },
   "__tests__/network/kickoffOpening.test.ts": {
