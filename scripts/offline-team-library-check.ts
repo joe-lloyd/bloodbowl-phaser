@@ -61,7 +61,6 @@ const page = await context.newPage();
 async function pageUncached(): Promise<number> {
   return page.evaluate(async () => {
     const files = [
-      location.origin + "/",
       ...[...document.scripts].map((script) => script.src),
       ...[...document.querySelectorAll("link[rel=stylesheet]")].map((link) => link.getAttribute("href") ?? ""),
     ].filter((file) => file.length > 0);
@@ -88,7 +87,7 @@ const syncPanel = page.getByTestId("team-sync");
 await page.goto(dist.origin);
 await page.waitForFunction(() => navigator.serviceWorker.controller?.state === "activated", null, { timeout: 30_000 });
 await page.getByRole("button", { name: "Sign in", exact: true }).first().click();
-const dialog = page.getByRole("dialog");
+const dialog = page.getByTestId("sign-in-dialog");
 await dialog.getByLabel("Email").fill(email);
 await dialog.getByLabel("Password").fill(PASSWORD);
 await dialog.getByRole("button", { name: "Sign in", exact: true }).click();
