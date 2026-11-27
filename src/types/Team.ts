@@ -225,6 +225,8 @@ export interface HomeLeague {
   leagueId?: string;
   playOffsId?: string;
   trophyHolderId?: string;
+  redraftWins?: number;
+  newcomerBudget?: number;
   history: SeasonRecord[];
 }
 

@@ -11,6 +11,8 @@ import {
 import { createCompetition } from "./create";
 import { homeLeagueOf, loadClub, seasonProfile } from "./homeLeague";
 import { getCompetition } from "./repository";
+import { runOffSeason } from "./offSeason";
+import { RNGService } from "../services/rng/RNGService";
 import { clearActiveCompetition } from "./resultRecording";
 import type {
   CompetitionDoc,
@@ -172,6 +174,10 @@ function seasonRecord(
   };
 }
 
+function seededRng(random: Random): RNGService {
+  return new RNGService(Math.floor(random() * 2 ** 31));
+}
+
 export async function finishSeason(
   clubId: string,
   random: Random = Math.random
@@ -189,6 +195,12 @@ export async function finishSeason(
     champion: champion?.name ?? "Nobody",
     playOff: places.get(clubId),
   });
+  const offSeason = await runOffSeason({
+    regular,
+    playOffs,
+    clubId,
+    rng: seededRng(random),
+  });
   const rotation = rotateRivals(league, random);
   const stored = loadClub(clubId);
   stored.club.league = {
@@ -196,6 +208,8 @@ export async function finishSeason(
     rivalIds: [...rotation.returning, ...rotation.comingBack],
     benchIds: rotation.bench,
     ...(holder !== undefined && { trophyHolderId: holder }),
+    redraftWins: offSeason.clubWins,
+    newcomerBudget: offSeason.newcomerBudget,
     history: [...league.history, record],
   };
   await saveTeam(stored);

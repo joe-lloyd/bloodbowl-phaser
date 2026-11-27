@@ -371,13 +371,11 @@ Where the magazine is silent, the engine does this:
 | ID | Rule | Status |
 | --- | --- | --- |
 | R1 | Players due to miss the next game recover. Roll to lose Hatred as usual. Temporary retirement does not apply. | ok in the rules: a gained Hatred is lost on a 4+ |
-| R2 | Emergency Call-ups: roll a D6 for each player with an added skill. On a 1 the player leaves the team. | ok in the rules |
-| R3 | The re-draft budget is 600,000 plus the Treasury plus 10,000 per win last season, capped at 750,000. | ok in the rules |
+| R2 | Emergency Call-ups: roll a D6 for each player with an added skill. On a 1 the player leaves the team. | not used: the club league rolls season-end offers instead (CL-15 in [CLUB_MODE.md](CLUB_MODE.md)) |
+| R3 | The re-draft budget is 600,000 plus the Treasury plus 10,000 per win last season, capped at 750,000. | changed for the club league: capped at 800,000 (CL-16) |
 
-`beginRedraft` in `src/game/rules/redraft.ts` runs R1, R2 and R3 in order.
-The game has no seasons and no re-draft screen, so nothing calls it yet. That
-screen would need the wins of the season just ended, and a way to re-hire
-players and staff from the budget onto a new Team Draft List. A player not
+Only the club league has seasons. Its redraft lives in
+`src/game/rules/redraft.ts` and `src/competition/offSeason.ts`. A player not
 re-hired is let go, which is not firing, so L6 does not stop it.
 
 ## 6. Advancement

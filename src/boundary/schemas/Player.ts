@@ -69,6 +69,7 @@ export const playerSchema: z.ZodType<Player> = z.looseObject({
   cost: z.number(),
   teamValue: z.number(),
   timesKeptFromDraft: z.number().exactOptional(),
+  seasons: z.number().int().nonnegative().exactOptional(),
   careerStats: playerCareerStatsSchema.exactOptional(),
   veteran: z.literal(true).exactOptional(),
   teamCaptain: z.literal(true).exactOptional(),
