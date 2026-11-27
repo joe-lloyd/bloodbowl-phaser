@@ -1,1 +1,4 @@
-pnpm exec vitest run
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx' '*.json')
+[ -z "$staged" ] && exit 0
+# shellcheck disable=SC2086
+pnpm exec vitest related --run --passWithNoTests $staged
