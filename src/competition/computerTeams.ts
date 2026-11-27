@@ -202,6 +202,13 @@ function resolveLeagueAdvancement({
   );
 }
 
+export function settleDraftOffers(team: Team): void {
+  const report: ManagementReport = { done: [], setbacks: [], refused: [] };
+  const pending = team.pendingDevelopment ?? [];
+  for (const entry of pending)
+    if (entry.kind === "drafted-player-offer") resolveDraftedOffer(team, entry, report);
+}
+
 function resolveDraftedOffer(
   team: Team,
   entry: Extract<PendingDevelopment, { kind: "drafted-player-offer" }>,

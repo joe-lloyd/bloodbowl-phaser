@@ -33,5 +33,6 @@ export const clubStateSchema: z.ZodType<ClubState> = z.object({
   gutterSpecialistId: z.string().exactOptional(),
   gutterSitsOutId: z.string().exactOptional(),
   matchSquad: z.string().array().exactOptional(),
+  trophy: z.literal(true).exactOptional(),
   league: homeLeagueSchema.exactOptional(),
 });

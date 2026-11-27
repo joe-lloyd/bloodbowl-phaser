@@ -190,6 +190,9 @@ describe("a club's league seasons", () => {
     await confirmRedraft(club.id, choice);
     const redrafted = fixtureValue(getTeamById(club.id));
     expect(redrafted.treasury).toBe(budget - redraftCost(stored, choice));
+    expect(stored.club?.trophy).toBe(true);
+    expect(choice.rerolls).toBe(stored.rerolls - 1);
+    expect(redrafted.rerolls).toBe(stored.rerolls);
     expect(homeLeagueOf(redrafted).redraftWins).toBeUndefined();
 
     const second = await startSeason(club.id, { ...setup, gameType: "beach-bowl" }, seeded(5));

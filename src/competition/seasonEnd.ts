@@ -141,11 +141,14 @@ async function passTrophy(
   if (previousHolder)
     await changeTeam(previousHolder, (team) => {
       team.rerolls = Math.max(0, team.rerolls - 1);
+      if (team.club) delete team.club.trophy;
     });
   for (const [teamId, finish] of places)
     await changeTeam(teamId, (team) => {
       team.treasury += PLAY_OFF_PRIZES[finish];
-      if (finish === "champion") team.rerolls += 1;
+      if (finish !== "champion") return;
+      team.rerolls += 1;
+      if (team.club) team.club.trophy = true;
     });
   return [...places].find(([, finish]) => finish === "champion")?.[0];
 }

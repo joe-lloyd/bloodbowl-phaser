@@ -142,3 +142,31 @@ describe("applying a redraft", () => {
     expect(budget - redraftCost(team, choice)).toBeGreaterThanOrEqual(missing * rookiePrice(team));
   });
 });
+
+describe("redraft edge cases", () => {
+  it("does not charge the champion for the trophy re-roll and gives it back", () => {
+    const team = clubTeam();
+    team.club = { trophy: true };
+    const choice = currentLineUp(team);
+    expect(choice.rerolls).toBe(1);
+
+    expect(applyRedraft(team, choice, 800_000)).toBeUndefined();
+    expect(team.rerolls).toBe(2);
+    expect(team.treasury).toBe(800_000 - redraftCost(team, choice));
+  });
+
+  it("lets a full squad keep its Gutter Bowl specialist as a twelfth player", () => {
+    const team = clubTeam();
+    const extra = team.players.slice(0, 12 - team.players.length);
+    for (const [index, player] of extra.entries())
+      team.players.push({ ...player, id: `extra-${String(index)}`, number: 20 + index });
+    const specialist = fixtureValue(team.players.at(-1));
+    team.club = { gutterSpecialistId: specialist.id };
+    const choice = { ...currentLineUp(team), rerolls: 0, cheerleaders: 0 };
+
+    expect(team.players).toHaveLength(12);
+    expect(applyRedraft(team, choice, 2_000_000)).toBeUndefined();
+    expect(team.players).toHaveLength(12);
+  });
+});
+

@@ -10,7 +10,7 @@ import {
 } from "../game/rules/redraft";
 import type { RNGService } from "../services/rng/RNGService";
 import { type Team, hasBlockingPendingDevelopment } from "../types/Team";
-import { manageComputerTeam } from "./computerTeams";
+import { manageComputerTeam, settleDraftOffers } from "./computerTeams";
 import { homeLeagueOf, loadClub } from "./homeLeague";
 import type { LeagueDoc, TournamentDoc } from "./types";
 
@@ -51,7 +51,7 @@ function closeSeason(team: Team, rng: RNGService, season: number): void {
 }
 
 function redraftRival(team: Team, wins: number, rng: RNGService): number {
-  manageComputerTeam(team, rng);
+  settleDraftOffers(team);
   const budget = redraftBudget(team.treasury, wins);
   applyRedraft(team, computerRedraftChoice(team, budget), budget);
   manageComputerTeam(team, rng);
@@ -82,7 +82,12 @@ export async function runOffSeason({
     const team = getTeamById(entrant.teamId);
     if (!team) continue;
     closeSeason(team, rng, season);
-    if (team.id !== clubId) budgets.push(redraftRival(team, wins.get(team.id) ?? 0, rng));
+    const teamWins = wins.get(team.id) ?? 0;
+    budgets.push(
+      team.id === clubId
+        ? redraftBudget(team.treasury, teamWins)
+        : redraftRival(team, teamWins, rng)
+    );
     await saveTeam(team);
   }
   return { clubWins: wins.get(clubId) ?? 0, newcomerBudget: averageBudget(budgets) };

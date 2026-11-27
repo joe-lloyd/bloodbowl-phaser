@@ -239,6 +239,8 @@ export interface ClubState {
 
   matchSquad?: string[];
 
+  trophy?: true;
+
   league?: HomeLeague;
 }
 

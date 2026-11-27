@@ -77,27 +77,37 @@ export function redraftCost(team: Team, choice: RedraftChoice): number {
   return players + staffCost(team, choice);
 }
 
+export function trophyRerolls(team: Team): number {
+  return team.club?.trophy ? 1 : 0;
+}
+
 export function currentLineUp(team: Team): RedraftChoice {
   return {
     keep: team.players.map((player) => player.id),
-    rerolls: team.rerolls,
+    rerolls: Math.max(0, team.rerolls - trophyRerolls(team)),
     apothecary: team.apothecary,
     coaches: team.coaches,
     cheerleaders: team.cheerleaders,
   };
 }
 
+function countRefusal(count: number, max: number, name: string): string | undefined {
+  return count < 0 || count > max
+    ? `A club may have 0 to ${String(max)} ${name}.`
+    : undefined;
+}
+
 function choiceRefusal(team: Team, choice: RedraftChoice): string | undefined {
-  if (choice.rerolls < 0 || choice.rerolls > MAX_TEAM_REROLLS)
-    return `A club may have 0 to ${String(MAX_TEAM_REROLLS)} team re-rolls.`;
-  if (choice.coaches < 0 || choice.coaches > MAX_ASSISTANT_COACHES)
-    return `A club may have 0 to ${String(MAX_ASSISTANT_COACHES)} Assistant Coaches.`;
-  if (choice.cheerleaders < 0 || choice.cheerleaders > MAX_CHEERLEADERS)
-    return `A club may have 0 to ${String(MAX_CHEERLEADERS)} Cheerleaders.`;
+  const counts =
+    countRefusal(choice.rerolls, MAX_TEAM_REROLLS, "team re-rolls") ??
+    countRefusal(choice.coaches, MAX_ASSISTANT_COACHES, "Assistant Coaches") ??
+    countRefusal(choice.cheerleaders, MAX_CHEERLEADERS, "Cheerleaders");
+  if (counts) return counts;
   if (choice.apothecary && !getRosterByRosterName(team.rosterName).apothecary)
     return `${team.rosterName} teams cannot hire an Apothecary.`;
-  if (choice.keep.length > MAX_SQUAD)
-    return `A club may keep at most ${String(MAX_SQUAD)} players.`;
+  const specialist = team.club?.gutterSpecialistId;
+  if (choice.keep.filter((id) => id !== specialist).length > MAX_SQUAD)
+    return `A club may keep at most ${String(MAX_SQUAD)} players and its Gutter Bowl specialist.`;
   return undefined;
 }
 
@@ -112,7 +122,7 @@ export function applyRedraft(
   if (cost > budget)
     return `The redraft costs ${thousands(cost)}, more than the budget of ${thousands(budget)}.`;
   team.players = team.players.filter((player) => choice.keep.includes(player.id));
-  team.rerolls = choice.rerolls;
+  team.rerolls = choice.rerolls + trophyRerolls(team);
   team.apothecary = choice.apothecary;
   team.coaches = choice.coaches;
   team.cheerleaders = choice.cheerleaders;
@@ -153,12 +163,13 @@ function bestPlayers(team: Team, budget: number): string[] {
 
 export function computerRedraftChoice(team: Team, budget: number): RedraftChoice {
   const reroll = teamRerollPrice(team);
-  const reserve = team.rerolls > 0 ? reroll : 0;
+  const paid = currentLineUp(team).rerolls;
+  const reserve = paid > 0 ? reroll : 0;
   const keep = bestPlayers(team, budget - reserve);
   const lineUp = { ...currentLineUp(team), keep, rerolls: 0, apothecary: false, coaches: 0, cheerleaders: 0 };
   const rookies = Math.max(0, squadMinimum(team) - keep.length) * rookiePrice(team);
   let left = budget - redraftCost(team, lineUp) - rookies;
-  const rerolls = Math.min(team.rerolls, Math.floor(left / reroll));
+  const rerolls = Math.min(paid, Math.floor(left / reroll));
   left -= rerolls * reroll;
   const apothecary = team.apothecary && left >= APOTHECARY_COST;
   return { ...lineUp, rerolls, apothecary };
