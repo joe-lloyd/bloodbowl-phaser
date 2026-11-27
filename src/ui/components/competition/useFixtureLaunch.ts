@@ -14,6 +14,9 @@ import {
   readMatchSave,
 } from "../../../game/persistence/MatchSaveRepository";
 import { hasBlockingPendingDevelopment, type Team } from "../../../types/Team";
+import { getRosterByRosterName } from "../../../data/RosterTemplates";
+import { validateRosterLegality } from "../../../game/rules/rosterLegality";
+import { GAME_TYPE_LABELS, readGameType } from "../../../game/variants/gameTypes";
 
 export interface HostedFixture extends LobbyFixture {
   competitionName: string;
@@ -38,6 +41,27 @@ function blockingDevelopment(
   return blocked
     ? `${blocked.entrant.name} has unresolved development — resolve it from Manage Team before this fixture.`
     : null;
+}
+
+function illegalClubSquad(
+  competition: CompetitionDoc,
+  { home, away, homeTeam, awayTeam }: FixtureTeams
+): string | null {
+  const gameType = readGameType(competition.gameType);
+  for (const { entrant, team } of [
+    { entrant: home, team: homeTeam },
+    { entrant: away, team: awayTeam },
+  ]) {
+    if (!team.club) continue;
+    const [problem] = validateRosterLegality(
+      team,
+      getRosterByRosterName(team.rosterName),
+      gameType
+    );
+    if (problem)
+      return `${entrant.name}'s ${GAME_TYPE_LABELS[gameType]} squad cannot play: ${problem.detail} Fix it under Squads on the team sheet.`;
+  }
+  return null;
 }
 
 export function hostedFixture({
@@ -80,7 +104,11 @@ async function loadFixtureTeams(
   const [homeTeam, awayTeam] = await Promise.all([fetchEntrantTeam(home), fetchEntrantTeam(away)]);
   if (!homeTeam || !awayTeam) return "Could not load one of the entrants' rosters.";
   const teams = { home, away, homeTeam, awayTeam };
-  return blockingDevelopment(competition, teams) ?? teams;
+  return (
+    blockingDevelopment(competition, teams) ??
+    illegalClubSquad(competition, teams) ??
+    teams
+  );
 }
 
 type Launcher = (fixture: CompetitionFixture, teams: FixtureTeams) => { path: string; state: unknown };

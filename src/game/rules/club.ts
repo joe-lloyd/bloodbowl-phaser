@@ -1,4 +1,4 @@
-import type { Player } from "../../types/Player";
+import { InjuryType, type Player } from "../../types/Player";
 import {
   type RosterName,
   type Team,
@@ -115,9 +115,26 @@ function leaveBannedStaffHome(team: Team, gameType: GameType): void {
   if (!draft.cheerleaders) team.cheerleaders = 0;
 }
 
-export function prepareClubSquad(team: Team, gameType: GameType): void {
+function missingNextGame(players: Player[], home: Set<string>): string[] {
+  return players
+    .filter(
+      (player) =>
+        home.has(player.id) &&
+        player.injuries.includes(InjuryType.MISS_NEXT_GAME)
+    )
+    .map((player) => player.id);
+}
+
+export function prepareClubSquad(
+  team: Team,
+  gameType: GameType,
+  competition = false
+): void {
   if (!team.club) return;
   const home = staysHome(team, gameType);
+  team.club.matchHome = [...home];
+  const served = competition ? missingNextGame(team.players, home) : [];
+  if (served.length > 0) team.club.matchServed = served;
   team.players = team.players.filter((player) => !home.has(player.id));
   team.club.matchSquad = team.players.map((player) => player.id);
   leaveBannedStaffHome(team, gameType);
@@ -142,8 +159,18 @@ function renumberClashes(team: Team, homeIds: Set<string>): void {
   }
 }
 
+function backFromHome(player: Player, served: Set<string>): Player {
+  const back = structuredClone(player);
+  if (served.has(back.id))
+    back.injuries = back.injuries.filter(
+      (injury) => injury !== InjuryType.MISS_NEXT_GAME
+    );
+  return back;
+}
+
 export function restoreClubHome(team: Team, stored: Team): void {
   if (!stored.club) return;
+  const served = new Set(team.club?.matchServed);
   const removedAfterMatch = new Set(team.club?.matchSquad);
   const played = new Map(team.players.map((player) => [player.id, player]));
   const storedIds = new Set(stored.players.map((player) => player.id));
@@ -156,7 +183,7 @@ export function restoreClubHome(team: Team, stored: Team): void {
     ...stored.players.flatMap((player) => {
       const own = played.get(player.id);
       if (own) return [own];
-      return homeIds.has(player.id) ? [structuredClone(player)] : [];
+      return homeIds.has(player.id) ? [backFromHome(player, served)] : [];
     }),
     ...team.players.filter((player) => !storedIds.has(player.id)),
   ];

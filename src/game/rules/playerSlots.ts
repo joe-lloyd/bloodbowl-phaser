@@ -18,11 +18,23 @@ export function freeRosterNumber(team: Team): number | null {
   return null;
 }
 
+function clubHeldIds(team: Pick<Team, "club">): string[] {
+  const club = team.club;
+  if (!club) return [];
+  return [
+    ...(club.matchHome ?? []),
+    ...Object.values(club.squads ?? {}).flat(),
+  ];
+}
+
 export function uniquePlayerId(
-  team: Pick<Team, "players">,
+  team: Pick<Team, "players" | "club">,
   preferred: string
 ): string {
-  const taken = new Set(team.players.map((player) => player.id));
+  const taken = new Set([
+    ...team.players.map((player) => player.id),
+    ...clubHeldIds(team),
+  ]);
   if (!taken.has(preferred)) return preferred;
   let serial = 2;
   while (taken.has(`${preferred}-${String(serial)}`)) serial++;

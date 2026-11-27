@@ -33,9 +33,9 @@ export function createMatchState({
   format?: MatchFormat;
 }): GameState {
   activateMatchFormat(format);
-  prepareClubSquad(team1, format.gameType);
-  prepareClubSquad(team2, format.gameType);
   const competition = !!(fixture.competition ?? fixture.paysWinnings);
+  prepareClubSquad(team1, format.gameType, competition);
+  prepareClubSquad(team2, format.gameType, competition);
   const readiness = { leagueFixture: !!fixture.paysWinnings, competition };
   SetupManager.sanitizeTeam(team1, readiness);
   SetupManager.sanitizeTeam(team2, readiness);

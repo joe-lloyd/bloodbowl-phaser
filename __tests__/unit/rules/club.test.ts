@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RosterName, type Team, createTeam } from "../../../src/types/Team";
+import { InjuryType } from "../../../src/types/Player";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { hirePlayer, purchase } from "../../../src/game/rules/teamPricing";
 import { legalGameTypes, validateRosterLegality } from "../../../src/game/rules/rosterLegality";
@@ -185,6 +186,21 @@ describe("a club's extra player and squads", () => {
     expect(detail("gutter-bowl")).toEqual([]);
     expect(detail("sevens")).toEqual([]);
   });
+
+  it("gives a replacement the fired player's shirt but none of their squad places", () => {
+    const team = club(2_000_000, 7);
+    const extra = hireExtra(team);
+    setSquadMember(team, "street-bowl", { playerId: extra.id, plays: true });
+    const fired = fixtureLineman(team);
+    setSquadMember(team, "street-bowl", { playerId: fired.id, plays: true });
+    team.players = team.players.filter((player) => player.id !== fired.id);
+
+    const hired = hirePlayer(team, template("Dark Elf Lineman"));
+    if (!hired.player) throw new Error(hired.reason);
+    expect(hired.player.number).toBe(fired.number);
+    expect(hired.player.id).not.toBe(fired.id);
+    expect(squadIds(team, "street-bowl")).not.toContain(hired.player.id);
+  });
 });
 
 function homeExtra(team: Team) {
@@ -252,6 +268,41 @@ describe("a club in a match", () => {
     const numbers = matchCopy.players.map((player) => player.number);
     expect(new Set(numbers).size).toBe(numbers.length);
     expect(matchCopy.players.find((player) => player.id === extra.id)?.number).toBe(extra.number);
+  });
+
+  it("gives a Journeyman an ID that no player at home holds", () => {
+    const stored = club(1_000_000);
+    const extra = homeExtra(stored);
+    extra.id = `${stored.id}-journeyman-${String(extra.number)}`;
+    fixtureLineman(stored).injuries = [InjuryType.MISS_NEXT_GAME];
+    const home = structuredClone(stored);
+    const away = club();
+    away.id = "away";
+
+    createMatchState({ team1: home, team2: away, fixture: { paysWinnings: true } });
+    restoreClubHome(home, stored);
+
+    const ids = home.players.map((player) => player.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(home.players.find((player) => player.id === extra.id)?.positionName).toBe("Dark Elf Blitzer");
+    expect(home.players.filter((player) => player.playerKind === "journeyman")).toHaveLength(1);
+  });
+
+  it("counts a competition game spent at home as the game a player had to miss", () => {
+    const missedGame = (competition: boolean) => {
+      const stored = club(1_000_000);
+      const extra = homeExtra(stored);
+      extra.injuries = [InjuryType.MISS_NEXT_GAME];
+      const home = structuredClone(stored);
+      const away = club();
+      away.id = "away";
+      createMatchState({ team1: home, team2: away, fixture: { competition } });
+      restoreClubHome(home, stored);
+      return home.players.find((player) => player.id === extra.id)?.injuries;
+    };
+
+    expect(missedGame(true)).toEqual([]);
+    expect(missedGame(false)).toEqual([InjuryType.MISS_NEXT_GAME]);
   });
 
   it("plays no friendlies during a tournament but may during a league", () => {
