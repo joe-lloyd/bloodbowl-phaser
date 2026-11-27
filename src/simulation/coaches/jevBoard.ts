@@ -4,16 +4,22 @@ import type {
   TeamSnapshot,
 } from "../../headless/serialization";
 import type { CoachContext } from "../coach";
+import { type Frame, squareAt } from "../../game/rules/frames";
+import { ballsFromWire } from "../../game/rules/balls";
+import { type Seat, rivalsOf, seatOf } from "../../game/seating";
+import type { Square } from "../ai/board";
 
 type PositionedPlayer = PlayerSnapshot & {
   position: NonNullable<PlayerSnapshot["position"]>;
 };
 
+const sameSquare = (a: Square, b: Square) => a.x === b.x && a.y === b.y;
+
 function describePlayer(
   player: PositionedPlayer,
   snapshot: CoachContext["snapshot"]
 ) {
-  const ball = snapshot.ballPosition;
+  const balls = ballsFromWire(snapshot).flatMap(({ at }) => (at ? [at] : []));
   return {
     player: `${player.positionName} #${String(player.number)}`,
     square: `(${String(player.position.x)},${String(player.position.y)})`,
@@ -21,7 +27,7 @@ function describePlayer(
       player.status === PlayerStatus.ACTIVE
         ? "standing"
         : player.status.toLowerCase(),
-    has_ball: ball?.x === player.position.x && ball.y === player.position.y,
+    has_ball: balls.some((at) => sameSquare(at, player.position)),
     already_acted: snapshot.turn.activatedPlayerIds.includes(player.id),
     MA: player.stats.MA,
     ST: player.stats.ST,
@@ -30,14 +36,21 @@ function describePlayer(
   };
 }
 
+function goalLine(frame: Frame): string {
+  const goal = squareAt(frame, frame.arm.length - 1, 0);
+  return frame.heading.endsWith("x")
+    ? `x = ${String(goal.x)}`
+    : `y = ${String(goal.y)}`;
+}
+
 function describeTeam(
   team: TeamSnapshot,
-  index: number,
+  frame: Frame,
   snapshot: CoachContext["snapshot"]
 ) {
   return {
     name: team.name,
-    scores_at_x: index === 0 ? 19 : 0,
+    scores_at: goalLine(frame),
     score: snapshot.score[team.id] ?? 0,
     team_rerolls: team.rerolls,
     players: team.players.flatMap((player) =>
@@ -48,22 +61,24 @@ function describeTeam(
   };
 }
 
-export function describeBoard({ snapshot, point }: CoachContext) {
-  const teams = snapshot.teams.map((team, index) => ({
-    id: team.id,
-    description: describeTeam(team, index, snapshot),
-  }));
-  const mine = teams.find((team) => team.id === point.teamId);
-  const opponent = teams.find((team) => team.id !== point.teamId);
-  if (!mine || !opponent) throw new Error("Coach context requires both teams");
-  const ball = snapshot.ballPosition;
+const squareName = (at: Square | null) =>
+  at ? `(${String(at.x)},${String(at.y)})` : "off the pitch";
+
+export function describeBoard({ game, snapshot, point }: CoachContext) {
+  const seating = game.ctx.gameService.getSeating();
+  const describe = ({ team: { id }, frame }: Seat) => {
+    const team = snapshot.teams.find((candidate) => candidate.id === id);
+    if (!team) throw new Error(`The snapshot has no team ${id}.`);
+    return describeTeam(team, frame, snapshot);
+  };
+  const mine = describe(seatOf(seating, point.teamId));
   return {
-    coaching: mine.description.name,
+    coaching: mine.name,
     turn: `${snapshot.turn.isHalf2 ? "second" : "first"} half, turn ${String(snapshot.turn.turnNumber)} of 6`,
-    ball: ball ? `(${String(ball.x)},${String(ball.y)})` : "off the pitch",
+    balls: ballsFromWire(snapshot).map(({ at }) => squareName(at)),
     blitz_used_this_turn: snapshot.turn.hasBlitzed,
     pass_used_this_turn: snapshot.turn.hasPassed,
-    my_team: mine.description,
-    opponents: opponent.description,
+    my_team: mine,
+    opponents: rivalsOf(seating, point.teamId).map((seat) => describe(seat)),
   };
 }
