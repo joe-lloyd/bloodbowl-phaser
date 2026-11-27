@@ -49,7 +49,7 @@ function keywords(raw: readonly string[]): KeyWord[] {
 }
 
 function categories(code: string): Parsed<SkillCategory[]> {
-  const letters = code === NO_PASSING ? [] : (code.match(/./gu) ?? []);
+  const letters = code === NO_PASSING ? [] : (code.match(/./gsu) ?? []);
   const list = letters.flatMap((letter) => CATEGORY_LETTERS[letter] ?? []);
   return list.length === letters.length
     ? found(list)
