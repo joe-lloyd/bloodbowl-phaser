@@ -309,7 +309,7 @@ def stand(b, rng, x0, x1, front, out, rows, base, kit_of, back=True):
         while t < x1 - 0.4:
             t1 = t + 0.5
             kit = kit_of((t + t1) / 2)
-            seat = {"home": "seat_home", "away": "seat_away"}.get(kit, "seat")
+            seat = f"seat_{kit}" if kit else "seat"
             place(t, t1, d0 + 0.35, d0 + 0.75, z + 0.04, z + 0.3, seat)
             place(t, t1, d0 + 0.68, d0 + 0.78, z + 0.3, z + 0.7, seat)
             if rng.random() < 0.82:
@@ -371,7 +371,7 @@ def corner(b, rng, cx, cy, sx, sy, rows, base, kit, back=True):
         for dx0, dx1, dy0, dy1 in ((a0, a1, 0, a1), (0, a0, a0, a1)):
             at(dx0, dx1, dy0, dy1, 0, z, "riser")
             at(dx0, dx1, dy0, dy1, z, z + 0.04, "concrete")
-        seat = {"home": "seat_home", "away": "seat_away"}.get(kit, "seat")
+        seat = f"seat_{kit}" if kit else "seat"
         legs = (
             (a1, lambda t0, t1, d0, d1, z0, z1, part: at(d0, d1, t0, t1, z0, z1, part)),
             (a0, lambda t0, t1, d0, d1, z0, z1, part: at(t0, t1, d0, d1, z0, z1, part)),

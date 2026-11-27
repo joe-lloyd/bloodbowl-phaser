@@ -14,8 +14,11 @@ run and fall at "lo"); STADIUM_DIR is one stadium.py layout folder. Writes:
         style changes colours and light, not geometry; a mismatch is an error.
     public/stadium/<style>/{base,home,away}.webp, meta.json, preview.webp
 
-The venues form takes venues.py output, one folder per venue, and writes
-public/venues/<venue>/{base,home,away}.webp and meta.json.
+The venues form takes venues.py and deathbowl.py output, one folder per
+venue, and writes public/venues/<venue>/{base,home,away}.webp and meta.json.
+A venue whose meta.json lists "masks" (the Deathbowl arena) gets one layer
+per seat instead of home and away, cut where the mask pass has that seat's
+colour.
 
 Atlases are quantised to a 256-colour palette. The renders are flat toon
 bands, so this is close to lossless and roughly a third of the size.
@@ -30,7 +33,7 @@ import tempfile
 from multiprocessing import Pool
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 HERE = Path(__file__).parent
 REPO = HERE.parents[1]
@@ -64,12 +67,33 @@ def positions():
     return {names.get(key, key): {pos: model for pos, model in rows} for key, rows in teams.items()}
 
 
+def split_seats(color, mask, masks):
+    """Backdrop plus one layer per seat, each where the mask matches that seat's colour."""
+    color = color.convert("RGBA")
+    on = [c.point(lambda v: 255 if v > 127 else 0) for c in mask.convert("RGB").split()]
+    off = [ImageChops.invert(c) for c in on]
+    layers = [("base", color.convert("RGB"))]
+    for seat, bits in masks.items():
+        alpha = Image.new("L", color.size, 255)
+        for channel, bit in enumerate(bits):
+            alpha = ImageChops.multiply(alpha, on[channel] if bit else off[channel])
+        layer = color.copy()
+        layer.putalpha(alpha)
+        layers.append((seat, layer))
+    return layers
+
+
 def stadium(src, out, thumbnail=True):
     out.mkdir(parents=True, exist_ok=True)
     color = Image.open(src / "lo_color.png")
-    for name, layer in zip(("base", "home", "away"), split_layers(color, Image.open(src / "lo_mask.png"))):
-        layer.save(out / f"{name}.webp", lossless=True, quality=100, method=4)
+    mask = Image.open(src / "lo_mask.png")
     meta = json.loads((src / "meta.json").read_text())
+    if "masks" in meta:
+        layers = split_seats(color, mask, meta["masks"])
+    else:
+        layers = zip(("base", "home", "away"), split_layers(color, mask))
+    for name, layer in layers:
+        layer.save(out / f"{name}.webp", lossless=True, quality=100, method=4)
     shutil.copy(src / "meta.json", out / "meta.json")
     if not thumbnail:
         return

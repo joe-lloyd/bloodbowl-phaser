@@ -620,10 +620,15 @@ def build(layout):
     return b.dugouts
 
 
-def render(layout, out_dir):
+def render(layout, out_dir, build_scene=build, extra=None):
+    """Render one venue's colour and mask passes and write its meta.json.
+
+    `build_scene` builds the venue and returns its dugout squares by side;
+    `extra` adds keys to meta.json.
+    """
     for ob in [o for o in bpy.data.objects if "part" in o]:
         bpy.data.objects.remove(ob)
-    built = build(layout)
+    built = build_scene(layout)
     scene = bpy.context.scene
     scene.render.film_transparent = False
     os.makedirs(out_dir, exist_ok=True)
@@ -640,6 +645,7 @@ def render(layout, out_dir):
             "gy": [a - o for a, o in zip(to_px(G(0, 1)), to_px(G(0, 0)))],
             "up": [a - o for a, o in zip(to_px((0, 0, 1)), to_px(G(0, 0)))],
         }},
+        **(extra or {}),
     }
     for kind in ("color", "mask"):
         st["assign_pass"](kind)
@@ -652,15 +658,23 @@ def render(layout, out_dir):
     return meta
 
 
-if __name__ == "__main__":
-    args = sys.argv[sys.argv.index("--") + 1:]
-    out, layouts_path, venue = args[:3]
-    with open(layouts_path) as fh:
-        layout = next(v for v in json.load(fh) if v["venue"] == venue)
-    st["THEME"]["parts"] = {**st["PARTS"], **VENUE_PARTS}
+def prepare(parts=None):
+    """An empty scene with the stadium's light and every venue material, plus `parts`."""
+    st["THEME"]["parts"] = {**st["PARTS"], **VENUE_PARTS, **(parts or {})}
     st["THEME"]["font"] = next((f for f in FONTS if os.path.exists(f)), None)
     for ob in list(bpy.data.objects):
         bpy.data.objects.remove(ob)
     st["g"]["setup_scene"](st["g"]["STYLES"][st["THEME"]["light"]])
     st["make_materials"]()
-    print("venue", venue, render(layout, os.path.join(out, venue))["sizes"])
+
+
+def load_layout(layouts_path, venue):
+    with open(layouts_path) as fh:
+        return next(v for v in json.load(fh) if v["venue"] == venue)
+
+
+if __name__ == "__main__":
+    args = sys.argv[sys.argv.index("--") + 1:]
+    out, layouts_path, venue = args[:3]
+    prepare()
+    print("venue", venue, render(load_layout(layouts_path, venue), os.path.join(out, venue))["sizes"])
