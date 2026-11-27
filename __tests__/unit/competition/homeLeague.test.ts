@@ -307,6 +307,26 @@ describe("a season of mixed game types", () => {
     ]);
   });
 
+  it("records a game type drawn only for the play-offs and keeps the format for next season", async () => {
+    const club = await foundHumanClub();
+    const format = { kind: "random", gameTypes: ["sevens", "beach-bowl"] } as const;
+    const league = await startSeason(
+      club.id,
+      { ...setup, format: { ...format, gameTypes: [...format.gameTypes] } },
+      () => 0.1
+    );
+    expect(roundTypes(league).flat()).toEqual(Array.from({ length: 7 }, () => "sevens"));
+
+    await playOut("league", league.id, club.id);
+    const playOffs = await startPlayOffs(club.id, null, () => 0.9);
+    expect(roundTypes(playOffs)).toEqual([["beach-bowl"], ["beach-bowl"]]);
+    await playOut("tournament", playOffs.id, club.id);
+
+    const record = await finishSeason(club.id, seeded(14));
+    expect(record.gameTypes).toEqual(["sevens", "beach-bowl"]);
+    expect(homeLeagueOf(fixtureValue(getTeamById(club.id))).format).toEqual(format);
+  });
+
   it("refuses a random season with only one game type to draw", async () => {
     const club = await foundHumanClub();
     await expect(
