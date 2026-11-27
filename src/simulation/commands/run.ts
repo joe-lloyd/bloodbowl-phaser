@@ -47,6 +47,22 @@ interface MatchSummary {
   commands: number;
   ms: number;
   findings: number;
+  hash: string;
+}
+
+export interface PlannedMatch {
+  seed: number;
+  rosters: [RosterName, RosterName];
+}
+
+export function planMatches(
+  options: Pick<RunOptions, "seed" | "games" | "rosters">
+): PlannedMatch[] {
+  const pairing = createCoachRng(options.seed);
+  return Array.from({ length: options.games }, (_, i) => ({
+    seed: options.seed + i,
+    rosters: [pairing.pick(options.rosters), pairing.pick(options.rosters)],
+  }));
 }
 
 export async function runBatch(options: RunOptions): Promise<number> {
@@ -56,14 +72,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
     makeCoach(options.home, jevStats),
     makeCoach(options.away, jevStats),
   ];
-  const pairing = createCoachRng(options.seed);
-  const plan = Array.from({ length: options.games }, (_, i) => ({
-    seed: options.seed + i,
-    rosters: [pairing.pick(options.rosters), pairing.pick(options.rosters)] satisfies [
-      RosterName,
-      RosterName,
-    ],
-  }));
+  const plan = planMatches(options);
 
   const matches: MatchSummary[] = [];
   const findings: (Finding & { file: string | null; seed: number })[] = [];
@@ -106,6 +115,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
         commands: recording.steps.length,
         ms,
         findings: recording.findings.length,
+        hash: recording.final.hash,
       });
       done++;
       process.stderr.write(

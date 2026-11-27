@@ -41,10 +41,12 @@ Findings and options awaiting a product decision. They are not requirements.
 These are project implementation notes and audits, not copies of the official books.
 
 - [Sevens implementation checklist](SEVENS_RULES.md)
+- [Deathbowl Sevens, experimental](DEATHBOWL_SEVENS.md)
 - [Rules review from October 2026](RULES_REVIEW.md)
 - [2026 roster updates and sources](ROSTER_UPDATES_2026.md)
 - [Current specifications](../openspec/specs/)
 - [Unfinished online lockstep work](../openspec/changes/online-lockstep-play/tasks.md)
+- [Deathbowl Sevens plan](../openspec/changes/deathbowl-sevens/design.md)
 
 Archived change proposals and the obsolete task backlog are available in Git
 history. Keep current guides here and implementation requirements in OpenSpec;
