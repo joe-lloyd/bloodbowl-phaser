@@ -24,6 +24,7 @@
     "headless": "tsx src/headless/cli.ts",
     "sim": "tsx src/simulation/cli.ts",
     "sim:replay": "tsx src/simulation/cli.ts replay",
+    "parity": "tsx scripts/parity.ts",
     "perf": "tsx scripts/perf/bench.ts",
     "test": "vitest",
     "test:rules": "pnpm dlx firebase-tools@15.34.1 emulators:exec --only firestore --project demo-bloodbowl-rules \"vitest run __tests__/rules\"",

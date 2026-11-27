@@ -47,6 +47,7 @@ interface MatchSummary {
   commands: number;
   ms: number;
   findings: number;
+  hash: string;
 }
 
 export async function runBatch(options: RunOptions): Promise<number> {
@@ -106,6 +107,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
         commands: recording.steps.length,
         ms,
         findings: recording.findings.length,
+        hash: recording.final.hash,
       });
       done++;
       process.stderr.write(

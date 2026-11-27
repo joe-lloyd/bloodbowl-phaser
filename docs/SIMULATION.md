@@ -284,6 +284,25 @@ on purpose, as with committed seeds. Recordings made before 20 November 2026
 hash their final state in key insertion order, so replay them with the source that made
 them.
 
+## Prove an engine change keeps every result
+
+A refactor that should not change play must leave every two-team match
+ending in the same state. `pnpm parity` checks that. It plays 210 Sevens
+matches and 40 each of Street Bowl, Beach Bowl and Gutter Bowl, planner
+against planner from seed 7000, and keeps each match's final-state hash.
+
+Record the hashes on the pull request's base and on its head, then compare:
+
+```bash
+heavy sim pnpm parity record sim-results/parity-base.json   # from a frozen copy of the base
+heavy sim pnpm parity record sim-results/parity-head.json   # from the branch
+pnpm parity compare sim-results/parity-base.json sim-results/parity-head.json
+```
+
+The compare exits 1 and names the first changed match when any differ. Replay
+that seed with `pnpm sim --seed <seed> --games 1 --home planner --away planner`
+on both trees to find the first step that differs.
+
 ## Where things live
 
 | Path                                      | Contents                                            |
