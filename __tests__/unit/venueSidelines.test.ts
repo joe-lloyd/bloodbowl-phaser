@@ -128,7 +128,7 @@ describe("Deathbowl arena", () => {
       Object.values(dugouts[seat]).flat()
     );
     expect(squares).toHaveLength(360);
-    expect(new Set(squares.map((square) => square.join())).size).toBe(360);
+    expect(new Set(squares.map((square) => square.join(","))).size).toBe(360);
     expect(
       squares.filter(([x, y]) =>
         isInsideLayout(arena, { x: Math.floor(x), y: Math.floor(y) })
@@ -139,7 +139,7 @@ describe("Deathbowl arena", () => {
   it("closes the pitch and dugouts into a 29 by 29 square", () => {
     const taken = new Set(
       ARENA_SEATS.flatMap((seat) => Object.values(dugouts[seat]).flat()).map(
-        ([x, y]) => [Math.floor(x), Math.floor(y)].join()
+        ([x, y]) => [Math.floor(x), Math.floor(y)].join(",")
       )
     );
     const edge = Array.from({ length: 29 }, (_, k) => k - 4).flatMap((k) => [
@@ -148,11 +148,11 @@ describe("Deathbowl arena", () => {
       [-4, k],
       [24, k],
     ]);
-    const xs = [...taken].map((key) => Number(key.split(",")[0]));
-    const ys = [...taken].map((key) => Number(key.split(",")[1]));
+    const xs = [...taken].map((key) => Number(key.split(",", 1)[0]));
+    const ys = [...taken].map((key) => Number(key.split(",", 2)[1]));
     expect([Math.min(...xs), Math.max(...xs)]).toEqual([-4, 24]);
     expect([Math.min(...ys), Math.max(...ys)]).toEqual([-4, 24]);
-    expect(edge.filter((square) => !taken.has(square.join()))).toEqual([]);
+    expect(edge.filter((square) => !taken.has(square.join(",")))).toEqual([]);
   });
 
   it("draws the arena's dugouts where the game puts them, with a tint layer per seat", () => {
