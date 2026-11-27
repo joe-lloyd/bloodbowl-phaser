@@ -6,7 +6,8 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import path from "node:path";
+import { byCodeUnit } from "../../src/game/core/order";
 import { GameApp } from "../../e2e/support/pages/game";
 
 const DIR = process.env["SHOTS"] ?? "e2e-results/page-shots/out";
@@ -16,13 +17,13 @@ const shot = (page: Page, name: string) =>
 
 test.afterAll(() => {
   mkdirSync(DIR, { recursive: true });
-  const file = join(dirname(DIR), "manifest.json");
+  const file = path.join(path.dirname(DIR), "manifest.json");
   const manifest = existsSync(file)
     ? JSON.parse(readFileSync(file, "utf8"))
     : {};
-  manifest[basename(DIR)] = readdirSync(DIR)
+  manifest[path.basename(DIR)] = readdirSync(DIR)
     .filter((f) => f.endsWith(".jpg"))
-    .sort();
+    .sort(byCodeUnit);
   writeFileSync(file, JSON.stringify(manifest, null, 2));
 });
 
@@ -58,8 +59,8 @@ async function settle(page: Page) {
   await page.waitForTimeout(400);
 }
 
-async function visit(page: Page, path: string) {
-  await page.goto(path);
+async function visit(page: Page, url: string) {
+  await page.goto(url);
   await settle(page);
 }
 

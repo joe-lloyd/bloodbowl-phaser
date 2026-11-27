@@ -3,9 +3,7 @@ import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { RosterName } from "../../src/types/Team";
 
-const MAX_TEAM_VALUE = 1300;
 const DIVISIONS = new Set(["Competitive", "Blackbox", "Ranked", "League"]);
-const MIN_GAMES = 500;
 
 const FUMBBL_NAMES: Partial<Record<RosterName, string>> = {
   [RosterName.BRETONIAN]: "Bretonnian",
@@ -86,9 +84,12 @@ if (!folder) {
   );
   process.exit(1);
 }
+const MAX_TEAM_VALUE = 1300;
+const MIN_GAMES = 500;
 
 const conceded = new Set<string>();
-for (const match of records(path.join(folder, "df_matches.csv")))
+const matchesFile = path.join(folder, "df_matches.csv");
+for (const match of records(matchesFile))
   if (match["match_conceded"] && match["match_conceded"] !== "None")
     conceded.add(cell(match, "match_id"));
 
@@ -102,7 +103,8 @@ const COLUMNS = {
 type Rate = keyof typeof COLUMNS;
 
 const totals = new Map<string, { games: number } & Record<Rate, number>>();
-for (const row of records(path.join(folder, "df_mbt.csv"))) {
+const mbtFile = path.join(folder, "df_mbt.csv");
+for (const row of records(mbtFile)) {
   if (
     conceded.has(cell(row, "match_id")) ||
     !DIVISIONS.has(cell(row, "division_name"))

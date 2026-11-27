@@ -6,7 +6,7 @@ import {
   mkdirSync,
   renameSync,
 } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { processPool } from "../policy-study/pool";
 import { gunzipSync, gzipSync } from "node:zlib";
@@ -71,8 +71,8 @@ export function validateRecovery(
     "scripts/coach/catalogue-study/play.ts",
   ]) {
     if (
-      !readFileSync(join(oldSource, file)).equals(
-        readFileSync(join(currentSource, file))
+      !readFileSync(path.join(oldSource, file)).equals(
+        readFileSync(path.join(currentSource, file))
       )
     )
       throw new Error("Recovery cannot reuse changed gameplay input: " + file);
@@ -90,8 +90,8 @@ async function recoverGame(
   out: string,
   previous: Inputs
 ) {
-  const oldFile = join(oldRun, "games", job.id + ".json"),
-    newFile = join(out, "games", job.id + ".json");
+  const oldFile = path.join(oldRun, "games", job.id + ".json"),
+    newFile = path.join(out, "games", job.id + ".json");
   if (!existsSync(oldFile) || existsSync(newFile)) return;
   const result = JSON.parse(readFileSync(oldFile, "utf8"));
   if (
@@ -99,7 +99,7 @@ async function recoverGame(
     Object.entries(job).some(([k, v]) => !isDeepStrictEqual(result[k], v))
   )
     throw new Error("Invalid recovery game: " + job.id);
-  const oldTrace = join(oldRun, "traces", job.id + ".json.gz");
+  const oldTrace = path.join(oldRun, "traces", job.id + ".json.gz");
   const replay = await replayStudyTrace(oldTrace);
   if (replay.hash !== result.verifiedHash)
     throw new Error("Recovery replay differs from verified game: " + job.id);
@@ -117,7 +117,7 @@ async function recoverGame(
     selected: result.selected,
   };
   writeFileSync(
-    join(out, "traces", job.id + ".json.gz"),
+    path.join(out, "traces", job.id + ".json.gz"),
     gzipSync(JSON.stringify({ ...trace, observations, recoveredFrom: lineage }))
   );
   atomic(newFile, {
@@ -138,7 +138,7 @@ export async function recoverVerifiedGames(
   if (!oldSource || oldSource === currentSource)
     throw new Error("--reuse-source must name the archived acquisition source");
   const previous = JSON.parse(
-    readFileSync(join(oldRun, "manifest.json"), "utf8")
+    readFileSync(path.join(oldRun, "manifest.json"), "utf8")
   ) as Inputs;
   const policyDigest = validateRecovery(
     previous,
@@ -146,15 +146,15 @@ export async function recoverVerifiedGames(
     oldSource,
     currentSource
   );
-  mkdirSync(join(out, "traces"), { recursive: true });
+  mkdirSync(path.join(out, "traces"), { recursive: true });
   const pending = current.jobs.filter(
     (job) =>
-      existsSync(join(oldRun, "games", job.id + ".json")) &&
-      !existsSync(join(out, "games", job.id + ".json"))
+      existsSync(path.join(oldRun, "games", job.id + ".json")) &&
+      !existsSync(path.join(out, "games", job.id + ".json"))
   );
   await processPool(fileURLToPath(import.meta.url), [oldRun, out], pending, 8);
   const reused = current.jobs.filter((job) => {
-    const file = join(out, "games", job.id + ".json");
+    const file = path.join(out, "games", job.id + ".json");
     return (
       existsSync(file) &&
       JSON.parse(readFileSync(file, "utf8")).recoveredFrom?.sourceDigest ===
@@ -170,7 +170,7 @@ export async function recoverVerifiedGames(
     scope:
       "Engine and AI source, locked dependencies, builds, schedule and frozen opponent are identical. Only verified command recordings were reused. Gameplay observations were regenerated from live engine events; original decision counters and timings retain their acquisition provenance.",
   };
-  atomic(join(out, "recovery.json"), receipt);
+  atomic(path.join(out, "recovery.json"), receipt);
   console.log(JSON.stringify(receipt));
 }
 
@@ -179,7 +179,7 @@ if (isEntry(import.meta.url) && process.argv.includes("--worker")) {
   if (oldRun === undefined || out === undefined)
     throw new Error("Usage: recover.ts <old run> <out> --worker");
   const previous = JSON.parse(
-    readFileSync(join(oldRun, "manifest.json"), "utf8")
+    readFileSync(path.join(oldRun, "manifest.json"), "utf8")
   ) as Inputs;
   serveJobs((job) => recoverGame(job, oldRun, out, previous));
 }

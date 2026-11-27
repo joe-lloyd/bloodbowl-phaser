@@ -1,5 +1,5 @@
 import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import path from "node:path";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { stabilizeIds } from "../../../src/headless/createHeadlessGame";
 import { GamePhase } from "../../../src/types/GameState";
@@ -15,8 +15,8 @@ import { labInventory } from "../policy-lab/teams";
 
 const [out = "", from = "0", count = "1", type = "sevens"] =
   process.argv.slice(2);
-const file = resolve(out);
-mkdirSync(dirname(file), { recursive: true });
+const file = path.resolve(out);
+mkdirSync(path.dirname(file), { recursive: true });
 const SPREAD = 0.4;
 const gameType = readGameType(type);
 const { venues } = gameTypeRules(gameType);

@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { cpus, hostname, totalmem } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { catalogueInventory, studySchedule } from "./catalogue-study/schedule";
 import { playStudyGame, withInducementFlag } from "./catalogue-study/play";
@@ -16,7 +16,7 @@ import type { StudyGame, StudyJob } from "./catalogue-study/model";
 import { forkWorkers } from "./catalogue-study/workers";
 
 const entry = fileURLToPath(import.meta.url);
-const root = resolve(dirname(entry), "../..");
+const root = path.resolve(path.dirname(entry), "../..");
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) => {
   const index = args.indexOf(`--${name}`);
@@ -26,26 +26,27 @@ const flag = (name: string, fallback: string) => {
 function sourceDigest(): string {
   const hash = createHash("sha256");
   const visit = (directory: string) => {
-    for (const item of [...readdirSync(directory, { withFileTypes: true })].sort(
+    const items = [...readdirSync(directory, { withFileTypes: true })].sort(
       (a, b) => a.name.localeCompare(b.name)
-    )) {
-      const file = join(directory, item.name);
+    );
+    for (const item of items) {
+      const file = path.join(directory, item.name);
       if (item.isDirectory()) visit(file);
       else hash.update(file.slice(root.length)).update(readFileSync(file));
     }
   };
-  visit(join(root, "src"));
+  visit(path.join(root, "src"));
   for (const name of ["model.ts", "play.ts", "schedule.ts", "telemetry.ts"])
     hash
       .update(name)
-      .update(readFileSync(join(root, "scripts/coach/catalogue-study", name)));
+      .update(readFileSync(path.join(root, "scripts/coach/catalogue-study", name)));
   hash.update(readFileSync(entry));
-  hash.update(readFileSync(join(root, "pnpm-lock.yaml")));
+  hash.update(readFileSync(path.join(root, "pnpm-lock.yaml")));
   return hash.digest("hex");
 }
 
 function saveResult(out: string, result: StudyGame) {
-  const file = join(out, "games", `${result.id}.json`);
+  const file = path.join(out, "games", `${result.id}.json`);
   writeFileSync(`${file}.tmp`, JSON.stringify(result));
   renameSync(`${file}.tmp`, file);
 }
@@ -72,14 +73,13 @@ async function worker(out: string) {
 }
 
 async function run() {
-  const out = resolve(flag("out", "sim-results/catalogue-study"));
+  const out = path.resolve(flag("out", "sim-results/catalogue-study"));
   if (args.includes("--worker")) {
     await worker(out);
     return;
   }
-  const workers = Number(
-    flag("workers", String(Math.max(1, Math.min(10, cpus().length - 2))))
-  );
+  const defaultWorkers = Math.max(1, Math.min(10, cpus().length - 2));
+  const workers = Number(flag("workers", String(defaultWorkers)));
   if (!Number.isSafeInteger(workers) || workers < 1)
     throw new Error("workers must be a positive integer");
   const cohorts = new Set(flag("cohorts", "league,calibration,hard,legend").split(","));
@@ -89,8 +89,8 @@ async function run() {
     throw new Error("No jobs matched the requested cohorts");
   if (limit > 0) jobs = jobs.slice(0, limit);
   jobs = withInducementFlag(jobs, args);
-  mkdirSync(join(out, "games"), { recursive: true });
-  const manifestFile = join(out, "manifest.json");
+  mkdirSync(path.join(out, "games"), { recursive: true });
+  const manifestFile = path.join(out, "manifest.json");
   const digest = sourceDigest();
   const manifest = {
     format: "bb7-catalogue-study-v1",
@@ -119,7 +119,7 @@ async function run() {
       );
   } else writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
   const pending = jobs.filter(
-    (job) => !existsSync(join(out, "games", `${job.id}.json`))
+    (job) => !existsSync(path.join(out, "games", `${job.id}.json`))
   );
   const started = Date.now();
   let next = 0;
@@ -156,12 +156,13 @@ async function run() {
           }
           if (message.id) {
             done++;
+            const elapsedSeconds = Math.round((Date.now() - started) / 1000);
             if (done % 10 === 0 || done === jobs.length)
               console.log(
                 JSON.stringify({
                   done,
                   total: jobs.length,
-                  elapsedSeconds: Math.round((Date.now() - started) / 1000),
+                  elapsedSeconds,
                   last: message.id,
                   ms: message.ms,
                 })
@@ -183,7 +184,7 @@ async function run() {
     }
   );
   writeFileSync(
-    join(out, "complete.json"),
+    path.join(out, "complete.json"),
     JSON.stringify({
       completed: new Date().toISOString(),
       games: done,

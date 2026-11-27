@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { SCENARIO_CASES } from "../src/testing/cases/index.ts";
 import {
@@ -28,7 +28,7 @@ interface Args {
 }
 
 function parseArgs(argv: string[]): Args {
-  const positional = argv.filter((arg) => !arg.startsWith("--"));
+  const target = argv.find((arg) => !arg.startsWith("--"));
   const flag = (name: string): string | undefined => {
     const index = argv.indexOf(`--${name}`);
     return index === -1 ? undefined : argv[index + 1];
@@ -36,7 +36,7 @@ function parseArgs(argv: string[]): Args {
   const seedRaw = flag("seed");
   const variantId = flag("variant");
   return {
-    target: positional[0] ?? "",
+    target: target ?? "",
     ...(variantId !== undefined && { variantId }),
     ...(seedRaw !== undefined && { seed: Number(seedRaw) }),
     browser: argv.includes("--browser"),
@@ -123,17 +123,17 @@ async function replayInEngine(
         }),
   });
 
-  const dir = join(process.cwd(), "e2e-results", "diagnostics");
+  const dir = path.join(process.cwd(), "e2e-results", "diagnostics");
   mkdirSync(dir, { recursive: true });
-  const path = join(dir, bundleFileName(scenarioCase, variant, "engine"));
-  writeFileSync(path, JSON.stringify(bundle, null, 2), "utf8");
+  const bundlePath = path.join(dir, bundleFileName(scenarioCase, variant, "engine"));
+  writeFileSync(bundlePath, JSON.stringify(bundle, null, 2), "utf8");
 
   console.log(
     `\n${scenarioCase.id}/${variant.id}  (seed ${String(variant.seed)})`
   );
   console.log(`  expected: ${variant.expectedOutcome}`);
   console.log(`  run was:  ${summariseRun(observed)}`);
-  console.log(`  bundle:   ${path}`);
+  console.log(`  bundle:   ${bundlePath}`);
   console.log(`  sandbox:  ${sandboxUrlFor(scenarioCase, variant)}`);
 
   if (failures.length === 0) {

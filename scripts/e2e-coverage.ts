@@ -6,7 +6,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import path from "node:path";
+import { byCodeUnit } from "../src/game/core/order";
 import { SCENARIO_CASES } from "../src/testing/cases/index.ts";
 import {
   buildCoverage,
@@ -17,8 +18,8 @@ import { mergeCoverageResults } from "../src/testing/coverage/merge.ts";
 import type { CoverageFragment } from "../src/testing/coverage/observed.ts";
 import { layerSupport } from "../e2e/support/browserAdapter.ts";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const BASELINE = join(ROOT, "src", "testing", "coverage", "baseline.json");
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const BASELINE = path.join(ROOT, "src", "testing", "coverage", "baseline.json");
 
 const argv = process.argv.slice(2);
 const flag = (name: string): string | undefined => {
@@ -33,7 +34,7 @@ function gapsOf(result: CoverageResult): string[] {
         .filter((layer) => layer.status === "missing")
         .map((layer) => `${entry.entry.id}@${layer.layer}`)
     )
-    .sort();
+    .sort(byCodeUnit);
 }
 
 function loadShards(dir: string): CoverageResult[] {
@@ -42,18 +43,18 @@ function loadShards(dir: string): CoverageResult[] {
     .filter((name) => name.endsWith(".json"))
     .map(
       (name) =>
-        JSON.parse(readFileSync(join(dir, name), "utf8")) as CoverageResult
+        JSON.parse(readFileSync(path.join(dir, name), "utf8")) as CoverageResult
     );
 }
 
 function loadFragments(): CoverageFragment[] {
-  const dir = join(ROOT, "e2e-results", "coverage-fragments");
+  const dir = path.join(ROOT, "e2e-results", "coverage-fragments");
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((name) => name.endsWith(".json"))
     .flatMap(
       (name) =>
-        JSON.parse(readFileSync(join(dir, name), "utf8")) as CoverageFragment[]
+        JSON.parse(readFileSync(path.join(dir, name), "utf8")) as CoverageFragment[]
     );
 }
 
@@ -69,8 +70,8 @@ function compareBaseline(result: CoverageResult): void {
   };
   const before = new Set(baseline.gaps);
   const now = new Set(gapsOf(result));
-  const added = [...now].filter((gap) => !before.has(gap)).sort();
-  const closed = [...before].filter((gap) => !now.has(gap)).sort();
+  const added = [...now].filter((gap) => !before.has(gap)).sort(byCodeUnit);
+  const closed = [...before].filter((gap) => !now.has(gap)).sort(byCodeUnit);
 
   console.log("");
   console.log(
@@ -103,7 +104,7 @@ function main(): void {
 
   const mergeDir = flag("merge");
   if (mergeDir) {
-    const shards = loadShards(join(ROOT, mergeDir));
+    const shards = loadShards(path.join(ROOT, mergeDir));
     if (shards.length > 0) {
       result = mergeCoverageResults([result, ...shards]);
       console.log(
@@ -114,8 +115,8 @@ function main(): void {
 
   const jsonPath = flag("json");
   if (jsonPath) {
-    const target = join(ROOT, jsonPath);
-    mkdirSync(dirname(target), { recursive: true });
+    const target = path.join(ROOT, jsonPath);
+    mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(target, `${JSON.stringify(result, null, 2)}\n`, "utf8");
     console.log(`machine-readable coverage → ${target}`);
   }

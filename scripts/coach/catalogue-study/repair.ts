@@ -7,7 +7,7 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs";
-import { join, resolve } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { replayStudyTrace } from "./replay";
@@ -15,7 +15,7 @@ import { replayStudyTrace } from "./replay";
 const entry = fileURLToPath(import.meta.url);
 const target = process.argv[2];
 if (!target) throw new Error("Usage: repair.ts <study directory>");
-const directory = resolve(target);
+const directory = path.resolve(target);
 
 function atomic(file: string, data: string | Buffer) {
   writeFileSync(`${file}.tmp`, data);
@@ -23,10 +23,10 @@ function atomic(file: string, data: string | Buffer) {
 }
 
 async function repair(id: string) {
-  const file = join(directory, "games", id);
+  const file = path.join(directory, "games", id);
   const game = JSON.parse(readFileSync(file, "utf8"));
   if (game.observationVersion === 2) return;
-  const traceFile = join(
+  const traceFile = path.join(
     directory,
     "traces",
     id.replace(/\.json$/, ".json.gz")
@@ -62,7 +62,7 @@ if (process.argv.includes("--worker")) {
     process.disconnect();
   });
 } else {
-  const jobs = readdirSync(join(directory, "games")).filter((name) =>
+  const jobs = readdirSync(path.join(directory, "games")).filter((name) =>
     name.endsWith(".json")
   );
   const workers = Number(process.argv[3] ?? 2);
@@ -88,13 +88,12 @@ if (process.argv.includes("--worker")) {
         })
     )
   );
+  const telemetryFile = fileURLToPath(new URL("telemetry.ts", import.meta.url));
   const digest = createHash("sha256")
     .update(readFileSync(entry))
-    .update(
-      readFileSync(fileURLToPath(new URL("telemetry.ts", import.meta.url)))
-    )
+    .update(readFileSync(telemetryFile))
     .digest("hex");
-  const previousFile = join(directory, "observations-v2.json");
+  const previousFile = path.join(directory, "observations-v2.json");
   const previous = existsSync(previousFile)
     ? JSON.parse(readFileSync(previousFile, "utf8"))
     : {};

@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { createComputerTeamFromTemplate } from "../../../src/competition/computerTeamTemplates";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
@@ -142,9 +142,9 @@ export async function playStudyGame(
   const recording = withLeadingSteps(played, bought);
   const observed = telemetry.snapshot();
 
-  mkdirSync(join(out, "traces"), { recursive: true });
+  mkdirSync(path.join(out, "traces"), { recursive: true });
   writeFileSync(
-    join(out, "traces", `${job.id}.json.gz`),
+    path.join(out, "traces", `${job.id}.json.gz`),
     gzipSync(
       JSON.stringify({
         job,

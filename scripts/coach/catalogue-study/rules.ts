@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import path from "node:path";
 import { RULE_SCENARIOS } from "../../../src/data/ruleScenarios";
 import { SkillType } from "../../../src/types/Skills";
 import { findSeed, runRuleConfig } from "../../../src/game/rules-lab";
@@ -48,7 +48,7 @@ async function outcomeResult(
   }
 }
 
-const out = resolve(process.argv[2] ?? "sim-results/catalogue-rules");
+const out = path.resolve(process.argv[2] ?? "sim-results/catalogue-rules");
 mkdirSync(out, { recursive: true });
 const outcomes = [];
 for (const entry of RULE_SCENARIOS) {
@@ -65,7 +65,7 @@ for (const entry of RULE_SCENARIOS) {
         })
       );
       writeFileSync(
-        join(out, "rules.json"),
+        path.join(out, "rules.json"),
         JSON.stringify(
           {
             outcomes,

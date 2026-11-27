@@ -20,7 +20,7 @@ const UNUSED_SCALE: Partial<Record<keyof Weights, number>> = {
 const FIXED = new Set<string>(["touchdown", "kickWide"]);
 
 const isWeight = (name: string): name is keyof Weights =>
-  name in DEFAULT_WEIGHTS;
+  Object.hasOwn(DEFAULT_WEIGHTS, name);
 
 export const SHIFTED: readonly (keyof Weights)[] = Object.keys(DEFAULT_WEIGHTS)
   .filter(isWeight)

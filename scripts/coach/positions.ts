@@ -74,9 +74,11 @@ async function main() {
   }
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   process.stderr.write(
     `${String(error instanceof Error ? error.stack : error)}\n`
   );
   process.exit(1);
-});
+}

@@ -1,13 +1,15 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { RosterName } from "../../../src/types/Team";
 import { RACE_RATES } from "../../../src/simulation/raceRates";
 import type { Tally as PlayTally } from "./usage";
 import { nth } from "../nth";
+import { byCodeUnit } from "../../../src/game/core/order";
 
 type Tier = 1 | 2 | 3 | 4;
+const TIERS: readonly Tier[] = [1, 2, 3, 4];
 
 const STANDARDS: Record<Tier, { points: number; scores: number }> = {
   1: { points: 0.5, scores: 0.55 },
@@ -25,9 +27,9 @@ function rosterOf(roster: string): RosterName {
 }
 function tierOf(roster: RosterName): Tier {
   const tier = getRosterByRosterName(roster).tier;
-  if (tier !== 1 && tier !== 2 && tier !== 3 && tier !== 4)
-    throw new Error(`${roster} has tier ${String(tier)}`);
-  return tier;
+  const known = TIERS.find((candidate) => candidate === tier);
+  if (known === undefined) throw new Error(`${roster} has tier ${String(tier)}`);
+  return known;
 }
 
 interface Bar {
@@ -156,11 +158,13 @@ export function strengths(games: FitGame[]): {
 } | null {
   const rosters = [
     ...new Set(games.flatMap((g) => [g.roster, g.opponent])),
-  ].sort();
+  ].sort(byCodeUnit);
   const index = new Map(rosters.map((r, i) => [r, i]));
   const n = rosters.length + 1;
-  const a = Array.from({ length: n }, () => new Array<number>(n).fill(0));
-  const b = new Array<number>(n).fill(0);
+  const a = Array.from({ length: n }, () =>
+    Array.from({ length: n }, () => 0)
+  );
+  const b = Array.from({ length: n }, () => 0);
   const add = (terms: [number, number][], y: number) => {
     for (const [i, xi] of terms) {
       b[i] = nth(b, i) + xi * y;
@@ -216,6 +220,9 @@ function eliminate(m: number[][], col: number, tiny: number): boolean {
   return true;
 }
 
+const at = (xs: number[], q: number) =>
+  nth(xs, Math.floor(q * (xs.length - 1)));
+
 export function strengthIntervals(
   games: (FitGame & { block: string })[],
   draws = 1000
@@ -246,8 +253,6 @@ export function strengthIntervals(
       samples.set(r, [...(samples.get(r) ?? []), s]);
   }
   if (unfitted > draws / 20) return null;
-  const at = (xs: number[], q: number) =>
-    nth(xs, Math.floor(q * (xs.length - 1)));
   return new Map(
     [...samples].map(([r, xs]) => {
       xs.sort((p, q) => p - q);
@@ -327,6 +332,76 @@ function foulsOf(
   };
 }
 
+interface CardEnv {
+  counted: TeamGame[];
+  opponentOf: (r: TeamGame) => TeamGame;
+  field: Record<string, PlayTally>;
+  usage: Record<string, Record<string, PlayTally>>;
+  fouls: Record<"candidate" | "frozen", Record<string, FoulTally>>;
+  policies: ("candidate" | "frozen")[];
+  fitted: Map<string, number> | null;
+  intervals: Map<string, [number, number]> | null;
+  changeOf: (roster: string) => number | null;
+}
+
+function addPlays(into: Record<string, PlayTally>, plays: Record<string, PlayTally>): void {
+  for (const [play, t] of Object.entries(plays)) {
+    const o = (into[play] ??= {
+      plays: 0,
+      scoredThisTurn: 0,
+      scoredNextTurn: 0,
+      turnovers: 0,
+    });
+    o.plays += t.plays;
+    o.scoredThisTurn += t.scoredThisTurn;
+    o.scoredNextTurn += t.scoredNextTurn;
+    o.turnovers += t.turnovers;
+  }
+}
+
+function cardOf(roster: string, env: CardEnv): RosterCard {
+  const { counted, opponentOf, field, usage, fouls, policies, fitted, intervals, changeOf } = env;
+  const rows = counted.filter((r) => r.roster === roster);
+  const opponents = rows.map((r) => opponentOf(r));
+  const games = rows.length;
+  const points = mean(rows.map((r) => r.points));
+  const adjusted = fitted ? 0.5 + fitted.get(roster)! : null;
+  const share = adjusted ?? points;
+  const judged = adjusted === null ? "raw points" : "strength";
+  const own: Record<string, PlayTally> = {};
+  for (const policy of policies) addPlays(own, usage[`${policy}/${roster}`] ?? {});
+  const foul = foulsOf(fouls, policies, roster);
+  const name = rosterOf(roster);
+  const tier = tierOf(name);
+  const bar = barOf(name, tier);
+  const scores = rows.filter((r) => r.touchdowns > 0).length / games;
+  return {
+    roster,
+    tier,
+    bar,
+    games,
+    points,
+    adjusted,
+    pointsCi: intervals?.get(roster) ?? null,
+    judged,
+    change: changeOf(roster),
+    wins: rows.filter((r) => r.points === 1).length,
+    draws: rows.filter((r) => r.points === 0.5).length,
+    losses: rows.filter((r) => r.points === 0).length,
+    touchdownsFor: mean(rows.map((r) => r.touchdowns)),
+    touchdownsAgainst: mean(opponents.map((r) => r.touchdowns)),
+    scores,
+    casualtiesFor: mean(rows.map((r) => r.casualties)),
+    casualtiesAgainst: mean(opponents.map((r) => r.casualties)),
+    turnovers: mean(rows.map((r) => r.turnovers)),
+    foulsPerGame: foul.count / games,
+    sentOff: foul.count && foul.sentOff / foul.count,
+    topFouler: foul.topFouler,
+    signatures: signaturesOf(own, field, games),
+    ...verdictOf(bar, share, scores, judged),
+  };
+}
+
 export function scorecard(
   teamGames: TeamGame[],
   usage: Record<string, Record<string, PlayTally>>,
@@ -340,19 +415,7 @@ export function scorecard(
   const field: Record<string, PlayTally> = {};
   for (const policy of policies)
     for (const [key, plays] of Object.entries(usage))
-      if (key.startsWith(policy + "/"))
-        for (const [play, t] of Object.entries(plays)) {
-          const f = (field[play] ??= {
-            plays: 0,
-            scoredThisTurn: 0,
-            scoredNextTurn: 0,
-            turnovers: 0,
-          });
-          f.plays += t.plays;
-          f.scoredThisTurn += t.scoredThisTurn;
-          f.scoredNextTurn += t.scoredNextTurn;
-          f.turnovers += t.turnovers;
-        }
+      if (key.startsWith(policy + "/")) addPlays(field, plays);
 
   const opponentOf = (r: TeamGame) => {
     const other = byGame.get(r.game)!.find((o) => o !== r);
@@ -381,62 +444,19 @@ export function scorecard(
     const frozen = pointsUnder(roster, "frozen");
     return candidate === null || frozen === null ? null : candidate - frozen;
   };
+  const env: CardEnv = {
+    counted,
+    opponentOf,
+    field,
+    usage,
+    fouls,
+    policies,
+    fitted,
+    intervals,
+    changeOf,
+  };
   return rosters
-    .map((roster): RosterCard => {
-      const rows = counted.filter((r) => r.roster === roster);
-      const opponents = rows.map(opponentOf);
-      const games = rows.length;
-      const points = mean(rows.map((r) => r.points));
-      const adjusted = fitted ? 0.5 + fitted.get(roster)! : null;
-      const share = adjusted ?? points;
-      const judged = adjusted === null ? "raw points" : "strength";
-      const own: Record<string, PlayTally> = {};
-      for (const policy of policies)
-        for (const [play, t] of Object.entries(
-          usage[`${policy}/${roster}`] ?? {}
-        )) {
-          const o = (own[play] ??= {
-            plays: 0,
-            scoredThisTurn: 0,
-            scoredNextTurn: 0,
-            turnovers: 0,
-          });
-          o.plays += t.plays;
-          o.scoredThisTurn += t.scoredThisTurn;
-          o.scoredNextTurn += t.scoredNextTurn;
-          o.turnovers += t.turnovers;
-        }
-      const foul = foulsOf(fouls, policies, roster);
-      const name = rosterOf(roster);
-      const tier = tierOf(name);
-      const bar = barOf(name, tier);
-      const scores = rows.filter((r) => r.touchdowns > 0).length / games;
-      return {
-        roster,
-        tier,
-        bar,
-        games,
-        points,
-        adjusted,
-        pointsCi: intervals?.get(roster) ?? null,
-        judged,
-        change: changeOf(roster),
-        wins: rows.filter((r) => r.points === 1).length,
-        draws: rows.filter((r) => r.points === 0.5).length,
-        losses: rows.filter((r) => r.points === 0).length,
-        touchdownsFor: mean(rows.map((r) => r.touchdowns)),
-        touchdownsAgainst: mean(opponents.map((r) => r.touchdowns)),
-        scores,
-        casualtiesFor: mean(rows.map((r) => r.casualties)),
-        casualtiesAgainst: mean(opponents.map((r) => r.casualties)),
-        turnovers: mean(rows.map((r) => r.turnovers)),
-        foulsPerGame: foul.count / games,
-        sentOff: foul.count && foul.sentOff / foul.count,
-        topFouler: foul.topFouler,
-        signatures: signaturesOf(own, field, games),
-        ...verdictOf(bar, share, scores, judged),
-      };
-    })
+    .map((roster) => cardOf(roster, env))
     .sort(
       (a, b) =>
         a.tier - b.tier || (b.adjusted ?? b.points) - (a.adjusted ?? a.points)
@@ -492,7 +512,7 @@ tr.below td:last-child{color:#ef8a7a}tr.ceiling td:last-child{color:#e0b24a}tr.m
 <p>Stage ${esc(stage)}, revision <code>${esc(revision.slice(0, 12))}</code>. ${String(below.length)} of ${String(cards.length)} rosters miss their standard.${cards.some((c) => c.adjusted === null) ? " This schedule splits the rosters into groups that never meet, so no strength can be fitted and each roster is judged on raw points." : ""}</p>
 <h2>Rosters</h2>
 <div class="wrap"><table><tr><th>Roster</th><th class="n">Tier</th><th class="n">Games</th><th class="n">Strength, 95%</th><th class="n">Raw points</th><th class="n">Change vs frozen</th><th class="n">Scores</th><th class="n">TD for</th><th class="n">TD against</th><th class="n">Cas for</th><th class="n">Cas against</th><th class="n">Fouls</th><th>Signature plays, times the field</th><th class="n">Points bar</th><th>Standard</th></tr>
-${cards.map(row).join("\n")}</table></div>
+${cards.map((card) => row(card)).join("\n")}</table></div>
 <h2>Standards</h2>
 <div class="wrap"><table style="width:auto"><tr><th>Tier</th><th class="n">Points at least</th><th class="n">Scores in at least</th></tr>${standards}</table></div>
 <p>A roster's points bar is the lower of its tier's and the share of points people took with that race on FUMBBL, 2020 to 2024, in the 11-player game. The Points bar column marks each bar that people's share capped. The scores bar is always the tier's.</p>
@@ -505,15 +525,15 @@ function main() {
     throw new Error(
       "Usage: scorecard.ts <lab root> <stage> [--candidate-only]"
     );
-  const run = join(resolve(labRoot), stage);
-  const report = join(resolve(labRoot), "reports", stage);
+  const run = path.join(path.resolve(labRoot), stage);
+  const report = path.join(path.resolve(labRoot), "reports", stage);
   const usage = JSON.parse(
-    readFileSync(join(run, "usage-summary.json"), "utf8")
+    readFileSync(path.join(run, "usage-summary.json"), "utf8")
   ) as {
     revision: string;
     rosters: Record<string, Record<string, PlayTally>>;
   };
-  const foulFile = join(run, "fouls-summary.json");
+  const foulFile = path.join(run, "fouls-summary.json");
   const fouls = existsSync(foulFile)
     ? (JSON.parse(readFileSync(foulFile, "utf8")).policies as Record<
         "candidate" | "frozen",
@@ -525,14 +545,17 @@ function main() {
   )
     ? ["candidate"]
     : ["candidate", "frozen"];
+  const teamGames = parseTeamGames(
+    readFileSync(path.join(report, "team-games.csv"), "utf8")
+  );
   const cards = scorecard(
-    parseTeamGames(readFileSync(join(report, "team-games.csv"), "utf8")),
+    teamGames,
     usage.rosters,
     fouls,
     policies
   );
   writeFileSync(
-    join(report, "scorecard.json"),
+    path.join(report, "scorecard.json"),
     JSON.stringify(
       {
         revision: usage.revision,
@@ -547,7 +570,7 @@ function main() {
     )
   );
   writeFileSync(
-    join(report, "scorecard.html"),
+    path.join(report, "scorecard.html"),
     html(cards, stage, usage.revision)
   );
   console.log(
@@ -559,6 +582,6 @@ function main() {
 }
 if (
   process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 )
   main();

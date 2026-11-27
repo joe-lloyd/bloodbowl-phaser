@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { resolve, join } from "node:path";
+import path from "node:path";
 import { RULE_SCENARIOS } from "../../../src/data/ruleScenarios";
 import { runRuleConfig } from "../../../src/game/rules-lab";
 import { GameEventNames } from "../../../src/types/events";
@@ -141,7 +141,7 @@ async function probePair(config: RuleConfig, skill: SkillType, seed: number) {
 }
 
 async function main() {
-  const out = resolve(process.argv[2] ?? "sim-results/advanced-probes");
+  const out = path.resolve(process.argv[2] ?? "sim-results/advanced-probes");
   mkdirSync(out, { recursive: true });
   const seeds = Number(process.argv[3] ?? 32);
   if (!Number.isSafeInteger(seeds) || seeds < 1)
@@ -150,7 +150,7 @@ async function main() {
   const selections = [];
   const source = readFileSync(new URL(import.meta.url));
   const pipelineDigest = createHash("sha256").update(source).digest("hex");
-  writeFileSync(join(out, "probe-source.ts"), source);
+  writeFileSync(path.join(out, "probe-source.ts"), source);
   for (const entry of RULE_SCENARIOS)
     for (const config of entry.configs) {
       try {
@@ -170,10 +170,10 @@ async function main() {
         rows.push(await probePair(config, entry.skill, seed));
       }
       writeFileSync(
-        join(out, "probes.json.tmp"),
+        path.join(out, "probes.json.tmp"),
         JSON.stringify({ seeds, rows, selections, pipelineDigest })
       );
-      renameSync(join(out, "probes.json.tmp"), join(out, "probes.json"));
+      renameSync(path.join(out, "probes.json.tmp"), path.join(out, "probes.json"));
       console.log(JSON.stringify({ config: config.id, rows: rows.length }));
     }
 }

@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import type { MatchRecording } from "../../../src/simulation/runMatch";
@@ -23,7 +23,7 @@ const empty = () => ({
 });
 type Outcomes = ReturnType<typeof empty>;
 const eventId = (data: unknown, key: string): string | undefined => {
-  if (!data || typeof data !== "object" || !(key in data)) return undefined;
+  if (!data || typeof data !== "object") return undefined;
   const value = Reflect.get(data, key);
   return typeof value === "string" ? value : undefined;
 };
@@ -148,7 +148,7 @@ async function main() {
   const summary = { candidate: empty(), frozen: empty() };
   const files = annotationFiles(out, manifest.jobs.length, "outcome");
   for (const file of files) {
-    const result = JSON.parse(readFileSync(join(out, file), "utf8")) as {
+    const result = JSON.parse(readFileSync(path.join(out, file), "utf8")) as {
       candidateSide: number;
       totals: [Outcomes, Outcomes];
     };
@@ -169,7 +169,7 @@ async function main() {
       "A receiver touchdown means that catcher scored in the same team turn as a completed pass. A long scoring run carried the ball at activation start and gained at least six columns in a turn-five/six scoring activation. This is sequence attribution, not a counterfactual skill-value estimate.",
   };
   writeFileSync(
-    join(run, "outcome-summary.json"),
+    path.join(run, "outcome-summary.json"),
     JSON.stringify(receipt, null, 2)
   );
   console.log(JSON.stringify(receipt));

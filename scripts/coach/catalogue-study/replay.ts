@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
@@ -46,7 +46,7 @@ const entry = process.argv[1];
 const trace = process.argv[2];
 if (
   entry &&
-  resolve(entry) === fileURLToPath(import.meta.url) &&
+  path.resolve(entry) === fileURLToPath(import.meta.url) &&
   trace?.endsWith(".json.gz")
 )
   console.log(await replayStudyTrace(trace));

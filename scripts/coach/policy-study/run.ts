@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { hostname } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { policySourceDigest, treeDigest } from "./fingerprint";
 import { recoverVerifiedGames } from "../policy-lab/recover";
@@ -45,11 +45,11 @@ const flag = (name: string, fallback: string) =>
     ? (args[args.indexOf("--" + name) + 1] ?? fallback)
     : fallback;
 const entry = fileURLToPath(import.meta.url);
-const root = resolve(dirname(entry), "../../..");
-const out = resolve(flag("out", "sim-results/skill-plans"));
+const root = path.resolve(path.dirname(entry), "../../..");
+const out = path.resolve(flag("out", "sim-results/skill-plans"));
 const baseline = flag("baseline", "");
 if (!baseline) throw new Error("--baseline must name the frozen source root");
-const frozen = resolve(baseline);
+const frozen = path.resolve(baseline);
 const lab = args.includes("--lab");
 const gameType = readGameType(flag("game-type", "sevens"));
 const venues = gameTypeRules(gameType).venues;
@@ -82,12 +82,15 @@ if (!["planner", "standard"].includes(candidateKind))
   throw new Error("Unsupported candidate");
 
 const weightsFile = flag("weights", "");
+const weightsText = weightsFile
+  ? readFileSync(path.resolve(weightsFile), "utf8")
+  : "";
 const {
   weights: candidateWeights,
   rosters: candidateRosters,
   gameTypes: candidateGameTypes,
 } = weightsFile
-  ? parseWeightFile(JSON.parse(readFileSync(resolve(weightsFile), "utf8")))
+  ? parseWeightFile(JSON.parse(weightsText))
   : {
       weights: DEFAULT_WEIGHTS,
       rosters: ROSTER_WEIGHTS,
@@ -188,7 +191,7 @@ function activatesFormats(module: unknown): module is FormatActivator {
 async function frozenFormats(): Promise<FormatActivator | null> {
   if (gameType === "sevens") return null;
   const module: unknown = await import(
-    pathToFileURL(join(frozen, "src/game/variants/activeMatch.ts")).href
+    pathToFileURL(path.join(frozen, "src/game/variants/activeMatch.ts")).href
   );
   if (!activatesFormats(module))
     throw new Error("The frozen tree cannot switch game types");
@@ -197,7 +200,7 @@ async function frozenFormats(): Promise<FormatActivator | null> {
 
 if (args.includes("--worker")) {
   const module = await import(
-    pathToFileURL(join(frozen, "src/simulation/commands/shared.ts")).href
+    pathToFileURL(path.join(frozen, "src/simulation/commands/shared.ts")).href
   );
   const legacy: Coach = {
     ...module.makeCoach(opponent, []),
@@ -224,11 +227,11 @@ if (args.includes("--worker")) {
         coaches
       );
       const replay = await replayStudyTrace(
-        join(out, "traces", job.id + ".json.gz")
+        path.join(out, "traces", job.id + ".json.gz")
       );
       if (!isDeepStrictEqual(result.counters, replay.observations.counters))
         throw new Error("Replay event counters differ");
-      atomic(join(out, "games", job.id + ".json"), {
+      atomic(path.join(out, "games", job.id + ".json"), {
         ...result,
         ...job,
         verifiedHash: replay.hash,
@@ -336,7 +339,7 @@ if (args.includes("--worker")) {
     throw new Error("Invalid worker count");
   const sourceDigest = policySourceDigest(root, lab);
   const baselineDigest = treeDigest(frozen, ["src"]);
-  mkdirSync(join(out, "games"), { recursive: true });
+  mkdirSync(path.join(out, "games"), { recursive: true });
   const inventory = catalogueInventory(gameType);
   const objectives = Object.fromEntries(
     inventory.teams.map((t) => [t.rosterName, sppValuesFor(t.rosterName)])
@@ -371,7 +374,7 @@ if (args.includes("--worker")) {
             : "exhibition",
         }),
   };
-  const file = join(out, "manifest.json");
+  const file = path.join(out, "manifest.json");
   if (existsSync(file)) {
     const previous: unknown = JSON.parse(readFileSync(file, "utf8"));
     if (!sameRun(previous, manifest))
@@ -383,18 +386,18 @@ if (args.includes("--worker")) {
   if (reuse && !lab) throw new Error("Recovery requires --lab");
   if (reuse)
     await recoverVerifiedGames(
-      resolve(reuse),
-      resolve(flag("reuse-source", "")),
+      path.resolve(reuse),
+      path.resolve(flag("reuse-source", "")),
       root,
       out,
       manifest
     );
   const pending = jobs.filter(
-    (job) => !existsSync(join(out, "games", job.id + ".json"))
+    (job) => !existsSync(path.join(out, "games", job.id + ".json"))
   );
   const started = Date.now();
   await processPool(entry, args, pending, workers);
-  atomic(join(out, "complete.json"), {
+  atomic(path.join(out, "complete.json"), {
     games: jobs.length,
     seconds: (Date.now() - started) / 1000,
     verified: true,
