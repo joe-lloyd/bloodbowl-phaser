@@ -19,14 +19,14 @@ export function installsByHand(): boolean {
   return !runsInstalled && "standalone" in navigator;
 }
 
-let offer: InstallPromptEvent | null = null;
+const offerState: { offer: InstallPromptEvent | null } = { offer: null };
 const listeners = new Set<() => void>();
 
 function setOffer(next: InstallPromptEvent | null): void {
-  offer = next;
-  listeners.forEach((listener) => {
+  offerState.offer = next;
+  for (const listener of listeners) {
     listener();
-  });
+  }
 }
 
 function isInstallPrompt(event: Event): event is InstallPromptEvent {
@@ -41,11 +41,11 @@ export function subscribeInstallOffer(listener: () => void): () => void {
 }
 
 export function canInstall(): boolean {
-  return offer !== null;
+  return offerState.offer !== null;
 }
 
 export async function install(): Promise<void> {
-  const pending = offer;
+  const pending = offerState.offer;
   setOffer(null);
   await pending?.prompt();
 }

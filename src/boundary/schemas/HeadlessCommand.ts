@@ -9,6 +9,18 @@ import { dopeStatSchema } from "./DopeStat";
 import { wizardSpellSchema } from "./WizardSpell";
 import type { HeadlessCommand } from "../../headless/protocol";
 
+const flagSchema = z.union([z.literal(false), z.literal(true)]);
+
+const throwModeSchema = z.union([z.literal("throw"), z.literal("kick")]);
+
+const specialActionSchema = z.union([
+  z.literal("breatheFire"),
+  z.literal("vomit"),
+  z.literal("gaze"),
+  z.literal("chomp"),
+  z.literal("chainsaw"),
+]);
+
 export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
   z.looseObject({
     type: z.literal("coin-flip"),
@@ -90,7 +102,7 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     playerId: z.string(),
     action: actionTypeSchema,
     blockReplacement: blockReplacementSchema.exactOptional(),
-    razzleDazzle: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+    razzleDazzle: flagSchema.exactOptional(),
   }),
   z.looseObject({
     type: z.literal("cancel-action"),
@@ -133,7 +145,7 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     playerId: z.string(),
     x: z.number(),
     y: z.number(),
-    hailMary: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+    hailMary: flagSchema.exactOptional(),
   }),
   z.looseObject({
     type: z.literal("punt"),
@@ -163,7 +175,7 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     teammateId: z.string(),
     x: z.number(),
     y: z.number(),
-    mode: z.union([z.literal("throw"), z.literal("kick")]).exactOptional(),
+    mode: throwModeSchema.exactOptional(),
     swoopFacing: swoopFacingSchema.exactOptional(),
   }),
   z.looseObject({
@@ -201,13 +213,7 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
   }),
   z.looseObject({
     type: z.literal("special-action"),
-    action: z.union([
-      z.literal("breatheFire"),
-      z.literal("vomit"),
-      z.literal("gaze"),
-      z.literal("chomp"),
-      z.literal("chainsaw"),
-    ]),
+    action: specialActionSchema,
     attackerId: z.string(),
     defenderId: z.string(),
   }),

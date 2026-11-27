@@ -101,8 +101,9 @@ function squaresInCommand(
   ) {
     squares.push({ x: record["x"], y: record["y"] });
   }
-  if (Array.isArray(record["path"])) {
-    for (const entry of record["path"]) {
+  const path = record["path"];
+  if (Array.isArray(path)) {
+    for (const entry of path) {
       squares.push(entry);
     }
   }
@@ -176,8 +177,9 @@ function validateSteps(
   issues: ValidationIssue[]
 ): void {
   const placed = placementIndices(scenarioCase);
-  const add = (field: string, message: string) =>
+  const add = (field: string, message: string) => {
     issues.push({ caseId: scenarioCase.id, field, message });
+  };
 
   for (const [index, step] of scenarioCase.steps.entries()) {
     const where = `steps[${String(index)}]`;
@@ -270,7 +272,8 @@ function checkCheckpoints(scenarioCase: ScenarioCase, add: Add): void {
     add("checkpoints", "case asserts nothing — add at least one checkpoint");
   }
 
-  for (const layer of totalCheckpoints > 0 ? scenarioCase.layers : []) {
+  const checkedLayers = totalCheckpoints > 0 ? scenarioCase.layers : [];
+  for (const layer of checkedLayers) {
     if (layer === "visual") continue;
     const applies = [
       ...scenarioCase.checkpoints,
@@ -317,7 +320,8 @@ function checkRegression(scenarioCase: ScenarioCase, add: Add): void {
 }
 
 function checkSyntheticGrants(scenarioCase: ScenarioCase, add: Add): void {
-  for (const grant of scenarioCase.syntheticGrants ?? []) {
+  const grants = scenarioCase.syntheticGrants ?? [];
+  for (const grant of grants) {
     if (!grant.reason.trim()) {
       add(
         "syntheticGrants",
@@ -336,8 +340,9 @@ export function validateScenarioCase(
   support?: LayerSupport
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const add = (field: string, message: string) =>
+  const add = (field: string, message: string) => {
     issues.push({ caseId: scenarioCase.id, field, message });
+  };
 
   if (!/^[a-z0-9][a-z0-9-]*$/.test(scenarioCase.id)) {
     add("id", "case id must be lower-case kebab (stable, URL- and CLI-safe)");

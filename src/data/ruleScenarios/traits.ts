@@ -80,13 +80,9 @@ const activationOver = (
     (d) => d === resolveRef(r.game, ref)
   );
 
-const availabilityFor = (
-  r: ScriptResult,
-  ref: string,
-  hasMovedInAction: boolean
-) => {
+const availabilityFor = (r: ScriptResult, hasMovedInAction: boolean) => {
   const gs = r.game.ctx.gameService;
-  const player = playerOf(r, ref);
+  const player = playerOf(r, "team1:0");
   const state = gs.getState();
   return computeActionAvailability({
     player,
@@ -635,10 +631,10 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) => lastCommandRefused(r, "illegal-action-declaration"),
             verify: (r) => {
               assert(
-                availabilityFor(r, "team1:0", false).stab,
+                availabilityFor(r, false).stab,
                 "the scenario must place a legal Stab target adjacent"
               );
-              const moved = availabilityFor(r, "team1:0", true);
+              const moved = availabilityFor(r, true);
               assert(
                 !moved.stab && moved.directBlockReplacements.length === 0,
                 "a moved player is offered no direct block-replacing attack"

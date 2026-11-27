@@ -101,7 +101,7 @@ export function BuildEditor({ catalog, character, onChange }: EditorProps) {
           name={KNOB_LABELS[knob] ?? knob}
           value={Number(knobs[knob] ?? inheritedKnob(catalog, character, knob))}
           range={rangeOf(knob)}
-          changed={knob in knobs}
+          changed={Object.hasOwn(knobs, knob)}
           onChange={(value) => { onChange({ knobs: { ...knobs, [knob]: value } }); }}
           onReset={() => { onChange({ knobs: withoutKey(knobs, knob) }); }}
         />
@@ -129,7 +129,7 @@ export function MotionEditor({ catalog, character, onChange }: EditorProps) {
           name={name}
           value={Number(stance[name] ?? base?.stance[name] ?? 0)}
           range={rangeOf(name)}
-          changed={name in stance}
+          changed={Object.hasOwn(stance, name)}
           onChange={(value) => { onChange({ stance: { ...stance, [name]: value } }); }}
           onReset={() => { onChange({ stance: withoutKey(stance, name) }); }}
         />
@@ -149,7 +149,7 @@ export function MotionEditor({ catalog, character, onChange }: EditorProps) {
           name={name}
           value={motion[name] ?? value}
           range={rangeOf(name)}
-          changed={name in motion}
+          changed={Object.hasOwn(motion, name)}
           onChange={(next) => { onChange({ motion: { ...motion, [name]: next } }); }}
           onReset={() => { onChange({ motion: withoutKey(motion, name) }); }}
         />

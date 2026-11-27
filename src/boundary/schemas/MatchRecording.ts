@@ -7,6 +7,12 @@ import { teamPlayStatsSchema } from "./TeamPlayStats";
 import { gameTypeSchema, venueSchema } from "./GameType";
 import type { MatchRecording } from "../../simulation/runMatch";
 
+const finalSchema = z.looseObject({
+  phase: z.string(),
+  score: z.tuple([z.number(), z.number()]),
+  hash: z.string(),
+});
+
 export const matchRecordingSchema: z.ZodType<MatchRecording> = z.looseObject({
   format: z.literal("bb7-sim-recording"),
   version: z.literal(1),
@@ -21,11 +27,7 @@ export const matchRecordingSchema: z.ZodType<MatchRecording> = z.looseObject({
     .object({ gameType: gameTypeSchema, venue: venueSchema })
     .exactOptional(),
   steps: recordedStepSchema.array(),
-  final: z.looseObject({
-    phase: z.string(),
-    score: z.tuple([z.number(), z.number()]),
-    hash: z.string(),
-  }),
+  final: finalSchema,
   findings: findingSchema.array(),
   stats: z.tuple([teamPlayStatsSchema, teamPlayStatsSchema]).exactOptional(),
 });

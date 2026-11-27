@@ -1,3 +1,4 @@
+import { byCodeUnit } from "../../game/core/order";
 import { type ObservedRun, type ScenarioCase } from "../scenarioCase/types";
 
 export function observedClaims(
@@ -16,7 +17,8 @@ export function observedClaims(
   const engineRun: ObservedRun & {
     stepLog?: { command: { type: string }; replies: { type: string }[] }[];
   } = observed;
-  for (const record of engineRun.stepLog ?? []) {
+  const stepLog = engineRun.stepLog ?? [];
+  for (const record of stepLog) {
     claims.add(`protocol-command:${record.command.type}`);
     for (const reply of record.replies) {
       claims.add(`protocol-command:${reply.type}`);
@@ -25,7 +27,7 @@ export function observedClaims(
 
   for (const interaction of scenarioCase.interactions) claims.add(interaction);
 
-  return [...claims].sort();
+  return [...claims].sort((a, b) => byCodeUnit(a, b));
 }
 
 export interface CoverageFragment {

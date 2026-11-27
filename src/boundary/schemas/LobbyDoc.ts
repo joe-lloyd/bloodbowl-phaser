@@ -9,6 +9,24 @@ import { competitionContextSchema } from "./CompetitionContext";
 import { teamSchema } from "./Team";
 import type { LobbyDoc } from "../../firebase/lobby";
 
+const readyFlagSchema = z
+  .union([z.literal(false), z.literal(true)])
+  .exactOptional();
+
+const nullableIdSchema = z.union([z.null(), z.string()]).exactOptional();
+
+const coinFlipSchema = z
+  .union([
+    z.null(),
+    z.looseObject({
+      hostReady: readyFlagSchema,
+      guestReady: readyFlagSchema,
+      winnerTeamId: nullableIdSchema,
+      kickingTeamId: nullableIdSchema,
+    }),
+  ])
+  .exactOptional();
+
 export const lobbyDocSchema: z.ZodType<LobbyDoc> = z.looseObject({
   code: z.string(),
   hostUid: z.string(),
@@ -22,19 +40,7 @@ export const lobbyDocSchema: z.ZodType<LobbyDoc> = z.looseObject({
   createdAt: z.unknown(),
   snapshot: z.union([z.null(), gameSnapshotSchema]).exactOptional(),
   endRequestBy: z.union([z.null(), z.string()]).exactOptional(),
-  coinFlip: z
-    .union([
-      z.null(),
-      z.looseObject({
-        hostReady: z.union([z.literal(false), z.literal(true)]).exactOptional(),
-        guestReady: z
-          .union([z.literal(false), z.literal(true)])
-          .exactOptional(),
-        winnerTeamId: z.union([z.null(), z.string()]).exactOptional(),
-        kickingTeamId: z.union([z.null(), z.string()]).exactOptional(),
-      }),
-    ])
-    .exactOptional(),
+  coinFlip: coinFlipSchema,
   timer: z.union([z.null(), timerStateSchema]).exactOptional(),
   competitionContext: competitionContextSchema.exactOptional(),
   fixtureTeams: z

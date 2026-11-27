@@ -46,11 +46,14 @@ function localRenderer(blender: string): Renderer {
   };
 }
 
+function copy(from: string, to: string) {
+  return run({ program: "scp", args: ["-q", "-o", "BatchMode=yes", from, to] });
+}
+
 function remoteRenderer(host: string): Renderer {
   const ssh = (command: string, onLine: OnLine) =>
     run({ program: "ssh", args: ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host, command], onLine: reported(onLine) });
   const inside = (command: string, onLine: OnLine) => ssh(`cd /d %USERPROFILE%\\${REMOTE} && ${command}`, onLine);
-  const copy = (from: string, to: string) => run({ program: "scp", args: ["-q", "-o", "BatchMode=yes", from, to] });
 
   const sync = async (onLine: OnLine) => {
     const bundle = path.join(WORK, "factory.tgz");

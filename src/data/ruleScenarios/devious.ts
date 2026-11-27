@@ -300,9 +300,9 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "Sneaky Git must fire on an unbroken double"
               );
               assert(
-                !!r.snapshot.teams
+                r.snapshot.teams
                   .flatMap((t) => t.players)
-                  .find(
+                  .some(
                     (p) =>
                       p.id === fixtureValue(r.game.ctx.team1.players[0]).id &&
                       !!p.position

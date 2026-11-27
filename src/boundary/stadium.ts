@@ -8,20 +8,20 @@ const dugout = z.object({
   "sent off": z.array(coordinate),
 });
 
+const sizeLo = z.object({
+  width: z.number(),
+  height: z.number(),
+  px_per_unit: z.number(),
+  origin: coordinate,
+});
+
 const stadiumMeta = z.object({
   layout: z.string(),
   square_m: z.number(),
   cols: z.number(),
   rows: z.number(),
   dugouts: z.object({ home: dugout, away: dugout }),
-  sizes: z.object({
-    lo: z.object({
-      width: z.number(),
-      height: z.number(),
-      px_per_unit: z.number(),
-      origin: coordinate,
-    }),
-  }),
+  sizes: z.object({ lo: sizeLo }),
 });
 
 export type StadiumMeta = z.infer<typeof stadiumMeta>;

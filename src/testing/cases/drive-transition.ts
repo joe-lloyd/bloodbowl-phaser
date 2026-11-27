@@ -60,9 +60,10 @@ const koRecovery: ScenarioCase = {
           (event) => event.name === GameEventNames.KORecoveryRolled
         )?.data as { roll: number; recovered: boolean } | undefined;
         checkpointAssert(!!roll, "the drive end must roll KO recovery");
+        const shouldRecover = roll.roll >= 4;
         checkpointAssert(
-          roll.recovered === roll.roll >= 4,
-          `a ${String(roll.roll)} should ${roll.roll >= 4 ? "" : "not "}recover, ` +
+          roll.recovered === shouldRecover,
+          `a ${String(roll.roll)} should ${shouldRecover ? "" : "not "}recover, ` +
             `but recovered=${String(roll.recovered)}`
         );
 

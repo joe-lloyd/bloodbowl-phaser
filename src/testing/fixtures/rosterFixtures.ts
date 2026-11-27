@@ -6,6 +6,7 @@ import {
   getAvailableRosterNames,
 } from "../../data/RosterTemplates";
 import { positionByPlayerIndex } from "../../game/TeamFactory";
+import { byCodeUnit } from "../../game/core/order";
 import { type PlayerRef } from "../scenarioCase/types";
 
 type FixtureSource = "native" | "advancement" | "synthetic";
@@ -37,7 +38,7 @@ function templateHasSkill(template: PlayerTemplate, skill: SkillType): boolean {
 }
 
 function orderedRosters(): RosterName[] {
-  return [...getAvailableRosterNames()].sort();
+  return [...getAvailableRosterNames()].sort((a, b) => byCodeUnit(a, b));
 }
 
 export function nativePositions(

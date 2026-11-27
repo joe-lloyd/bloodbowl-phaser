@@ -31,14 +31,14 @@ const playerBlueprint = z.strictObject({
   secondary: z.string(),
 });
 
+const playerSlotSchema = z.strictObject({
+  quantity: z.string(),
+  position: reference("playerBlueprints"),
+});
+
 const teamBlueprint = z.strictObject({
   name: z.string(),
-  players: z.array(
-    z.strictObject({
-      quantity: z.string(),
-      position: reference("playerBlueprints"),
-    })
-  ),
+  players: z.array(playerSlotSchema),
   rerollCost: z.number(),
   teamSpecialRules: z.array(reference("teamSpecialRules")),
   tier: z.number().nullable(),

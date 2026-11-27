@@ -13,17 +13,19 @@ const souvenirSchema = z.union([
   z.literal("Gatorcade"),
 ]);
 
+const variantEffectSchema = z.union([
+  z.literal("act-first"),
+  z.literal("orca-cola"),
+  z.literal("fungus-beer"),
+  z.literal("endurance"),
+]);
+
 export const variantInducementsStateSchema: z.ZodType<VariantInducementsState> =
   z.looseObject({
     effects: z
       .looseObject({
         playerId: z.string(),
-        effect: z.union([
-          z.literal("act-first"),
-          z.literal("orca-cola"),
-          z.literal("fungus-beer"),
-          z.literal("endurance"),
-        ]),
+        effect: variantEffectSchema,
       })
       .array(),
     dosedPlayerIds: z.string().array(),
