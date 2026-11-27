@@ -219,16 +219,17 @@ export function TeamRoster({
 
                         const row = e.currentTarget.closest("tr");
                         if (
-                          row &&
-                          typeof e.dataTransfer.setDragImage === "function"
+                          !row ||
+                          typeof e.dataTransfer.setDragImage !== "function"
                         ) {
-                          const rect = row.getBoundingClientRect();
-                          e.dataTransfer.setDragImage(
-                            row,
-                            e.clientX - rect.left,
-                            e.clientY - rect.top
-                          );
+                          return;
                         }
+                        const rect = row.getBoundingClientRect();
+                        e.dataTransfer.setDragImage(
+                          row,
+                          e.clientX - rect.left,
+                          e.clientY - rect.top
+                        );
                       }}
                     >
                       ≡

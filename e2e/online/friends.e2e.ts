@@ -17,14 +17,14 @@ async function friendCode(page: Page): Promise<string> {
   return (await code.getAttribute("data-code")) ?? "";
 }
 
+const shot = (page: Page, name: string) =>
+  page.screenshot({ path: test.info().outputPath(`${name}.png`) });
+
 test("two coaches become friends and one invites the other into a match @online", async ({
   browser,
 }) => {
   const hostContext = await browser.newContext();
   const guestContext = await browser.newContext();
-  const shot = (page: Page, name: string) =>
-    page.screenshot({ path: test.info().outputPath(`${name}.png`) });
-
   try {
     const hostPage = await hostContext.newPage();
     const guestPage = await guestContext.newPage();

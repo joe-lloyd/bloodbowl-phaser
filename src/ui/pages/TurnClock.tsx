@@ -58,6 +58,12 @@ const TIME_UP_GRACE_MS = 1000;
 
 const RESUME_WAIT_MS = 5000;
 
+const turnKey = (): string | null => {
+  if (!ServiceContainer.isInitialized()) return null;
+  const { turn } = ServiceContainer.getInstance().gameService.getState();
+  return `${turn.teamId}:${String(turn.isHalf2 ? 2 : 1)}:${String(turn.turnNumber)}`;
+};
+
 const endedTurn = (teamId: string): string => {
   const name = ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance().gameService.getTeam(teamId)?.name
@@ -93,12 +99,6 @@ export function TurnClock({
     ServiceContainer.isInitialized() &&
     ServiceContainer.getInstance().gameService.getActiveTeamId() ===
       match.myTeamId;
-
-  const turnKey = (): string | null => {
-    if (!ServiceContainer.isInitialized()) return null;
-    const { turn } = ServiceContainer.getInstance().gameService.getState();
-    return `${turn.teamId}:${String(turn.isHalf2 ? 2 : 1)}:${String(turn.turnNumber)}`;
-  };
 
   const deadlineIsThisTurn = deadlineIsFor(timer, turnKey);
   const turnSeconds = lobby.settings.turnSeconds;
@@ -224,7 +224,7 @@ export function TurnClock({
     const settle = () => {
       if (answeredRef.current === key) answeredRef.current = null;
     };
-    void match.run(answer).then(settle, settle);
+    void match.run(answer).then(settle).catch(settle);
   };
 
   const answerIfOutOfTime = () => {

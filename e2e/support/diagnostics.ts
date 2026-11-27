@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import nodePath from "node:path";
 import type { TestInfo } from "@playwright/test";
 import {
   buildDiagnosticBundle,
@@ -19,7 +19,7 @@ export function writeDiagnosticBundle(
   );
   const path = testInfo.outputPath(name);
 
-  mkdirSync(dirname(path), { recursive: true });
+  mkdirSync(nodePath.dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(bundle, null, 2), "utf8");
 
   void testInfo.attach(`diagnostics: ${bundle.key}`, {

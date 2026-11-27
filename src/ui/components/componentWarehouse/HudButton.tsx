@@ -61,7 +61,7 @@ export const HudButton = forwardRef<
     size = "md",
     block,
     className,
-    type,
+    type = "button",
     hotkey,
     children,
     ...rest
@@ -77,7 +77,7 @@ export const HudButton = forwardRef<
         if (typeof ref === "function") ref(node);
         else if (ref) ref.current = node;
       }}
-      type={type ?? "button"}
+      type={type}
       className={cx(hudButtonClass(variant, size, block), className)}
       {...rest}
     >

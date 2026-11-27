@@ -96,15 +96,14 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
       return;
     }
     if (confirming) return;
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      const active = document.activeElement;
-      if (active instanceof HTMLInputElement && active.type === "range") {
-        return;
-      }
-      event.preventDefault();
-
-      stepFocus(getFocusable(), event.key === "ArrowDown" ? 1 : -1);
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement && active.type === "range") {
+      return;
     }
+    event.preventDefault();
+
+    stepFocus(getFocusable(), event.key === "ArrowDown" ? 1 : -1);
   };
 
   return (

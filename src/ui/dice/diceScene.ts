@@ -27,9 +27,13 @@ export interface CoinToss {
   faces: [DiceTeam, DiceTeam];
 }
 
-let lane: Promise<unknown> = Promise.resolve();
-
-let showing: { stop(): void } | null = null;
+const shared: {
+  lane: Promise<unknown>;
+  showing: { stop(): void } | null;
+} = {
+  lane: Promise.resolve(),
+  showing: null,
+};
 
 export interface DiceThrow {
   landed: Promise<number[]>;
@@ -59,7 +63,7 @@ export function playRoll(
   let control: Control | null = null;
   let stopped = false;
   let hurried = false;
-  const landed = lane.then(() => {
+  const landed = shared.lane.then(() => {
     if (stopped) return roll.kind === "coin" ? [roll.side] : roll.values;
     const hooks = {
       pick: (index: number) => {
@@ -69,12 +73,12 @@ export function playRoll(
       },
       ready: (c: Control) => {
         control = c;
-        showing = c;
+        shared.showing = c;
         c.mark(marked);
         if (hurried) c.hurry();
       },
     };
-    showing?.stop();
+    shared.showing?.stop();
     return roll.kind === "coin"
       ? throwCoin({ host, toss: roll, sound: opts.sound, ready: hooks.ready })
       : throwDice({
@@ -84,10 +88,12 @@ export function playRoll(
           ...hooks,
         });
   });
-  lane = landed.catch(() => undefined);
+  shared.lane = landed.catch(() => undefined);
   return {
     landed,
-    onPick: (listener) => pickers.push(listener),
+    onPick: (listener) => {
+      pickers.push(listener);
+    },
     mark: (index) => {
       marked = index;
       control?.mark(index);
@@ -95,7 +101,7 @@ export function playRoll(
     stop: () => {
       stopped = true;
       control?.stop();
-      if (showing === control) showing = null;
+      if (shared.showing === control) shared.showing = null;
     },
     still: () => control?.still?.() ?? null,
     hurry: () => {

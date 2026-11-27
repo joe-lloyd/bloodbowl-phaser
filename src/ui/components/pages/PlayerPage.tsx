@@ -80,9 +80,7 @@ export function PlayerPage() {
       .filter(
         (type) =>
           (player.advancements ?? []).every((advancement) =>
-            !(advancement.type === "characteristic"
-              ? false
-              : advancement.name === type)
+            advancement.type === "characteristic" || advancement.name !== type
           )
       )
   );

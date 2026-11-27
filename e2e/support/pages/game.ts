@@ -158,10 +158,12 @@ export class HudPage {
     const planned = this.page.getByTestId("action-plan-go");
     await expect
       .poll(
-        async () =>
-          (await confirm.isVisible()) ||
-          (await planned.isVisible()) ||
-          (await this.bridge.snapshot()).activePlayer?.id === id,
+        async () => {
+          if (await confirm.isVisible()) return true;
+          if (await planned.isVisible()) return true;
+          const snapshot = await this.bridge.snapshot();
+          return snapshot.activePlayer?.id === id;
+        },
         { timeout: 3000 }
       )
       .toBe(true)

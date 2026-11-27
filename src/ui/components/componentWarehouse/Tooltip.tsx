@@ -16,7 +16,7 @@ interface TooltipProps {
   className?: string;
 }
 
-let openTooltip: (() => void) | null = null;
+const openTooltip: { hide: (() => void) | null } = { hide: null };
 
 const GAP_PX = 6;
 
@@ -31,11 +31,11 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
   const hide = useCallback(() => {
     setTrigger(null);
     setPlace(null);
-    if (openTooltip === hide) openTooltip = null;
+    if (openTooltip.hide === hide) openTooltip.hide = null;
   }, []);
   const show = (event: React.SyntheticEvent<HTMLElement>) => {
-    if (openTooltip && openTooltip !== hide) openTooltip();
-    openTooltip = hide;
+    if (openTooltip.hide && openTooltip.hide !== hide) openTooltip.hide();
+    openTooltip.hide = hide;
     setTrigger(event.currentTarget.getBoundingClientRect());
   };
 

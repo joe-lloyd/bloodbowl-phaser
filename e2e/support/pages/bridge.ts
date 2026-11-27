@@ -109,15 +109,25 @@ export class GameBridge {
 
   async expectPhase(phase: string, timeout = 10_000): Promise<void> {
     await expect
-      .poll(async () => (await this.phase()).phase, { timeout })
+      .poll(
+        async () => {
+          const current = await this.phase();
+          return current.phase;
+        },
+        { timeout }
+      )
       .toBe(phase);
   }
 
   async expectEvent(name: string, timeout = 10_000): Promise<void> {
     await expect
-      .poll(async () => (await this.events()).some((e) => e.name === name), {
-        timeout,
-      })
+      .poll(
+        async () => {
+          const emitted = await this.events();
+          return emitted.some((e) => e.name === name);
+        },
+        { timeout }
+      )
       .toBe(true);
   }
 }

@@ -40,6 +40,7 @@ import {
   type CompetitionDoc,
   type CompetitionFixture,
 } from "../../../competition/types";
+import { byCodeUnit } from "../../../game/core/order";
 
 interface Props {
   visible: boolean;
@@ -66,7 +67,7 @@ function matchKey(
   const online = getActiveOnlineMatch();
   if (online?.kind === "online") return `online:${online.code}`;
   const seed = container?.rngService.getInitialSeed() ?? 0;
-  return `match:${String(seed)}:${[...teamIds].sort().join(":")}`;
+  return `match:${String(seed)}:${[...teamIds].sort(byCodeUnit).join(":")}`;
 }
 
 function ownedTeams(teams: Team[]): Team[] {
@@ -174,7 +175,6 @@ export function MatchResultsScreen({
 
   useEffect(() => {
     if (!visible || !fixtureContext || !container || teamIds.length < 2) return;
-    let cancelled = false;
     setCompetitionRecorded(false);
     setRecordingError("");
     const game = container.gameService;
@@ -184,6 +184,7 @@ export function MatchResultsScreen({
     const home = game.getTeam(homeId);
     const away = game.getTeam(awayId);
     if (!home || !away) return;
+    let cancelled = false;
     void recordCompetitionFixture({
       context: fixtureContext,
       homeScore: state.score[homeId] ?? 0,
@@ -296,8 +297,8 @@ export function MatchResultsScreen({
   }, [container, fixtureContext]);
 
   useEffect(() => {
-    const online = getActiveOnlineMatch();
     if (!visible || !tracker?.progressionEnabled || tracker.applied) return;
+    const online = getActiveOnlineMatch();
     if (online?.kind !== "computer") return;
     const awarded = new Set(
       tracker
@@ -481,11 +482,10 @@ export function MatchResultsScreen({
   const notePlayedGames = () => {
     for (const team of savedTeams(teams)) {
       const game = playedGameEntries().get(team.id);
-      if (game) {
-        const played = withPlayedGame(team, game).playedGames;
-        if (played) team.playedGames = played;
-        else delete team.playedGames;
-      }
+      if (!game) continue;
+      const played = withPlayedGame(team, game).playedGames;
+      if (played) team.playedGames = played;
+      else delete team.playedGames;
     }
   };
 

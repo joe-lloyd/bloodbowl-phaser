@@ -42,6 +42,9 @@ async function coach(context: BrowserContext, teams: string): Promise<Page> {
   return page;
 }
 
+const shot = (page: Page, name: string) =>
+  page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
+
 test("coaches sign up to an online league, computer teams fill it, and a fixture is hosted for the opponent @online", async ({
   browser,
 }) => {
@@ -49,9 +52,6 @@ test("coaches sign up to an online league, computer teams fill it, and a fixture
   const [alpha, bravo, league] = [`Alpha ${stamp}`, `Bravo ${stamp}`, `Spike Cup ${stamp}`];
   const organizerContext = await browser.newContext();
   const coachContext = await browser.newContext();
-  const shot = (page: Page, name: string) =>
-    page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
-
   try {
     const alphaTeam = coachTeam(0, alpha);
     const bravoTeam = coachTeam(3, bravo);

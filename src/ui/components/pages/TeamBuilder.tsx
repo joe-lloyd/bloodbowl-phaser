@@ -155,7 +155,8 @@ function rollExpensiveMistakes(team: Team): string[] {
   const results: string[] = [];
   if (stepsBeforeExpensiveMistakes(team) > 0) return results;
   const rng = new RNGService(Date.now());
-  for (const entry of [...(team.pendingDevelopment ?? [])]) {
+  const pendingSnapshot = [...(team.pendingDevelopment ?? [])];
+  for (const entry of pendingSnapshot) {
     if (entry.kind !== "expensive-mistakes") continue;
     results.push(
       describeExpensiveMistakes(resolveExpensiveMistakes(team, entry, rng))
@@ -164,7 +165,7 @@ function rollExpensiveMistakes(team: Team): string[] {
   return results;
 }
 
-function readSearch(search: string, teamId: string | undefined) {
+function readSearch(search: string, teamId = "") {
   const searchParams = new URLSearchParams(search);
   const returnTo = searchParams.get("returnTo") ?? "";
   return {
@@ -173,7 +174,7 @@ function readSearch(search: string, teamId: string | undefined) {
     requested: /^\/(leagues|clubs)\/[^/?#]+$/.test(returnTo)
       ? returnTo
       : undefined,
-    matchWinnings: searchParams.get(`winnings-${teamId ?? ""}`),
+    matchWinnings: searchParams.get(`winnings-${teamId}`),
   };
 }
 
@@ -586,11 +587,6 @@ export function TeamBuilder() {
     navigate(destination);
   };
 
-  const handleApothecaryToggle = () => {
-    if (team?.apothecary) handleRefund({ type: "apothecary" });
-    else handleBuy({ type: "apothecary" });
-  };
-
   if (!team) {
     return (
       <TeamPending
@@ -635,6 +631,11 @@ export function TeamBuilder() {
   const violations = rosterViolations();
   const waitingForDevelopment = postMatch && developmentPending(team);
   const pendingMistakes = hasPendingExpensiveMistakes(team);
+
+  const handleApothecaryToggle = () => {
+    if (team.apothecary) handleRefund({ type: "apothecary" });
+    else handleBuy({ type: "apothecary" });
+  };
 
   return (
     <PageShell

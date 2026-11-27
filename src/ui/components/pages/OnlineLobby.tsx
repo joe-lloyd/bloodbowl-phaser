@@ -182,7 +182,8 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     const join = (target: string) =>
       enter(async () => {
         const coachName = await resolveCoachName(user.uid);
-        return (await joinLobby(target, user.uid, coachName)).code;
+        const joined = await joinLobby(target, user.uid, coachName);
+        return joined.code;
       });
     return (
       <JoinByCode
@@ -333,12 +334,12 @@ async function inviteOpponent(
   });
 }
 
-function seedProgress(lobby: LobbyDoc | null, myUid: string | undefined) {
+function seedProgress(lobby: LobbyDoc | null, myUid = "") {
   const commits = lobby?.seedCommits ?? {};
   const reveals = lobby?.seedReveals ?? {};
   return {
-    committed: !!commits[myUid ?? ""],
-    revealed: !!reveals[myUid ?? ""],
+    committed: !!commits[myUid],
+    revealed: !!reveals[myUid],
     bothCommitted:
       !!lobby?.guestUid &&
       !!commits[lobby.hostUid] &&
@@ -371,7 +372,7 @@ function lobbyWaitingOn(
     lobby.guestUid ? null : "an opponent to join",
     playerWait(lobby, me, "you"),
     opponent ? playerWait(lobby, opponent, opponent.displayName) : null,
-  ].flatMap((line) => (line ? [line] : []));
+  ].filter((line): line is string => Boolean(line));
 }
 
 function JoinByCode({

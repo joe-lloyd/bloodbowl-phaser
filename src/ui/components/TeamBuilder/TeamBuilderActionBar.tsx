@@ -30,13 +30,13 @@ function saveButtonLabel({
   pendingMistakes,
   incomplete,
   hasNextTeam,
-  returnLabel,
+  returnLabel = "Back to Teams",
 }: Props): ReactNode {
   if (saving) return "Saving team...";
   if (saveError) return "Retry saving team";
   if (completion) {
     if (hasNextTeam) return "Manage next team";
-    return returnLabel ?? "Back to Teams";
+    return returnLabel;
   }
   if (postMatch || pendingMistakes) return "Finish post-match";
   return <>Save Team {incomplete && "(saved as incomplete draft)"}</>;
@@ -49,7 +49,7 @@ export function TeamBuilderActionBar(props: Props) {
     completion,
     saving,
     waitingForDevelopment,
-    returnLabel,
+    returnLabel = "Cancel",
     onBack,
     onSave,
   } = props;
@@ -57,7 +57,7 @@ export function TeamBuilderActionBar(props: Props) {
     <>
       {!postMatch && !completion && (
         <HudButton variant="ghost" onClick={onBack} disabled={saving}>
-          {returnLabel ?? "Cancel"}
+          {returnLabel}
         </HudButton>
       )}
       <div className="flex items-baseline gap-5 font-hud-label font-bold uppercase tracking-[0.06em]">

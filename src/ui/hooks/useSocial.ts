@@ -64,7 +64,9 @@ export function useCoachProfiles(
   const [profiles, setProfiles] = useState<ReadonlyMap<string, CoachProfile>>(
     new Map()
   );
-  const watched = [...new Set(uids)].sort().join(",");
+  const watched = [...new Set(uids)]
+    .sort((a, b) => a.localeCompare(b))
+    .join(",");
   useEffect(() => {
     if (!watched) return;
     const stops = watched

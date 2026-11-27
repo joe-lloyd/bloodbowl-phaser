@@ -36,7 +36,7 @@ function loadAtlas(model: string, layer: Layer) {
         image.addEventListener('load', () => {
           resolve(image);
         });
-        image.onerror = reject;
+        image.addEventListener('error', reject);
         image.src = `${base}.png`;
       }),
     ]).then(([json, image]) => ({ image, frames: json.frames }));

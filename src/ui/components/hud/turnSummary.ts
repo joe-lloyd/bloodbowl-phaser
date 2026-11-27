@@ -86,14 +86,8 @@ export function summarizeTurn({
   const affected = new Set<string>();
   let ballChanged = false;
   for (const incident of incidents) {
-    switch (incident.kind) {
-      case "player":
-        affected.add(incident.playerId);
-        break;
-      case "ball":
-        ballChanged = true;
-        break;
-    }
+    if (incident.kind === "player") affected.add(incident.playerId);
+    else ballChanged = true;
   }
   const changes = players
     .filter((p) => p.teamId === teamId && affected.has(p.id))

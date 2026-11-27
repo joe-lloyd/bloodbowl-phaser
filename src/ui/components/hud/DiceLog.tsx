@@ -109,10 +109,23 @@ const CATEGORY_LABELS: Record<LogEntryCategory, string> = {
   info: "Info",
 };
 
-function rerollHeadline(source: RerollSource, skill?: string): string {
+const getTeamColorClass = (teamId?: string) => {
+  if (!teamId || typeof teamId !== "string")
+    return "bg-white/[0.03] border-hud-edge";
+
+  if (teamId.includes("team1"))
+    return "bg-white/[0.03] border-hud-blood-hot/70";
+  if (teamId.includes("team2")) return "bg-white/[0.03] border-hud-info/70";
+  return "bg-white/[0.03] border-hud-edge";
+};
+
+const formatRoll = (dice: number | number[] | string[]) =>
+  Array.isArray(dice) ? dice.join(", ") : String(dice);
+
+function rerollHeadline(source: RerollSource, skill = "Skill Re-roll"): string {
   switch (source) {
     case "skill":
-      return skill ?? "Skill Re-roll";
+      return skill;
     case "team":
       return "Team Re-roll";
     case "pro":
@@ -290,12 +303,10 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   });
   useEventBus(eventBus, GameEventNames.RerollUsed, (data) => {
     const teamId = teamIdForPlayer(data.playerId);
-    const roll = (dice: number | number[] | string[]) =>
-      Array.isArray(dice) ? dice.join(", ") : String(dice);
     pushLogEntry({
       category: "reroll",
       headline: rerollHeadline(data.source, data.skill),
-      detail: `${data.rollKind}: ${roll(data.before)} → ${roll(data.after)}`,
+      detail: `${data.rollKind}: ${formatRoll(data.before)} → ${formatRoll(data.after)}`,
       ...(teamId !== undefined && { teamId }),
     });
   });
@@ -333,16 +344,6 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       saveFontScale(next);
       return next;
     });
-  };
-
-  const getTeamColorClass = (teamId?: string) => {
-    if (!teamId || typeof teamId !== "string")
-      return "bg-white/[0.03] border-hud-edge";
-
-    if (teamId.includes("team1"))
-      return "bg-white/[0.03] border-hud-blood-hot/70";
-    if (teamId.includes("team2")) return "bg-white/[0.03] border-hud-info/70";
-    return "bg-white/[0.03] border-hud-edge";
   };
 
   const sizeControl = tab === "dice" && (

@@ -113,6 +113,12 @@ interface TurnData {
   hasFouled: boolean | null;
 }
 
+const handleEndTurn = () => {
+  if (getActiveOnlineMatch()?.mayAct() === false) return;
+  const container = ServiceContainer.getInstance();
+  container.gameService.endTurn();
+};
+
 export const GameHUD: React.FC<GameHUDProps> = ({
   eventBus,
   mode = "normal",
@@ -188,20 +194,19 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     const container = ServiceContainer.getInstance();
     const activeTeam = container.gameService.getTeam(turn.teamId);
 
-    if (activeTeam) {
-      const state = container.gameService.getState();
-      setTurnData({
-        turnNumber: turn.turnNumber,
-        activeTeamName: activeTeam.name,
-        activeTeamId: activeTeam.id,
-        isTeam1Active: turn.teamId === "team1",
-        phase: state.phase,
-        hasBlitzed: state.turn.hasBlitzed,
-        hasPassed: state.turn.hasPassed,
-        hasHandedOff: state.turn.hasHandedOff,
-        hasFouled: state.turn.hasFouled,
-      });
-    }
+    if (!activeTeam) return;
+    const state = container.gameService.getState();
+    setTurnData({
+      turnNumber: turn.turnNumber,
+      activeTeamName: activeTeam.name,
+      activeTeamId: activeTeam.id,
+      isTeam1Active: turn.teamId === "team1",
+      phase: state.phase,
+      hasBlitzed: state.turn.hasBlitzed,
+      hasPassed: state.turn.hasPassed,
+      hasHandedOff: state.turn.hasHandedOff,
+      hasFouled: state.turn.hasFouled,
+    });
   };
   useEventBus(eventBus, GameEventNames.TurnStarted, showTurn);
   const showKickoffTurn = () => {
@@ -232,12 +237,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       phase: GamePhase.KICKOFF,
     }));
   });
-
-  const handleEndTurn = () => {
-    if (getActiveOnlineMatch()?.mayAct() === false) return;
-    const container = ServiceContainer.getInstance();
-    container.gameService.endTurn();
-  };
 
   const menuContext: MatchOptionsMenuContext =
     mode === "sandbox"

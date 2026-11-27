@@ -275,7 +275,12 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
   }, [kickingId]);
   useEffect(() => () => throwing.current?.stop(), []);
 
+  if (kickingId) return null;
+
+  if (pregame.pending) return <PregameInducements eventBus={eventBus} />;
+
   const ready = () => void setCoinFlipReady(code, amHost);
+
   const choose = (choice: "kick" | "receive") => {
     if (winnerId !== myTeamId) return;
     const kicking =
@@ -286,10 +291,6 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
           : team1.id;
     void setCoinFlipChoice(code, kicking);
   };
-
-  if (kickingId) return null;
-
-  if (pregame.pending) return <PregameInducements eventBus={eventBus} />;
 
   const winner = teamById(winnerId);
   const iWon = winnerId === myTeamId;

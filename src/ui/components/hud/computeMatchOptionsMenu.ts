@@ -123,17 +123,19 @@ function onlineEntries(context: {
         "Persists the match and leaves — resume it any time from the main menu.",
     });
   } else {
-    entries.push({
-      id: "save-and-exit",
-      label: "Save & Exit",
-      description: "Only the host can force-save the match state.",
-      disabled: true,
-    });
-    entries.push({
-      id: "leave-match",
-      label: "Leave Match",
-      description: `${opponentName} (the host) keeps the match saved automatically. You can rejoin any time.`,
-    });
+    entries.push(
+      {
+        id: "save-and-exit",
+        label: "Save & Exit",
+        description: "Only the host can force-save the match state.",
+        disabled: true,
+      },
+      {
+        id: "leave-match",
+        label: "Leave Match",
+        description: `${opponentName} (the host) keeps the match saved automatically. You can rejoin any time.`,
+      }
+    );
   }
 
   if (endRequest === "mine") {

@@ -4,17 +4,17 @@ import { indexed } from "./diceValues";
 import { bipyramid } from "./bipyramid";
 import { FACE_NORMALS, normals, TRAY, upFace } from "./dicePhysics";
 
-let renderer: THREE.WebGLRenderer | null = null;
+const rendering: { renderer: THREE.WebGLRenderer | null } = { renderer: null };
 
 function getRenderer(): THREE.WebGLRenderer {
-  if (!renderer) {
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  if (!rendering.renderer) {
+    rendering.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    rendering.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    rendering.renderer.shadowMap.enabled = true;
+    rendering.renderer.shadowMap.type = THREE.PCFShadowMap;
+    rendering.renderer.toneMapping = THREE.ACESFilmicToneMapping;
   }
-  return renderer;
+  return rendering.renderer;
 }
 
 function addLighting(scene: THREE.Scene): void {

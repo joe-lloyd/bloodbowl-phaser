@@ -30,10 +30,9 @@ function useSheetHeight(
     const timer = setInterval(() => {
       const sheet =
         iframe.current?.contentDocument?.querySelector("[data-sheet]");
-      if (sheet)
-        setHeight(
-          Math.max(520, Math.ceil(sheet.getBoundingClientRect().height))
-        );
+      if (!sheet) return;
+      const rect = sheet.getBoundingClientRect();
+      setHeight(Math.max(520, Math.ceil(rect.height)));
     }, 400);
     return () => {
       clearInterval(timer);

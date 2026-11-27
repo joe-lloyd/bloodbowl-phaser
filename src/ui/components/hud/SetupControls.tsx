@@ -122,6 +122,8 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
     }
   );
 
+  if (!isVisible) return null;
+
   const handleAction = (action: string, name?: string) => {
     eventBus.emit(GameEventNames.UI_SetupAction, {
       action,
@@ -130,8 +132,6 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
   };
 
   const concessionPending = status?.concessionDecision === "pending";
-
-  if (!isVisible) return null;
 
   const title = setupTitle(status, subPhase);
 
