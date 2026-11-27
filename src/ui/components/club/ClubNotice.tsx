@@ -8,9 +8,9 @@ function CompetitionLine({ team }: { team: Team }) {
   if (!team.activeCompetitionId)
     return (
       <Notice tone="info" title="Club">
-        One squad plays Sevens, Street Bowl and Beach Bowl, and Gutter Bowl
-        once it opens. Its career runs through the club league, one season at
-        a time.
+        The club plays Sevens, Street Bowl and Beach Bowl, and Gutter Bowl once
+        it opens, each with the squad picked under Squads. Its career runs
+        through the club league, one season at a time.
       </Notice>
     );
   if (team.activeCompetitionId === league.leagueId)

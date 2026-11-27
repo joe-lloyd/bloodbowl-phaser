@@ -40,7 +40,7 @@ export function appearanceOf(player: Pick<Player, "id" | "appearance" | "positio
   return options.length > 0 ? randomAppearance(options, seededRandom(player.id)) : undefined;
 }
 
-export function giveIdentity(team: Pick<Team, "rosterName">, player: Player): void {
+function giveIdentity(team: Pick<Team, "rosterName">, player: Player): void {
   const identity = rollIdentity({ rosterName: team.rosterName, positionName: player.positionName });
   if (identity.name) player.playerName = identity.name;
   if (identity.appearance) player.appearance = identity.appearance;

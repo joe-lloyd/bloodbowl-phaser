@@ -12,7 +12,7 @@ import {
   MAX_TEAM_REROLLS,
 } from "./sevensPrices";
 import { teamRerollPrice } from "./teamPricing";
-import { thousands } from "./club";
+import { CLUB_ROSTER_SLOTS, thousands } from "./club";
 import { teamDraftRules } from "./draftRules";
 import { isLinemanPosition } from "./rosterLegality";
 
@@ -105,9 +105,8 @@ function choiceRefusal(team: Team, choice: RedraftChoice): string | undefined {
   if (counts) return counts;
   if (choice.apothecary && !getRosterByRosterName(team.rosterName).apothecary)
     return `${team.rosterName} teams cannot hire an Apothecary.`;
-  const specialist = team.club?.gutterSpecialistId;
-  if (choice.keep.filter((id) => id !== specialist).length > MAX_SQUAD)
-    return `A club may keep at most ${String(MAX_SQUAD)} players and its Gutter Bowl specialist.`;
+  if (choice.keep.length > CLUB_ROSTER_SLOTS)
+    return `A club may keep at most ${String(CLUB_ROSTER_SLOTS)} players.`;
   return undefined;
 }
 
@@ -164,8 +163,8 @@ function bestPlayers(team: Team, budget: number): string[] {
 export function computerRedraftChoice(team: Team, budget: number): RedraftChoice {
   const reroll = teamRerollPrice(team);
   const paid = currentLineUp(team).rerolls;
-  const reserve = paid > 0 ? reroll : 0;
-  const keep = bestPlayers(team, budget - reserve);
+  const withReroll = paid > 0 ? bestPlayers(team, budget - reroll) : [];
+  const keep = withReroll.length > 0 ? withReroll : bestPlayers(team, budget);
   const lineUp = { ...currentLineUp(team), keep, rerolls: 0, apothecary: false, coaches: 0, cheerleaders: 0 };
   const rookies = Math.max(0, squadMinimum(team) - keep.length) * rookiePrice(team);
   let left = budget - redraftCost(team, lineUp) - rookies;

@@ -4,7 +4,7 @@ import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { GAME_TYPES, type GameType } from "../variants/gameTypes";
 import { draftRulesFor } from "./draftRules";
 import { validateRosterLegality } from "./rosterLegality";
-import { corePlayers, gutterSpecialist, staysHome } from "./club";
+import { clubPlayers, staysHome } from "./club";
 
 export interface ClubEntry {
   gameType: GameType;
@@ -21,11 +21,6 @@ function staffLeftHome(team: Team, gameType: GameType): string[] {
     team.coaches > 0 && !draft.assistantCoaches ? "Assistant Coaches" : null,
     team.cheerleaders > 0 && !draft.cheerleaders ? "Cheerleaders" : null,
   ].filter((staff): staff is string => staff !== null);
-}
-
-function clubPlayers(team: Team): Player[] {
-  const specialist = gutterSpecialist(team);
-  return [...corePlayers(team), ...(specialist ? [specialist] : [])];
 }
 
 function clubEntry(team: Team, gameType: GameType): ClubEntry {

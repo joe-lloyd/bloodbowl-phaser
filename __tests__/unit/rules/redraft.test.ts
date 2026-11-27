@@ -132,6 +132,16 @@ describe("applying a redraft", () => {
     expect(redraftCost(team, choice)).toBeLessThanOrEqual(budget);
   });
 
+  it("keeps a player over its re-roll when the budget cannot hold both", () => {
+    const team = clubTeam();
+    const cheapest = Math.min(...team.players.map((player) => rehirePrice(player)));
+    const budget = cheapest + (squadMinimum(team) - 1) * rookiePrice(team) + 50_000;
+
+    const choice = computerRedraftChoice(team, budget);
+    expect(choice.keep.length).toBeGreaterThan(0);
+    expect(redraftCost(team, choice)).toBeLessThanOrEqual(budget);
+  });
+
   it("leaves the computer enough gold to make a squad up to seven with rookies", () => {
     const team = clubTeam();
     for (const player of team.players) player.advancements = [skill(SkillType.BLOCK)];
@@ -155,13 +165,12 @@ describe("redraft edge cases", () => {
     expect(team.treasury).toBe(800_000 - redraftCost(team, choice));
   });
 
-  it("lets a full squad keep its Gutter Bowl specialist as a twelfth player", () => {
+  it("lets a club keep twelve players, its extra player included", () => {
     const team = clubTeam();
     const extra = team.players.slice(0, 12 - team.players.length);
     for (const [index, player] of extra.entries())
-      team.players.push({ ...player, id: `extra-${String(index)}`, number: 20 + index });
-    const specialist = fixtureValue(team.players.at(-1));
-    team.club = { gutterSpecialistId: specialist.id };
+      team.players.push({ ...player, id: `extra-${String(index)}`, number: 12 + index });
+    team.club = {};
     const choice = { ...currentLineUp(team), rerolls: 0, cheerleaders: 0 };
 
     expect(team.players).toHaveLength(12);

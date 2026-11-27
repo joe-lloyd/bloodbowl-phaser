@@ -78,8 +78,8 @@ function FormatChoices({
   if (team.club)
     return (
       <p className="font-hud-body text-hud-sm text-hud-dim lg:col-span-2">
-        A club has no single game type. The same squad plays Sevens, Street
-        Bowl and Beach Bowl, and Gutter Bowl once it opens.
+        A club has no single game type. It plays Sevens, Street Bowl and Beach
+        Bowl, and Gutter Bowl once it opens, each with its own squad.
       </p>
     );
   const disabled = locked || !!team.activeCompetitionId;

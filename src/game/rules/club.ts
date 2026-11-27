@@ -1,10 +1,4 @@
-import {
-  type Player,
-  type PlayerTemplate,
-  PositionKeyWord,
-  TraitKeyWord,
-  createPlayer,
-} from "../../types/Player";
+import type { Player } from "../../types/Player";
 import {
   type RosterName,
   type Team,
@@ -16,24 +10,17 @@ import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { DEFAULT_GAME_TYPE, type GameType } from "../variants/gameTypes";
 import { draftRulesFor } from "./draftRules";
 import { nextFreeNumber, staysOnRoster } from "./leagueRoster";
-import { ROSTER_SLOTS, uniquePlayerId } from "./playerSlots";
-import type { EditDecision } from "./teamEditLegality";
+import { ROSTER_SLOTS, rosterSlotsFor } from "./playerSlots";
 
 export const GUTTER_UNLOCK_WORTH = 750_000;
 
-const GUTTER_BOWL: GameType = "gutter-bowl";
+export const CLUB_ROSTER_SLOTS = rosterSlotsFor({ club: {} });
+
+export const CLUB_MAX_POSITIONALS = 5;
 
 const TOURNAMENT_ID_PREFIX = "tournament-";
 
-export type SpecialistHire =
-  | { hired: true; player: Player }
-  | { hired: false; reason: string };
-
-function isLineman(player: Pick<Player, "keywords">): boolean {
-  return player.keywords.includes(PositionKeyWord.LINEMAN);
-}
-
-function rosteredPlayers(team: Team): Player[] {
+export function clubPlayers(team: Team): Player[] {
   return team.players.filter(
     (player) =>
       player.playerKind !== "journeyman" && staysOnRoster(team, player)
@@ -73,38 +60,52 @@ export function latchGutterUnlock(team: Team): void {
     team.club.gutterUnlocked = true;
 }
 
-export function isGutterSpecialist(team: Team, player: Player): boolean {
-  return team.club?.gutterSpecialistId === player.id;
+function defaultSquad(team: Team): string[] {
+  return clubPlayers(team)
+    .filter((player) => player.number <= ROSTER_SLOTS)
+    .map((player) => player.id);
 }
 
-export function gutterSpecialist(team: Team): Player | undefined {
-  return rosteredPlayers(team).find((player) =>
-    isGutterSpecialist(team, player)
-  );
+export function squadFollowsSevens(team: Team, gameType: GameType): boolean {
+  return gameType !== DEFAULT_GAME_TYPE && !team.club?.squads?.[gameType];
 }
 
-export function corePlayers(team: Team): Player[] {
-  return rosteredPlayers(team).filter(
-    (player) => !isGutterSpecialist(team, player)
-  );
+export function squadIds(team: Team, gameType: GameType): string[] {
+  const squads = team.club?.squads;
+  const chosen = squads?.[gameType] ?? squads?.[DEFAULT_GAME_TYPE];
+  if (!chosen) return defaultSquad(team);
+  const rostered = new Set(clubPlayers(team).map((player) => player.id));
+  return chosen.filter((id) => rostered.has(id));
 }
 
-export function gutterSitsOut(team: Team): Player | undefined {
-  if (!gutterSpecialist(team)) return undefined;
-  const core = corePlayers(team);
-  if (core.length < draftRulesFor(GUTTER_BOWL).maxPlayers) return undefined;
-  const linemen = core.filter((element) => isLineman(element));
-  return (
-    linemen.find((player) => player.id === team.club?.gutterSitsOutId) ??
-    linemen.at(-1)
+export function setSquadMember(
+  team: Team,
+  gameType: GameType,
+  change: { playerId: string; plays: boolean }
+): void {
+  if (!team.club) return;
+  const others = squadIds(team, gameType).filter((id) => id !== change.playerId);
+  team.club.squads = {
+    ...team.club.squads,
+    [gameType]: change.plays ? [...others, change.playerId] : others,
+  };
+}
+
+export function followSevens(team: Team, gameType: GameType): void {
+  if (!team.club?.squads || gameType === DEFAULT_GAME_TYPE) return;
+  team.club.squads = Object.fromEntries(
+    Object.entries(team.club.squads).filter(([type]) => type !== gameType)
   );
 }
 
 export function staysHome(team: Team, gameType: GameType): Set<string> {
   if (!team.club) return new Set();
-  const away =
-    gameType === GUTTER_BOWL ? gutterSitsOut(team) : gutterSpecialist(team);
-  return new Set(away ? [away.id] : []);
+  const squad = new Set(squadIds(team, gameType));
+  return new Set(
+    clubPlayers(team)
+      .filter((player) => !squad.has(player.id))
+      .map((player) => player.id)
+  );
 }
 
 function leaveBannedStaffHome(team: Team, gameType: GameType): void {
@@ -181,94 +182,8 @@ export function thousands(gold: number): string {
   return `${String(Math.floor(gold / 1000))}k`;
 }
 
-const bigGuy = (player: Pick<Player, "keywords">) =>
-  player.keywords.includes(TraitKeyWord.BIG_GUY);
-
-function positionRefusal(team: Team, template: PlayerTemplate): string | undefined {
-  const rostered = rosteredPlayers(team);
-  const ofPosition = rostered.filter(
-    (player) => player.positionName === template.positionName
-  ).length;
-  if (template.maxAllowed !== undefined && ofPosition >= template.maxAllowed)
-    return `${template.positionName}: the ${team.rosterName} roster allows 0-${String(template.maxAllowed)}, and the club has ${String(ofPosition)}.`;
-  const { maxBigGuys } = getRosterByRosterName(team.rosterName);
-  if (
-    maxBigGuys !== undefined &&
-    bigGuy(template) &&
-    rostered.filter((element) => bigGuy(element)).length >= maxBigGuys
-  )
-    return `${team.rosterName} clubs may have at most ${String(maxBigGuys)} Big Guy${maxBigGuys === 1 ? "" : "s"}.`;
-  return undefined;
-}
-
-export function gutterSpecialistRefusal(
-  team: Team,
-  template: PlayerTemplate
-): string | undefined {
-  if (!team.club) return "Only a club can hire a Gutter Bowl specialist.";
-  const locked = gutterLockReason(team);
-  if (locked) return locked;
-  if (gutterSpecialist(team))
-    return "The club already has its Gutter Bowl specialist.";
-  if (isLineman(template))
-    return "The Gutter Bowl specialist is the fifth positional, so it cannot be a Lineman.";
-  const refusal = positionRefusal(team, template);
-  if (refusal) return refusal;
-  if (team.treasury < template.cost) return "Not enough gold in the treasury.";
-  return undefined;
-}
-
-export function hireGutterSpecialist(
-  team: Team,
-  template: PlayerTemplate
-): SpecialistHire {
-  const reason = gutterSpecialistRefusal(team, template);
-  if (reason || !team.club) return { hired: false, reason: reason ?? "" };
-  const player = createPlayer(
-    template,
-    team.id,
-    nextFreeNumber(team, ROSTER_SLOTS + 1)
-  );
-  player.id = uniquePlayerId(team, player.id);
-  player.cost = template.cost;
-  team.players.push(player);
-  team.treasury -= template.cost;
-  team.club.gutterSpecialistId = player.id;
-  team.teamValue = calculateTeamValue(team);
-  return { hired: true, player };
-}
-
-export function chooseGutterSitsOut(
-  team: Team,
-  playerId: string
-): EditDecision {
-  const chosen = corePlayers(team).find((player) => player.id === playerId);
-  if (!team.club || !chosen || !isLineman(chosen))
-    return {
-      allowed: false,
-      reason: "The player who sits out Gutter Bowl must be a Core Sevens Lineman.",
-    };
-  team.club.gutterSitsOutId = chosen.id;
-  return { allowed: true };
-}
-
 export function careerCounts(team: Team, counted: boolean): boolean {
   return !team.club || counted;
-}
-
-export function shirtMoveRefusal(
-  team: Team,
-  from: number,
-  to: number
-): string | undefined {
-  const number = gutterSpecialist(team)?.number;
-  if (number === undefined) return undefined;
-  const intoCore =
-    (from === number && to <= ROSTER_SLOTS) ||
-    (to === number && from <= ROSTER_SLOTS);
-  return intoCore
-    ? "The Gutter Bowl specialist keeps a shirt number above 11, so the Core Sevens squad keeps all eleven."
-    : undefined;
 }
 
 export function inTournament(team: Team): boolean {

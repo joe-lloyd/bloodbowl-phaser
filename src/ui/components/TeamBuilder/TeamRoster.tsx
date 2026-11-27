@@ -9,12 +9,7 @@ import {
   staffTeamValue,
   type Team,
 } from "../../../types/Team";
-import {
-  InjuryType,
-  type Player,
-  type PlayerTemplate,
-  PlayerStatus,
-} from "../../../types/Player";
+import { InjuryType, type Player, PlayerStatus } from "../../../types/Player";
 import { canAdvance, mustAdvance } from "../../../game/progression/progression";
 import { BloodBowlTable } from "../componentWarehouse/BloodBowlTable";
 import { Chip, hudButtonClass } from "../componentWarehouse/HudKit";
@@ -24,10 +19,9 @@ import { isLinemanPosition } from "../../../game/rules/rosterLegality";
 import { mayCaptain } from "../../../game/rules/teamCaptain";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 import { appearanceOf } from "../../../game/names/playerIdentity";
-import { isGutterSpecialist } from "../../../game/rules/club";
-import { ClubBadges, GutterSlotRow } from "../club/ClubRosterRows";
+import { CLUB_ROSTER_SLOTS } from "../../../game/rules/club";
 
-interface TeamRosterProps {
+export interface TeamRosterProps {
   team: Team;
   onFirePlayer: (playerId: string) => void;
   onReorderPlayers: (sourceSlot: number, targetSlot: number) => void;
@@ -37,10 +31,6 @@ interface TeamRosterProps {
   onChooseTeamCaptain?: ((playerId: string) => void) | undefined;
 
   onOpenPlayer?: (playerId: string) => void;
-
-  onHireSpecialist?: ((template: PlayerTemplate) => void) | undefined;
-
-  onChooseSitsOut?: ((playerId: string) => void) | undefined;
 }
 
 function isRowControl(target: EventTarget | null): boolean {
@@ -65,15 +55,34 @@ function notInTeamValueReason(team: Team, player: Player): string {
   return "Injured";
 }
 
+function slotCount(team: Team): number {
+  return team.club ? CLUB_ROSTER_SLOTS : 11;
+}
+
 function rosterSlots(team: Team): number[] {
   const extra = team.players
     .map((player) => player.number)
-    .filter((number) => number > 11)
+    .filter((number) => number > slotCount(team))
     .sort((a, b) => a - b);
   return [
-    ...Array.from({ length: 11 }, (_, index) => index + 1),
+    ...Array.from({ length: slotCount(team) }, (_, index) => index + 1),
     ...new Set(extra),
   ];
+}
+
+function EmptySlot({ team, slot }: { team: Team; slot: number }) {
+  if (!team.club || slot !== CLUB_ROSTER_SLOTS)
+    return (
+      <td colSpan={17} className="italic text-hud-mute">
+        Empty slot
+      </td>
+    );
+  return (
+    <td colSpan={17} className="border border-dashed border-hud-gold/40 text-hud-dim">
+      Extra player: hire anyone into this slot, then pick the squads they
+      play for under Squads.
+    </td>
+  );
 }
 
 export function TeamRoster({
@@ -83,8 +92,6 @@ export function TeamRoster({
   onChooseVeteran,
   onChooseTeamCaptain,
   onOpenPlayer,
-  onHireSpecialist,
-  onChooseSitsOut,
 }: TeamRosterProps) {
   const navigate = useNavigate();
   const openPlayer =
@@ -95,7 +102,7 @@ export function TeamRoster({
   return (
     <BloodBowlTable
       title={team.name.toUpperCase()}
-      aside={`${String(team.players.filter((player) => !isGutterSpecialist(team, player)).length)} / 11 players`}
+      aside={`${String(team.players.length)} / ${String(slotCount(team))} players`}
       accent={{ color: numToHex(team.colors.primary) }}
       headers={[
         { label: "#", width: "40px", className: "num" },
@@ -168,11 +175,6 @@ export function TeamRoster({
                       player={player}
                       onChooseVeteran={onChooseVeteran}
                       onChooseTeamCaptain={onChooseTeamCaptain}
-                    />
-                    <ClubBadges
-                      team={team}
-                      player={player}
-                      onChooseSitsOut={onChooseSitsOut}
                     />
                   </div>
                 </td>
@@ -247,14 +249,11 @@ export function TeamRoster({
                 </td>
               </>
             ) : (
-              <td colSpan={17} className="italic text-hud-mute">
-                Empty slot
-              </td>
+              <EmptySlot team={team} slot={slotNumber} />
             )}
           </tr>
         );
       })}
-      <GutterSlotRow team={team} onHire={onHireSpecialist} />
       <tr data-testid="roster-value-total">
         <td colSpan={18} className="text-right text-hud-sm text-hud-mute">
           Players {formatGold(playersTeamValue(team))} + re-rolls &amp; staff{" "}

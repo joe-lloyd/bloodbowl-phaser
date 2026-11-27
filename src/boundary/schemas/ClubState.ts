@@ -30,8 +30,14 @@ const homeLeagueSchema: z.ZodType<HomeLeague> = z.object({
 
 export const clubStateSchema: z.ZodType<ClubState> = z.object({
   gutterUnlocked: z.literal(true).exactOptional(),
-  gutterSpecialistId: z.string().exactOptional(),
-  gutterSitsOutId: z.string().exactOptional(),
+  squads: z
+    .object({
+      sevens: z.string().array().exactOptional(),
+      "street-bowl": z.string().array().exactOptional(),
+      "beach-bowl": z.string().array().exactOptional(),
+      "gutter-bowl": z.string().array().exactOptional(),
+    })
+    .exactOptional(),
   matchSquad: z.string().array().exactOptional(),
   trophy: z.literal(true).exactOptional(),
   league: homeLeagueSchema.exactOptional(),
