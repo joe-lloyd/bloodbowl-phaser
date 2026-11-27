@@ -27,6 +27,7 @@ import {
   resolveCommandReferences,
   referencesInCommand,
   parsePlayerRef,
+  type RefContext,
 } from "../../../src/game/rules-lab/references";
 
 function baseCase(overrides: Partial<ScenarioCase> = {}): ScenarioCase {
@@ -230,12 +231,14 @@ describe("scenario-case schema", () => {
 });
 
 describe("stable references", () => {
-  const ctx = {
-    team1: {
-      id: "team1",
-      players: [{ id: "team1-player-1" }, { id: "team1-player-2" }],
-    },
-    team2: { id: "team2", players: [{ id: "team2-player-1" }] },
+  const ctx: RefContext = {
+    teams: [
+      {
+        id: "team1",
+        players: [{ id: "team1-player-1" }, { id: "team1-player-2" }],
+      },
+      { id: "team2", players: [{ id: "team2-player-1" }] },
+    ],
   };
 
   it("resolves team and player refs to this run's ids", () => {

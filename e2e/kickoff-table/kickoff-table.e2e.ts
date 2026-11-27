@@ -82,9 +82,10 @@ function engine(page: Page): Promise<EngineView> {
       await import("/src/services/ServiceContainer.ts");
     const { effectiveMA, effectiveAV } =
       await import("/src/game/kickoff/driveEffects.ts");
+    const { pairSeating, pairTeams } = await import("/src/game/seating.ts");
     const gs = ServiceContainer.getInstance().gameService;
     const state = gs.getState();
-    const [team1, team2] = gs.getTeams();
+    const [team1, team2] = pairTeams(pairSeating(gs.getSeating()));
     const players = [...team1.players, ...team2.players];
     return {
       phase: state.phase,

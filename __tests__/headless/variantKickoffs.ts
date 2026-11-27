@@ -108,16 +108,20 @@ export async function variantKick(kick: VariantKick) {
   return { game, response, result };
 }
 
+function sideOf(game: HeadlessGame, team: "team1" | "team2") {
+  return game.ctx.teams[team === "team1" ? 0 : 1];
+}
+
 export function playerOf(game: HeadlessGame, team: "team1" | "team2", index: number): Player {
-  return fixtureValue(game.ctx[team].players[index]);
+  return fixtureValue(sideOf(game, team).players[index]);
 }
 
 export function statusesOf(game: HeadlessGame, team: "team1" | "team2"): string[] {
-  return game.ctx[team].players.slice(0, 7).map((player) => player.status);
+  return sideOf(game, team).players.slice(0, 7).map((player) => player.status);
 }
 
 export function squaresOf(game: HeadlessGame, team: "team1" | "team2"): string[] {
-  return game.ctx[team].players
+  return sideOf(game, team).players
     .slice(0, 7)
     .map((player) => (player.gridPosition ? `${String(player.gridPosition.x)},${String(player.gridPosition.y)}` : "off"));
 }

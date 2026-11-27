@@ -14,6 +14,7 @@ import { hasTackleZone } from "../../src/types/Player";
 import { withDriveModifiers } from "../../src/game/kickoff/driveEffects";
 import { scoresAt } from "../../src/game/rules/frames";
 import { pairFrame } from "../../src/game/variants/activeMatch";
+import { seatedTeams } from "../../src/game/seating";
 
 let game: HeadlessGame | null = null;
 let kickingTeamId: string | null = null;
@@ -25,15 +26,15 @@ function attach(): HeadlessGame {
 
   const gs = ((c.gameService as unknown as { inner?: unknown }).inner ??
     c.gameService) as Record<string, unknown>;
-  const teams = getActiveOnlineMatch()?.teams;
-  const [home, away] = c.gameService.getTeams();
+  const online = getActiveOnlineMatch()?.teams;
+  const teams = online ? [online.team1, online.team2] : c.gameService.getTeams();
   game = new HeadlessGame({
     autoStartOnReady: false,
     ctx: {
       eventBus: c.eventBus,
       gameService: gs as never,
       rng: c.rngService,
-      teams: [teams?.team1 ?? home, teams?.team2 ?? away],
+      teams: seatedTeams(teams),
       seed: 0,
       matchStats: c.matchStats,
     },

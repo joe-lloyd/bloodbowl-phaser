@@ -228,8 +228,8 @@ describe("2025 Swarming through the match protocol", () => {
     ).toBe(1);
     const hurt = snotlings();
     const noReserves = gameWith(hurt);
-    for (const player of noReserves.ctx.teams[0].players.slice(7))
-      player.status = PlayerStatus.KO;
+    const [home] = noReserves.ctx.teams;
+    for (const player of home.players.slice(7)) player.status = PlayerStatus.KO;
     await setUp(noReserves);
     expect(noReserves.snapshot().phase).toBe(GamePhase.KICKOFF);
   });

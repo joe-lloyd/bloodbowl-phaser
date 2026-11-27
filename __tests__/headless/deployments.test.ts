@@ -13,6 +13,8 @@ import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { addPlayerToTeam, createTeam, RosterName } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";
 import { headlessCommandSchema } from "../../src/boundary/schemas/HeadlessCommand";
+import { stabilizeIds } from "../../src/headless/createHeadlessGame";
+import { TeamFactory } from "../../src/game/TeamFactory";
 
 const GENERAL = ["Balanced", "Spread", "Bunker"];
 
@@ -47,9 +49,16 @@ function dwarfs() {
   return team;
 }
 
+function awayTeam() {
+  return stabilizeIds(
+    TeamFactory.createTestTeam(RosterName.HUMAN, "Away Team", 0x0000cc),
+    "team2"
+  );
+}
+
 async function deploy(name: string, kicking: boolean) {
   const team1 = dwarfs();
-  const game = new HeadlessGame({ seed: 5, team1 });
+  const game = new HeadlessGame({ seed: 5, teams: [team1, awayTeam()] });
   if (kicking) {
     await game.execute({
       type: "start-setup",
@@ -94,7 +103,7 @@ async function deploy(name: string, kicking: boolean) {
 }
 
 async function kickingBunker(format: MatchFormat) {
-  const game = new HeadlessGame({ seed: 5, team1: dwarfs(), format });
+  const game = new HeadlessGame({ seed: 5, teams: [dwarfs(), awayTeam()], format });
   await game.execute({
     type: "start-setup",
     kickingTeamId: game.ctx.teams[0].id,

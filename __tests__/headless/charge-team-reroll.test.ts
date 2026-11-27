@@ -157,7 +157,8 @@ describe("a save taken during Charge!", () => {
     const game = await chargeGame();
     game.ctx.teams[0].rerolls = 3;
     game.ctx.teams[1].rerolls = 3;
-    for (const player of game.ctx.teams[0].players.slice(0, 2)) {
+    const [home] = game.ctx.teams;
+    for (const player of home.players.slice(0, 2)) {
       await game.execute({
         type: "kickoff-select-player",
         playerId: player.id,
