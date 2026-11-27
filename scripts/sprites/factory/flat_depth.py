@@ -9,7 +9,7 @@ packs the depth plane far smaller. Any set of layers still composes to the same 
 checks that every pixel two layers cover keeps its depth. Shade layers carry no depth and stay as they
 are. install_layered.py runs it on the unpacked .json/.bin layers before writing the portrait copies and
 packing them into .layer files, so it finds nothing to do on a packed model. Running it twice changes
-nothing.
+nothing. `pnpm sprites:art-check` fails on any layer with depth this would have cleared.
 """
 import json
 import sys
@@ -96,17 +96,15 @@ def flatten_folder(folder):
         flat = flatten_layer(meta, planes, counts)
         check(meta, original, flat, counts)
         repacked = packed if flat == original else zlib.compress(bytes(flat), 9)
-        if len(repacked) < len(packed):
+        if repacked is not packed:
             index.with_suffix(".bin").write_bytes(repacked)
-        else:
-            repacked = packed
         before += len(packed)
         after += len(repacked)
     return before, after
 
 
 def folders(model_dir):
-    return sorted(p.parent for p in (model_dir / "layered").glob("**/base.json"))
+    return sorted(p.parent for p in (model_dir / "layered").glob("*/base.json"))
 
 
 def flatten_model(model_dir):

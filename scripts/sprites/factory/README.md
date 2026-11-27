@@ -80,6 +80,12 @@ requests.
 or when a team page portrait downloads anything outside the portrait folder. The Treeman is the heaviest at
 about 123 KB. `pnpm sprites:portrait-check <folder>` draws every portrait both ways and compares the pixels.
 
+CI's `player-art` job runs `pnpm sprites:art-check`, which fails on art that skipped any of these steps:
+a file in `layered/` the manifest does not list, a missing layer or portrait, depth that `flat_depth.py`
+would have cleared, a portrait that is not exactly its layer's idle/se frames, or a `.layer` changed in the
+pull request that packs more than 1% smaller at level 19. Run it before you commit new art; with
+`--repack-since origin/main` it also repacks the layers you changed, about half a second each.
+
 ## Models made by hand in Blender
 
 `art/<model>.blend` holds a model made by hand, and a small class draws its parts; see `cave_maw` in

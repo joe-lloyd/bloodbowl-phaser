@@ -18,6 +18,7 @@
     "sprites:roster-cards": "tsx scripts/sprites/roster_picker_cards.ts",
     "sprites:portrait-check": "tsx scripts/sprites/portrait_check.ts",
     "sprites:pack-layers": "tsx scripts/sprites/packLayers.ts",
+    "sprites:art-check": "tsx scripts/sprites/artCheck.ts",
     "gallery:shots": "playwright test -c scripts/hud-shots/playwright.config.ts",
     "pwa:offline-match": "tsx scripts/offline-match-check.ts",
     "pwa:offline-library": "tsx scripts/offline-team-library-check.ts",
