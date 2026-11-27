@@ -1,4 +1,8 @@
-import { DEFAULT_GAME_TYPE, type GameType } from "../game/variants/gameTypes";
+import {
+  DEFAULT_GAME_TYPE,
+  type GameType,
+  type MatchType,
+} from "../game/variants/gameTypes";
 import { gameTypeRules } from "../game/variants/gameTypeRules";
 import {
   formatOf,
@@ -249,7 +253,7 @@ function seededFormat(gameType: GameType, seed: number): MatchFormat {
 }
 
 const SIM_INDUCEMENTS: Record<
-  GameType,
+  MatchType,
   readonly (readonly [Inducement, number])[]
 > = {
   sevens: [
@@ -272,9 +276,10 @@ const SIM_INDUCEMENTS: Record<
     [Inducement.SNACK_STAND, 1],
     [Inducement.NOVICE_WIZARD, 1],
   ],
+  deathbowl: [],
 };
 
-function simGameType(game: HeadlessGame): GameType {
+function simGameType(game: HeadlessGame): MatchType {
   return game.ctx.gameService.getState().gameType ?? DEFAULT_GAME_TYPE;
 }
 
@@ -532,7 +537,8 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     rerolls,
     lineup: "sevens-lineup",
     inducements,
-    ...(format.gameType !== DEFAULT_GAME_TYPE && { matchFormat: format }),
+    ...(format.gameType !== DEFAULT_GAME_TYPE &&
+      format.gameType !== "deathbowl" && { matchFormat: format }),
     steps,
     final: summarize(final),
     findings,

@@ -161,7 +161,7 @@ export class SandboxScene extends GameScene {
         teams,
         startingPhase: GamePhase.SANDBOX_IDLE,
       }),
-      venue: DEATHBOWL_FORMAT.venue,
+      ...DEATHBOWL_FORMAT,
     };
     const { gameService } = ServiceContainer.initialize({
       eventBus: this.getBrowserEventBus(),

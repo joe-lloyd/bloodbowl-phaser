@@ -8,7 +8,7 @@ import {
   type TeamAllegiance,
   hasTeamSpecialRule,
 } from "../rules/teamAllegiance";
-import { type GameType } from "../variants/gameTypes";
+import { type MatchType } from "../variants/gameTypes";
 import { type PotionInducement } from "./inventory";
 
 export const NO_PURCHASE_LIMIT = 99;
@@ -60,7 +60,7 @@ export function sevensInducementCatalog(
 
 export function inducementCatalog(
   team: TeamAllegiance,
-  gameType: GameType
+  gameType: MatchType
 ): InducementCatalogEntry[] {
   switch (gameType) {
     case "sevens":
@@ -84,11 +84,13 @@ export function inducementCatalog(
         ...line(Inducement.SNACK_STAND, 1, 100_000),
         ...line(Inducement.NOVICE_WIZARD, 1, 100_000),
       ];
+    case "deathbowl":
+      return [];
   }
 }
 
 export function startingFreeInducements(
-  gameType: GameType
+  gameType: MatchType
 ): PotionInducement[] {
   return gameType === "street-bowl" ? [Inducement.MAGIC_POTION] : [];
 }

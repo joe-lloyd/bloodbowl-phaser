@@ -2,7 +2,7 @@ import type { KickRecord } from "../game/kickoff/kickRecord";
 import type { ActionType } from "./events";
 import type { Weather } from "../game/rules/weather";
 import type { LostBall } from "../game/kickoff/ballConditions";
-import type { MatchFormat } from "../game/variants/activeMatch";
+import type { ActiveFormat } from "../game/variants/activeMatch";
 import type { TurnSpend } from "../game/rules/turnSpend";
 import type { Balls } from "../game/rules/balls";
 export const SubPhase = {
@@ -87,9 +87,9 @@ export interface GameState {
 
   competition?: boolean;
 
-  gameType?: MatchFormat["gameType"];
+  gameType?: ActiveFormat["gameType"];
 
-  venue?: MatchFormat["venue"];
+  venue?: ActiveFormat["venue"];
   weather: Weather;
   balls: Balls;
   activePlayer: {

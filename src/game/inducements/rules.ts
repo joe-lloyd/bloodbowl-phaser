@@ -6,7 +6,7 @@ import {
   type InducementSelectionLine,
 } from "../../types/Inducements";
 import { inducementCatalog } from "./catalog";
-import { type GameType } from "../variants/gameTypes";
+import { type MatchType } from "../variants/gameTypes";
 
 export interface InducementValidationResult {
   valid: boolean;
@@ -101,7 +101,7 @@ export function toInventoryEntries(
 
 export function draftListInventory(
   team: Team,
-  gameType: GameType
+  gameType: MatchType
 ): InducementInventoryEntry[] {
   if (team.advancementMode !== "matched-play") return [];
   return toInventoryEntries(

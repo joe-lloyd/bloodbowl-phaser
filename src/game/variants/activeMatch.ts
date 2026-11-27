@@ -1,8 +1,12 @@
-import { DEFAULT_GAME_TYPE, type GameType } from "./gameTypes";
+import {
+  DEFAULT_GAME_TYPE,
+  type GameType,
+  type MatchType,
+} from "./gameTypes";
 import {
   gameTypeRules,
   type GameTypeRules,
-  type SetupRules,
+  matchTypeRules,
 } from "./gameTypeRules";
 import {
   PITCH_LAYOUTS,
@@ -27,47 +31,35 @@ export const DEATHBOWL_FORMAT = {
   venue: "deathbowl",
 } as const;
 
-type DeathbowlFormat = typeof DEATHBOWL_FORMAT;
-
-type ActiveFormat = MatchFormat | DeathbowlFormat;
-
-const DEATHBOWL_SETUP: SetupRules = {
-  maxOnPitch: 8,
-  minOnLineOfScrimmage: 3,
-  maxPerWideZone: 0,
-};
+export type ActiveFormat = MatchFormat | typeof DEATHBOWL_FORMAT;
 
 const session: { active: ActiveFormat } = { active: SEVENS_FORMAT };
 
 export function formatOf(state: {
-  gameType?: GameType;
+  gameType?: MatchType;
   venue?: Venue;
-}): MatchFormat {
+}): ActiveFormat {
   const gameType = state.gameType ?? DEFAULT_GAME_TYPE;
+  if (gameType === DEATHBOWL_FORMAT.gameType) return DEATHBOWL_FORMAT;
   const venue = state.venue ?? gameTypeRules(gameType).venues[0];
   return { gameType, venue };
 }
 
 export function activateStateFormat(state: {
-  gameType?: GameType;
+  gameType?: MatchType;
   venue?: Venue;
 }): void {
-  activateMatchFormat(
-    state.venue === DEATHBOWL_FORMAT.venue ? DEATHBOWL_FORMAT : formatOf(state)
-  );
+  activateMatchFormat(formatOf(state));
 }
 
 export function activateMatchFormat(format: ActiveFormat): void {
-  if (
-    format.gameType !== DEATHBOWL_FORMAT.gameType &&
-    !gameTypeRules(format.gameType).venues.includes(format.venue)
-  ) {
+  if (!matchTypeRules(format.gameType).venues.includes(format.venue)) {
     throw new Error(`${format.venue} is not a ${format.gameType} venue.`);
   }
   session.active = format;
 }
 
-export function keepMatchFormat(format: MatchFormat): void {
+export function keepMatchFormat(format: ActiveFormat): void {
   const { active } = session;
   if (active.gameType === format.gameType && active.venue === format.venue)
     return;
@@ -76,14 +68,8 @@ export function keepMatchFormat(format: MatchFormat): void {
   );
 }
 
-function twoTeamFormat(): MatchFormat {
-  const { active } = session;
-  if (active.gameType !== DEATHBOWL_FORMAT.gameType) return active;
-  throw new Error("Deathbowl has no two-team match rules.");
-}
-
-export function activeMatchFormat(): MatchFormat {
-  return twoTeamFormat();
+export function activeMatchFormat(): ActiveFormat {
+  return session.active;
 }
 
 export function activeLayout(): PitchLayout {
@@ -96,13 +82,7 @@ export function pairFrame(isTeam1: boolean): Frame {
 }
 
 export function activeRules(): GameTypeRules {
-  return gameTypeRules(twoTeamFormat().gameType);
-}
-
-export function activeSetupRules(): SetupRules {
-  return session.active.gameType === DEATHBOWL_FORMAT.gameType
-    ? DEATHBOWL_SETUP
-    : activeRules().setup;
+  return matchTypeRules(session.active.gameType);
 }
 
 export function matchFormatFor(

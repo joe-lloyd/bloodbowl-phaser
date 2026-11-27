@@ -1,5 +1,8 @@
 import { GameConfig } from "../../../config/GameConfig";
-import { formatOf } from "../../../game/variants/activeMatch";
+import {
+  DEATHBOWL_FORMAT,
+  formatOf,
+} from "../../../game/variants/activeMatch";
 import { gameTypeRules } from "../../../game/variants/gameTypeRules";
 import {
   DEFAULT_GAME_TYPE,
@@ -21,6 +24,7 @@ export function gameTypeLabel(
 ): string | null {
   const { gameType, venue } = formatOf(state);
   if (gameType === DEFAULT_GAME_TYPE) return null;
+  if (gameType === DEATHBOWL_FORMAT.gameType) return PITCH_LAYOUTS[venue].label;
   return gameTypeRules(gameType).venues.length > 1
     ? PITCH_LAYOUTS[venue].label
     : GAME_TYPE_LABELS[gameType];

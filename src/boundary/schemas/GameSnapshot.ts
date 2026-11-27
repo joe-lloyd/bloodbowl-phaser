@@ -3,7 +3,7 @@ import { gamePhaseSchema } from "./GamePhase";
 import { subPhaseSchema } from "./SubPhase";
 import { turnSnapshotSchema } from "./TurnSnapshot";
 import { weatherSchema } from "./Weather";
-import { gameTypeSchema, venueSchema } from "./GameType";
+import { matchTypeSchema, venueSchema } from "./GameType";
 import { actionTypeSchema } from "./ActionType";
 import { blockReplacementSchema } from "./BlockReplacement";
 import { setupStateSchema } from "./SetupState";
@@ -64,7 +64,7 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   knockout: z.union([z.literal(false), z.literal(true)]).exactOptional(),
   paysWinnings: z.union([z.literal(false), z.literal(true)]).exactOptional(),
   competition: z.union([z.literal(false), z.literal(true)]).exactOptional(),
-  gameType: gameTypeSchema.exactOptional(),
+  gameType: matchTypeSchema.exactOptional(),
   venue: venueSchema.exactOptional(),
   weather: weatherSchema,
   ballPosition: z.union([z.null(), ballPositionSchema]),

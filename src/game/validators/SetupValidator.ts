@@ -1,6 +1,6 @@
 import {
   activeLayout,
-  activeSetupRules,
+  activeRules,
   pairFrame,
 } from "../variants/activeMatch";
 import { obstacleAt } from "../variants/pitchLayouts";
@@ -45,7 +45,7 @@ export class SetupValidator {
 
   constructor(config?: SetupConfig) {
     const layout = activeLayout();
-    const { maxOnPitch } = activeSetupRules();
+    const { maxOnPitch } = activeRules().setup;
     const resolved = config ?? {
       minPlayers: maxOnPitch,
       maxPlayers: maxOnPitch,
@@ -125,7 +125,7 @@ export class SetupValidator {
     const restrictions = full.restrictions.filter((rule) =>
       placementIds.has(rule.id)
     );
-    const { minOnLineOfScrimmage } = activeSetupRules();
+    const { minOnLineOfScrimmage } = activeRules().setup;
     if (availablePlayerCount < minOnLineOfScrimmage) {
       restrictions.push({
         id: "short-handed-line",
@@ -178,7 +178,7 @@ export class SetupValidator {
     ).length;
     const inNeutralZone = positions.some((pos) => inNoMansLand(frame, pos));
     const inSetupArea = positions.every((pos) => this.inSetupZone(frame, pos));
-    const rules = activeSetupRules();
+    const rules = activeRules().setup;
     return setupValidation(
       setupRestrictions({
         placedCount: positions.length,
