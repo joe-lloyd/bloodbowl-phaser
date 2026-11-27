@@ -6,10 +6,15 @@ import gutterStreetMeta from "../../public/venues/gutter-street/meta.json";
 import streetMeta from "../../public/venues/street/meta.json";
 import { parseStadiumMeta } from "../../src/boundary/stadium";
 import {
+  ARENA_SEATS,
+  arenaDugouts,
   dugoutGateX,
   venueDugouts,
 } from "../../src/game/presentation/venueSidelines";
-import { PITCH_LAYOUTS } from "../../src/game/variants/pitchLayouts";
+import {
+  PITCH_LAYOUTS,
+  isInsideLayout,
+} from "../../src/game/variants/pitchLayouts";
 import {
   wallHitFromSquare,
   wallHitFromThrowIn,
@@ -61,30 +66,67 @@ describe("rendered venues", () => {
         layout.rows,
       ]);
       expect(art.dugouts).toEqual(venueDugouts(layout));
-      expect(raw.obstacles).toEqual(
-        layout.obstacles.map(({ x, y }) => [x, y])
-      );
+      expect(raw.obstacles).toEqual(layout.obstacles.map(({ x, y }) => [x, y]));
     }
   );
 
   it.each([
     ["gutter-street", gutterStreetMeta],
     ["gutter-sewer", gutterSewerMeta],
-  ] as const)("draws the %s barricades on the lines the rules use", (venue, raw) => {
-    expect(raw.barricades).toEqual(
-      PITCH_LAYOUTS[venue].barricades.map(({ afterColumn, rows }) => [
-        afterColumn,
-        rows.min,
-        rows.max,
-      ])
-    );
-  });
+  ] as const)(
+    "draws the %s barricades on the lines the rules use",
+    (venue, raw) => {
+      expect(raw.barricades).toEqual(
+        PITCH_LAYOUTS[venue].barricades.map(({ afterColumn, rows }) => [
+          afterColumn,
+          rows.min,
+          rows.max,
+        ])
+      );
+    }
+  );
 
   it("puts the Gutter Bowl stalls on 96 squares and the open venues on none", () => {
     expect(gutterStreetMeta.obstacles).toHaveLength(96);
     expect(gutterSewerMeta.obstacles).toHaveLength(96);
     expect(beachMeta.obstacles).toEqual([]);
     expect(streetMeta.obstacles).toEqual([]);
+  });
+});
+
+describe("Deathbowl arena", () => {
+  const arena = PITCH_LAYOUTS.deathbowl;
+  const dugouts = arenaDugouts(arena);
+
+  it("puts each seat's dugout in the corner beside its own arm, reserves nearest the pitch", () => {
+    expect(dugouts.north.reserves.slice(0, 4)).toEqual([
+      [17.5, 3.5],
+      [17.5, 2.5],
+      [17.5, 1.5],
+      [17.5, 0.5],
+    ]);
+    expect(dugouts.east.reserves[0]).toEqual([17.5, 17.5]);
+    expect(dugouts.south.reserves[0]).toEqual([3.5, 17.5]);
+    expect(dugouts.west["sent off"]).toEqual([
+      [-6.5, 3.5],
+      [-6.5, 2.5],
+      [-6.5, 1.5],
+    ]);
+  });
+
+  it("keeps the 33 squares of all four dugouts apart and off the pitch", () => {
+    const squares = ARENA_SEATS.flatMap((seat) =>
+      Object.values(dugouts[seat]).flat()
+    );
+    expect(squares).toHaveLength(132);
+    expect(
+      new Set(squares.map(([x, y]) => `${String(x)},${String(y)}`)).size
+    ).toBe(132);
+    expect(
+      squares.filter(([x, y]) =>
+        isInsideLayout(arena, { x: Math.floor(x), y: Math.floor(y) })
+      )
+    ).toEqual([]);
   });
 });
 
