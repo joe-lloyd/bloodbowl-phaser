@@ -66,7 +66,9 @@ function ThirdPlaceGame({
   if (!fixture) return null;
   return (
     <div className="mt-6">
-      <h3 className="hud-label mb-2">Third-place game</h3>
+      <Title level="section" as="h3" className="mb-2">
+        Third-place game
+      </Title>
       {renderCard(fixture)}
     </div>
   );
