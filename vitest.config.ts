@@ -21,6 +21,7 @@ const PAGE_TESTS = [
   "__tests__/setup/FormationManager.test.ts",
   "__tests__/unit/TeamPersistence.test.ts",
   "__tests__/unit/bracketLayout.test.ts",
+  "__tests__/unit/competition/clubTournament.test.ts",
   "__tests__/unit/competition/homeLeague.test.ts",
   "__tests__/unit/competitionActiveMembership.test.ts",
   "__tests__/unit/competitionLegacyRead.test.ts",

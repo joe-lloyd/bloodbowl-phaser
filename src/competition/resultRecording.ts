@@ -28,7 +28,8 @@ import {
   type PenaltyShootout,
 } from "./types";
 import { type Team } from "../types/Team";
-import { manageComputerTeams } from "./computerTeams";
+import { manageComputerTeams, settleDraftOffers } from "./computerTeams";
+import { rollDraftOffers } from "../game/progression/advancementModes";
 import { carriesInjuries } from "../game/rules/injuryRules";
 import { restoreClubHome } from "../game/rules/club";
 import { assertFixtureInOpenRound } from "./schedule";
@@ -131,13 +132,24 @@ export function keepRecordedResult(team: Team): void {
 
   const queued = (stored.pendingDevelopment ?? []).filter(
     (entry) =>
-      entry.kind === "expensive-mistakes" &&
+      (entry.kind === "expensive-mistakes" || entry.kind === "drafted-player-offer") &&
       !team.pendingDevelopment?.some((own) => own.id === entry.id)
   );
   if (queued.length > 0)
     team.pendingDevelopment = [...(team.pendingDevelopment ?? []), ...queued];
+  keepDraftedPlayersGone(team, stored);
   if (stored.activeCompetitionId === undefined) delete team.activeCompetitionId;
   else team.activeCompetitionId = stored.activeCompetitionId;
+}
+
+function keepDraftedPlayersGone(team: Team, stored: Team): void {
+  const left = (stored.draftHistory ?? []).filter(
+    (record) => !team.draftHistory?.some((own) => own.id === record.id)
+  );
+  if (left.length === 0) return;
+  const leftIds = new Set(left.map((record) => record.playerId));
+  team.players = team.players.filter((player) => !leftIds.has(player.id));
+  team.draftHistory = [...(team.draftHistory ?? []), ...left];
 }
 
 async function updateEntrantRecords({
@@ -206,10 +218,7 @@ async function updateReachableTeams({
     progressedTeams,
   });
 
-  if (competition.status === "complete") {
-    for (const entrant of competition.entrants)
-      await clearActiveCompetition(entrant.teamId, competition.id);
-  }
+  await releaseEntrants(competition);
 }
 
 interface RecordFixtureOptions {
@@ -439,9 +448,7 @@ export async function closeWalkovers(
     console.warn("[competition] could not close walkovers", reason);
   }
 
-  if (current.status === "complete")
-    for (const entrant of current.entrants)
-      await clearActiveCompetition(entrant.teamId, current.id);
+  await releaseEntrants(current);
   return current;
 }
 
@@ -472,6 +479,32 @@ export async function withdrawFromCompetition(
   if (!entrant) throw new Error("Entrant not found.");
   await clearActiveCompetition(entrant.teamId, updated.id);
   return closeWalkovers(updated);
+}
+
+function scoutAtTournamentEnd(
+  teamId: string,
+  competition: CompetitionDoc
+): void | Promise<void> {
+  if (competition.type !== "tournament" || competition.playOffs) return;
+  const team = getTeamById(teamId);
+  if (!team?.club || team.activeCompetitionId !== competition.id) return;
+  rollDraftOffers(team, new RNGService(Date.now()), `tournament-${competition.id}`);
+  if (team.computerCoached) settleDraftOffers(team);
+  return saveTeam(team);
+}
+
+export async function releaseFinishedEntrant(
+  teamId: string,
+  competition: CompetitionDoc
+): Promise<void> {
+  await scoutAtTournamentEnd(teamId, competition);
+  await clearActiveCompetition(teamId, competition.id);
+}
+
+async function releaseEntrants(competition: CompetitionDoc): Promise<void> {
+  if (competition.status !== "complete") return;
+  for (const entrant of competition.entrants)
+    await releaseFinishedEntrant(entrant.teamId, competition);
 }
 
 export function clearActiveCompetition(
