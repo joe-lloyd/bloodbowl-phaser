@@ -1,15 +1,6 @@
 import { activeRules } from "../variants/activeMatch";
 import type { DiceController } from "./DiceController";
-import { GameConfig } from "@/config/GameConfig";
-
-export function isOnPitch(square: { x: number; y: number }): boolean {
-  return (
-    square.x >= 0 &&
-    square.y >= 0 &&
-    square.x < GameConfig.PITCH_WIDTH &&
-    square.y < GameConfig.PITCH_HEIGHT
-  );
-}
+import { isOnPitch } from "../rules/pitchSquares";
 
 type MovementDice = Pick<DiceController, "rollD8" | "rollMultipleD8" | "rollD3" | "rollD6" | "rollLowerOf2D6">;
 

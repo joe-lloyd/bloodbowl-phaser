@@ -6,7 +6,7 @@ import { type HeadlessCommand } from "../headless/protocol";
 import { GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { GameConfig } from "../config/GameConfig";
-import { obstacleKindAt } from "../game/rules/pitchSquares";
+import { isOnPitch, obstacleKindAt } from "../game/rules/pitchSquares";
 
 const ON_PITCH_STATUSES = new Set<PlayerStatus>([
   PlayerStatus.ACTIVE,
@@ -18,12 +18,6 @@ export interface InvariantViolation {
   rule: string;
   message: string;
 }
-
-const inBounds = (p: { x: number; y: number }) =>
-  p.x >= 0 &&
-  p.x < GameConfig.PITCH_WIDTH &&
-  p.y >= 0 &&
-  p.y < GameConfig.PITCH_HEIGHT;
 
 const where = (p: PlayerSnapshot) =>
   `${p.id} (${p.positionName}) at (${String(p.position?.x)},${String(p.position?.y)})`;
@@ -44,7 +38,7 @@ function squareChecks(
         `${where(p)} shares a square with ${other.id}`
       );
     occupied.set(key, p);
-    if (!inBounds(p.position!))
+    if (!isOnPitch(p.position!))
       fail("player-in-bounds", `${where(p)} is off the pitch grid`);
     if (p.position && obstacleKindAt(p.position))
       fail("player-off-obstacles", `${where(p)} stands on an obstacle`);
@@ -117,7 +111,7 @@ function ballChecks(
   decisionPending: boolean,
   fail: Fail
 ): void {
-  if (after.ballPosition && !inBounds(after.ballPosition)) {
+  if (after.ballPosition && !isOnPitch(after.ballPosition)) {
     fail(
       "ball-in-bounds",
       `ball at (${String(after.ballPosition.x)},${String(after.ballPosition.y)})`

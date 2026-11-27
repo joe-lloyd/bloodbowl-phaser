@@ -5,6 +5,7 @@ import {
   TRAPDOOR_SQUARES,
 } from "../../config/GameConfig";
 import { pairFrame } from "../variants/activeMatch";
+import { isOnPitch } from "../rules/pitchSquares";
 import { type Frame, type Span, blockOf, noMansLand } from "../rules/frames";
 import {
   gridPointToPixel,
@@ -59,7 +60,7 @@ export class Pitch {
     const { x: gridX, y: gridY } = square;
     const { color, alpha, inset = 0, crowd = false } = style;
     const drawable =
-      this.isOnPitch(square) || (crowd && this.isCrowdSquare(square));
+      isOnPitch(square) || (crowd && this.isCrowdSquare(square));
     if (!drawable) return this.offPitchMarker();
     const w = ISO.tileWidth * (1 - 2 * inset);
     const h = ISO.tileHeight * (1 - 2 * inset);
@@ -87,7 +88,7 @@ export class Pitch {
     const graphics = this.scene.add.graphics();
     graphics.setName("pitch_trapdoors");
     for (const square of TRAPDOOR_SQUARES.squares) {
-      if (!this.isOnPitch(square)) continue;
+      if (!isOnPitch(square)) continue;
       const corners = squareCorners(square.x, square.y, 0.14).map(
         (p) => new Phaser.Math.Vector2(p.x, p.y)
       );
@@ -129,7 +130,7 @@ export class Pitch {
 
   public markKickTarget(square: GridPosition, color: number): void {
     this.clearKickTarget();
-    if (!this.isOnPitch(square)) return;
+    if (!isOnPitch(square)) return;
     this.container.add(drawKickTarget(this.scene, square, color));
   }
 
@@ -139,13 +140,7 @@ export class Pitch {
 
   public highlightHoverSquare(gridX: number, gridY: number): void {
     this.clearHover();
-    if (
-      gridX < 0 ||
-      gridY < 0 ||
-      gridX > this.width - 1 ||
-      gridY > this.height - 1
-    )
-      return;
+    if (!isOnPitch({ x: gridX, y: gridY })) return;
     const cursor = this.diamond(
       { x: gridX, y: gridY },
       { color: 0xffffff, alpha: 0.08 }
@@ -707,15 +702,9 @@ export class Pitch {
     return pixelToGrid(worldX - this.container.x, worldY - this.container.y);
   }
 
-  public isOnPitch(pos: GridPosition): boolean {
-    return (
-      pos.x >= 0 && pos.y >= 0 && pos.x < this.width && pos.y < this.height
-    );
-  }
-
   public isCrowdSquare(pos: GridPosition): boolean {
     return (
-      !this.isOnPitch(pos) &&
+      !isOnPitch(pos) &&
       pos.x >= -1 &&
       pos.y >= -1 &&
       pos.x <= this.width &&

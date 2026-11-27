@@ -20,7 +20,6 @@ function fakeScene() {
     game: { canvas },
     pitch: {
       worldToGrid: () => ({ x: 1, y: 1 }),
-      isOnPitch: () => true,
       highlightHoverSquare: vi.fn(),
       clearHover: vi.fn(),
     },
