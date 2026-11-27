@@ -4,6 +4,7 @@
 
 LAYERED_DIR is the factory's out/layered folder (render.py --layers). For each model it:
 - copies <body>/<layer>.{json,bin} to public/sprites/bloodbowl/<model>/layered/,
+- keeps depth only where two layers overlap, with flat_depth.py, so the files compress smaller,
 - writes idle/se portrait copies of those layers with portrait_layers.py,
 - removes the model's flat atlases (base, kit1, kit2), which the game no longer loads for it,
 - writes the model's entry in src/game/presentation/spriteManifest.json with a "layered" block
@@ -16,6 +17,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from flat_depth import flatten_model
 from portrait_layers import write_model
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -34,6 +36,7 @@ def install(source, manifest):
         shutil.rmtree(dest)
     for body in rig["bodies"]:
         shutil.copytree(source / body, dest / body)
+    flatten_model(SPRITES / model)
     write_model(SPRITES / model)
     for layer in ("base", "kit1", "kit2"):
         for ext in ("png", "json"):

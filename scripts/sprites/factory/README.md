@@ -60,7 +60,9 @@ Every option needs an empty state and each value's layout must set every key the
 (see `SLOTS` in `teams/vampire_looks.py`). The driver warns when a value removes an object the base has;
 fold that object into the option instead.
 
-`install_layered.py` copies the layers to `public/sprites/bloodbowl/<model>/layered/`, removes the model's
+`install_layered.py` copies the layers to `public/sprites/bloodbowl/<model>/layered/`, keeps each pixel's
+depth only where two layers of the body overlap (`flat_depth.py`; elsewhere depth decides nothing, and the
+files come out about a third smaller), removes the model's
 flat atlases, writes its manifest entry (with the options and palette tables the game reads) and copies
 a golden frame to `__tests__/fixtures/layered/` for the compositor's unit test.
 
