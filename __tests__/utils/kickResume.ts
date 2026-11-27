@@ -25,7 +25,7 @@ import { GameService } from "../../src/services/GameService";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
-import { RosterName } from "../../src/types/Team";
+import { RosterName, type Team } from "../../src/types/Team";
 import { playgroundEvent } from "../../src/data/kickoffPlayground";
 
 const PACE: Record<string, number> = {
@@ -386,7 +386,10 @@ async function resynced(
       ...structuredClone(from.save.snapshot),
       ...(from.save.turnManager && { turnManager: from.save.turnManager }),
     },
-    teams: structuredClone(from.save.teams),
+    teams: [
+      structuredClone(from.save.teams[0]),
+      structuredClone(from.save.teams[1]),
+    ] satisfies [Team, Team],
     pending: structuredClone(from.pending),
     rng: structuredClone(from.save.rng),
     matchStats: structuredClone(from.save.matchStats),

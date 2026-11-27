@@ -40,6 +40,7 @@ import {
 import { updateDedicatedFans as updateTeamDedicatedFans } from "@/game/rules/leagueRoster";
 import { fanFactor } from "@/game/rules/winnings";
 import type { GameParts } from "./parts";
+import type { PairStandings } from "./matchFlow";
 import { GameOperation } from "@/game/core/GameOperation";
 import { takeUnsatedBloodlust } from "./activation";
 
@@ -113,22 +114,25 @@ export function addTouchdown(parts: GameParts, scorerId: string): void {
   parts.flow.touchdown(scorer, ballOf(parts.state, scorer) ?? 0);
 }
 
-export function announceFullTime(parts: GameParts): void {
+export function announceFullTime(
+  parts: GameParts,
+  standings: PairStandings
+): void {
   const [team1, team2] = pairTeams(pairSeating(parts.seating));
   const score1 = parts.state.score[team1.id] ?? 0;
   const score2 = parts.state.score[team2.id] ?? 0;
   const scoreline = `${team1.name} ${String(score1)} : ${String(score2)} ${team2.name}`;
-  const line = `FULL TIME — ${scoreline} (${fullTimeOutcome(parts)})`;
+  const line = `FULL TIME — ${scoreline} (${fullTimeOutcome(parts, standings)})`;
   parts.eventBus.emit(GameEventNames.UI_Notification, line);
   parts.eventBus.emit(GameEventNames.UI_GameLog, line);
 }
 
-function fullTimeOutcome(parts: GameParts): string {
+function fullTimeOutcome(parts: GameParts, standings: PairStandings): string {
   const result = parts.state.result;
   if (result?.reason === "concession" || result?.reason === "forfeit") {
     return concededOutcome(parts, result);
   }
-  const { winnerId, penalties } = parts.flow.standings();
+  const { winnerId, penalties } = standings;
   const winner = winnerId === null ? undefined : parts.game.getTeam(winnerId);
   if (!winner) return "draw";
   if (!penalties) return `${winner.name} win`;
@@ -159,8 +163,10 @@ export function rollFanFactors(parts: GameParts): void {
   parts.state.fanFactors = fanFactors;
 }
 
-export function updateDedicatedFans(parts: GameParts): void {
-  const { winnerId } = parts.flow.standings();
+export function updateDedicatedFans(
+  parts: GameParts,
+  winnerId: string | null
+): void {
   for (const team of teamsOf(parts.seating)) {
     updateTeamFans(parts, team, fanOutcome(winnerId, team.id));
   }

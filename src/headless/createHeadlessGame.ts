@@ -1,5 +1,5 @@
 import {
-  type MatchFormat,
+  type ActiveFormat,
   withMatchFormat,
 } from "../game/variants/activeMatch";
 import { EventBus, type IEventBus } from "../services/EventBus";
@@ -53,7 +53,7 @@ export interface HeadlessGameOptions {
   paysWinnings?: boolean;
   competition?: boolean;
 
-  format?: MatchFormat;
+  format?: ActiveFormat;
 
   rngState?: RNGState;
 
@@ -179,6 +179,22 @@ function freshMatchState(
   return undefined;
 }
 
+function resumeOrBegin(
+  gameService: GameService,
+  options: HeadlessGameOptions,
+  restored: RestoredSave
+): void {
+  const turnManagerState = savedTurnManager(options, restored);
+  if (turnManagerState) gameService.restoreTurnManagerState(turnManagerState);
+  const fresh = !restored && !options.initialState && !options.scenario;
+  if (
+    fresh &&
+    options.startingPhase === GamePhase.SETUP &&
+    gameService.getSeating().kind === "four"
+  )
+    gameService.beginCoinFlip();
+}
+
 export function createHeadlessGame(
   options: HeadlessGameOptions = {}
 ): HeadlessGameContext {
@@ -210,10 +226,7 @@ export function createHeadlessGame(
   if (options.knockout) gameService.getState().knockout = true;
   if (options.paysWinnings) gameService.getState().paysWinnings = true;
   if (options.competition) gameService.getState().competition = true;
-  const turnManagerState = savedTurnManager(options, restored);
-  if (turnManagerState) {
-    gameService.restoreTurnManagerState(turnManagerState);
-  }
+  resumeOrBegin(gameService, options, restored);
 
   return { eventBus, gameService, rng, teams, seed, matchStats };
 }

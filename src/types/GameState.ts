@@ -80,6 +80,7 @@ export interface GameState {
   activeTeamId: string | null;
   turn: TurnData;
   score: Record<string, number>;
+  points?: Record<string, number>;
 
   knockout?: boolean;
 

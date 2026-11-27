@@ -23,29 +23,60 @@ import {
   holdsDriveInducements,
 } from "@/game/inducements/driveInducements";
 import { beginCoinFlip } from "./matchStart";
+import {
+  announceFullTime,
+  rollFanFactors,
+  updateDedicatedFans,
+} from "./driveLifecycle";
+import { deathbowlFlow } from "@/game/deathbowl/flow";
+import type { Placing } from "@/game/deathbowl/placings";
 import type { GameParts } from "./parts";
 
 export type NextHalf = { kickingTeamId: string } | { rollOff: true };
 
-interface PairStandings {
+export interface PairStandings {
   readonly kind: "pair";
   readonly winnerId: string | null;
   readonly penalties?: Record<string, number>;
 }
 
-interface DrivesFlow {
-  readonly kind: "drives";
-  readonly scoreRun: "stop";
+interface FlowApi<Standings> {
   begin(): void;
   touchdown(scorer: Player, ball: BallId): void;
   halfOver(): void;
-  standings(): PairStandings;
+  fullTime(): void;
+  standings(): Standings;
 }
 
-export type MatchFlow = DrivesFlow;
+interface DrivesFlow extends FlowApi<PairStandings> {
+  readonly kind: "drives";
+  readonly scoreRun: "stop";
+}
+
+export interface DeathbowlFlow
+  extends FlowApi<{ readonly kind: "placings"; readonly rows: readonly Placing[] }> {
+  readonly kind: "deathbowl";
+  readonly scoreRun: "continue";
+  seatSetUp(): void;
+}
+
+export type MatchFlow = DrivesFlow | DeathbowlFlow;
 
 export function flowFor(parts: GameParts): MatchFlow {
-  return drivesFlow(parts, pairSeating(parts.seating));
+  const { seating } = parts;
+  switch (seating.kind) {
+    case "pair":
+      return drivesFlow(parts, seating);
+    case "four":
+      return deathbowlFlow(parts, seating);
+  }
+}
+
+export function deathbowlFlowOf(flow: MatchFlow): DeathbowlFlow {
+  if (flow.kind !== "deathbowl") {
+    throw new Error("Only a Deathbowl match sets its teams up seat by seat.");
+  }
+  return flow;
 }
 
 function drivesFlow(parts: GameParts, seating: PairSeating): DrivesFlow {
@@ -61,6 +92,12 @@ function drivesFlow(parts: GameParts, seating: PairSeating): DrivesFlow {
     halfOver: () => {
       const next = nextHalf(parts, seating);
       if (next) endDrive(parts, "halftime", next);
+    },
+    fullTime: () => {
+      const standings = pairStandings(parts, seating);
+      announceFullTime(parts, standings);
+      rollFanFactors(parts);
+      updateDedicatedFans(parts, standings.winnerId);
     },
     standings: () => pairStandings(parts, seating),
   };

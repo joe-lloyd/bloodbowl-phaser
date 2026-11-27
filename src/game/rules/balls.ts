@@ -30,6 +30,13 @@ export function twoBalls(): Balls {
   ];
 }
 
+export function clearBalls(
+  state: Pick<GameState, "balls">,
+  count: 1 | 2
+): void {
+  state.balls = count === 2 ? twoBalls() : oneBall();
+}
+
 export function ballInTheAir(state: BallState): boolean {
   return (
     state.phase === GamePhase.KICKOFF &&

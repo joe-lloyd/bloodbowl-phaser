@@ -293,9 +293,12 @@ function setupActions(ctx: HeadlessGameContext): LegalActions["setup"] {
         ? { playerId: player.id, ...player.gridPosition }
         : []
     ),
-    presetNames: new FormationManager()
-      .getBuiltInFormations(isTeam1)
-      .map((formation) => formation.name),
+    presetNames:
+      gs.getSeating().kind === "pair"
+        ? new FormationManager()
+            .getBuiltInFormations(isTeam1)
+            .map((formation) => formation.name)
+        : [],
     canPlace: status.concessionDecision !== "pending",
     canApplyPreset: status.concessionDecision !== "pending" && !status.swarming,
     canChooseConcession: status.concessionDecision === "pending",

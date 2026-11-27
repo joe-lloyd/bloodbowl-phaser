@@ -13,7 +13,10 @@ export const matchSaveSchema: z.ZodType<MatchSave> = z.looseObject({
   version: z.literal(1),
   savedAt: z.number(),
   snapshot: gameSnapshotSchema,
-  teams: z.tuple([teamSchema, teamSchema]),
+  teams: z.union([
+    z.tuple([teamSchema, teamSchema]),
+    z.tuple([teamSchema, teamSchema, teamSchema, teamSchema]),
+  ]),
   drive: matchDriveAssignmentSchema,
   rng: rNGStateSchema,
   matchStats: matchStatsSnapshotSchema,
