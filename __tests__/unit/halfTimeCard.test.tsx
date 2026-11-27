@@ -118,7 +118,7 @@ it("closes when the coach presses Close", async () => {
 
 it("still marks half time when the summary cannot be read", async () => {
   const game = ServiceContainer.getInstance().gameService;
-  vi.spyOn(game, "getTeams").mockImplementation(() => {
+  vi.spyOn(game, "getSeating").mockImplementation(() => {
     throw new Error("no teams");
   });
   vi.spyOn(console, "error").mockImplementation(() => {});

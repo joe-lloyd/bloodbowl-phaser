@@ -74,6 +74,7 @@ vi.mock("../../src/services/ServiceContainer", () => {
     getActiveTeamId: () => "home",
     getTeam: (id: string) => teams.find((team) => team.id === id),
     getTeams: () => teams,
+    getSeating: () => ({ kind: "pair", seats: teams.map((team, index) => ({ index, team })) }),
     getSubPhase: () => "INTRO",
     getState: () => engine.state,
     readyForWeather: (teamId: string) => {

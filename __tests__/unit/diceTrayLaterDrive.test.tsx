@@ -30,6 +30,7 @@ vi.mock("../../src/services/ServiceContainer", () => {
     getActiveTeamId: () => "home",
     getTeam: () => team,
     getTeams: () => [team, team],
+    getSeating: () => ({ kind: "pair", seats: [{ index: 0, team }, { index: 1, team }] }),
   };
   return {
     ServiceContainer: {
