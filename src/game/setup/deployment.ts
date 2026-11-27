@@ -2,6 +2,7 @@ import {
   type PitchLayout,
   type Square,
   isPlayableSquare,
+  twoTeamFrames,
 } from "../variants/pitchLayouts";
 import {
   type Arm,
@@ -355,7 +356,7 @@ function roleFit(
   role: DeploymentRole,
   kicking: boolean
 ): number {
-  const contact = role === "line" && noMansLand(activeLayout().frames[0]) === null;
+  const contact = role === "line" && noMansLand(twoTeamFrames(activeLayout())[0]) === null;
   return kicking && !contact
     ? kickingFit(player, role)
     : receivingFit(player, role);

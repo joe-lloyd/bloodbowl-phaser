@@ -13,7 +13,6 @@ import {
 } from "../../../src/game/rules/frames";
 import {
   PITCH_LAYOUTS,
-  VENUES,
   type Square,
 } from "../../../src/game/variants/pitchLayouts";
 
@@ -41,7 +40,15 @@ const QUESTIONS = {
 
 type Question = keyof typeof QUESTIONS;
 
-function answers(venue: (typeof VENUES)[number], seat: 0 | 1, question: Question) {
+const PAIR_VENUES = [
+  "stadium",
+  "street",
+  "beach",
+  "gutter-street",
+  "gutter-sewer",
+] as const;
+
+function answers(venue: (typeof PAIR_VENUES)[number], seat: 0 | 1, question: Question) {
   const layout = PITCH_LAYOUTS[venue];
   const frame = layout.frames[seat];
   const lines: string[] = [];
@@ -55,7 +62,7 @@ function answers(venue: (typeof VENUES)[number], seat: 0 | 1, question: Question
 
 describe("pitch frames", () => {
   it("answer every geometry question the way the old helpers did", () => {
-    for (const venue of VENUES) {
+    for (const venue of PAIR_VENUES) {
       const questions = Object.keys(QUESTIONS).filter(
         (key): key is Question => key in QUESTIONS
       );

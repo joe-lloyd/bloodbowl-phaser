@@ -29,8 +29,7 @@ import { clampToPitch } from "../rules/pitchBounds";
 import { CrowdInjuryOperation } from "./CrowdInjuryOperation";
 import { trapdoorOpens } from "../inducements/matchInducements";
 import { weatherEffects } from "../rules/weather";
-import { isOnPitch } from "../controllers/BallMovementController";
-import { obstacleKindAt } from "../rules/pitchSquares";
+import { isOnPitch, obstacleKindAt } from "../rules/pitchSquares";
 import { activeRules } from "../variants/activeMatch";
 import {
   type WallStrike,

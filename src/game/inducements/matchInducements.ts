@@ -17,7 +17,8 @@ import {
   type ReactionDecisionAnswer,
 } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
-import { GameConfig, isTrapdoorSquare } from "@/config/GameConfig";
+import { isTrapdoorSquare } from "@/config/GameConfig";
+import { isOnPitch } from "../rules/pitchSquares";
 import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { DiceController } from "../controllers/DiceController";
@@ -685,10 +686,7 @@ function validSpell(
   return square &&
     Number.isSafeInteger(square.x) &&
     Number.isSafeInteger(square.y) &&
-    square.x >= 0 &&
-    square.y >= 0 &&
-    square.x < GameConfig.PITCH_WIDTH &&
-    square.y < GameConfig.PITCH_HEIGHT
+    isOnPitch(square)
     ? { spell: "fireball", square: { x: square.x, y: square.y } }
     : null;
 }

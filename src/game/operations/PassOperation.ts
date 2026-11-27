@@ -1,6 +1,5 @@
 import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { GameOperation } from "../core/GameOperation";
-import { GameConfig } from "../../config/GameConfig";
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
@@ -13,9 +12,8 @@ import { CatchOperation } from "./CatchOperation";
 import { lostBallHandling, passModifier } from "../kickoff/ballConditions";
 import { interceptModifiers } from "../rules/rollPreview";
 import { ArmourOperation } from "./ArmourOperation";
-import { isOnPitch } from "../controllers/BallMovementController";
 import { settleOffObstacle } from "../rules/ballFlight";
-import { isWallSquare } from "../rules/pitchSquares";
+import { isOnPitch, isWallSquare } from "../rules/pitchSquares";
 import { ricochetDrop, ricochetPath } from "../rules/ricochetPass";
 import { holdsMeasure, offerMeasure } from "../inducements/matchInducements";
 import { DesperateMeasure } from "../inducements/desperateMeasures";
@@ -192,10 +190,7 @@ function occupiedSquares(
 }
 
 const isFreeOnPitch = (square: Square, occupied: Set<string>): boolean =>
-  square.x >= 0 &&
-  square.x < GameConfig.PITCH_WIDTH &&
-  square.y >= 0 &&
-  square.y < GameConfig.PITCH_HEIGHT &&
+  isOnPitch(square) &&
   !occupied.has(`${String(square.x)},${String(square.y)}`);
 
 function onTheBallStep(

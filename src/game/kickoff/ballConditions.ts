@@ -6,7 +6,7 @@ import {
   weatherEffects,
 } from "../rules/weather";
 import { activeLayout } from "../variants/activeMatch";
-import type { Square } from "../variants/pitchLayouts";
+import { type Square, twoTeamFrames } from "../variants/pitchLayouts";
 import { wideZoneOf } from "../rules/frames";
 import { type WideZone, WIDE_ZONES, hasDriveCondition } from "./driveEffects";
 
@@ -57,7 +57,7 @@ export function teamRerollBarred(
 }
 
 export function namedWideZone(square: Square): WideZone | null {
-  const zone = wideZoneOf(activeLayout().frames[0], square);
+  const zone = wideZoneOf(twoTeamFrames(activeLayout())[0], square);
   return zone === null ? null : WIDE_ZONES[zone];
 }
 

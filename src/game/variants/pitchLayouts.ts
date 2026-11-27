@@ -1,4 +1,4 @@
-import { type Frame, type Span, pairFrames } from "../rules/frames";
+import { type Frame, type Span, pairFrames, plusFrames } from "../rules/frames";
 
 export const VENUES = [
   "stadium",
@@ -6,6 +6,7 @@ export const VENUES = [
   "beach",
   "gutter-street",
   "gutter-sewer",
+  "deathbowl",
 ] as const;
 
 export type Venue = (typeof VENUES)[number];
@@ -28,13 +29,19 @@ export interface Barricade {
   rows: Span;
 }
 
+interface Area {
+  readonly columns: Span;
+  readonly rows: Span;
+}
+
 export interface PitchLayout {
   venue: Venue;
   label: string;
   cols: number;
   rows: number;
   surface: Surface;
-  frames: readonly [Frame, Frame];
+  frames: readonly [Frame, Frame] | readonly [Frame, Frame, Frame, Frame];
+  offPitch: readonly Area[];
   walledSidelines: boolean;
   obstacles: readonly Obstacle[];
   barricades: readonly Barricade[];
@@ -71,6 +78,7 @@ const GUTTER_BARRICADES: readonly Barricade[] = [
 
 const FULL_LENGTH = {
   cols: 26,
+  offPitch: [],
   trapdoors: [],
 } as const;
 
@@ -108,6 +116,7 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
         { min: 9, max: 10 },
       ],
     }),
+    offPitch: [],
     walledSidelines: false,
     obstacles: [],
     barricades: [],
@@ -152,6 +161,7 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
         { min: 7, max: 8 },
       ],
     }),
+    offPitch: [],
     walledSidelines: false,
     obstacles: [],
     barricades: [],
@@ -171,6 +181,24 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
     surface: "sewer",
     obstacles: gutterObstacles("sewer-pit"),
   },
+  deathbowl: {
+    venue: "deathbowl",
+    label: "Deathbowl arena",
+    cols: 21,
+    rows: 21,
+    surface: "grass",
+    frames: plusFrames(),
+    offPitch: [
+      { columns: { min: 0, max: 4 }, rows: { min: 0, max: 4 } },
+      { columns: { min: 16, max: 20 }, rows: { min: 0, max: 4 } },
+      { columns: { min: 0, max: 4 }, rows: { min: 16, max: 20 } },
+      { columns: { min: 16, max: 20 }, rows: { min: 16, max: 20 } },
+    ],
+    walledSidelines: false,
+    obstacles: [],
+    barricades: [],
+    trapdoors: [],
+  },
 };
 
 export function isVenue(value: unknown): value is Venue {
@@ -186,12 +214,27 @@ export function obstacleAt(
   );
 }
 
+export function twoTeamFrames(layout: PitchLayout): readonly [Frame, Frame] {
+  const { frames } = layout;
+  if (frames.length === 2) return frames;
+  throw new Error(
+    `The ${layout.label} seats ${String(frames.length)} teams, and this part of the game plays with two.`
+  );
+}
+
+const inArea = (area: Area, square: Square) =>
+  square.x >= area.columns.min &&
+  square.x <= area.columns.max &&
+  square.y >= area.rows.min &&
+  square.y <= area.rows.max;
+
 export function isInsideLayout(layout: PitchLayout, square: Square): boolean {
   return (
     square.x >= 0 &&
     square.y >= 0 &&
     square.x < layout.cols &&
-    square.y < layout.rows
+    square.y < layout.rows &&
+    layout.offPitch.every((area) => !inArea(area, square))
   );
 }
 

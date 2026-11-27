@@ -6,7 +6,7 @@ import { GamePhase } from "../../types/GameState";
 import { PlayerStatus, type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type FlowContext } from "../core/GameFlowManager";
-import { GameConfig } from "../../config/GameConfig";
+import { isOnPitch } from "../rules/pitchSquares";
 import { withRerollOffer } from "../skills";
 import { moveAllowance } from "../skills/movement";
 import { rushModifier } from "../inducements/matchInducements";
@@ -100,7 +100,7 @@ export class BallAndChainOperation extends GameOperation {
     const next = { x: from.x + dir.x, y: from.y + dir.y };
     const square: BallAndChainSquare = { fanaticId: fanatic.id, rushFailed };
 
-    if (!inBounds(next)) {
+    if (!isOnPitch(next)) {
       eventBus.emit(
         GameEventNames.UI_Notification,
         `${fanatic.playerName} lurches off the pitch!`
@@ -228,11 +228,3 @@ export async function moveBallAndChain(
   }
 }
 
-function inBounds({ x, y }: { x: number; y: number }): boolean {
-  return (
-    x >= 0 &&
-    y >= 0 &&
-    x < GameConfig.PITCH_WIDTH &&
-    y < GameConfig.PITCH_HEIGHT
-  );
-}

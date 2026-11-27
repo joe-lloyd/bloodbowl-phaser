@@ -1,7 +1,11 @@
 import type { Player } from "@/types/Player";
 import type { Team } from "@/types/Team";
 import type { Frame } from "./rules/frames";
-import type { PitchLayout, Square } from "./variants/pitchLayouts";
+import {
+  type PitchLayout,
+  type Square,
+  twoTeamFrames,
+} from "./variants/pitchLayouts";
 
 type SeatIndex = 0 | 1 | 2 | 3;
 
@@ -34,7 +38,7 @@ function refuseRepeatedTeams(teams: readonly Team[]): void {
 }
 
 export function seatTeams(teams: readonly Team[], layout: PitchLayout): Seating {
-  const [home, away] = layout.frames;
+  const [home, away] = twoTeamFrames(layout);
   const [first, second] = teams;
   if (teams.length !== layout.frames.length || !first || !second) {
     throw new Error(

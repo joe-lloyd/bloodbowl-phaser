@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import type { GameScene } from "./GameScene";
 import { GameEventNames } from "../types/events";
 import { TouchController } from "../game/controllers/TouchController";
+import { isOnPitch } from "../game/rules/pitchSquares";
 
 export function wirePointerInput(scene: GameScene): void {
   const pitch = () => scene.pitch;
@@ -20,7 +21,7 @@ export function wirePointerInput(scene: GameScene): void {
       if (!onCanvas(pointer) || pointer.wasTouch) return;
 
       const square = pitch().worldToGrid(pointer.worldX, pointer.worldY);
-      if (!pitch().isOnPitch(square) && !gameplay().passesAtWall(square))
+      if (!isOnPitch(square) && !gameplay().passesAtWall(square))
         scene.onBackgroundClick();
     });
 
@@ -30,7 +31,7 @@ export function wirePointerInput(scene: GameScene): void {
     if (!pointer.isDown) scene.raisePlayerAt(pointer.worldX, pointer.worldY);
     if (scene.isSetupActive) {
       const gridPos = pitch().worldToGrid(pointer.worldX, pointer.worldY);
-      if (pitch().isOnPitch(gridPos)) {
+      if (isOnPitch(gridPos)) {
         pitch().highlightHoverSquare(gridPos.x, gridPos.y);
       } else {
         pitch().clearHover();
@@ -63,7 +64,7 @@ export function wireTouchInput(scene: GameScene): TouchController {
   const touch = new TouchController(scene, camera, {
     tap: (at) => {
       const square = pitch().worldToGrid(at.worldX, at.worldY);
-      if (!pitch().isOnPitch(square) && !gameplay().passesAtWall(square))
+      if (!isOnPitch(square) && !gameplay().passesAtWall(square))
         scene.onBackgroundClick();
       gameplay().tap(at, scene.isSetupActive);
     },

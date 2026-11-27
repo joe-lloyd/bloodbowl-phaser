@@ -1,4 +1,8 @@
-import { PITCH_LAYOUTS, VENUES } from "../../src/game/variants/pitchLayouts";
+import {
+  PITCH_LAYOUTS,
+  VENUES,
+  twoTeamFrames,
+} from "../../src/game/variants/pitchLayouts";
 import {
   type Frame,
   blockOf,
@@ -24,13 +28,18 @@ function blenderGeometry(frames: readonly [Frame, Frame]) {
   };
 }
 
-const venues = VENUES.filter((venue) => venue !== "stadium").map((venue) => {
+const rendered = VENUES.filter(
+  (venue) => venue !== "stadium" && venue !== "deathbowl"
+);
+
+const venues = rendered.map((venue) => {
   const { frames, ...layout } = PITCH_LAYOUTS[venue];
   const dugouts = venueDugouts(PITCH_LAYOUTS[venue]);
   const gates = layout.walledSidelines
     ? { home: dugoutGateX(dugouts.home), away: dugoutGateX(dugouts.away) }
     : {};
-  return { ...layout, ...blenderGeometry(frames), dugouts, gates };
+  const pair = twoTeamFrames({ ...layout, frames });
+  return { ...layout, ...blenderGeometry(pair), dugouts, gates };
 });
 
 process.stdout.write(`${JSON.stringify(venues, null, 1)}\n`);

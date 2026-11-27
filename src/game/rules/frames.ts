@@ -1,6 +1,6 @@
 import type { Square } from "../variants/pitchLayouts";
 
-type Heading = "+x" | "-x";
+type Heading = "+x" | "-x" | "+y" | "-y";
 
 export interface Span {
   readonly min: number;
@@ -32,16 +32,27 @@ type WideZone = 0 | 1;
 const within = (value: number, span: Span) =>
   value >= span.min && value <= span.max;
 
+const runsAlongX = (heading: Heading) => heading === "+x" || heading === "-x";
+
+function forward(frame: Frame, value: number): number {
+  const reversed = frame.heading === "-x" || frame.heading === "-y";
+  return reversed ? frame.arm.length - 1 - value : value;
+}
+
 function toLocal(frame: Frame, square: Square): Local {
-  const { length, offset } = frame.arm;
-  const along = frame.heading === "+x" ? square.x : length - 1 - square.x;
-  return { along, across: square.y - offset };
+  const alongX = runsAlongX(frame.heading);
+  return {
+    along: forward(frame, alongX ? square.x : square.y),
+    across: (alongX ? square.y : square.x) - frame.arm.offset,
+  };
 }
 
 function fromLocal(frame: Frame, local: Local): Square {
-  const { length, offset } = frame.arm;
-  const x = frame.heading === "+x" ? local.along : length - 1 - local.along;
-  return { x, y: local.across + offset };
+  const along = forward(frame, local.along);
+  const across = local.across + frame.arm.offset;
+  return runsAlongX(frame.heading)
+    ? { x: along, y: across }
+    : { x: across, y: along };
 }
 
 function inArm(frame: Frame, local: Local): boolean {
@@ -59,7 +70,10 @@ export function scoresAt(frame: Frame, square: Square): boolean {
 
 export function onScrimmage(frame: Frame, square: Square): boolean {
   const local = toLocal(frame, square);
-  return inArm(frame, local) && local.along === frame.arm.scrimmage;
+  return (
+    local.along === frame.arm.scrimmage &&
+    within(local.across, frame.arm.setupAcross)
+  );
 }
 
 export function inOwnHalf(frame: Frame, square: Square): boolean {
@@ -143,5 +157,27 @@ export function pairFrames(shape: {
   return [
     { heading: "+x", arm },
     { heading: "-x", arm },
+  ];
+}
+
+const PLUS_ARM: Arm = {
+  length: 21,
+  width: 11,
+  offset: 5,
+  scrimmage: 6,
+  setupAcross: { min: 2, max: 8 },
+  centre: { min: 2, max: 8 },
+  wide: [
+    { min: 0, max: 1 },
+    { min: 9, max: 10 },
+  ],
+};
+
+export function plusFrames(): readonly [Frame, Frame, Frame, Frame] {
+  return [
+    { heading: "+y", arm: PLUS_ARM },
+    { heading: "-x", arm: PLUS_ARM },
+    { heading: "-y", arm: PLUS_ARM },
+    { heading: "+x", arm: PLUS_ARM },
   ];
 }

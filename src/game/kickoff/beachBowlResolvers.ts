@@ -1,7 +1,11 @@
 import { type Player } from "@/types/Player";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { activeLayout } from "../variants/activeMatch";
-import { isInsideLayout, type Square } from "../variants/pitchLayouts";
+import {
+  isInsideLayout,
+  type Square,
+  twoTeamFrames,
+} from "../variants/pitchLayouts";
 import { InjuryOperation } from "../operations/InjuryOperation";
 import { knockDownPlayer } from "../operations/knockDown";
 import { KickoffEvent, grantEffect } from "./kickoffEvents";
@@ -47,7 +51,7 @@ export function beachBowlResolvers(deps: ResolverDeps) {
 }
 
 function wadeTarget(square: Square, zone: WideZone, taken: (square: Square) => boolean): Square | null {
-  const { centre } = activeLayout().frames[0].arm;
+  const { centre } = twoTeamFrames(activeLayout())[0].arm;
   const step = zone === "top" ? 1 : -1;
   const first = zone === "top" ? centre.min : centre.max;
   for (let y = first; y >= centre.min && y <= centre.max; y += step) {
