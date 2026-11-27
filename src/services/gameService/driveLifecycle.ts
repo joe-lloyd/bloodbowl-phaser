@@ -5,7 +5,13 @@ import {
   type MatchResult,
   SubPhase,
 } from "@/types/GameState";
-import { activeRules, pairFrame } from "@/game/variants/activeMatch";
+import { activeRules } from "@/game/variants/activeMatch";
+import {
+  everyone,
+  pairTeams,
+  seatOf,
+  teamsOf,
+} from "@/game/seating";
 import { knockoutRecoveryTarget } from "@/game/rules/injuryTables";
 import { GameEventNames } from "@/types/events";
 import { isLeagueMode } from "@/types/Team";
@@ -58,19 +64,19 @@ export function startKickoff(parts: GameParts): void {
   });
 
   if (
-    [parts.team1, parts.team2].some((team) =>
+    teamsOf(parts.seating).some((team) =>
       holdsMeasure(state, team.id, DesperateMeasure.YOU_DOPE)
     )
   ) {
     parts.flowManager.add(new OfferYouDopeOperation());
   }
-  const kicking = [parts.team1, parts.team2].find(
+  const kicking = teamsOf(parts.seating).find(
     (team) => team.id === state.setup?.kickingTeamId
   );
   if (kicking?.players.every((p) => !p.gridPosition)) {
     parts.flowManager.add(
       new AutomaticTouchbackOperation(() =>
-        parts.ballManager.automaticTouchback(kicking.id === parts.team1.id)
+        parts.ballManager.automaticTouchback(kicking.id)
       )
     );
   }
@@ -148,7 +154,8 @@ function announceTouchdown(
   teamId: string,
   scorerId: string | undefined
 ): void {
-  const { team1, team2, state } = parts;
+  const { state } = parts;
+  const [team1, team2] = pairTeams(parts.seating);
   const scorer = scorerId ? parts.game.getPlayerById(scorerId) : undefined;
   const who = scorer?.playerName ?? parts.game.getTeam(teamId)?.name ?? teamId;
   const score = `${team1.name} ${String(state.score[team1.id] ?? 0)} : ${String(state.score[team2.id] ?? 0)} ${team2.name}`;
@@ -172,7 +179,7 @@ function announceTouchdown(
 }
 
 export function announceFullTime(parts: GameParts): void {
-  const { team1, team2 } = parts;
+  const [team1, team2] = pairTeams(parts.seating);
   const score1 = parts.state.score[team1.id] ?? 0;
   const score2 = parts.state.score[team2.id] ?? 0;
   const scoreline = `${team1.name} ${String(score1)} : ${String(score2)} ${team2.name}`;
@@ -186,7 +193,7 @@ function fullTimeOutcome(
   score1: number,
   score2: number
 ): string {
-  const { team1, team2 } = parts;
+  const [team1, team2] = pairTeams(parts.seating);
   const result = parts.state.result;
   if (result?.reason === "concession" || result?.reason === "forfeit") {
     return concededOutcome(parts, result);
@@ -208,7 +215,7 @@ function concededOutcome(parts: GameParts, result: MatchResult): string {
 
 export function rollFanFactors(parts: GameParts): void {
   if (!parts.state.paysWinnings || parts.state.fanFactors) return;
-  const teams = [parts.team1, parts.team2];
+  const teams = teamsOf(parts.seating);
   if (teams.every((team) => !isLeagueMode(team.advancementMode))) return;
   const fanFactors: Record<string, number> = {};
   for (const team of teams) {
@@ -222,9 +229,8 @@ export function rollFanFactors(parts: GameParts): void {
 }
 
 export function updateDedicatedFans(parts: GameParts): void {
-  const { team1, team2, state } = parts;
-  const penalties = state.result?.penalties ?? {};
-  for (const team of [team1, team2]) {
+  const penalties = parts.state.result?.penalties ?? {};
+  for (const team of teamsOf(parts.seating)) {
     updateTeamFans(parts, team, penalties);
   }
 }
@@ -250,7 +256,7 @@ export function endDrive(
   parts.flowManager.add(new KORecoveryOperation());
 
   if (upNext === null) return;
-  if (holdsDriveInducements(parts.state, [parts.team1, parts.team2]))
+  if (holdsDriveInducements(parts.state, teamsOf(parts.seating)))
     parts.flowManager.add(new PreDriveInducementsOperation());
   parts.flowManager.add(
     kickingTeamId
@@ -260,9 +266,9 @@ export function endDrive(
 }
 
 export function resetDriveState(parts: GameParts): void {
-  const { state, team1, team2 } = parts;
+  const { state } = parts;
 
-  restoreFrogs(state, [...team1.players, ...team2.players]);
+  restoreFrogs(state, everyone(parts.seating));
   parts.setupManager.resetForNewDrive();
   state.ballPosition = null;
   state.activePlayer = null;
@@ -289,7 +295,7 @@ export function resetDriveState(parts: GameParts): void {
 
   resetActivationMarks(parts.marks);
 
-  for (const p of [...team1.players, ...team2.players]) {
+  for (const p of everyone(parts.seating)) {
     if (p.conditions?.length)
       p.conditions = p.conditions.filter(
         (condition) => condition.type === PlayerCondition.FROG
@@ -318,10 +324,10 @@ export async function rollKORecovery(
   parts: GameParts,
   beat: () => Promise<void>
 ): Promise<void> {
-  const { state, team1, team2 } = parts;
+  const { state } = parts;
 
   const noRecovery = state.matchInducements?.noRecoveryPlayerIds ?? [];
-  const knockedOut = [...team1.players, ...team2.players].filter(
+  const knockedOut = everyone(parts.seating).filter(
     (p) => p.status === PlayerStatus.KO && !noRecovery.includes(p.id)
   );
   if (state.matchInducements) {
@@ -347,10 +353,7 @@ export async function rollKORecovery(
     forgetSeriousKnockout(state, player.id);
   }
 
-  assertSinglePlayerLocation(
-    [...team1.players, ...team2.players],
-    "rollKORecovery"
-  );
+  assertSinglePlayerLocation(everyone(parts.seating), "rollKORecovery");
 }
 
 export function checkForTouchdown(parts: GameParts, playerId: string): boolean {
@@ -360,7 +363,7 @@ export function checkForTouchdown(parts: GameParts, playerId: string): boolean {
   if (player.status !== PlayerStatus.ACTIVE) return false;
   if (!parts.ballManager.hasBall(playerId)) return false;
 
-  const frame = pairFrame(player.teamId === parts.team1.id);
+  const { frame } = seatOf(parts.seating, player.teamId);
   if (!scoresAt(frame, player.gridPosition)) {
     return false;
   }
@@ -372,7 +375,7 @@ function penaltyOutcome(
   parts: GameParts,
   penalties: Record<string, number>
 ): string {
-  const { team1, team2 } = parts;
+  const [team1, team2] = pairTeams(parts.seating);
   const won1 = penalties[team1.id] ?? 0;
   const won2 = penalties[team2.id] ?? 0;
   const winner = won1 > won2 ? team1 : team2;
@@ -384,7 +387,8 @@ function updateTeamFans(
   team: Team,
   penalties: Record<string, number>
 ): void {
-  const { team1, team2, state } = parts;
+  const { state } = parts;
+  const [team1, team2] = pairTeams(parts.seating);
   const dice = parts.diceController;
   const otherId = team.id === team1.id ? team2.id : team1.id;
   const lead =

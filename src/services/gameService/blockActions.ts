@@ -17,6 +17,7 @@ import { trapdoorOpens } from "@/game/inducements/matchInducements";
 import { withDriveModifiers } from "@/game/kickoff/driveEffects";
 import { type BlockResult } from "../BlockResolutionService";
 import type { GameParts } from "./parts";
+import { everyone } from "@/game/seating";
 import { awaitingSecondAction } from "./activation";
 import { rushSucceeds } from "./rush";
 
@@ -298,13 +299,10 @@ async function triggerFollowUp(
     flow: parts.flowManager,
     triggers: [],
   };
+  const standing = adjacentStanding(from, everyone(parts.seating));
   await foldTrigger(
     "onFollowUp",
-    gatherParticipants(
-      attacker,
-      undefined,
-      adjacentStanding(from, [...parts.team1.players, ...parts.team2.players])
-    ),
+    gatherParticipants(attacker, undefined, standing),
     followCtx
   );
   for (const t of followCtx.triggers) {

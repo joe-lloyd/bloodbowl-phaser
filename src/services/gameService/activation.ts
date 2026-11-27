@@ -13,7 +13,7 @@ import { FinishBallAndChainSquare } from "@/game/operations/BallAndChainOperatio
 import { BloodlustBiteOperation } from "@/game/operations/BloodlustBiteOperation";
 import { CrowdTakesActionOperation } from "@/game/operations/CrowdTakesActionOperation";
 import { canScoreWithoutDice } from "@/game/rules/stalling";
-import { pairFrame } from "@/game/variants/activeMatch";
+import { everyone, seatOf } from "@/game/seating";
 import { moveAllowance } from "@/game/skills/movement";
 import {
   holdsMeasure,
@@ -39,7 +39,7 @@ export function canActivate(parts: GameParts, playerId: string): boolean {
   const player = parts.game.getPlayerById(playerId);
   if (!player) return false;
 
-  const team = player.teamId === parts.team1.id ? parts.team1 : parts.team2;
+  const { team } = seatOf(parts.seating, player.teamId);
   return (
     activationValidator.canActivate(player, parts.state.turn) &&
     !missesThisTurn(player, parts.state, parts.state.turn.turnNumber) &&
@@ -195,8 +195,8 @@ export function couldScoreWithoutDice(
   return canScoreWithoutDice({
     player,
     state: parts.state,
-    players: [...parts.team1.players, ...parts.team2.players],
-    frame: pairFrame(player.teamId === parts.team1.id),
+    players: everyone(parts.seating),
+    frame: seatOf(parts.seating, player.teamId).frame,
   });
 }
 

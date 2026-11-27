@@ -7,6 +7,7 @@ import { CasualtyOperation } from "@/game/operations/CasualtyOperation";
 import { movePlayerToBox } from "@/game/rules/playerLocation";
 import { nearestFreeSquare } from "@/game/rules/pitchSquares";
 import type { GameParts } from "./parts";
+import { everyone, seatOf } from "@/game/seating";
 
 type PitRoll = "casualty" | "stays" | "climbs-out";
 
@@ -40,9 +41,7 @@ function pitCasualty(parts: GameParts, player: Player): void {
     cause: "special",
     sppEligible: false,
   });
-  const owner = [parts.team1, parts.team2].find(
-    (team) => team.id === player.teamId
-  );
+  const owner = seatOf(parts.seating, player.teamId).team;
   const injuryTable = injuryTableFor(parts.state, owner);
   const roll = rollCasualty(parts.diceController, player, injuryTable);
   parts.flowManager.add(new CasualtyOperation(player.id, roll), true);
@@ -51,7 +50,7 @@ function pitCasualty(parts: GameParts, player: Player): void {
 export function rollSewerPits(parts: GameParts): boolean {
   if (parts.state.phase !== GamePhase.PLAY) return false;
   let queued = false;
-  for (const player of [...parts.team1.players, ...parts.team2.players]) {
+  for (const player of everyone(parts.seating)) {
     const pit = player.sewerPit;
     if (!pit) continue;
     const roll = parts.diceController.rollD6(

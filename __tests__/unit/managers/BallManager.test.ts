@@ -1,3 +1,5 @@
+import { seatTeams } from "../../../src/game/seating";
+import { activeLayout } from "../../../src/game/variants/activeMatch";
 import { newKick } from "../../../src/game/kickoff/kickRecord";
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -79,8 +81,7 @@ describe("BallManager", () => {
     manager = new BallManager(
       mockEventBus,
       mockState,
-      mockTeam1,
-      mockTeam2,
+      seatTeams([mockTeam1, mockTeam2], activeLayout()),
       mockWeatherManager,
       mockDiceController,
       mockCallbacks
@@ -119,8 +120,7 @@ describe("BallManager", () => {
       manager = new BallManager(
         mockEventBus,
         mockState,
-        mockTeam1,
-        mockTeam2,
+        seatTeams([mockTeam1, mockTeam2], activeLayout()),
         mockWeatherManager,
         mockDiceController,
         mockCallbacks,

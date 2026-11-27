@@ -47,9 +47,9 @@ import * as drive from "./gameService/driveLifecycle";
 import * as inducements from "./gameService/inducements";
 import * as matchStart from "./gameService/matchStart";
 import * as moves from "./gameService/moveActions";
-import * as roster from "./gameService/roster";
 import * as specials from "./gameService/specialActions";
 import type { MoveStep } from "../headless/protocol";
+import * as seating from "../game/seating";
 
 export class GameService implements IGameService {
   private readonly parts: GameParts;
@@ -586,15 +586,15 @@ export class GameService implements IGameService {
   }
 
   public getPlayerAt(x: number, y: number): Player | undefined {
-    return roster.playerAt(this.parts, x, y);
+    return seating.playerAt(this.parts.seating, { x, y });
   }
 
   public getOpponents(teamId: string): Player[] {
-    return roster.opponentsOf(this.parts, teamId);
+    return seating.opponentsOf(this.parts.seating, teamId);
   }
 
   public getTeammates(playerId: string): Player[] {
-    return roster.teammatesOf(this.parts, playerId);
+    return seating.teammatesOf(this.parts.seating, playerId);
   }
 
   setBallPosition(x: number, y: number): void {
@@ -634,7 +634,7 @@ export class GameService implements IGameService {
   }
 
   public getPlayerById(playerId: string): Player | undefined {
-    return roster.playerById(this.parts, playerId);
+    return seating.playerById(this.parts.seating, playerId);
   }
 
   getMovementUsed(playerId: string): number {
@@ -706,7 +706,7 @@ export class GameService implements IGameService {
   }
 
   public getTeam(teamId: string): Team | undefined {
-    return roster.teamById(this.parts, teamId);
+    return seating.teamsOf(this.parts.seating).find((team) => team.id === teamId);
   }
 
   public getTeams(): [Team, Team] {

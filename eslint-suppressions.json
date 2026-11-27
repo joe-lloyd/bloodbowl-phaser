@@ -3349,13 +3349,10 @@
       "count": 6
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 6
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
+      "count": 5
     },
     "@typescript-eslint/prefer-optional-chain": {
-      "count": 2
+      "count": 1
     },
     "complexity": {
       "count": 1
@@ -3532,9 +3529,6 @@
     },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 7
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
     },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 2

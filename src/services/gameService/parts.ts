@@ -1,4 +1,9 @@
-import { activateMatchFormat, formatOf } from "@/game/variants/activeMatch";
+import {
+  activateMatchFormat,
+  activeLayout,
+  formatOf,
+} from "@/game/variants/activeMatch";
+import { everyone, pairTeams, type Seating, seatTeams } from "@/game/seating";
 import type { GameService } from "../GameService";
 import { type IEventBus } from "../EventBus.js";
 import { type IRNGService } from "../rng/RNGService.js";
@@ -59,6 +64,7 @@ export interface GameParts {
   state: GameState;
   team1: Team;
   team2: Team;
+  seating: Seating;
   eventBus: IEventBus;
   diceController: DiceController;
   decisionService: DecisionService;
@@ -127,6 +133,7 @@ function createCore({
 }: PartOptions) {
   const state = initialState ?? createInitialState({ team1, team2 });
   activateMatchFormat(formatOf(state));
+  const seating = seatTeams([team1, team2], activeLayout());
 
   if (!initialState) {
     SetupManager.sanitizeTeam(team1);
@@ -160,6 +167,7 @@ function createCore({
     eventBus,
     team1,
     team2,
+    seating,
     state,
     marks,
     diceController,
@@ -177,16 +185,14 @@ function makeSetupManager(core: Core, delay: DelayProvider): SetupManager {
     game,
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     diceController,
     weatherService,
   } = core;
   return new SetupManager(
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     weatherService,
     {
       onKickoffRequested: () => {
@@ -203,12 +209,11 @@ function makeTurnManager(
   delay: DelayProvider,
   getParts: () => GameParts
 ): TurnManager {
-  const { game, eventBus, state, team1, team2, diceController } = core;
+  const { game, eventBus, state, seating, diceController } = core;
   return new TurnManager(
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     {
       onPhaseChanged: (phase, subPhase) => {
         eventBus.emit(GameEventNames.PhaseChanged, {
@@ -219,7 +224,7 @@ function makeTurnManager(
       onHalfEnded: (next) => {
         game.endDrive("halftime", next);
       },
-      shootout: () => penaltyShootout(diceController, team1, team2),
+      shootout: () => penaltyShootout(diceController, ...pairTeams(seating)),
       onTurnEnding: (endingTeamId) => {
         handleTurnEnding(getParts(), endingTeamId);
       },
@@ -242,8 +247,7 @@ function makeBallManager(
     game,
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     diceController,
     weatherService,
     flowManager,
@@ -251,8 +255,7 @@ function makeBallManager(
   return new BallManager(
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     weatherService,
     diceController,
     {
@@ -316,7 +319,7 @@ function makeKickoffManagers(
 }
 
 function bindPartEvents(core: Core, getParts: () => GameParts): void {
-  const { eventBus, state, team1, team2, marks } = core;
+  const { eventBus, state, seating, marks } = core;
   eventBus.on(
     GameEventNames.PlayerKnockedDown,
     ({ playerId }: { playerId: string }) => {
@@ -333,14 +336,14 @@ function bindPartEvents(core: Core, getParts: () => GameParts): void {
   });
   eventBus.on(GameEventNames.PhaseChanged, ({ phase }) => {
     if (phase === GamePhase.HALFTIME)
-      breakSouvenirs(state, [...team1.players, ...team2.players]);
+      breakSouvenirs(state, everyone(seating));
     if (phase !== GamePhase.GAME_OVER) {
       return;
     }
 
     state.bribes = {};
 
-    revokeMatchGrants(state, [...team1.players, ...team2.players]);
+    revokeMatchGrants(state, everyone(seating));
     announceFullTime(getParts());
 
     rollFanFactors(getParts());

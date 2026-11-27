@@ -34,7 +34,18 @@ import {
   settleOffObstacle,
 } from "../rules/ballFlight";
 import { edgeCrossed, isOnPitch } from "../rules/pitchSquares";
-import { activeRules, pairFrame } from "../variants/activeMatch";
+import { activeRules } from "../variants/activeMatch";
+import type { Frame } from "../rules/frames";
+import {
+  everyone,
+  opponentsOf,
+  pairTeams,
+  playerAt,
+  playerById,
+  type Seating,
+  seatOf,
+  teamsOf,
+} from "../seating";
 import { inOwnHalf } from "../rules/frames";
 import { BounceOperation } from "../operations/BounceOperation";
 import { type ReactionDecisionAnswer } from "../../types/decisions";
@@ -70,16 +81,14 @@ export class BallManager {
 
   private eventBus: IEventBus;
   private state: GameState;
-  private team1: Team;
-  private team2: Team;
+  private seating: Seating;
   private diceController: DiceController;
   private callbacks: BallCallbacks;
   private delay: DelayProvider;
   constructor(
     eventBus: IEventBus,
     state: GameState,
-    team1: Team,
-    team2: Team,
+    seating: Seating,
     _weatherService: WeatherManager,
     diceController: DiceController,
     callbacks: BallCallbacks,
@@ -87,8 +96,7 @@ export class BallManager {
   ) {
     this.eventBus = eventBus;
     this.state = state;
-    this.team1 = team1;
-    this.team2 = team2;
+    this.seating = seating;
     this.diceController = diceController;
     this.callbacks = callbacks;
     this.delay = delay;
@@ -165,7 +173,16 @@ export class BallManager {
   }
 
   private isTeam1Kicking(): boolean {
-    return this.state.kick?.kickingTeamId !== this.team2.id;
+    return this.state.kick?.kickingTeamId !== pairTeams(this.seating)[1].id;
+  }
+
+  private pairTeam(isTeam1: boolean): Team {
+    const [home, away] = pairTeams(this.seating);
+    return isTeam1 ? home : away;
+  }
+
+  private kickingFrame(): Frame {
+    return seatOf(this.seating, this.pairTeam(this.isTeam1Kicking()).id).frame;
   }
 
   private emitKicked({ aim }: KickRecord): void {
@@ -192,9 +209,7 @@ export class BallManager {
   ): Promise<void> {
     this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.ROLL_KICKOFF);
 
-    const kicker = [...this.team1.players, ...this.team2.players].find(
-      (p) => p.id === playerId
-    );
+    const kicker = playerById(this.seating, playerId);
     const useKickD3 = !!kicker && hasSkill(kicker.skills ?? [], SkillType.KICK);
     if (useKickD3) {
       this.eventBus.emit(GameEventNames.SkillTriggered, {
@@ -205,7 +220,7 @@ export class BallManager {
     }
 
     const result = this.kickoffController.calculateKickDestination(
-      { targetX,targetY,isTeam1Kicking,useKickD3,kickingTeamId: isTeam1Kicking? this.team1.id:this.team2.id }    );
+      { targetX,targetY,isTeam1Kicking,useKickD3,kickingTeamId: this.pairTeam(isTeam1Kicking).id }    );
 
     this.announceWallHits(result.wallHits);
     if (result.isTouchback) {
@@ -217,7 +232,7 @@ export class BallManager {
 
     const kick = {
       ...newKick(
-        (isTeam1Kicking ? this.team1 : this.team2).id,
+        this.pairTeam(isTeam1Kicking).id,
         "reaction",
         result.isTouchback
       ),
@@ -233,7 +248,7 @@ export class BallManager {
     rehearsal: KickoffRehearsal
   ): Promise<void> {
     this.state.kick = {
-      ...newKick((isTeam1Kicking ? this.team1 : this.team2).id, "event"),
+      ...newKick(this.pairTeam(isTeam1Kicking).id, "event"),
       aim: { playerId: "", targetX: landing.x, targetY: landing.y },
       rehearsal,
     };
@@ -241,12 +256,8 @@ export class BallManager {
     return this.resumeKick();
   }
 
-  public automaticTouchback(isTeam1Kicking: boolean): Promise<void> {
-    const kick = newKick(
-      (isTeam1Kicking ? this.team1 : this.team2).id,
-      "placing",
-      true
-    );
+  public automaticTouchback(kickingTeamId: string): Promise<void> {
+    const kick = newKick(kickingTeamId, "placing", true);
     this.state.kick = kick;
     this.state.ballPosition = null;
     this.eventBus.emit(
@@ -274,8 +285,8 @@ export class BallManager {
   private async resolveKickoffOnTheBall(
     isTeam1Kicking: boolean
   ): Promise<void> {
-    const receiving = isTeam1Kicking ? this.team2 : this.team1;
-    const opponents = isTeam1Kicking ? this.team1 : this.team2;
+    const receiving = this.pairTeam(!isTeam1Kicking);
+    const opponents = this.pairTeam(isTeam1Kicking);
     const reactor = kickoffOnTheBallReactor(receiving, opponents);
     const flow = this.callbacks.getFlowManager?.();
     if (!reactor?.gridPosition || !flow || !this.state.ballPosition) return;
@@ -295,7 +306,7 @@ export class BallManager {
     const path: { x: number; y: number }[] = [];
     for (let step = 0; step < 3; step++) {
       const occupied = new Set(
-        [...this.team1.players, ...this.team2.players]
+        everyone(this.seating)
           .filter((player) => player.id !== reactor.id && player.gridPosition)
           .map(
             (player) =>
@@ -410,7 +421,7 @@ export class BallManager {
 
   private bringDown({ x, y }: { x: number; y: number }): void {
     const landing = { x, y };
-    const occupant = this.playerAt(landing);
+    const occupant = playerAt(this.seating, landing);
     const catcher = occupant ?? this.divingCatcherAt(landing);
     this.callbacks.getFlowManager?.().add(
       catcher
@@ -427,7 +438,7 @@ export class BallManager {
 
   public kickoffBounceTouchback(to: { x: number; y: number }): boolean {
     const touchback = isOnPitch(to)
-      ? inOwnHalf(pairFrame(this.isTeam1Kicking()), to)
+      ? inOwnHalf(this.kickingFrame(), to)
       : edgeCrossed(to) === "crowd";
     if (!touchback) return false;
     this.touchback();
@@ -436,7 +447,7 @@ export class BallManager {
 
   private touchback(): void {
     this.state.ballPosition = null;
-    this.state.kick ??= newKick(this.team1.id, "landed");
+    this.state.kick ??= newKick(pairTeams(this.seating)[0].id, "landed");
     this.awardTouchbackToReceivers(this.state.kick);
   }
 
@@ -447,7 +458,7 @@ export class BallManager {
   }
 
   private awardTouchbackToReceivers(kick: KickRecord): void {
-    const team = [this.team1, this.team2].find(
+    const team = teamsOf(this.seating).find(
       (t) => t.id === this.state.activeTeamId
     );
     const taker = team?.players.some(
@@ -468,9 +479,7 @@ export class BallManager {
     const kick = this.state.kick;
     if (!kick?.touchbackTeamId) return false;
 
-    const player = [...this.team1.players, ...this.team2.players].find(
-      (p) => p.id === playerId
-    );
+    const player = playerById(this.seating, playerId);
     if (
       !player ||
       player.teamId !== kick.touchbackTeamId ||
@@ -569,7 +578,7 @@ export class BallManager {
     if (kickoff && this.kickoffBounceTouchback(landing)) return;
     this.state.ballPosition = { ...landing };
     this.eventBus.emit(GameEventNames.BallPlaced, { ...landing });
-    const occupant = this.playerAt(landing);
+    const occupant = playerAt(this.seating, landing);
     this.callbacks
       .getFlowManager?.()
       .add(
@@ -593,12 +602,7 @@ export class BallManager {
     });
     this.eventBus.emit(GameEventNames.BallPlaced, landing);
 
-    const occupant = [...this.team1.players, ...this.team2.players].find(
-      (p) =>
-        p.gridPosition &&
-        p.gridPosition.x === landing.x &&
-        p.gridPosition.y === landing.y
-    );
+    const occupant = playerAt(this.seating, landing);
     if (occupant) {
       this.callbacks
         .getFlowManager?.()
@@ -618,19 +622,11 @@ export class BallManager {
     }
   }
 
-  private playerAt(square: { x: number; y: number }): Player | undefined {
-    return [...this.team1.players, ...this.team2.players].find(
-      (player) =>
-        player.gridPosition?.x === square.x &&
-        player.gridPosition?.y === square.y
-    );
-  }
-
   private divingCatcherAt(landing: {
     x: number;
     y: number;
   }): Player | undefined {
-    return [...this.team1.players, ...this.team2.players]
+    return everyone(this.seating)
       .filter(
         (player) =>
           player.gridPosition &&
@@ -652,10 +648,9 @@ export class BallManager {
     player: Player,
     position: { x: number; y: number }
   ): boolean {
-    const oppTeam = player.teamId === this.team1.id ? this.team2 : this.team1;
     let standingEnemies = 0;
 
-    for (const p of oppTeam.players) {
+    for (const p of opponentsOf(this.seating, player.teamId)) {
       if (!(p.status === PlayerStatus.ACTIVE && p.gridPosition)) {
         continue;
       }
@@ -688,9 +683,7 @@ export class BallManager {
   }
 
   public hasBall(playerId: string): boolean {
-    const p1 = this.team1.players.find((p) => p.id === playerId);
-    const p2 = this.team2.players.find((p) => p.id === playerId);
-    const player = p1 || p2;
+    const player = playerById(this.seating, playerId);
 
     return !!player && ballOnSquare(this.state, player.gridPosition);
   }

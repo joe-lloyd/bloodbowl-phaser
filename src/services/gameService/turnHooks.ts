@@ -23,6 +23,7 @@ import {
   weatherActsAtTurnEnd,
 } from "@/game/kickoff/driveHazards";
 import type { GameParts } from "./parts";
+import { everyone, opponentsOf, rivalsOf } from "@/game/seating";
 import { whenSettled } from "./activation";
 
 export function endKickoffTurnOnFall(
@@ -45,7 +46,7 @@ export function onPlayerDowned(parts: GameParts, playerId: string): void {
 }
 
 export function sweepChomped(parts: GameParts): void {
-  for (const player of [...parts.team1.players, ...parts.team2.players]) {
+  for (const player of everyone(parts.seating)) {
     const chomp = (player.conditions ?? []).find(
       (c) => c.type === PlayerCondition.CHOMPED
     );
@@ -68,9 +69,8 @@ function castSportsWizards(
   endingTeamId: string
 ): Promise<void> | null {
   if (parts.state.phase !== GamePhase.PLAY) return null;
-  const other =
-    endingTeamId === parts.team1.id ? parts.team2.id : parts.team1.id;
-  const casters = [endingTeamId, other].filter((teamId) =>
+  const rivals = rivalsOf(parts.seating, endingTeamId).map(({ team }) => team.id);
+  const casters = [endingTeamId, ...rivals].filter((teamId) =>
     holdsSportsWizard(parts.state, teamId)
   );
   const novice = holdsNoviceWizard(parts.state, endingTeamId);
@@ -109,8 +109,9 @@ export function handleTurnEnding(parts: GameParts, endingTeamId: string): void {
     });
   }
 
-  const reacting = endingTeamId === parts.team1.id ? parts.team2 : parts.team1;
-  const players = reacting.players.filter((p) => p.gridPosition);
+  const players = opponentsOf(parts.seating, endingTeamId).filter(
+    (p) => p.gridPosition
+  );
   const ctx: TurnEndingContext = {
     endingTeamId,
     players,
