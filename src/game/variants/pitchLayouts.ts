@@ -1,3 +1,5 @@
+import { type Frame, type Span, pairFrames } from "../rules/frames";
+
 export const VENUES = [
   "stadium",
   "street",
@@ -21,11 +23,6 @@ export interface Obstacle extends Square {
   kind: ObstacleKind;
 }
 
-interface Span {
-  min: number;
-  max: number;
-}
-
 export interface Barricade {
   afterColumn: number;
   rows: Span;
@@ -41,6 +38,7 @@ export interface PitchLayout {
   noMansLand: Span | null;
   centreRows: Span;
   wideZoneRows: { top: Span; bottom: Span };
+  frames: readonly [Frame, Frame];
   walledSidelines: boolean;
   obstacles: readonly Obstacle[];
   barricades: readonly Barricade[];
@@ -87,6 +85,16 @@ const GUTTER = {
   rows: 15,
   centreRows: { min: 4, max: 10 },
   wideZoneRows: { top: { min: 0, max: 3 }, bottom: { min: 11, max: 14 } },
+  frames: pairFrames({
+    cols: 26,
+    rows: 15,
+    lines: [12, 13],
+    centre: { min: 4, max: 10 },
+    wide: [
+      { min: 0, max: 3 },
+      { min: 11, max: 14 },
+    ],
+  }),
   walledSidelines: true,
   barricades: GUTTER_BARRICADES,
 } as const;
@@ -102,6 +110,16 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
     noMansLand: { min: 7, max: 12 },
     centreRows: { min: 2, max: 8 },
     wideZoneRows: { top: { min: 0, max: 1 }, bottom: { min: 9, max: 10 } },
+    frames: pairFrames({
+      cols: 20,
+      rows: 11,
+      lines: [6, 13],
+      centre: { min: 2, max: 8 },
+      wide: [
+        { min: 0, max: 1 },
+        { min: 9, max: 10 },
+      ],
+    }),
     walledSidelines: false,
     obstacles: [],
     barricades: [],
@@ -118,6 +136,16 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
     surface: "cobbles",
     centreRows: { min: 2, max: 4 },
     wideZoneRows: { top: { min: 0, max: 1 }, bottom: { min: 5, max: 6 } },
+    frames: pairFrames({
+      cols: 26,
+      rows: 7,
+      lines: [12, 13],
+      centre: { min: 2, max: 4 },
+      wide: [
+        { min: 0, max: 1 },
+        { min: 5, max: 6 },
+      ],
+    }),
     walledSidelines: true,
     obstacles: [],
     barricades: [],
@@ -132,6 +160,16 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
     noMansLand: { min: 7, max: 12 },
     centreRows: { min: 2, max: 6 },
     wideZoneRows: { top: { min: 0, max: 1 }, bottom: { min: 7, max: 8 } },
+    frames: pairFrames({
+      cols: 20,
+      rows: 9,
+      lines: [6, 13],
+      centre: { min: 2, max: 6 },
+      wide: [
+        { min: 0, max: 1 },
+        { min: 7, max: 8 },
+      ],
+    }),
     walledSidelines: false,
     obstacles: [],
     barricades: [],
