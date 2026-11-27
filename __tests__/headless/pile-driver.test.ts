@@ -46,8 +46,8 @@ async function knockDownAndFollowUp(
     events.push(...response.events);
     return response;
   };
-  const attacker = game.ctx.team1.players[0];
-  const defender = game.ctx.team2.players[0];
+  const attacker = game.ctx.teams[0].players[0];
+  const defender = game.ctx.teams[1].players[0];
   await run({
     type: "declare-action",
     playerId: fixtureValue(attacker).id,
@@ -150,10 +150,10 @@ describe("Pile Driver", () => {
 
     forceDice(game.ctx.rng, [6]);
     await commit(game, [
-      bought(game.ctx.team1.id, Inducement.DESPERATE_MEASURES, 1),
+      bought(game.ctx.teams[0].id, Inducement.DESPERATE_MEASURES, 1),
     ]);
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     const events: EmittedEvent[] = [];
     let response: CommandResponse | undefined;
     for (const command of [

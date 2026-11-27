@@ -15,6 +15,7 @@ import { secretWeaponsAfterDrive } from "./secretWeaponsAfterDrive";
 import { DiceController } from "../controllers/DiceController";
 import { rollYouDopeCollapse } from "../inducements/matchInducements";
 import { rollOff } from "../rules/extraTime";
+import { pairSeating, pairTeams } from "../seating";
 import {
   assertSinglePlayerLocation,
   movePlayerToBox,
@@ -147,7 +148,7 @@ function driveEndFaints(gameService: IGameService): Player[] {
   return heatwaveCasualties(teams.flatMap((team) => team.players), dice);
 }
 
-function swelteringHeat(teams: Team[], dice: DiceController): Player[] {
+function swelteringHeat(teams: readonly Team[], dice: DiceController): Player[] {
   const count = dice.rollD3("Sweltering Heat");
   return teams.flatMap((team) => {
     const pool = team.players.filter((p) => !!p.gridPosition);
@@ -208,7 +209,7 @@ export class ExtraTimeKickoffOperation extends GameOperation {
 
   async execute(context: FlowContext): Promise<void> {
     const { gameService } = context;
-    const [home, away] = gameService.getTeams();
+    const [home, away] = pairTeams(pairSeating(gameService.getSeating()));
     const winnerId = rollOff(
       gameService.getDiceController(),
       "Extra Time roll-off",

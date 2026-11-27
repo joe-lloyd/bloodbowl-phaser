@@ -51,7 +51,7 @@ describe("the kicking team in a match save", () => {
       seed: 1,
       kickingTeamId: "team2",
     });
-    const kicker = game.ctx.team2.id;
+    const kicker = game.ctx.teams[1].id;
     expect(game.driveKickingTeamId()).toBe(kicker);
 
     const save = game.matchSave();

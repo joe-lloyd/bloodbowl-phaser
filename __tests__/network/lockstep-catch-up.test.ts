@@ -48,9 +48,9 @@ describe("two pages that say hello at once", () => {
         transport: end,
         game,
         selfId: `${side}-uid`,
-        myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
-        peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
-        hostTeamId: game.ctx.team1.id,
+        myTeamId: side === "host" ? game.ctx.teams[0].id : game.ctx.teams[1].id,
+        peerTeamId: side === "host" ? game.ctx.teams[1].id : game.ctx.teams[0].id,
+        hostTeamId: game.ctx.teams[0].id,
         onDesync: (detail) => { desyncs.push(`${side}: ${detail}`); },
       });
     const host = session(hostGame, hostEnd, "host");

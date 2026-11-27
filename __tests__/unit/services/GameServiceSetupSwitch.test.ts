@@ -18,8 +18,7 @@ describe("GameService Setup Flow", () => {
     const rngService = new RNGService(1);
     return new GameService({
       eventBus,
-      team1,
-      team2,
+      teams: [team1, team2],
       rngService,
       blockResolutionService: new BlockResolutionService(rngService),
     });

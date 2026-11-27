@@ -31,7 +31,7 @@ for (let i = 0; i < Number(matchArg); i++) {
       id: `sim-${String(seed)}`,
       mode: "computer",
       seed,
-      teams: [game.ctx.team1, game.ctx.team2],
+      teams: [game.ctx.teams[0], game.ctx.teams[1]],
     })
   );
   await grantSimInducements(game);

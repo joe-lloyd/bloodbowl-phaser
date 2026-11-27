@@ -1294,7 +1294,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               r.decisions.some(
                 (d) =>
                   d.type === "block-dice" &&
-                  d.chooserTeamId === r.game.ctx.team1.id
+                  d.chooserTeamId === r.game.ctx.teams[0].id
               ) &&
               ["team1:1", "team1:2", "team1:3"].some((ref) =>
                 playerDown(r, ref)

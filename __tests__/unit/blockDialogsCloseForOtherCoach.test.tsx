@@ -40,8 +40,8 @@ describe("block dialogs on the other coach's screen", () => {
   it("close once the engine settles the block and the follow-up", async () => {
     for (let seed = 1; seed < 40; seed++) {
       const game = new HeadlessGame({ scenario, seed });
-      const [attacker] = game.ctx.team1.players;
-      const [defender] = game.ctx.team2.players;
+      const [attacker] = game.ctx.teams[0].players;
+      const [defender] = game.ctx.teams[1].players;
 
       container?.remove();
       container = document.createElement("div");
@@ -114,8 +114,8 @@ describe("block dialogs on the other coach's screen", () => {
 
   it("closes when this engine refuses the block, instead of covering the board", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const [attacker] = game.ctx.team1.players;
-    const [defender] = game.ctx.team2.players;
+    const [attacker] = game.ctx.teams[0].players;
+    const [defender] = game.ctx.teams[1].players;
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);

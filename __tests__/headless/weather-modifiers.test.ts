@@ -51,7 +51,7 @@ async function pass(weather: Weather, interceptor: boolean, seed: number) {
     scenario: passScenario(weather, interceptor),
     seed,
   });
-  const passer = fixtureValue(game.ctx.team1.players[0]).id;
+  const passer = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: passer,
@@ -67,7 +67,7 @@ async function pass(weather: Weather, interceptor: boolean, seed: number) {
   if (res.pendingDecision?.type === "interception") {
     const reply = await game.execute({
       type: "choose-interception",
-      playerId: fixtureValue(game.ctx.team2.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[1].players[0]).id,
     });
     events.push(...reply.events);
   }
@@ -86,7 +86,7 @@ async function walkOntoBall(weather: Weather) {
     }),
     seed: 1,
   });
-  const mover = fixtureValue(game.ctx.team1.players[0]).id;
+  const mover = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: mover,
@@ -112,7 +112,7 @@ async function rushOneSquare(weather: Weather) {
     }),
     seed: 1,
   });
-  const mover = fixtureValue(game.ctx.team1.players[0]).id;
+  const mover = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: mover,

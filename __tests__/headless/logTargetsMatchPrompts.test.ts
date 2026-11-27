@@ -30,7 +30,7 @@ describe("dice log targets", () => {
     };
     const game = new HeadlessGame({ scenario, seed: 3 });
     game.ctx.gameService.getState().weather = "Blizzard";
-    const runner = game.ctx.team1.players[0];
+    const runner = game.ctx.teams[0].players[0];
     const ma = fixtureValue(runner).stats.MA;
     const path = Array.from({ length: ma + 1 }, (_, i) => ({
       x: 6 + i,
@@ -72,8 +72,8 @@ describe("dice log targets", () => {
       },
     };
     const game = new HeadlessGame({ scenario, seed: 2 });
-    const fouler = game.ctx.team1.players[0];
-    const victim = game.ctx.team2.players[0];
+    const fouler = game.ctx.teams[0].players[0];
+    const victim = game.ctx.teams[1].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(fouler).id,

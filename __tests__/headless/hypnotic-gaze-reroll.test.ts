@@ -35,9 +35,9 @@ const diceOf = (r: { events: { name: string; data?: unknown }[] }) =>
 describe("Hypnotic Gaze re-roll", () => {
   it("offers a Team Re-roll on a failed gaze and the re-roll can land it", async () => {
     const game = new HeadlessGame({ scenario, seed: GAZE_FAILS_SEED });
-    game.ctx.team1.rerolls = 2;
-    const gazer = game.ctx.team1.players[0];
-    const target = game.ctx.team2.players[0];
+    game.ctx.teams[0].rerolls = 2;
+    const gazer = game.ctx.teams[0].players[0];
+    const target = game.ctx.teams[1].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(gazer).id,

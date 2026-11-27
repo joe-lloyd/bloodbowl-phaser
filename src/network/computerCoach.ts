@@ -18,6 +18,7 @@ import { isTurnRunning } from "../game/kickoff/kickoffTurn";
 import { GameEventNames } from "../types/events";
 import { GamePhase, type GameState, SubPhase } from "../types/GameState";
 import { decisionOwner, gateContextOf } from "./OwnershipGate";
+import { pairIds } from "../game/seating";
 
 const DECLARE_ACTION = "declare-action";
 const END_ACTIVATION = "end-activation";
@@ -164,7 +165,7 @@ class ComputerCoach {
     const { game, computerTeamId } = this.options;
     const pregame = game.ctx.gameService.getState().pregameInducements;
     if (!pregame || pregame.complete || game.pendingDecision()) return null;
-    const command = nextComputerPregameCommand(pregame, computerTeamId, [game.ctx.team1.id, game.ctx.team2.id]);
+    const command = nextComputerPregameCommand(pregame, computerTeamId, pairIds(game.ctx.gameService.getSeating()));
     if (!command) return false;
     const result = await this.options.run(command);
     return result.ok;
@@ -173,7 +174,8 @@ class ComputerCoach {
   private async choose(): Promise<Candidate | null> {
     const { game, computerTeamId } = this.options;
     const snapshot = game.snapshot();
-    const point = await enumerateDecision(game, kickingTeamOf(snapshot, game.ctx.team1.id, game.ctx.team2.id));
+    const teamIds = pairIds(game.ctx.gameService.getSeating());
+    const point = await enumerateDecision(game, kickingTeamOf(snapshot, ...teamIds));
     if (point.teamId !== computerTeamId) return null;
     const [first] = point.candidates;
     if (!first) return null;

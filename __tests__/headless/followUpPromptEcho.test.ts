@@ -28,8 +28,8 @@ describe("a follow-up prompt the board repeats", () => {
         },
         seed,
       });
-      const attacker = game.ctx.team1.players[0];
-      const defender = game.ctx.team2.players[0];
+      const attacker = game.ctx.teams[0].players[0];
+      const defender = game.ctx.teams[1].players[0];
       await game.execute({
         type: "declare-action",
         playerId: fixtureValue(attacker).id,
@@ -79,7 +79,7 @@ describe("a follow-up prompt the board repeats", () => {
       expect(game.pendingDecision()).toBeNull();
       const next = await game.execute({
         type: "declare-action",
-        playerId: fixtureValue(game.ctx.team1.players[1]).id,
+        playerId: fixtureValue(game.ctx.teams[0].players[1]).id,
         action: "move",
       });
       expect(next.ok).toBe(true);
@@ -109,8 +109,8 @@ describe("a follow-up prompt arriving over another decision", () => {
 
     const reroll = {
       type: "reroll",
-      playerId: fixtureValue(game.ctx.team2.players[0]).id,
-      chooserTeamId: game.ctx.team2.id,
+      playerId: fixtureValue(game.ctx.teams[1].players[0]).id,
+      chooserTeamId: game.ctx.teams[1].id,
       rollKind: "catch",
       sources: ["skill"],
       roll: 1,
@@ -118,7 +118,7 @@ describe("a follow-up prompt arriving over another decision", () => {
     game.adoptPending(reroll);
 
     game.ctx.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
-      attackerId: fixtureValue(game.ctx.team1.players[0]).id,
+      attackerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       targetSquare: { x: 8, y: 5 },
       repeat: true,
     });
@@ -157,7 +157,7 @@ describe("a catch re-roll raised by a push's bounce", () => {
         },
         seed,
       });
-      const attacker = game.ctx.team1.players[0];
+      const attacker = game.ctx.teams[0].players[0];
       await game.execute({
         type: "declare-action",
         playerId: fixtureValue(attacker).id,
@@ -166,7 +166,7 @@ describe("a catch re-roll raised by a push's bounce", () => {
       let response = await game.execute({
         type: "block",
         attackerId: fixtureValue(attacker).id,
-        defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+        defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
       });
       if (response.pendingDecision?.type !== "block-dice") continue;
       const pow = response.pendingDecision.options.findIndex(

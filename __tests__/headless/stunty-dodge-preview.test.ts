@@ -44,7 +44,7 @@ describe("Stunty dodge preview and resolution", () => {
     },
   ])("agrees on the target against $name", async ({ skills, target }) => {
     const game = new HeadlessGame({ scenario: scenario(skills), seed: 5 });
-    const goblin = game.ctx.team1.players[1];
+    const goblin = game.ctx.teams[0].players[1];
     const path = [
       { x: 6, y: 5 },
       { x: 7, y: 5 },
@@ -58,7 +58,7 @@ describe("Stunty dodge preview and resolution", () => {
         allowance: fixtureValue(goblin).stats.MA + 2,
         used: 0,
         rushModifier: 0,
-        opponents: game.ctx.team2.players,
+        opponents: game.ctx.teams[1].players,
       }
     );
     const preview = legs.flatMap((leg) =>

@@ -70,7 +70,7 @@ describe("the computer's Punt", () => {
       passes: 1,
       handOffs: 1,
     };
-    const actor = game.ctx.team1.players[0]?.id;
+    const actor = game.ctx.teams[0].players[0]?.id;
     expect(await choose(game)).toMatchObject({
       type: "declare-action",
       playerId: actor,

@@ -86,13 +86,13 @@ function matchPosition(
         uid: "host",
         displayName: "Computer",
         ready: true,
-        team: game.ctx.team1,
+        team: game.ctx.teams[0],
       },
       guest: {
         uid: "guest",
         displayName: "Human",
         ready: true,
-        team: game.ctx.team2,
+        team: game.ctx.teams[1],
       },
     },
     createdAt: null,
@@ -176,8 +176,8 @@ describe("the online computer coach", () => {
     async (side) => {
       const opening = pregameGame();
       const lobby = matchPosition(side);
-      fixtureValue(lobby.players["host"]).team = opening.ctx.team1;
-      fixtureValue(lobby.players["guest"]).team = opening.ctx.team2;
+      fixtureValue(lobby.players["host"]).team = opening.ctx.teams[0];
+      fixtureValue(lobby.players["guest"]).team = opening.ctx.teams[1];
       lobby.snapshot = opening.snapshot();
       lobby.resume = {
         rng: opening.ctx.rng.captureState(),

@@ -285,7 +285,7 @@ describe("Charge! as a miniature turn", () => {
     const { game, gs, home, away } = await rehearse(KickoffEvent.CHARGE, {
       players: 3,
     });
-    game.ctx.team1.rerolls = 0;
+    game.ctx.teams[0].rerolls = 0;
     await choose(game, [home(1).id, home(2).id, home(3).id]);
     home(1).gridPosition = { x: 9, y: 5 };
     away(1).gridPosition = { x: 10, y: 5 };

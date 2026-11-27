@@ -52,8 +52,8 @@ async function blockDice(
     team1: [{ playerIndex: 0, ...attackerAt }],
     team2: [{ playerIndex: 0, ...defenderAt }],
   });
-  const attacker = fixtureValue(game.ctx.team1.players[0]);
-  const defender = fixtureValue(game.ctx.team2.players[0]);
+  const attacker = fixtureValue(game.ctx.teams[0].players[0]);
+  const defender = fixtureValue(game.ctx.teams[1].players[0]);
   attacker.stats.ST = 3;
   defender.stats.ST = 3;
   await game.execute({
@@ -95,8 +95,8 @@ describe("GB barricades: pushed into a barricade", () => {
       team1: [{ playerIndex: 0, x: 12, y: 7 }],
       team2: [{ playerIndex: 0, x: 11, y: 7 }],
     });
-    fixtureValue(game.ctx.team1.players[0]).stats.ST = 3;
-    fixtureValue(game.ctx.team2.players[0]).stats.ST = 3;
+    fixtureValue(game.ctx.teams[0].players[0]).stats.ST = 3;
+    fixtureValue(game.ctx.teams[1].players[0]).stats.ST = 3;
     forceDice(game.ctx.rng, [PUSH, 4, 1, 1]);
     const { offered, defender } = await blockAndPush(game, { x: 10, y: 7 });
 
@@ -108,7 +108,7 @@ describe("GB barricades: pushed into a barricade", () => {
 });
 
 async function walk(game: HeadlessGame, path: MoveStep[]) {
-  const mover = fixtureValue(game.ctx.team1.players[0]);
+  const mover = fixtureValue(game.ctx.teams[0].players[0]);
   await game.execute({
     type: "declare-action",
     playerId: mover.id,
@@ -138,7 +138,7 @@ function runner(at: { x: number; y: number }) {
     team1: [{ playerIndex: 0, ...at }],
     team2: [{ playerIndex: 0, x: 22, y: 1 }],
   });
-  fixtureValue(pitch.game.ctx.team1.players[0]).stats.MA = 6;
+  fixtureValue(pitch.game.ctx.teams[0].players[0]).stats.MA = 6;
   return pitch;
 }
 
@@ -203,8 +203,8 @@ describe("GB barricades: a ball carrier going over Recklessly", () => {
       team1: [{ playerIndex: 0, x: 10, y: 7, hasBall: true }],
       team2: [{ playerIndex: 0, x: 22, y: 1 }],
     });
-    const carrier = fixtureValue(game.ctx.team1.players[0]);
-    game.ctx.team1.rerolls = 1;
+    const carrier = fixtureValue(game.ctx.teams[0].players[0]);
+    game.ctx.teams[0].rerolls = 1;
     forceDice(game.ctx.rng, [1]);
     await game.execute({
       type: "declare-action",

@@ -29,8 +29,8 @@ const SEED = 30;
 describe("Frenzy knocking down the ball carrier", () => {
   it("lets the dropped ball Bounce before the follow-up", async () => {
     const game = new HeadlessGame({ scenario, seed: SEED });
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
 
     await game.execute({
       type: "declare-action",

@@ -88,7 +88,7 @@ describe("reported gameplay bugs (engine regressions)", () => {
     for (let seed = 1; seed <= 100 && !offered; seed++) {
       const game = new HeadlessGame({ scenario, seed });
 
-      game.ctx.team1.rerolls = 0;
+      game.ctx.teams[0].rerolls = 0;
       const dodger = fixtureValue(game.snapshot().teams[0]).players[0];
       await game.execute({
         type: "declare-action",
@@ -156,7 +156,7 @@ describe("reported gameplay bugs (engine regressions)", () => {
 
     const ended = await game.execute({ type: "end-turn" });
     expect(ended.ok).toBe(true);
-    expect(ended.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+    expect(ended.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
 
     const nextDeclared = await game.execute({
       type: "declare-action",

@@ -33,7 +33,7 @@ const scenario: Scenario = {
 
 function newGame(seed: number, rerolls = 3): HeadlessGame {
   const game = new HeadlessGame({ scenario, seed });
-  game.ctx.team1.rerolls = rerolls;
+  game.ctx.teams[0].rerolls = rerolls;
   return game;
 }
 
@@ -67,7 +67,7 @@ describe("reroll decisions (headless protocol)", () => {
   it("keeps this turn's spent Team Re-roll through a save", async () => {
     for (let seed = 1; seed <= 100; seed++) {
       const game = newGame(seed);
-      const team1Id = game.ctx.team1.id;
+      const team1Id = game.ctx.teams[0].id;
       const pickup = await moveOntoBall(game);
       if (pickup.pendingDecision?.type !== "reroll")
         continue;
@@ -86,7 +86,7 @@ describe("reroll decisions (headless protocol)", () => {
   it("a failed pickup with a team reroll pauses on a reroll decision", async () => {
     const seed = await findOfferSeed();
     const game = newGame(seed);
-    const team1Id = game.ctx.team1.id;
+    const team1Id = game.ctx.teams[0].id;
     const moved = await moveOntoBall(game);
 
     expect(moved.ok).toBe(true);
@@ -127,7 +127,7 @@ describe("reroll decisions (headless protocol)", () => {
     expect(
       declined.events.filter((e) => e.name === GameEventNames.Turnover)
     ).toHaveLength(1);
-    expect(declined.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+    expect(declined.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
     expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(3);
     expect(
       declined.events.some((e) => e.name === GameEventNames.RerollUsed)

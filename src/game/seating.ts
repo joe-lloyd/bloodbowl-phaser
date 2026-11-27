@@ -29,6 +29,21 @@ export type Seating = PairSeating | FourSeating;
 
 export type Rotation = 1 | -1;
 
+export type SeatedTeams =
+  | readonly [Team, Team]
+  | readonly [Team, Team, Team, Team];
+
+export function seatedTeams(teams: readonly Team[]): SeatedTeams {
+  const [first, second, third, fourth] = teams;
+  if (first && second && teams.length === 2) return [first, second];
+  if (first && second && third && fourth && teams.length === 4) {
+    return [first, second, third, fourth];
+  }
+  throw new Error(
+    `A match seats two or four teams, not ${String(teams.length)}.`
+  );
+}
+
 function refuseRepeatedTeams(teams: readonly Team[]): void {
   const ids = new Set(teams.map((team) => team.id));
   if (ids.size === teams.length) return;
@@ -143,4 +158,9 @@ export function pairSeating(seating: Seating): PairSeating {
 
 export function pairTeams(seating: PairSeating): readonly [Team, Team] {
   return [seating.seats[0].team, seating.seats[1].team];
+}
+
+export function pairIds(seating: Seating): readonly [string, string] {
+  const [home, away] = pairTeams(pairSeating(seating));
+  return [home.id, away.id];
 }

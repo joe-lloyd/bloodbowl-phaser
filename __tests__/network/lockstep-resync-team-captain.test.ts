@@ -32,8 +32,7 @@ function leagueHumans(stableId: string): Team {
 const build = () =>
   new HeadlessGame({
     seed: 5,
-    team1: leagueHumans("team1"),
-    team2: leagueHumans("team2"),
+    teams: [leagueHumans("team1"), leagueHumans("team2")],
     paysWinnings: true,
     startingPhase: GamePhase.SETUP,
   });
@@ -49,9 +48,9 @@ describe("a full resync between two Team Captain appointments", () => {
         transport: end,
         game,
         selfId: `${side}-uid`,
-        myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
-        peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
-        hostTeamId: game.ctx.team1.id,
+        myTeamId: side === "host" ? game.ctx.teams[0].id : game.ctx.teams[1].id,
+        peerTeamId: side === "host" ? game.ctx.teams[1].id : game.ctx.teams[0].id,
+        hostTeamId: game.ctx.teams[0].id,
         onDesync: (detail) => { errors.push(`${side}: ${detail}`); },
       });
     const host = session(hostGame, hostEnd, "host");
@@ -61,7 +60,7 @@ describe("a full resync between two Team Captain appointments", () => {
     await settle(host, guest);
     await guest.run({ type: "confirm-inducements", teamId: "team2" });
     await settle(host, guest);
-    const appointed = fixtureValue(hostGame.ctx.team1.players[2]).id;
+    const appointed = fixtureValue(hostGame.ctx.teams[0].players[2]).id;
     const chose = await host.run({ type: "choose-inducement", playerId: appointed });
     expect(chose.ok).toBe(true);
     await settle(host, guest);
@@ -77,7 +76,7 @@ describe("a full resync between two Team Captain appointments", () => {
     await settle(host, guest);
 
     expect(stateChecksum(guestGame)).toBe(honest);
-    const captain = guestGame.ctx.team1.players[2];
+    const captain = guestGame.ctx.teams[0].players[2];
     expect(fixtureValue(captain).teamCaptain).toBe(true);
     expect(hasSkill(fixtureValue(captain).skills, SkillType.PRO)).toBe(true);
     expect(guestGame.pendingDecision()).toMatchObject({

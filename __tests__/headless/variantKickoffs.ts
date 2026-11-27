@@ -87,19 +87,19 @@ export function variantGame({ format, setup, weather, phase }: Omit<VariantKick,
   const initialState = applyScenario(scenario, team1, team2);
   initialState.gameType = format.gameType;
   initialState.venue = format.venue;
-  return new HeadlessGame({ team1, team2, initialState, seed: 1 });
+  return new HeadlessGame({ teams: [team1, team2], initialState, seed: 1 });
 }
 
 export async function variantKick(kick: VariantKick) {
   const game = variantGame(kick);
   game.ctx.gameService.seedTurnCounts(kick.turn ?? 2);
-  for (const team of [game.ctx.team1, game.ctx.team2]) team.dedicatedFans = 1;
+  for (const team of [game.ctx.teams[0], game.ctx.teams[1]]) team.dedicatedFans = 1;
   kick.prepare?.(game);
   vi.spyOn(game.ctx.gameService.getBallMovementController(), "deviate").mockReturnValue({ ...kick.setup.landing });
   forceDice(game.ctx.rng, kick.dice);
   const response = await game.execute({
     type: "kick-ball",
-    playerId: fixtureValue(game.ctx.team1.players[6]).id,
+    playerId: fixtureValue(game.ctx.teams[0].players[6]).id,
     ...kick.setup.landing,
   });
   const result = kickoffResultSchema.parse(
@@ -108,16 +108,20 @@ export async function variantKick(kick: VariantKick) {
   return { game, response, result };
 }
 
+function sideOf(game: HeadlessGame, team: "team1" | "team2") {
+  return game.ctx.teams[team === "team1" ? 0 : 1];
+}
+
 export function playerOf(game: HeadlessGame, team: "team1" | "team2", index: number): Player {
-  return fixtureValue(game.ctx[team].players[index]);
+  return fixtureValue(sideOf(game, team).players[index]);
 }
 
 export function statusesOf(game: HeadlessGame, team: "team1" | "team2"): string[] {
-  return game.ctx[team].players.slice(0, 7).map((player) => player.status);
+  return sideOf(game, team).players.slice(0, 7).map((player) => player.status);
 }
 
 export function squaresOf(game: HeadlessGame, team: "team1" | "team2"): string[] {
-  return game.ctx[team].players
+  return sideOf(game, team).players
     .slice(0, 7)
     .map((player) => (player.gridPosition ? `${String(player.gridPosition.x)},${String(player.gridPosition.y)}` : "off"));
 }

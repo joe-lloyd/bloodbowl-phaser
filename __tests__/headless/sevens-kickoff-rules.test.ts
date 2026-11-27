@@ -43,7 +43,7 @@ async function kick(
   forceDice(game.ctx.rng, dice);
   const response = await game.execute({
     type: "kick-ball",
-    playerId: fixtureValue(game.ctx.team1.players[0]).id,
+    playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
     ...target,
   });
   const rolls = response.events
@@ -115,7 +115,7 @@ describe("K4: Alert Defence", () => {
 
   it("moves a selected player one square into No Man's Land", async () => {
     const { game } = await alertDefence();
-    const player = game.ctx.team1.players[0];
+    const player = game.ctx.teams[0].players[0];
     expect(fixtureValue(player).gridPosition).toEqual({ x: 6, y: 2 });
 
     const selected = await game.execute({
@@ -154,8 +154,8 @@ describe("K4: Alert Defence", () => {
 
   it("refuses receiving players and the old re-set-up drop", async () => {
     const { game } = await alertDefence();
-    const receiver = game.ctx.team2.players[0];
-    const kicker = game.ctx.team1.players[1];
+    const receiver = game.ctx.teams[1].players[0];
+    const kicker = game.ctx.teams[0].players[1];
 
     const select = await game.execute({
       type: "kickoff-select-player",
@@ -196,7 +196,7 @@ describe("K5: High Kick", () => {
     });
     const candidate = fixtureValue(point.candidates[choice.index]);
     for (const command of candidate.commands) await game.execute(command);
-    const under = game.ctx.team2.players.find(
+    const under = game.ctx.teams[1].players.find(
       (p) => p.gridPosition?.x === 17 && p.gridPosition.y === 5
     );
     expect([candidate.label, under?.positionName]).toEqual([

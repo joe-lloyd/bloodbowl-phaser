@@ -12,7 +12,7 @@ import {
   SEVENS_FORMAT,
 } from "../../src/game/variants/activeMatch";
 
-const { team1, team2 } = new HeadlessGame({ seed: 1 }).ctx;
+const [team1, team2] = new HeadlessGame({ seed: 1 }).ctx.teams;
 
 describe("kick-off banner on a tie", () => {
   it("says a tied Cheering Fans roll favours neither team", () => {

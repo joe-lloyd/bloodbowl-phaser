@@ -14,6 +14,7 @@ import { hasTackleZone } from "../../src/types/Player";
 import { withDriveModifiers } from "../../src/game/kickoff/driveEffects";
 import { scoresAt } from "../../src/game/rules/frames";
 import { pairFrame } from "../../src/game/variants/activeMatch";
+import { seatedTeams } from "../../src/game/seating";
 
 let game: HeadlessGame | null = null;
 let kickingTeamId: string | null = null;
@@ -25,16 +26,15 @@ function attach(): HeadlessGame {
 
   const gs = ((c.gameService as unknown as { inner?: unknown }).inner ??
     c.gameService) as Record<string, unknown>;
-  const teams = getActiveOnlineMatch()?.teams;
-  const [home, away] = c.gameService.getTeams();
+  const online = getActiveOnlineMatch()?.teams;
+  const teams = online ? [online.team1, online.team2] : c.gameService.getTeams();
   game = new HeadlessGame({
     autoStartOnReady: false,
     ctx: {
       eventBus: c.eventBus,
       gameService: gs as never,
       rng: c.rngService,
-      team1: teams?.team1 ?? home,
-      team2: teams?.team2 ?? away,
+      teams: seatedTeams(teams),
       seed: 0,
       matchStats: c.matchStats,
     },
@@ -79,14 +79,14 @@ export async function next(dialogOpen = false) {
     };
 
   const ball = snapshot.ballPosition;
-  const players = [...g.ctx.team1.players, ...g.ctx.team2.players];
+  const players = [...g.ctx.teams[0].players, ...g.ctx.teams[1].players];
   const carrier = ball
     ? players.find(
         (p) => p.gridPosition?.x === ball.x && p.gridPosition?.y === ball.y
       )
     : undefined;
   const toGoal = (teamId: string, x: number) =>
-    teamId === g.ctx.team1.id ? GameConfig.PITCH_WIDTH - 1 - x : x;
+    teamId === g.ctx.teams[0].id ? GameConfig.PITCH_WIDTH - 1 - x : x;
   const scores = rankCandidates({ game: g, snapshot, point, rng }).map(
     ({ candidate, score }) => {
       const c = candidate.commands[0] as {
@@ -145,7 +145,7 @@ export async function next(dialogOpen = false) {
     pending: point.pending,
     teamId: point.teamId,
     candidate,
-    team1Id: g.ctx.team1.id,
+    team1Id: g.ctx.teams[0].id,
     board: JSON.stringify([
       snapshot.activePlayer,
       snapshot.ballPosition,
@@ -201,7 +201,7 @@ function runTo(g: HeadlessGame, c: Candidate): Candidate {
 
   const left =
     withDriveModifiers(player, state).stats.MA - gs.getMovementUsed(player.id);
-  const frame = pairFrame(player.teamId === g.ctx.team1.id);
+  const frame = pairFrame(player.teamId === g.ctx.teams[0].id);
   const scores = (sq: Square) => carrying && scoresAt(frame, sq);
   const reach = gs
     .getAvailableMovements(player.id)

@@ -33,7 +33,7 @@ beforeEach(() => {
   online.myTeamId = null;
   game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
+  ServiceContainer.initialize({ eventBus: bus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -83,12 +83,12 @@ describe("refusal messages", () => {
 
 describe("the waiting coach's HUD", () => {
   it("hides End Turn online when it is the other coach's turn", async () => {
-    online.myTeamId = game.ctx.team2.id;
+    online.myTeamId = game.ctx.teams[1].id;
     await act(async () => {
       root.render(
         <EndTurnButton
           phase={GamePhase.PLAY}
-          activeTeamId={game.ctx.team1.id}
+          activeTeamId={game.ctx.teams[0].id}
           onClick={() => {}}
         />
       );
@@ -98,7 +98,7 @@ describe("the waiting coach's HUD", () => {
       root.render(
         <EndTurnButton
           phase={GamePhase.PLAY}
-          activeTeamId={game.ctx.team2.id}
+          activeTeamId={game.ctx.teams[1].id}
           onClick={() => {}}
         />
       );
@@ -107,7 +107,7 @@ describe("the waiting coach's HUD", () => {
   });
 
   it("clears a hover card from the last turn when the turn passes", async () => {
-    const player = fixtureValue(game.ctx.team1.players[0]);
+    const player = fixtureValue(game.ctx.teams[0].players[0]);
     await act(async () => {
       root.render(<PlayerInfoPanel eventBus={bus} />);
     });
@@ -117,7 +117,7 @@ describe("the waiting coach's HUD", () => {
     expect(container.textContent).toContain(fixtureValue(player).playerName);
     await act(async () => {
       bus.emit(GameEventNames.TurnStarted, {
-        teamId: game.ctx.team2.id,
+        teamId: game.ctx.teams[1].id,
         turnNumber: 3,
       });
     });

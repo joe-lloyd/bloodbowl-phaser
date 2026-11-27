@@ -36,8 +36,8 @@ const bothDown = { type: "both-down" as const, icon: "", label: "Both Down" };
 
 function setUp(skill: SkillType, distracted: boolean) {
   const game = new HeadlessGame({ scenario, seed: 5 });
-  const attacker = game.ctx.team1.players[0];
-  const defender = game.ctx.team2.players[0];
+  const attacker = game.ctx.teams[0].players[0];
+  const defender = game.ctx.teams[1].players[0];
   fixtureValue(defender).skills = [
     ...fixtureValue(defender).skills,
     getSkill(skill),
@@ -108,7 +108,7 @@ describe("Distracted players cannot use Active skills", () => {
   it("a Distracted Pick-me-up player stands no team-mate up", async () => {
     for (const distracted of [false, true]) {
       const game = new HeadlessGame({ scenario, seed: 5 });
-      const [holder, mate] = game.ctx.team2.players;
+      const [holder, mate] = game.ctx.teams[1].players;
       fixtureValue(holder).skills = [
         ...fixtureValue(holder).skills,
         getSkill(SkillType.PICK_ME_UP),

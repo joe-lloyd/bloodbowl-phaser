@@ -16,7 +16,7 @@ let game: HeadlessGame;
 beforeEach(() => {
   game = new HeadlessGame({ seed: 1 });
   eventBus = new EventBus();
-  ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
+  ServiceContainer.initialize({ eventBus: eventBus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -32,8 +32,8 @@ afterEach(async () => {
 
 it("answers the Foul with the number of assists the coach clicks", async () => {
   const gameService = ServiceContainer.getInstance().gameService;
-  const fouler = fixtureValue(gameService.getTeam(game.ctx.team1.id)).players[0];
-  const target = fixtureValue(gameService.getTeam(game.ctx.team2.id)).players[0];
+  const fouler = fixtureValue(gameService.getTeam(game.ctx.teams[0].id)).players[0];
+  const target = fixtureValue(gameService.getTeam(game.ctx.teams[1].id)).players[0];
   await act(async () => {
     root.render(<FoulAssistsDialog eventBus={eventBus} />);
   });

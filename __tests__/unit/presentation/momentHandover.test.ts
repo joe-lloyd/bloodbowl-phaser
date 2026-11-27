@@ -44,7 +44,7 @@ describe("engine boundaries wait for visual moments", () => {
       if (entry.headline === "TURNOVER") rows.push(entry.detail ?? "");
     });
     for (const game of [visual, headless]) {
-      game.ctx.gameService.declareAction({ playerId: fixtureValue(game.ctx.team1.players[0]).id, action: "move" });
+      game.ctx.gameService.declareAction({ playerId: fixtureValue(game.ctx.teams[0].players[0]).id, action: "move" });
     }
     bus.emit(GameEventNames.UI_DiceInAir, {
       count: 1,
@@ -61,8 +61,8 @@ describe("engine boundaries wait for visual moments", () => {
     await vi.advanceTimersByTimeAsync(4000);
     expect(shown).toEqual([]);
     expect(quiet).toBe(false);
-    expect(visual.snapshot().activeTeamId).toBe(visual.ctx.team1.id);
-    expect(headless.snapshot().activeTeamId).toBe(headless.ctx.team2.id);
+    expect(visual.snapshot().activeTeamId).toBe(visual.ctx.teams[0].id);
+    expect(headless.snapshot().activeTeamId).toBe(headless.ctx.teams[1].id);
     bus.emit(GameEventNames.UI_DiceInAir, {
       count: 0,
       thrown: 1,
@@ -70,11 +70,11 @@ describe("engine boundaries wait for visual moments", () => {
     });
     await vi.advanceTimersByTimeAsync(1799);
     expect(shown).toEqual(["turnover"]);
-    expect(visual.snapshot().activeTeamId).toBe(visual.ctx.team1.id);
+    expect(visual.snapshot().activeTeamId).toBe(visual.ctx.teams[0].id);
     await vi.runAllTimersAsync();
     expect(shown).toEqual(["turnover", "turn-started"]);
     expect(rows).toEqual([
-      `${fixtureValue(visual.ctx.team1.players[0]).playerName}: Failed Rush`,
+      `${fixtureValue(visual.ctx.teams[0].players[0]).playerName}: Failed Rush`,
     ]);
     expect(stateChecksum(visual)).toBe(stateChecksum(headless));
     queue.dispose();
@@ -92,8 +92,8 @@ describe("engine boundaries wait for visual moments", () => {
     });
     for (const game of [visual, headless]) {
       game.ctx.gameService.addTouchdown(
-        game.ctx.team1.id,
-        fixtureValue(game.ctx.team1.players[0]).id
+        game.ctx.teams[0].id,
+        fixtureValue(game.ctx.teams[0].players[0]).id
       );
     }
     await vi.advanceTimersByTimeAsync(1000);
@@ -101,7 +101,7 @@ describe("engine boundaries wait for visual moments", () => {
     await vi.advanceTimersByTimeAsync(1499);
     expect(shown).toEqual(["touchdown"]);
     expect(visual.snapshot().phase).toBe(GamePhase.TOUCHDOWN);
-    expect(fixtureValue(visual.ctx.team1.players[0]).gridPosition).toEqual({ x: 18, y: 5 });
+    expect(fixtureValue(visual.ctx.teams[0].players[0]).gridPosition).toEqual({ x: 18, y: 5 });
     expect(headless.snapshot().phase).toBe(GamePhase.SETUP);
     await vi.runAllTimersAsync();
     expect(shown).toEqual(["touchdown", "next-kicker"]);

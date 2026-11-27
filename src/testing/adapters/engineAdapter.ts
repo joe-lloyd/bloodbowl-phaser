@@ -64,10 +64,10 @@ export async function runCaseInEngine(
     game.ctx.gameService.seedTurnCounts(scenarioCase.setup.turn);
   }
   if (scenarioCase.rerolls?.team1) {
-    game.ctx.team1.rerolls = scenarioCase.rerolls.team1;
+    game.ctx.teams[0].rerolls = scenarioCase.rerolls.team1;
   }
   if (scenarioCase.rerolls?.team2) {
-    game.ctx.team2.rerolls = scenarioCase.rerolls.team2;
+    game.ctx.teams[1].rerolls = scenarioCase.rerolls.team2;
   }
 
   const initialSnapshot = game.snapshot();

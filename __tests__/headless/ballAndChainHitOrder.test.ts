@@ -111,7 +111,7 @@ async function lurch(
       },
     },
   });
-  const fanatic = game.ctx.team1.players[FANATIC];
+  const fanatic = game.ctx.teams[0].players[FANATIC];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(fanatic).id,
@@ -122,7 +122,7 @@ async function lurch(
   const response = responses.at(-1);
 
   const name = (id: string) =>
-    [...game.ctx.team1.players, ...game.ctx.team2.players].find(
+    [...game.ctx.teams[0].players, ...game.ctx.teams[1].players].find(
       (p) => p.id === id
     )?.playerName;
   const trail = responses
@@ -159,7 +159,7 @@ async function lurch(
     trail,
     proneAtStart:
       status === PlayerStatus.PRONE
-        ? game.ctx.team2.players.slice(0, 6).map((p) => p.playerName)
+        ? game.ctx.teams[1].players.slice(0, 6).map((p) => p.playerName)
         : [],
     fanatic: fixtureValue(fanatic).playerName,
     turnedOver: game.snapshot().activeTeamId !== before.activeTeamId,
@@ -221,7 +221,7 @@ async function lurchToScore(
       },
     },
   });
-  const fanatic = game.ctx.team1.players[FANATIC];
+  const fanatic = game.ctx.teams[0].players[FANATIC];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(fanatic).id,

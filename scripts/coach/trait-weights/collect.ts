@@ -70,7 +70,7 @@ function explorer({ shifts, side, rng, drives }: Exploring): Coach {
 
 function scoreOf(game: HeadlessGame): [number, number] {
   const { score } = game.ctx.gameService.getState();
-  return [score[game.ctx.team1.id] ?? 0, score[game.ctx.team2.id] ?? 0];
+  return [score[game.ctx.teams[0].id] ?? 0, score[game.ctx.teams[1].id] ?? 0];
 }
 
 function driveResults(drives: Drive[], final: [number, number]) {
@@ -102,8 +102,7 @@ for (let i = Number(from); i < Number(from) + Number(count); i++) {
   if (!team1 || !team2) throw new Error("No teams");
   const game = new HeadlessGame({
     seed,
-    team1,
-    team2,
+    teams: [team1, team2],
     startingPhase: GamePhase.SETUP,
     progressionEnabled: false,
     format: {

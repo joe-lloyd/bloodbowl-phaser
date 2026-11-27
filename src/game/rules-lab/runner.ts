@@ -14,6 +14,7 @@ import {
   type DecisionPolicy,
 } from "./types";
 import { resolveReference, resolveCommandReferences } from "./references";
+import { seatOf } from "../seating";
 
 export function resolveRef(game: HeadlessGame, ref: string): string {
   return resolveReference(game.ctx, ref);
@@ -46,8 +47,7 @@ function touchbackAnswer(
   pending: Decision<"touchback">,
   game: HeadlessGame
 ): HeadlessCommand | null {
-  const team =
-    pending.teamId === game.ctx.team1.id ? game.ctx.team1 : game.ctx.team2;
+  const team = seatOf(game.ctx.gameService.getSeating(), pending.teamId).team;
   const receiver = team.players.find(
     (p: Player) => p.gridPosition && p.status === PlayerStatus.ACTIVE
   );
@@ -185,8 +185,8 @@ function createRuleGame(config: RuleConfig, seed: number): HeadlessGame {
   if (config.setup.turn !== undefined) {
     game.ctx.gameService.seedTurnCounts(config.setup.turn);
   }
-  if (config.rerolls?.team1) game.ctx.team1.rerolls = config.rerolls.team1;
-  if (config.rerolls?.team2) game.ctx.team2.rerolls = config.rerolls.team2;
+  if (config.rerolls?.team1) game.ctx.teams[0].rerolls = config.rerolls.team1;
+  if (config.rerolls?.team2) game.ctx.teams[1].rerolls = config.rerolls.team2;
   return game;
 }
 

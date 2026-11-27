@@ -87,7 +87,7 @@ export async function enumerateDecision(
 ): Promise<DecisionPoint> {
   const state = game.ctx.gameService.getState();
   const pending = game.pendingDecision();
-  const activeTeamId = state.activeTeamId ?? game.ctx.team1.id;
+  const activeTeamId = state.activeTeamId ?? game.ctx.teams[0].id;
 
   if (pending) {
     const gs = game.ctx.gameService;
@@ -97,7 +97,7 @@ export async function enumerateDecision(
           activeTeamId,
           pendingDecision: pending,
           teamIdOfPlayer: (id) => gs.getPlayerById(id)?.teamId,
-          hostTeamId: game.ctx.team1.id,
+          hostTeamId: game.ctx.teams[0].id,
         }) ?? activeTeamId,
       phase: state.phase,
       pending,
@@ -380,7 +380,7 @@ async function setupCandidates(
 
   const gs = game.ctx.gameService;
   const team = gs.getTeam(teamId)!;
-  const isTeam1 = teamId === game.ctx.team1.id;
+  const isTeam1 = teamId === game.ctx.teams[0].id;
   if (setup?.status.swarming) {
     const swarm = setup.status.swarming;
     const positions = [...setup.placements];
@@ -527,7 +527,7 @@ function kickoffCandidates(
     (p) => p.position && p.status === PlayerStatus.ACTIVE
   );
   if (!kicker) return [];
-  const kicksRight = kickingTeamId === game.ctx.team1.id;
+  const kicksRight = kickingTeamId === game.ctx.teams[0].id;
   const out: Candidate[] = [];
   for (const depth of [2, 4, 6]) {
     for (const y of kickRows()) {

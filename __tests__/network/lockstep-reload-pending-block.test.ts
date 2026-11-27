@@ -53,13 +53,13 @@ describe.each([
           transport: end,
           game,
           selfId: `${side}-uid`,
-          myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
-          peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
-          hostTeamId: game.ctx.team1.id,
+          myTeamId: side === "host" ? game.ctx.teams[0].id : game.ctx.teams[1].id,
+          peerTeamId: side === "host" ? game.ctx.teams[1].id : game.ctx.teams[0].id,
+          hostTeamId: game.ctx.teams[0].id,
         });
       const host = session(hostGame, hostEnd, "host");
       const guest = session(guestGame, guestEnd, "guest");
-      const guestTeam = guestGame.ctx.team2.id;
+      const guestTeam = guestGame.ctx.teams[1].id;
 
       let answer = null;
       for (const [index, step] of recording.steps.entries()) {
@@ -86,9 +86,9 @@ describe.each([
         transport: guestEnd,
         game: reloaded,
         selfId: "guest-uid",
-        myTeamId: reloaded.ctx.team2.id,
-        peerTeamId: reloaded.ctx.team1.id,
-        hostTeamId: reloaded.ctx.team1.id,
+        myTeamId: reloaded.ctx.teams[1].id,
+        peerTeamId: reloaded.ctx.teams[0].id,
+        hostTeamId: reloaded.ctx.teams[0].id,
       });
       await after.sendHello();
       await settle(host, after);

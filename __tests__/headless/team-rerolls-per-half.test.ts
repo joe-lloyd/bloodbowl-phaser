@@ -22,7 +22,7 @@ const FAILED_PICKUP_SEED = 8;
 
 async function spendOneReroll(turn: number) {
   const game = new HeadlessGame({ scenario, seed: FAILED_PICKUP_SEED });
-  game.ctx.team1.rerolls = 2;
+  game.ctx.teams[0].rerolls = 2;
   game.ctx.gameService.seedTurnCounts(turn);
   const mover = fixtureValue(game.snapshot().teams[0]).players[0];
 
@@ -53,7 +53,7 @@ describe("team re-rolls per half", () => {
     const { game, rerolled } = await spendOneReroll(3);
 
     expect(fixtureValue(rerolled.snapshot.teams[0]).rerolls).toBe(1);
-    expect(game.ctx.team1.rerolls).toBe(2);
+    expect(game.ctx.teams[0].rerolls).toBe(2);
 
     const next = await game.execute({ type: "end-turn" });
     expect(next.snapshot.activeTeamId).toBe("team2");
@@ -66,6 +66,6 @@ describe("team re-rolls per half", () => {
     const halftime = await game.execute({ type: "end-turn" });
     expect(halftime.snapshot.turn.isHalf2).toBe(true);
     expect(fixtureValue(halftime.snapshot.teams[0]).rerolls).toBe(2);
-    expect(game.ctx.team1.rerolls).toBe(2);
+    expect(game.ctx.teams[0].rerolls).toBe(2);
   });
 });

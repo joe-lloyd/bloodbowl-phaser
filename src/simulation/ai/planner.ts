@@ -54,6 +54,7 @@ import {
 } from "./gamePlans";
 import type { CoachRng } from "../rng";
 import { bestBy } from "../../game/core/order";
+import { seatOf } from "../../game/seating";
 
 const END_ACTIVATION = "end-activation";
 
@@ -431,8 +432,8 @@ interface WeightsForArgs {
 }
 
 function weightsFor({ context, options, w, plan }: WeightsForArgs): Weights {
-  const { team1, team2, gameService } = context.game.ctx;
-  const team = team1.id === context.point.teamId ? team1 : team2;
+  const { gameService } = context.game.ctx;
+  const { team } = seatOf(gameService.getSeating(), context.point.teamId);
   const own = (options.rosters ?? ROSTER_WEIGHTS)[team.rosterName];
   const gameType = gameService.getState().gameType ?? DEFAULT_GAME_TYPE;
   const typed = (options.gameTypes ?? GAME_TYPE_WEIGHTS)[gameType];

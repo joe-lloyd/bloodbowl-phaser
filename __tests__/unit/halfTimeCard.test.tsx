@@ -36,7 +36,7 @@ beforeEach(async () => {
   home.rerolls = 3;
   away.rerolls = 2;
   bus = new EventBus();
-  const services = ServiceContainer.initialize({ eventBus: bus, team1: home, team2: away });
+  const services = ServiceContainer.initialize({ eventBus: bus, teams: [home, away] });
   services.gameService.getState().score = { home: 1, away: 2 };
   fixtureValue(home.players[2]).status = PlayerStatus.INJURED;
   fixtureValue(home.players[2]).injuries = [InjuryType.MISS_NEXT_GAME];
@@ -118,7 +118,7 @@ it("closes when the coach presses Close", async () => {
 
 it("still marks half time when the summary cannot be read", async () => {
   const game = ServiceContainer.getInstance().gameService;
-  vi.spyOn(game, "getTeams").mockImplementation(() => {
+  vi.spyOn(game, "getSeating").mockImplementation(() => {
     throw new Error("no teams");
   });
   vi.spyOn(console, "error").mockImplementation(() => {});

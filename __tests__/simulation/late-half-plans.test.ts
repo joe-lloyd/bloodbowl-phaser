@@ -105,7 +105,7 @@ describe("late-half scoring and preservation", () => {
     ) {
       await coachStep(game, coach);
     }
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition?.x).toBe(11);
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition?.x).toBe(11);
   });
 
   it("keeps turn-five preparation away from an equally reachable exposed sideline", async () => {
@@ -131,14 +131,14 @@ describe("late-half scoring and preservation", () => {
     await coachStep(game, coach);
     for (let i = 0; i < 12 && game.ctx.gameService.getState().activePlayer; i++)
       await coachStep(game, coach);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toMatchObject({
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toMatchObject({
       x: 11,
     });
     expect(
-      fixtureValue(fixtureValue(game.ctx.team1.players[0]).gridPosition).y
+      fixtureValue(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).y
     ).toBeGreaterThan(2);
     expect(
-      fixtureValue(fixtureValue(game.ctx.team1.players[0]).gridPosition).y
+      fixtureValue(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).y
     ).toBeLessThan(10);
   });
 
@@ -190,7 +190,7 @@ describe("late-half scoring and preservation", () => {
       },
       { league: true, opponentTurnsPlayed: 5 }
     );
-    fixtureValue(game.ctx.team1.players[0]).cost = 600_000;
+    fixtureValue(game.ctx.teams[0].players[0]).cost = 600_000;
     const coach = createPlannerCoach();
     const stepped3 = await coachStep(game, coach);
     expect(stepped3.command).toMatchObject({
@@ -252,7 +252,7 @@ describe("late-half scoring and preservation", () => {
         },
         { league: true, opponentTurnsPlayed: 5 }
       );
-      fixtureValue(game.ctx.team1.players[0]).cost = 600_000;
+      fixtureValue(game.ctx.teams[0].players[0]).cost = 600_000;
       const stepped = await coachStep(game, createPlannerCoach());
       expect(stepped.command).toMatchObject({ type: "declare-action", action });
     }

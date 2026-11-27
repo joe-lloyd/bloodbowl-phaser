@@ -32,11 +32,11 @@ const scenario = (attackerX: number): Scenario => ({
 });
 
 async function stabThenRun(game: HeadlessGame) {
-  const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+  const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
   const stabbed = await game.execute({
     type: "stab",
     attackerId,
-    defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+    defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
   });
   expect(stabbed.pendingDecision).toMatchObject({
     type: "reaction",
@@ -52,7 +52,7 @@ describe("Stab with Hit and Run", () => {
     const game = new HeadlessGame({ scenario: scenario(11), seed: 1 });
     await game.execute({
       type: "declare-action",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       action: "stab",
     });
 
@@ -61,15 +61,15 @@ describe("Stab with Hit and Run", () => {
     expect(fixtureValue(stabber).position).toEqual({ x: 10, y: 4 });
     expect(
       game.ctx.gameService.hasPlayerActed(
-        fixtureValue(game.ctx.team1.players[0]).id
+        fixtureValue(game.ctx.teams[0].players[0]).id
       )
     ).toBe(true);
-    expect(game.snapshot().activeTeamId).toBe(game.ctx.team1.id);
+    expect(game.snapshot().activeTeamId).toBe(game.ctx.teams[0].id);
   });
 
   it("offers one free square after a Stab made as part of a Blitz", async () => {
     const game = new HeadlessGame({ scenario: scenario(10), seed: 1 });
-    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: attackerId,

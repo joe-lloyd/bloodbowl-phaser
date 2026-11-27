@@ -25,7 +25,7 @@ const scenario: Scenario = {
 describe("a Rooted player", () => {
   it("is offered no Move and no squares, but may still Block", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const rooted = game.ctx.team1.players[0];
+    const rooted = game.ctx.teams[0].players[0];
     addCondition(fixtureValue(rooted), PlayerCondition.ROOTED);
 
     const legal = await game.execute({

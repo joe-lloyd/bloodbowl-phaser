@@ -48,8 +48,7 @@ function startGame(
   { leagueFixture = true }: { leagueFixture?: boolean } = {}
 ): HeadlessGame {
   return new HeadlessGame({
-    team1: home,
-    team2: away,
+    teams: [home, away],
     seed: 1,
     startingPhase: GamePhase.SETUP,
     paysWinnings: leagueFixture,
@@ -71,18 +70,18 @@ describe("Miss Next Game", () => {
     fixtureValue(injured).injuries.push(InjuryType.MISS_NEXT_GAME);
 
     const game = startGame(home);
-    const inMatch = game.ctx.team1.players.find(
+    const inMatch = game.ctx.teams[0].players.find(
       (p) => p.id === fixtureValue(injured).id
     );
     expect(inMatch?.status).toBe(PlayerStatus.INJURED);
     expect(inMatch?.injuries).toEqual([]);
     expect(
-      game.ctx.team1.players.filter((p) => p.status === PlayerStatus.RESERVE)
+      game.ctx.teams[0].players.filter((p) => p.status === PlayerStatus.RESERVE)
     ).toHaveLength(8);
 
-    const next = startGame(reload(game.ctx.team1));
+    const next = startGame(reload(game.ctx.teams[0]));
     expect(
-      next.ctx.team1.players.filter((p) => p.status === PlayerStatus.RESERVE)
+      next.ctx.teams[0].players.filter((p) => p.status === PlayerStatus.RESERVE)
     ).toHaveLength(9);
   });
 
@@ -91,7 +90,7 @@ describe("Miss Next Game", () => {
     fixtureValue(home.players[0]).injuries.push(InjuryType.MISS_NEXT_GAME);
 
     const game = startGame(home);
-    expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[0]).status).toBe(
       PlayerStatus.RESERVE
     );
   });
@@ -101,7 +100,7 @@ describe("Miss Next Game", () => {
     fixtureValue(home.players[0]).injuries.push(InjuryType.MISS_NEXT_GAME);
 
     const friendly = startGame(home, undefined, { leagueFixture: false });
-    const inMatch = fixtureValue(friendly.ctx.team1.players[0]);
+    const inMatch = fixtureValue(friendly.ctx.teams[0].players[0]);
     expect(inMatch.status).toBe(PlayerStatus.RESERVE);
     expect(inMatch.injuries).toEqual([InjuryType.MISS_NEXT_GAME]);
   });
@@ -111,13 +110,12 @@ describe("Miss Next Game", () => {
     fixtureValue(home.players[0]).injuries.push(InjuryType.MISS_NEXT_GAME);
 
     const game = new HeadlessGame({
-      team1: home,
-      team2: team("away", 7),
+      teams: [home, team("away", 7)],
       seed: 1,
       startingPhase: GamePhase.SETUP,
       competition: true,
     });
-    expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[0]).status).toBe(
       PlayerStatus.INJURED
     );
   });
@@ -160,7 +158,7 @@ describe("Miss Next Game", () => {
       full - fixtureValue(home.players[0]).cost
     );
 
-    expect(calculateTeamValue(startGame(home).ctx.team1)).toBe(
+    expect(calculateTeamValue(startGame(home).ctx.teams[0])).toBe(
       full - fixtureValue(home.players[0]).cost
     );
   });
@@ -187,7 +185,7 @@ describe("Dead", () => {
     fixtureValue(home.players[2]).injuries.push(InjuryType.DEAD);
 
     const game = startGame(home);
-    expect(fixtureValue(game.ctx.team1.players[2]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[2]).status).toBe(
       PlayerStatus.DEAD
     );
   });
@@ -197,7 +195,7 @@ describe("Dead", () => {
     fixtureValue(home.players[2]).injuries.push(InjuryType.DEAD);
 
     const game = startGame(home, undefined, { leagueFixture: false });
-    expect(fixtureValue(game.ctx.team1.players[2]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[2]).status).toBe(
       PlayerStatus.DEAD
     );
   });
@@ -213,7 +211,7 @@ describe("Journeymen (L2)", () => {
     fixtureValue(home.players[0]).injuries.push(InjuryType.MISS_NEXT_GAME);
 
     const game = startGame(home);
-    const hired = journeymen(game.ctx.team1);
+    const hired = journeymen(game.ctx.teams[0]);
     expect(hired).toHaveLength(1);
     expect(fixtureValue(hired[0]).positionName).toBe("Human Lineman");
     expect(fixtureValue(hired[0]).status).toBe(PlayerStatus.RESERVE);
@@ -223,7 +221,7 @@ describe("Journeymen (L2)", () => {
         .map((s) => s.parameter)
     ).toEqual(["5+"]);
     expect(
-      game.ctx.team1.players.filter((p) => p.status === PlayerStatus.RESERVE)
+      game.ctx.teams[0].players.filter((p) => p.status === PlayerStatus.RESERVE)
     ).toHaveLength(7);
   });
 
@@ -231,41 +229,41 @@ describe("Journeymen (L2)", () => {
     const home = team("home", 8);
     fixtureValue(home.players[0]).injuries.push(InjuryType.MISS_NEXT_GAME);
 
-    expect(journeymen(startGame(home).ctx.team1)).toEqual([]);
+    expect(journeymen(startGame(home).ctx.teams[0])).toEqual([]);
   });
 
   it("fills a roster that injuries took below 7", () => {
     const game = startGame(team("home", 5));
-    expect(journeymen(game.ctx.team1)).toHaveLength(2);
+    expect(journeymen(game.ctx.teams[0])).toHaveLength(2);
   });
 
   it("leaves after the game: a reloaded team has none", () => {
     const game = startGame(team("home", 6));
-    expect(journeymen(game.ctx.team1)).toHaveLength(1);
-    expect(journeymen(reload(game.ctx.team1))).toEqual([]);
+    expect(journeymen(game.ctx.teams[0])).toHaveLength(1);
+    expect(journeymen(reload(game.ctx.teams[0]))).toEqual([]);
   });
 
   it("is never offered the game's Skill Selection, since they leave", () => {
     const game = startGame(team("home", 6));
-    const [journeyman] = journeymen(game.ctx.team1);
-    expect(eligibleSkillSelectionPlayers(game.ctx.team1)).not.toContain(
+    const [journeyman] = journeymen(game.ctx.teams[0]);
+    expect(eligibleSkillSelectionPlayers(game.ctx.teams[0])).not.toContain(
       fixtureValue(journeyman).id
     );
-    expect(eligibleSkillSelectionPlayers(game.ctx.team1)).toHaveLength(6);
+    expect(eligibleSkillSelectionPlayers(game.ctx.teams[0])).toHaveLength(6);
   });
 
   it("are never taken on by a Matched Play team", () => {
     const game = startGame(team("home", 6, "matched-play"));
-    expect(journeymen(game.ctx.team1)).toEqual([]);
+    expect(journeymen(game.ctx.teams[0])).toEqual([]);
   });
 
   it("are never taken on outside a league fixture: friendlies and tournament games play short", () => {
     const game = startGame(team("home", 5), team("away", 7), {
       leagueFixture: false,
     });
-    expect(journeymen(game.ctx.team1)).toEqual([]);
+    expect(journeymen(game.ctx.teams[0])).toEqual([]);
     expect(
-      game.ctx.team1.players.filter((p) => p.status === PlayerStatus.RESERVE)
+      game.ctx.teams[0].players.filter((p) => p.status === PlayerStatus.RESERVE)
     ).toHaveLength(5);
     expect(game.ctx.gameService.getState().paysWinnings).toBeUndefined();
   });
@@ -277,21 +275,19 @@ describe("a resumed match", () => {
     fixtureValue(home.players[0]).injuries.push(InjuryType.MISS_NEXT_GAME);
     const away = team("away", 7);
     const initialState = GameService.createInitialState({
-      team1: home,
-      team2: away,
+      teams: [home, away],
       startingPhase: GamePhase.PLAY,
     });
     const game = new HeadlessGame({
-      team1: home,
-      team2: away,
+      teams: [home, away],
       seed: 1,
       initialState,
       startingPhase: GamePhase.SETUP,
     });
     expect(game.ctx.gameService.getState().phase).toBe(GamePhase.PLAY);
 
-    expect(game.ctx.team1.players).toHaveLength(6);
-    expect(fixtureValue(game.ctx.team1.players[0]).injuries).toEqual([
+    expect(game.ctx.teams[0].players).toHaveLength(6);
+    expect(fixtureValue(game.ctx.teams[0].players[0]).injuries).toEqual([
       InjuryType.MISS_NEXT_GAME,
     ]);
   });

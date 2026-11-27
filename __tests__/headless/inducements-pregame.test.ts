@@ -24,7 +24,7 @@ describe("headless pregame inducement commands", () => {
     expect(response.ok).toBe(true);
     const offer = fixtureValue(response.inducementOffer);
     expect(
-      fixtureValue(offer.catalogs[game.ctx.team1.id]).map((e) => e.inducement)
+      fixtureValue(offer.catalogs[game.ctx.teams[0].id]).map((e) => e.inducement)
     ).toEqual([
       Inducement.TEMP_AGENCY_CHEERLEADER,
       Inducement.PART_TIME_ASSISTANT_COACH,
@@ -37,7 +37,7 @@ describe("headless pregame inducement commands", () => {
       Inducement.DESPERATE_MEASURES,
     ]);
     expect(
-      fixtureValue(offer.catalogs[game.ctx.team1.id]).find(
+      fixtureValue(offer.catalogs[game.ctx.teams[0].id]).find(
         (e) => e.inducement === Inducement.EXTRA_TEAM_TRAINING
       )
     ).toEqual({
@@ -49,10 +49,10 @@ describe("headless pregame inducement commands", () => {
 
   it("selecting a legal quantity within budget succeeds and is reflected in the offer", async () => {
     const game = newGame();
-    game.ctx.team2.rerolls = 6;
+    game.ctx.teams[1].rerolls = 6;
     const response = await game.execute({
       type: "select-inducement",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       inducement: Inducement.EXTRA_TEAM_TRAINING,
       quantity: 1,
     });
@@ -60,7 +60,7 @@ describe("headless pregame inducement commands", () => {
 
     const listed = await game.execute({ type: "offer-inducements" });
     const offer = fixtureValue(listed.inducementOffer);
-    expect(offer.selections[game.ctx.team1.id]).toEqual([
+    expect(offer.selections[game.ctx.teams[0].id]).toEqual([
       { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 1 },
     ]);
   });
@@ -69,7 +69,7 @@ describe("headless pregame inducement commands", () => {
     const game = newGame();
     const response = await game.execute({
       type: "select-inducement",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       inducement: Inducement.EXTRA_TEAM_TRAINING,
       quantity: 1,
     });
@@ -80,10 +80,10 @@ describe("headless pregame inducement commands", () => {
   it("a seventh Extra Team Training is rejected even with a large budget", async () => {
     const game = newGame();
 
-    game.ctx.team2.rerolls = 12;
+    game.ctx.teams[1].rerolls = 12;
     const response = await game.execute({
       type: "select-inducement",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       inducement: Inducement.EXTRA_TEAM_TRAINING,
       quantity: 7,
     });
@@ -93,10 +93,10 @@ describe("headless pregame inducement commands", () => {
 
   it("a forged Star Player selection is rejected", async () => {
     const game = newGame();
-    game.ctx.team2.rerolls = 6;
+    game.ctx.teams[1].rerolls = 6;
     const response = await game.execute({
       type: "select-inducement",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       inducement: Inducement.STAR_PLAYER,
       quantity: 1,
     });
@@ -106,16 +106,16 @@ describe("headless pregame inducement commands", () => {
 
   it("removes a selection back to zero", async () => {
     const game = newGame();
-    game.ctx.team2.rerolls = 6;
+    game.ctx.teams[1].rerolls = 6;
     await game.execute({
       type: "select-inducement",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       inducement: Inducement.EXTRA_TEAM_TRAINING,
       quantity: 1,
     });
     const removed = await game.execute({
       type: "remove-inducement",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       inducement: Inducement.EXTRA_TEAM_TRAINING,
     });
     expect(removed.ok).toBe(true);
@@ -123,22 +123,22 @@ describe("headless pregame inducement commands", () => {
     expect(offer).toBeUndefined();
     const listed = await game.execute({ type: "offer-inducements" });
     const check = fixtureValue(listed.inducementOffer);
-    expect(check.selections[game.ctx.team1.id]).toEqual([]);
+    expect(check.selections[game.ctx.teams[0].id]).toEqual([]);
   });
 
   it("commits inventory into match state only once both teams confirm", async () => {
     const game = newGame();
-    game.ctx.team2.rerolls = 6;
+    game.ctx.teams[1].rerolls = 6;
     await game.execute({
       type: "select-inducement",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       inducement: Inducement.EXTRA_TEAM_TRAINING,
       quantity: 1,
     });
 
     const firstConfirm = await game.execute({
       type: "confirm-inducements",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
     });
     expect(firstConfirm.ok).toBe(true);
     expect(
@@ -147,7 +147,7 @@ describe("headless pregame inducement commands", () => {
 
     const secondConfirm = await game.execute({
       type: "confirm-inducements",
-      teamId: game.ctx.team2.id,
+      teamId: game.ctx.teams[1].id,
     });
     expect(secondConfirm.ok).toBe(true);
     const inventory = fixtureValue(
@@ -156,7 +156,7 @@ describe("headless pregame inducement commands", () => {
     expect(inventory).toHaveLength(1);
     expect(inventory[0]).toMatchObject({
       inducement: Inducement.EXTRA_TEAM_TRAINING,
-      ownerTeamId: game.ctx.team1.id,
+      ownerTeamId: game.ctx.teams[0].id,
       quantity: 1,
       remainingUses: 1,
       price: 125_000,
@@ -165,28 +165,28 @@ describe("headless pregame inducement commands", () => {
 
   it("a confirmed inventory survives save/restore without recharging", async () => {
     const game = newGame();
-    game.ctx.team2.rerolls = 6;
+    game.ctx.teams[1].rerolls = 6;
     await game.execute({
       type: "select-inducement",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       inducement: Inducement.EXTRA_TEAM_TRAINING,
       quantity: 1,
     });
     await game.execute({
       type: "confirm-inducements",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
     });
     await game.execute({
       type: "confirm-inducements",
-      teamId: game.ctx.team2.id,
+      teamId: game.ctx.teams[1].id,
     });
 
     const save = createMatchSave({
       state: game.ctx.gameService.getState(),
-      teams: [game.ctx.team1, game.ctx.team2],
+      teams: [game.ctx.teams[0], game.ctx.teams[1]],
       drive: {
-        kickingTeamId: game.ctx.team1.id,
-        receivingTeamId: game.ctx.team2.id,
+        kickingTeamId: game.ctx.teams[0].id,
+        receivingTeamId: game.ctx.teams[1].id,
       },
       rng: game.ctx.rng.captureState(),
       matchStats: game.ctx.matchStats.captureState(),
@@ -198,7 +198,7 @@ describe("headless pregame inducement commands", () => {
     ).inventory;
     expect(inventory).toHaveLength(1);
     expect(fixtureValue(inventory[0]).remainingUses).toBe(1);
-    expect(fixtureValue(inventory[0]).ownerTeamId).toBe(game.ctx.team1.id);
+    expect(fixtureValue(inventory[0]).ownerTeamId).toBe(game.ctx.teams[0].id);
   });
 });
 
@@ -218,8 +218,7 @@ describe("Matched Play inducements (MP2)", () => {
     const game = new HeadlessGame({
       scenario: scrimmage,
       seed: 1,
-      team1,
-      team2: matchedPlayTeam("team2"),
+      teams: [team1, matchedPlayTeam("team2")],
     });
 
     expect(game.ctx.gameService.getState().inducements?.inventory).toEqual([
@@ -242,8 +241,7 @@ describe("Matched Play inducements (MP2)", () => {
     ];
     const game = new HeadlessGame({
       seed: 1,
-      team1,
-      team2: matchedPlayTeam("team2"),
+      teams: [team1, matchedPlayTeam("team2")],
       startingPhase: GamePhase.SETUP,
       format: { gameType: "street-bowl", venue: "street" },
     });
@@ -259,8 +257,7 @@ describe("Matched Play inducements (MP2)", () => {
     const game = new HeadlessGame({
       scenario: scrimmage,
       seed: 1,
-      team1: matchedPlayTeam("team1"),
-      team2,
+      teams: [matchedPlayTeam("team1"), team2],
     });
 
     const response = await game.execute({

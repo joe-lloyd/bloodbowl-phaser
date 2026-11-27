@@ -659,7 +659,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               );
 
               assert(
-                r.snapshot.activeTeamId === r.game.ctx.team1.id,
+                r.snapshot.activeTeamId === r.game.ctx.teams[0].id,
                 "the blocking team still holds the turn"
               );
               const mate = playerOf(r, "team1:1");
@@ -889,7 +889,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               );
               assert(!!push, "a push-direction decision must be raised");
               assert(
-                push.chooserTeamId === r.game.ctx.team2.id,
+                push.chooserTeamId === r.game.ctx.teams[1].id,
                 "the PUSHED player's coach must choose the square"
               );
               const opts = push.options;

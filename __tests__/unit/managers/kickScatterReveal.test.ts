@@ -14,7 +14,8 @@ import { GameEventNames } from "../../../src/types/events";
 const GUARD_MS = 5000;
 
 function scatteredKick(from: { x: number; y: number }, seed: number) {
-  const { team1, team2, gameService } = new HeadlessGame({ seed: 1 }).ctx;
+  const { teams, gameService } = new HeadlessGame({ seed: 1 }).ctx;
+  const [team1, team2] = teams;
   const state = gameService.getState();
   state.ballPosition = from;
   const bus = new EventBus();

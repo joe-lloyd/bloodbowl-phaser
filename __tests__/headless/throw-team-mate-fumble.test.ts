@@ -56,8 +56,8 @@ async function fumble(
   options: Parameters<typeof scenario>[0] = {}
 ) {
   const game = new HeadlessGame({ scenario: scenario(options), seed: 1 });
-  const thrower = game.ctx.team1.players[0];
-  const mate = game.ctx.team1.players[options.troll ? 1 : 3];
+  const thrower = game.ctx.teams[0].players[0];
+  const mate = game.ctx.teams[0].players[options.troll ? 1 : 3];
 
   forceDice(game.ctx.rng, [2, ...values]);
   const declared = await game.execute({
@@ -75,7 +75,7 @@ async function fumble(
     y: options.edge ? 0 : 5,
   });
   expect(response.ok).toBe(true);
-  const positions = [...game.ctx.team1.players, ...game.ctx.team2.players]
+  const positions = [...game.ctx.teams[0].players, ...game.ctx.teams[1].players]
     .filter((p) => p.gridPosition)
     .map(
       (p) =>
@@ -165,7 +165,7 @@ describe("fumbled Throw Team-mate", () => {
     );
     expect(fixtureValue(mate).gridPosition).toEqual({ x: 4, y: 2 });
     expect(fixtureValue(mate).status).toBe(PlayerStatus.PRONE);
-    expect(game.ctx.team2.players.slice(0, 2).map((p) => p.status)).toEqual([
+    expect(game.ctx.teams[1].players.slice(0, 2).map((p) => p.status)).toEqual([
       PlayerStatus.PRONE,
       PlayerStatus.PRONE,
     ]);
@@ -213,11 +213,11 @@ describe("fumbled Throw Team-mate", () => {
       { x: 4, y: 4 },
       { x: 5, y: 4 },
     ]);
-    expect(fixtureValue(game.ctx.team2.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[1].players[0]).status).toBe(
       PlayerStatus.DEAD
     );
     expect(
-      fixtureValue(game.ctx.team2.players[0]).gridPosition
+      fixtureValue(game.ctx.teams[1].players[0]).gridPosition
     ).toBeUndefined();
   });
 
@@ -231,7 +231,7 @@ describe("fumbled Throw Team-mate", () => {
         ],
       }
     );
-    const victim = game.ctx.team2.players[0];
+    const victim = game.ctx.teams[1].players[0];
     expect(fixtureValue(victim).status).toBe(PlayerStatus.DEAD);
     expect(fixtureValue(victim).gridPosition).toBeUndefined();
     expect(fixtureValue(mate).gridPosition).toEqual({ x: 4, y: 4 });
@@ -275,7 +275,7 @@ describe("fumbled Throw Team-mate", () => {
         ],
       }
     );
-    expect(fixtureValue(game.ctx.team2.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[1].players[0]).status).toBe(
       PlayerStatus.DEAD
     );
     expect(fixtureValue(mate).gridPosition).toEqual({ x: 4, y: 4 });

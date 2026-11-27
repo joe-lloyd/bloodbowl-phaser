@@ -26,8 +26,8 @@ export async function rehearse(
     ...(players !== undefined && { selectionLimit: players }),
   });
   await settle();
-  const home = (index: number) => fixtureValue(game.ctx.team1.players[index]);
-  const away = (index: number) => fixtureValue(game.ctx.team2.players[index]);
+  const home = (index: number) => fixtureValue(game.ctx.teams[0].players[index]);
+  const away = (index: number) => fixtureValue(game.ctx.teams[1].players[index]);
   return { game, gs, home, away };
 }
 

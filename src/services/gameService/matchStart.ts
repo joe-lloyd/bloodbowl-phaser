@@ -13,17 +13,16 @@ import type { GameParts } from "./parts";
 import { pairSeating, teamsOf } from "@/game/seating";
 import { readyInducements, skipUnaffordableInducements } from "./inducements";
 import { prepareClubSquad } from "@/game/rules/club";
+import type { GameType } from "@/game/variants/gameTypes";
 
 export function createMatchState({
-  team1,
-  team2,
+  teams,
   startingPhase = GamePhase.SETUP,
   startingSubPhase,
   fixture = {},
   format = SEVENS_FORMAT,
 }: {
-  team1: Team;
-  team2: Team;
+  teams: readonly Team[];
   startingPhase?: GamePhase;
   startingSubPhase?: SubPhase;
   fixture?: {
@@ -35,14 +34,12 @@ export function createMatchState({
 }): GameState {
   activateMatchFormat(format);
   const competition = !!(fixture.competition ?? fixture.paysWinnings);
-  prepareClubSquad(team1, format.gameType, competition);
-  prepareClubSquad(team2, format.gameType, competition);
-  const readiness = { leagueFixture: !!fixture.paysWinnings, competition };
-  SetupManager.sanitizeTeam(team1, readiness);
-  SetupManager.sanitizeTeam(team2, readiness);
+  readyTeams(teams, format.gameType, {
+    leagueFixture: !!fixture.paysWinnings,
+    competition,
+  });
   const state = createInitialState({
-    team1,
-    team2,
+    teams,
     startingPhase,
     ...(startingSubPhase !== undefined && { startingSubPhase }),
   });
@@ -56,14 +53,23 @@ export function createMatchState({
   return state;
 }
 
+function readyTeams(
+  teams: readonly Team[],
+  gameType: GameType,
+  readiness: { leagueFixture: boolean; competition: boolean }
+): void {
+  for (const team of teams) {
+    prepareClubSquad(team, gameType, readiness.competition);
+  }
+  for (const team of teams) SetupManager.sanitizeTeam(team, readiness);
+}
+
 export function createInitialState({
-  team1,
-  team2,
+  teams,
   startingPhase = GamePhase.SANDBOX_IDLE,
   startingSubPhase,
 }: {
-  team1: Team;
-  team2: Team;
+  teams: readonly Team[];
   startingPhase?: GamePhase;
   startingSubPhase?: SubPhase;
 }): GameState {
@@ -72,10 +78,7 @@ export function createInitialState({
     ...(startingSubPhase !== undefined && { subPhase: startingSubPhase }),
     activeTeamId: null,
     turn: freshTurn(),
-    score: {
-      [team1.id]: 0,
-      [team2.id]: 0,
-    },
+    score: Object.fromEntries(teams.map((team) => [team.id, 0])),
     weather: "Nice",
     ballPosition: null,
     activePlayer: null,

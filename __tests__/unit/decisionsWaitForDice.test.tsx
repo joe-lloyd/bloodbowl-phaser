@@ -28,10 +28,10 @@ let teamId: string;
 beforeEach(() => {
   const game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
-  playerId = fixtureValue(game.ctx.team1.players[0]).id;
-  defenderId = fixtureValue(game.ctx.team2.players[0]).id;
-  teamId = game.ctx.team1.id;
+  ServiceContainer.initialize({ eventBus: bus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
+  playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+  defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
+  teamId = game.ctx.teams[0].id;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);

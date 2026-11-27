@@ -41,11 +41,10 @@ export function createMatch(
 
   const guestGame = new HeadlessGame({
     ...options,
-    team1: structuredClone(game.ctx.team1),
-    team2: structuredClone(game.ctx.team2),
+    teams: [structuredClone(game.ctx.teams[0]), structuredClone(game.ctx.teams[1])],
   });
-  const hostTeamId = game.ctx.team1.id;
-  const guestTeamId = game.ctx.team2.id;
+  const hostTeamId = game.ctx.teams[0].id;
+  const guestTeamId = game.ctx.teams[1].id;
   const [hostEnd, guestEnd] = createInMemoryTransportPair();
   const match: Match = {
     game,

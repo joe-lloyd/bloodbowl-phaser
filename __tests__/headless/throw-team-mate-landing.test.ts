@@ -50,8 +50,8 @@ const LANDING_FAILS_SEED = 5;
 
 async function throwMate(seed: number, opts: Parameters<typeof scenario>[0]) {
   const game = new HeadlessGame({ scenario: scenario(opts), seed });
-  const throwerId = fixtureValue(game.ctx.team1.players[0]).id;
-  const teammateId = fixtureValue(game.ctx.team1.players[1]).id;
+  const throwerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+  const teammateId = fixtureValue(game.ctx.teams[0].players[1]).id;
   await game.execute({
     type: "declare-action",
     playerId: throwerId,

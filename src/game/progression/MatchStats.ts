@@ -120,9 +120,9 @@ export class MatchStats {
   private readonly sppValues: Map<string, SppValues>;
 
   private readonly eventBus: IEventBus;
-  private readonly teams: Team[];
+  private readonly teams: readonly Team[];
   public readonly progressionEnabled: boolean;
-  constructor(eventBus: IEventBus, teams: Team[], progressionEnabled = false) {
+  constructor(eventBus: IEventBus, teams: readonly Team[], progressionEnabled = false) {
     this.eventBus = eventBus;
     this.teams = teams;
     this.progressionEnabled = progressionEnabled;

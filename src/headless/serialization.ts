@@ -214,7 +214,7 @@ function optionalTurnFields(turn: TurnData | TurnSnapshot) {
 
 export function serializeGameState(
   state: GameState,
-  teams: Team[]
+  teams: readonly Team[]
 ): GameSnapshot {
   const movementUsed: Record<string, number> = {};
   state.turn.movementUsed.forEach((value, key) => {
@@ -366,7 +366,7 @@ export function restoreTeam(team: Team, saved: Team): void {
 
 export function applySnapshotToTeams(
   snapshot: GameSnapshot,
-  teams: Team[]
+  teams: readonly Team[]
 ): void {
   const byId = new Map(
     snapshot.teams.flatMap((t) => t.players.map((p) => [p.id, p] as const))

@@ -44,7 +44,7 @@ describe("skill and prayer events keep their order", () => {
           team2: [{ x: 11, y: 5, skills: variant.marker }],
           ballPosition: { x: 1, y: 1 },
         });
-        const [mover] = game.ctx.team1.players;
+        const [mover] = game.ctx.teams[0].players;
         return playOut(
           game,
           [
@@ -74,7 +74,7 @@ describe("skill and prayer events keep their order", () => {
       SCENARIOS.find((s) => s.id === "basic-scrimmage")
     );
     const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
-    const team1 = game.ctx.team1;
+    const team1 = game.ctx.teams[0];
     forceDice(game.ctx.rng, [1, 2, 3, 4, 5, 6, 7, 8]);
     await commit(game, [bought(team1.id, Inducement.PRAYERS_TO_NUFFLE, 8)]);
     const first = eventOrder(game.events());

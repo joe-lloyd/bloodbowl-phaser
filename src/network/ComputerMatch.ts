@@ -86,7 +86,7 @@ function computerMatchState(options: ComputerMatchOptions): GameState {
   const { team1, team2 } = options;
   const initialState =
     options.resume?.state ??
-    GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
+    GameService.createMatchState({ teams: [team1, team2], startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
         paysWinnings: fixturePaysWinnings(options.competitionContext),
         competition: !!options.competitionContext,
         pregameInducements: true,
@@ -130,7 +130,7 @@ class ComputerSession {
     this.engine = this.container.engineGameService;
     this.game = new HeadlessGame({
       ctx: { eventBus: this.eventBus, gameService: this.engine, rng: this.container.rngService,
-        team1: options.team1, team2: options.team2, seed: 0, matchStats: this.container.matchStats },
+        teams: [options.team1, options.team2], seed: 0, matchStats: this.container.matchStats },
       kickingTeamId: options.resume?.save.drive.kickingTeamId ?? null,
     });
     this.autosave = this.createAutosave();
@@ -153,7 +153,7 @@ class ComputerSession {
     const matchStatsState = this.options.resume?.save.matchStats;
     const turnManagerState = this.options.resume?.save.turnManager;
     return ServiceContainer.initialize({
-      eventBus: this.eventBus, team1, team2, initialState: computerMatchState(this.options),
+      eventBus: this.eventBus, teams: [team1, team2], initialState: computerMatchState(this.options),
       seed: Math.floor(Math.random() * 2 ** 31), progressionEnabled: progressionOf(this.options),
       gameServiceFactory: (engine) => new ComputerGameService({ engine,
         forward: (command) => this.runAs(this.myTeamId, command), pendingDecision: () => this.game.pendingDecision(), eventBus: this.eventBus }),

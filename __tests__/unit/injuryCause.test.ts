@@ -11,7 +11,7 @@ it("keeps a failed dodge as the casualty cause through armour and injury", async
     scenario: fixtureValue(SCENARIOS.find((s) => s.id === "basic-scrimmage")),
     seed: 1,
   });
-  const player = game.ctx.team1.players[0];
+  const player = game.ctx.teams[0].players[0];
   fixtureValue(player).skills = [];
   const events: AllEvents[typeof GameEventNames.PlayerCasualtyInflicted][] = [];
   game.ctx.eventBus.on(GameEventNames.PlayerCasualtyInflicted, (data) => {
@@ -41,7 +41,7 @@ it("keeps a failed dodge as the casualty cause through armour and injury", async
 
 it("does not invent a crowd cause when an injury has no causer", async () => {
   const game = new HeadlessGame({ seed: 1 });
-  const player = game.ctx.team1.players[0];
+  const player = game.ctx.teams[0].players[0];
   const events: AllEvents[typeof GameEventNames.PlayerCasualtyInflicted][] = [];
   game.ctx.eventBus.on(GameEventNames.PlayerCasualtyInflicted, (data) => {
     events.push(data);

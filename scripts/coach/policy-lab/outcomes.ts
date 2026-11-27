@@ -36,8 +36,8 @@ interface TurnContext {
 function outcomeTracker(game: HeadlessGame) {
   const totals: [Outcomes, Outcomes] = [empty(), empty()];
   const sides = new Map<string, 0 | 1>([
-    [game.ctx.team1.id, 0],
-    [game.ctx.team2.id, 1],
+    [game.ctx.teams[0].id, 0],
+    [game.ctx.teams[1].id, 1],
   ]);
   const starts = new Map<
     string,

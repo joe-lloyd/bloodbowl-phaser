@@ -1,5 +1,6 @@
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { kitOf } from "../../../game/presentation/kits";
+import { pairSeating, pairTeams } from "../../../game/seating";
 
 export function DecisionTeam({
   teamId,
@@ -19,6 +20,8 @@ export function DecisionTeam({
       : service.getState().activeTeamId);
   const team = id ? service.getTeam(id) : undefined;
   if (!team) return null;
+  const teams = pairTeams(pairSeating(service.getSeating()));
+  const kit = kitOf(teams, team.id);
 
   return (
     <span
@@ -29,7 +32,7 @@ export function DecisionTeam({
         aria-hidden="true"
         className="h-2.5 w-2.5 rounded-[2px] ring-1 ring-white/40"
         style={{
-          backgroundColor: `#${kitOf(service.getTeams(), team.id).primary.toString(16).padStart(6, "0")}`,
+          backgroundColor: `#${kit.primary.toString(16).padStart(6, "0")}`,
         }}
       />
       {team.name}

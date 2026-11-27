@@ -304,7 +304,7 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   .flatMap((t) => t.players)
                   .some(
                     (p) =>
-                      p.id === fixtureValue(r.game.ctx.team1.players[0]).id &&
+                      p.id === fixtureValue(r.game.ctx.teams[0].players[0]).id &&
                       !!p.position
                   ),
                 "the fouler stays on the pitch (not Sent-off)"

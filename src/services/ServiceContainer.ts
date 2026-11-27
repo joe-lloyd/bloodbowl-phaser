@@ -1,7 +1,7 @@
 import { type IEventBus } from "./EventBus.js";
 import { GameService } from "./GameService.js";
 import { type IGameService } from "./interfaces/IGameService.js";
-import { type Team } from "@/types/Team";
+import { type SeatedTeams } from "@/game/seating";
 import { type GameState } from "@/types/GameState";
 
 import {
@@ -22,8 +22,7 @@ import {
 
 interface ServiceContainerOptions {
   eventBus: IEventBus;
-  team1: Team;
-  team2: Team;
+  teams: SeatedTeams;
   initialState?: GameState;
   seed?: number;
   gameServiceFactory?: (inner: GameService) => IGameService;
@@ -52,7 +51,7 @@ export class ServiceContainer {
   public readonly matchStats: MatchStats;
 
   private constructor(options: ServiceContainerOptions) {
-    const { eventBus, team1, team2, initialState, gameServiceFactory,
+    const { eventBus, teams, initialState, gameServiceFactory,
       progressionEnabled = false, matchStatsState, turnManagerState } = options;
     this.eventBus = eventBus;
 
@@ -60,13 +59,13 @@ export class ServiceContainer {
     this.blockResolutionService = new BlockResolutionService(this.rngService);
     this.matchStats = new MatchStats(
       this.eventBus,
-      [team1, team2],
+      teams,
       matchStatsState?.progressionEnabled ?? progressionEnabled
     );
     if (matchStatsState) this.matchStats.restoreState(matchStatsState);
 
     const gameService = new GameService({
-      eventBus: this.eventBus, team1, team2, rngService: this.rngService,
+      eventBus: this.eventBus, teams, rngService: this.rngService,
       blockResolutionService: this.blockResolutionService,
       ...(initialState !== undefined && { initialState }),
     });
@@ -81,7 +80,7 @@ export class ServiceContainer {
   }
 
   static initialize(options: ServiceContainerOptions): ServiceContainer {
-    const { team1, team2, seed = 0 } = options;
+    const { teams, seed = 0 } = options;
     const instance = new ServiceContainer(options);
     this.instance = instance;
 
@@ -89,8 +88,7 @@ export class ServiceContainer {
       eventBus: instance.eventBus,
       gameService: instance.engineGameService,
       rng: instance.rngService,
-      team1,
-      team2,
+      teams,
       seed,
       matchStats: instance.matchStats,
     });

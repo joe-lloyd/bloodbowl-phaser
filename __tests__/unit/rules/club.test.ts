@@ -218,7 +218,7 @@ describe("a club in a match", () => {
     const away = club();
     away.id = "away";
 
-    createMatchState({ team1: home, team2: away, format: matchFormatFor("street-bowl") });
+    createMatchState({ teams: [home, away], format: matchFormatFor("street-bowl") });
     expect(home.players).toHaveLength(7);
     expect(home.apothecary).toBe(false);
 
@@ -279,7 +279,7 @@ describe("a club in a match", () => {
     const away = club();
     away.id = "away";
 
-    createMatchState({ team1: home, team2: away, fixture: { paysWinnings: true } });
+    createMatchState({ teams: [home, away], fixture: { paysWinnings: true } });
     restoreClubHome(home, stored);
 
     const ids = home.players.map((player) => player.id);
@@ -296,7 +296,7 @@ describe("a club in a match", () => {
       const home = structuredClone(stored);
       const away = club();
       away.id = "away";
-      createMatchState({ team1: home, team2: away, fixture: { competition } });
+      createMatchState({ teams: [home, away], fixture: { competition } });
       restoreClubHome(home, stored);
       return home.players.find((player) => player.id === extra.id)?.injuries;
     };

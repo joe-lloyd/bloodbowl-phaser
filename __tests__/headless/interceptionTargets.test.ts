@@ -15,9 +15,9 @@ const scenario = fixtureValue(
 
 async function throwPast(seed: number) {
   const game = new HeadlessGame({ scenario, seed });
-  const thrower = game.ctx.team1.players[0];
-  const interceptor = game.ctx.team2.players[0];
-  const passingTeam = game.ctx.team1.players;
+  const thrower = game.ctx.teams[0].players[0];
+  const interceptor = game.ctx.teams[1].players[0];
+  const passingTeam = game.ctx.teams[0].players;
   const preview = interceptPreviewLine(
     fixtureValue(interceptor),
     passingTeam,

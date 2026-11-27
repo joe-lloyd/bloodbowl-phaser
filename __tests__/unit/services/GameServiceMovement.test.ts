@@ -53,7 +53,7 @@ describe("GameService Movement Integration", () => {
       rollBlockDice: vi.fn().mockReturnValue([]),
     } as any;
 
-    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: mockRngService as any, blockResolutionService: mockBlockService, initialState: initialState as any }
+    gameService = new GameService({ eventBus: eventBus, teams: [team1, team2], rngService: mockRngService as any, blockResolutionService: mockBlockService, initialState: initialState as any }
     );
   });
 

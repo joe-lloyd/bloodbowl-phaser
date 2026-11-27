@@ -31,10 +31,9 @@ export function pregameGame(
       { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 1 },
     ];
   return new HeadlessGame({
-    team1,
-    team2,
+    teams: [team1, team2],
     seed: 23,
-    initialState: GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: { pregameInducements: true }, ...startingFormat({ gameType }) }
+    initialState: GameService.createMatchState({ teams: [team1, team2], startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: { pregameInducements: true }, ...startingFormat({ gameType }) }
     ),
   });
 }

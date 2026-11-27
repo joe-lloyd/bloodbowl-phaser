@@ -60,7 +60,7 @@ describe("the planner's touchback", () => {
       },
       seed: 1,
     });
-    game.adoptPending({ type: "touchback", teamId: game.ctx.team1.id });
+    game.adoptPending({ type: "touchback", teamId: game.ctx.teams[0].id });
     const point = await enumerateDecision(game, null);
     const { index } = await plannerCoach.choose({
       game,
@@ -70,7 +70,7 @@ describe("the planner's touchback", () => {
     });
     expect(fixtureValue(point.candidates[index]).commands[0]).toEqual({
       type: "touchback",
-      playerId: fixtureValue(game.ctx.team1.players[1]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[1]).id,
     });
   });
 });
@@ -169,10 +169,10 @@ describe("the planner's dodge past a Tackle", () => {
       },
       seed: 1,
     });
-    const board = readBoard(game, game.ctx.team1.id);
+    const board = readBoard(game, game.ctx.teams[0].id);
     const route = routesFor({
       board: board,
-      player: fieldPlayer(game.ctx.team1.players[0]),
+      player: fieldPlayer(game.ctx.teams[0].players[0]),
     }).get(key({ x: 5, y: 5 }));
     expect(route?.chance).toBeCloseTo(2 / 3, 6);
   });
@@ -197,9 +197,9 @@ describe("the planner's block re-roll", () => {
     });
     game.adoptPending({
       type: "block-dice",
-      attackerId: fixtureValue(game.ctx.team1.players[0]).id,
-      defenderId: fixtureValue(game.ctx.team2.players[0]).id,
-      chooserTeamId: game.ctx.team2.id,
+      attackerId: fixtureValue(game.ctx.teams[0].players[0]).id,
+      defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
+      chooserTeamId: game.ctx.teams[1].id,
       options: [die("pow"), die("skull")],
       choiceStage: "attacker-reroll",
       teamRerollAvailable: true,
@@ -308,7 +308,7 @@ describe("the planner's hit on their carrier", () => {
   it("brings the assist up first, so the blitz throws two dice", async () => {
     const game = carrierGame({ x: 10, y: 5 });
     const rng = createCoachRng(1);
-    const helper = game.ctx.team1.players[1];
+    const helper = game.ctx.teams[0].players[1];
     for (let i = 0; i < 20; i++) {
       const point = await enumerateDecision(game, null);
       const { index } = await plannerCoach.choose({
@@ -323,7 +323,7 @@ describe("the planner's hit on their carrier", () => {
         expect(response.ok).toBe(true);
         if (command.type !== "block") continue;
         expect(command.attackerId).toBe(
-          fixtureValue(game.ctx.team1.players[0]).id
+          fixtureValue(game.ctx.teams[0].players[0]).id
         );
         expect(fixtureValue(helper).gridPosition?.x).toBe(9);
         expect(response.pendingDecision).toMatchObject({ type: "block-dice" });

@@ -16,7 +16,7 @@ async function play(seed: number, knockout: boolean) {
   const state = () => game.ctx.gameService.getState();
   if (knockout) state().knockout = true;
   const { eventBus } = game.ctx;
-  const [home, away] = [game.ctx.team1.id, game.ctx.team2.id];
+  const [home, away] = [game.ctx.teams[0].id, game.ctx.teams[1].id];
 
   let rerollsAtFullTime: Record<string, number> | undefined;
   let rerollsInExtraTime: Record<string, number> | undefined;

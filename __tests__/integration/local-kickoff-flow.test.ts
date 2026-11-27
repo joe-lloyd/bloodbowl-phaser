@@ -111,13 +111,11 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
     const rng = new RNGService(42);
     gameService = new GameService({
       eventBus: eventBus,
-      team1: team1,
-      team2: team2,
+      teams: [team1, team2],
       rngService: rng,
       blockResolutionService: new BlockResolutionService(rng),
       initialState: GameService.createInitialState({
-        team1: team1,
-        team2: team2,
+        teams: [team1, team2],
         startingPhase: GamePhase.SETUP,
         startingSubPhase: SubPhase.COIN_FLIP,
       }),
@@ -234,13 +232,11 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
       const rng = new RNGService(seed);
       const svc = new GameService({
         eventBus: bus,
-        team1: t1,
-        team2: t2,
+        teams: [t1, t2],
         rngService: rng,
         blockResolutionService: new BlockResolutionService(rng),
         initialState: GameService.createInitialState({
-          team1: t1,
-          team2: t2,
+          teams: [t1, t2],
           startingPhase: GamePhase.SETUP,
           startingSubPhase: SubPhase.COIN_FLIP,
         }),

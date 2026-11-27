@@ -16,7 +16,7 @@ let game: HeadlessGame;
 beforeEach(() => {
   game = new HeadlessGame({ seed: 1 });
   eventBus = new EventBus();
-  ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
+  ServiceContainer.initialize({ eventBus: eventBus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -29,7 +29,7 @@ afterEach(async () => {
   ServiceContainer.reset();
 });
 it("shows the interceptor's target and explains a miss", async () => {
-  const interceptor = game.ctx.team2.players[0];
+  const interceptor = game.ctx.teams[1].players[0];
   fixtureValue(interceptor).stats.AG = 3;
   await act(async () => {
     root.render(<InterceptionDialog eventBus={eventBus} />);
@@ -37,8 +37,8 @@ it("shows the interceptor's target and explains a miss", async () => {
   await act(async () => {
     eventBus.emit(GameEventNames.DecisionRequested, {
       type: "interception",
-      chooserTeamId: game.ctx.team2.id,
-      passerId: fixtureValue(game.ctx.team1.players[0]).id,
+      chooserTeamId: game.ctx.teams[1].id,
+      passerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       candidates: [
         { playerId: fixtureValue(interceptor).id, playerName: "Interceptor", modifier: -2 },
       ],
@@ -50,15 +50,15 @@ it("shows the interceptor's target and explains a miss", async () => {
 });
 
 it("keeps each interceptor's number whole when the name is cut", async () => {
-  const [blitzer, lineman] = game.ctx.team2.players;
+  const [blitzer, lineman] = game.ctx.teams[1].players;
   await act(async () => {
     root.render(<InterceptionDialog eventBus={eventBus} />);
   });
   await act(async () => {
     eventBus.emit(GameEventNames.DecisionRequested, {
       type: "interception",
-      chooserTeamId: game.ctx.team2.id,
-      passerId: fixtureValue(game.ctx.team1.players[0]).id,
+      chooserTeamId: game.ctx.teams[1].id,
+      passerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       candidates: [
         { playerId: fixtureValue(blitzer).id, playerName: "Noble Blitzer #2", modifier: -2 },
         {

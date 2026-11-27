@@ -12,7 +12,7 @@ const runPickups = (): boolean[] => {
   const game = createHeadlessGame({ scenario: scrimmage, seed: 999 });
   const results: boolean[] = [];
   for (let i = 0; i < 10; i++) {
-    const player = game.team1.players[0];
+    const player = game.teams[0].players[0];
     const ball = fixtureValue(game.gameService.getState().ballPosition);
     results.push(game.gameService.attemptPickup(fixtureValue(player), ball));
 
@@ -25,8 +25,8 @@ describe("createHeadlessGame", () => {
   it("creates a game in Node without Phaser or DOM", () => {
     const game = createHeadlessGame({ seed: 1 });
     expect(game.gameService.getState()).toBeDefined();
-    expect(game.team1.players.length).toBeGreaterThan(0);
-    expect(game.team2.players.length).toBeGreaterThan(0);
+    expect(game.teams[0].players.length).toBeGreaterThan(0);
+    expect(game.teams[1].players.length).toBeGreaterThan(0);
   });
 
   it("initializes from a scenario definition", () => {
@@ -34,7 +34,7 @@ describe("createHeadlessGame", () => {
     const state = game.gameService.getState();
     expect(state.phase).toBe(scrimmage.setup.phase);
     expect(state.ballPosition).toEqual(scrimmage.setup.ballPosition);
-    const placed = game.team1.players[0];
+    const placed = game.teams[0].players[0];
     expect(fixtureValue(placed).gridPosition).toEqual({
       x: fixtureValue(scrimmage.setup.team1Placements[0]).x,
       y: fixtureValue(scrimmage.setup.team1Placements[0]).y,
@@ -54,15 +54,15 @@ describe("createHeadlessGame", () => {
     const b = createHeadlessGame({ scenario: scrimmage, seed: 7 });
 
     a.gameService.setBallPosition(0, 0);
-    const playerA = a.team1.players[0];
-    a.gameService.getState().score[a.team1.id] = 3;
+    const playerA = a.teams[0].players[0];
+    a.gameService.getState().score[a.teams[0].id] = 3;
 
     expect(b.gameService.getState().ballPosition).toEqual(
       scrimmage.setup.ballPosition
     );
-    expect(b.gameService.getState().score[b.team1.id]).toBe(0);
+    expect(b.gameService.getState().score[b.teams[0].id]).toBe(0);
 
-    expect(playerA).not.toBe(b.team1.players[0]);
+    expect(playerA).not.toBe(b.teams[0].players[0]);
   });
 
   it("produces identical dice outcomes for identical seeds", () => {

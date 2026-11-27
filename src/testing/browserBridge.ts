@@ -3,6 +3,7 @@ import { type HeadlessGameContext } from "../headless/createHeadlessGame";
 import { type GameSnapshot } from "../headless/serialization";
 import { type EmittedEvent, type PendingDecision } from "../headless/protocol";
 import { GameConfig } from "../config/GameConfig";
+import { type Team } from "../types/Team";
 
 const TEST_BRIDGE_KEY = "__bbTestBridge" as const;
 const TEST_BRIDGE_VERSION = 1;
@@ -57,7 +58,7 @@ function bridgeAllowed(): boolean {
   );
 }
 
-function cloneTeam(team: HeadlessGameContext["team1"]): BridgeTeam {
+function cloneTeam(team: Team): BridgeTeam {
   return {
     id: team.id,
     name: team.name,
@@ -128,7 +129,7 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
       };
     },
     scenes: () => activeScenes().map((scene) => scene.scene.key),
-    teams: () => [cloneTeam(ctx.team1), cloneTeam(ctx.team2)],
+    teams: () => [cloneTeam(ctx.teams[0]), cloneTeam(ctx.teams[1])],
     squareToCanvas: (gridX, gridY) => {
       for (const scene of activeScenes()) {
         const pitch = scene.getPitch?.();

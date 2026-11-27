@@ -55,8 +55,8 @@ function session(scenario: Scenario, seed: number) {
       dataOf("skillTriggered", z.object({ effect: z.string() })).map(
         (d) => d.effect
       ),
-    attacker: game.ctx.team1.players[0],
-    target: game.ctx.team2.players[0],
+    attacker: game.ctx.teams[0].players[0],
+    target: game.ctx.teams[1].players[0],
   };
 }
 

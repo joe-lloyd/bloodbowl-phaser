@@ -30,9 +30,9 @@ describe("action plan review fixes", () => {
         confirmed: true,
       });
     });
-    controller.handlePlayerClick(fixtureValue(game.ctx.team1.players[0]).id);
+    controller.handlePlayerClick(fixtureValue(game.ctx.teams[0].players[0]).id);
     await controller.onSquareClicked(11, 5);
-    expect(opened).toBe(fixtureValue(game.ctx.team2.players[0]).id);
+    expect(opened).toBe(fixtureValue(game.ctx.teams[1].players[0]).id);
   });
 
   it("reopens the action menu after Squig Rage knocks down a team-mate and rolls only once", async () => {
@@ -45,8 +45,8 @@ describe("action plan review fixes", () => {
       [{ playerIndex: 0, x: 20, y: 9 }]
     );
     const gs = game.ctx.gameService;
-    const mate = fixtureValue(game.ctx.team1.players[1]);
-    game.ctx.team1.rerolls = 0;
+    const mate = fixtureValue(game.ctx.teams[0].players[1]);
+    game.ctx.teams[0].rerolls = 0;
     forceDice(game.ctx.rng, [1, 1, 1, 1, 1]);
     const squig = act(0, "move");
     const pressed: Promise<void>[] = [controller.onSquareClicked(13, 5)];
@@ -72,7 +72,7 @@ describe("action plan review fixes", () => {
 
     expect(gs.cancelAction(squig.id)).toBe(true);
     expect(gs.declareAction({ playerId: squig.id, action: "blitz" })).toBe(true);
-    controller.handlePlayerClick(fixtureValue(game.ctx.team1.players[2]).id);
+    controller.handlePlayerClick(fixtureValue(game.ctx.teams[0].players[2]).id);
     expect(gs.hasPlayerActed(squig.id)).toBe(true);
     expect(gs.getState().turn.spend.blitzed).toHaveLength(0);
   });
@@ -176,7 +176,7 @@ describe("action plan review fixes", () => {
     const rolled: AllEvents[typeof GameEventNames.UI_RollBlockDice][] = [];
     game.ctx.eventBus.on(GameEventNames.UI_RollBlockDice, (data) => { rolled.push(data); });
     act(0, "blitz");
-    const defender = fixtureValue(game.ctx.team2.players[0]);
+    const defender = fixtureValue(game.ctx.teams[1].players[0]);
 
     await controller.onSquareClicked(11, 5);
     expect(fixtureValue(seen.plan).stages.at(-1)?.label).toContain("Block");
@@ -198,7 +198,7 @@ describe("action plan review fixes", () => {
     act(0, "blitz");
 
     await controller.onSquareClicked(11, 5);
-    fixtureValue(game.ctx.team2.players[0]).gridPosition = { x: 13, y: 5 };
+    fixtureValue(game.ctx.teams[1].players[0]).gridPosition = { x: 13, y: 5 };
     game.ctx.eventBus.emit(GameEventNames.UI_GoMovePlan, undefined);
 
     await vi.waitFor(() => {

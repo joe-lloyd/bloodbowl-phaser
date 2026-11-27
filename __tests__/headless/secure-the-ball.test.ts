@@ -41,7 +41,7 @@ function diceOf(events: { name: string; data?: unknown }[]): string[] {
 }
 
 async function secure(game: HeadlessGame, path: { x: number; y: number }[]) {
-  const id = fixtureValue(game.ctx.team1.players[0]).id;
+  const id = fixtureValue(game.ctx.teams[0].players[0]).id;
   const declared = await game.execute({
     type: "declare-action",
     playerId: id,
@@ -63,7 +63,7 @@ describe("a Secure the Ball pick-up", () => {
     expect(diceOf(response.events)).toEqual([
       "Secure the Ball (Human Lineman #1): 4, needs 2+",
     ]);
-    const securer = game.ctx.team1.players[0];
+    const securer = game.ctx.teams[0].players[0];
     expect(fixtureValue(securer).gridPosition).toEqual({ x: 7, y: 5 });
     expect(game.ctx.gameService.getState().ballPosition).toEqual({
       x: 7,
@@ -74,7 +74,7 @@ describe("a Secure the Ball pick-up", () => {
         .getState()
         .turn.activatedPlayerIds.has(fixtureValue(securer).id)
     ).toBe(true);
-    expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
+    expect(response.snapshot.activeTeamId).toBe(game.ctx.teams[0].id);
   });
 
   it("turns over on a 1, and Sure Hands offers no re-roll", async () => {
@@ -82,7 +82,7 @@ describe("a Secure the Ball pick-up", () => {
       scenario: scenario({ securer: { skills: [SkillType.SURE_HANDS] } }),
       seed: 7,
     });
-    game.ctx.team1.rerolls = 1;
+    game.ctx.teams[0].rerolls = 1;
     const failed = await secure(game, [
       { x: 6, y: 5 },
       { x: 7, y: 5 },
@@ -100,7 +100,7 @@ describe("a Secure the Ball pick-up", () => {
 
     const declined = await game.execute({ type: "use-reroll", accept: false });
     expect(diceOf(declined.events)).toEqual(["Bounce Direction: 1"]);
-    expect(declined.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+    expect(declined.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
   });
 });
 
@@ -110,7 +110,7 @@ describe("a Secure the Ball pick-up in Pouring Rain", () => {
       scenario: scenario({ weather: "Pouring Rain" }),
       seed: 9,
     });
-    game.ctx.team1.rerolls = 0;
+    game.ctx.teams[0].rerolls = 0;
     const failed = await secure(game, [
       { x: 6, y: 5 },
       { x: 7, y: 5 },
@@ -120,7 +120,7 @@ describe("a Secure the Ball pick-up in Pouring Rain", () => {
       "Secure the Ball (Human Lineman #1): 2, needs 3+",
       "Bounce Direction: 7",
     ]);
-    expect(failed.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+    expect(failed.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
   });
 
   it("lets Big Hand ignore the rain, so a 2 succeeds", async () => {
@@ -153,7 +153,7 @@ describe("a Secure the Ball pick-up in Pouring Rain", () => {
       }),
       seed: 9,
     });
-    game.ctx.team1.rerolls = 0;
+    game.ctx.teams[0].rerolls = 0;
     const failed = await secure(game, [
       { x: 6, y: 5 },
       { x: 7, y: 5 },
@@ -162,7 +162,7 @@ describe("a Secure the Ball pick-up in Pouring Rain", () => {
     expect(diceOf(failed.events)[0]).toBe(
       "Secure the Ball (Human Lineman #1): 2, needs 3+"
     );
-    expect(failed.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+    expect(failed.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
   });
 });
 
@@ -175,7 +175,7 @@ describe("a Big Hand pick-up in Pouring Rain", () => {
       }),
       seed: 1,
     });
-    const id = fixtureValue(game.ctx.team1.players[0]).id;
+    const id = fixtureValue(game.ctx.teams[0].players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: id,
@@ -202,7 +202,7 @@ describe("declaring Secure the Ball", () => {
     });
     const declared = await game.execute({
       type: "declare-action",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       action: "secureBall",
     });
 
@@ -218,7 +218,7 @@ describe("declaring Secure the Ball", () => {
     });
     const declared = await game.execute({
       type: "declare-action",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       action: "secureBall",
     });
 
@@ -228,14 +228,14 @@ describe("declaring Secure the Ball", () => {
   it("is refused to a Big Guy", async () => {
     const game = new HeadlessGame({ scenario: scenario({}), seed: 1 });
 
-    const securer = game.ctx.team1.players[0];
+    const securer = game.ctx.teams[0].players[0];
     fixtureValue(securer).keywords = [
       ...fixtureValue(securer).keywords,
       TraitKeyWord.BIG_GUY,
     ];
     const declared = await game.execute({
       type: "declare-action",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       action: "secureBall",
     });
 
@@ -246,7 +246,7 @@ describe("declaring Secure the Ball", () => {
     const game = new HeadlessGame({ scenario: scenario({}), seed: 1 });
     const legal = await game.execute({ type: "legal-actions" });
     const securer = legal.legalActions?.players.find(
-      (p) => p.playerId === fixtureValue(game.ctx.team1.players[0]).id
+      (p) => p.playerId === fixtureValue(game.ctx.teams[0].players[0]).id
     );
 
     expect(securer?.actions).toContain("secureBall");
@@ -259,9 +259,9 @@ describe("a Secure the Ball move that ends off the ball", () => {
     await secure(game, [{ x: 6, y: 5 }]);
     const ended = await game.execute({
       type: "end-activation",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
     });
 
-    expect(ended.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+    expect(ended.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
   });
 });

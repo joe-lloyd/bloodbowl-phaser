@@ -15,8 +15,8 @@ const BARRICADE = [{ type: "barricade", target: 2 }] as const;
 
 function request() {
   const game = new HeadlessGame({ seed: 1 });
-  const player = fixtureValue(game.ctx.team1.players[0]);
-  game.ctx.team1.rerolls = 0;
+  const player = fixtureValue(game.ctx.teams[0].players[0]);
+  game.ctx.teams[0].rerolls = 0;
   return climbRequest({
     deps: { gameService: game.ctx.gameService, eventBus: game.ctx.eventBus },
     player,

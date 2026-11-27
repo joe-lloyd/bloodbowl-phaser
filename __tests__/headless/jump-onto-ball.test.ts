@@ -55,8 +55,8 @@ describe("a Jump that lands on the loose ball", () => {
       "Jump (Human Lineman #1): 5, needs 3+",
       "Pickup (Human Lineman #1): 5, needs 3+",
     ]);
-    expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(response.snapshot.activeTeamId).toBe(game.ctx.teams[0].id);
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 12,
       y: 5,
     });
@@ -74,8 +74,8 @@ describe("a Jump that lands on the loose ball", () => {
       "Pickup (Human Lineman #1): 1, needs 3+",
       "Bounce Direction: 5",
     ]);
-    expect(response.snapshot.activeTeamId).toBe(game.ctx.team2.id);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(response.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 12,
       y: 5,
     });

@@ -58,7 +58,7 @@ async function replayScore(
     version: 1,
     seed: 1,
     coachSeed: 1,
-    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName],
+    rosters: [game.ctx.teams[0].rosterName, game.ctx.teams[1].rosterName],
     coaches: ["planner", "planner"],
     rerolls: 0,
     steps,
@@ -93,7 +93,7 @@ describe("saved policy outcome evidence", () => {
         },
       ],
     });
-    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     const result = await replayScore(game, [
       { type: "declare-action", playerId, action: "move" },
       {

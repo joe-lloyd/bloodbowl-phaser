@@ -39,7 +39,7 @@ describe("Kickoff Verification", () => {
       rollBlockDice: vi.fn().mockReturnValue([]),
     } as any;
 
-    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: mockRngService as any, blockResolutionService: mockBlockService, delay: noDelay }
+    gameService = new GameService({ eventBus: eventBus, teams: [team1, team2], rngService: mockRngService as any, blockResolutionService: mockBlockService, delay: noDelay }
     );
 
     gameService.startSetup("t1");

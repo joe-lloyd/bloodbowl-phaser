@@ -62,7 +62,7 @@ const foulScene: Scenario = {
 };
 
 async function induce(game: HeadlessGame, lines: InducementSelectionLine[]) {
-  game.ctx.team2.rerolls += 30;
+  game.ctx.teams[1].rerolls += 30;
   for (const line of lines) {
     const response = await game.execute({
       type: "select-inducement",
@@ -73,7 +73,7 @@ async function induce(game: HeadlessGame, lines: InducementSelectionLine[]) {
   }
   await game.execute({ type: "confirm-inducements", teamId: "team1" });
   await game.execute({ type: "confirm-inducements", teamId: "team2" });
-  game.ctx.team2.rerolls -= 30;
+  game.ctx.teams[1].rerolls -= 30;
 }
 
 async function runUntilDecision(game: HeadlessGame, op: GameOperation) {
@@ -87,7 +87,7 @@ async function kick(game: HeadlessGame, dice: number[]) {
   forceDice(game.ctx.rng, dice);
   return game.execute({
     type: "kick-ball",
-    playerId: fixtureValue(game.ctx.team1.players[0]).id,
+    playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
     x: 15,
     y: 5,
   });
@@ -148,8 +148,8 @@ describe("Blitzer's Best Kegs", () => {
     await induce(game, [
       { inducement: Inducement.BLITZERS_BEST_KEGS, quantity: 2 },
     ]);
-    const ours = game.ctx.team1.players[0];
-    const theirs = game.ctx.team2.players[0];
+    const ours = game.ctx.teams[0].players[0];
+    const theirs = game.ctx.teams[1].players[0];
     movePlayerToBox(fixtureValue(ours), { box: "ko" }, game.ctx.eventBus);
     movePlayerToBox(fixtureValue(theirs), { box: "ko" }, game.ctx.eventBus);
 
@@ -163,7 +163,7 @@ describe("Blitzer's Best Kegs", () => {
 
 async function spottedFoul(game: HeadlessGame, laterDice: number[] = []) {
   forceDice(game.ctx.rng, [1, 1, 1, ...laterDice]);
-  const fouler = game.ctx.team1.players[0];
+  const fouler = game.ctx.teams[0].players[0];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(fouler).id,
@@ -271,7 +271,7 @@ describe("Bribes", () => {
   it("save a Secret Weapon from its end-of-drive Send-off", async () => {
     const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
     await induce(game, [{ inducement: Inducement.BRIBE, quantity: 1 }]);
-    const weapon = game.ctx.team1.players[0];
+    const weapon = game.ctx.teams[0].players[0];
     fixtureValue(weapon).skills.push(getSkill(SkillType.SECRET_WEAPON));
 
     forceDice(game.ctx.rng, [2]);
@@ -293,7 +293,7 @@ describe("Bribes", () => {
   it("are not needed when a Secret Weapon wins the argument", async () => {
     const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
     await induce(game, [{ inducement: Inducement.BRIBE, quantity: 1 }]);
-    const weapon = game.ctx.team1.players[0];
+    const weapon = game.ctx.teams[0].players[0];
     fixtureValue(weapon).skills.push(getSkill(SkillType.SECRET_WEAPON));
 
     forceDice(game.ctx.rng, [5]);
@@ -328,7 +328,7 @@ function sceneFor(team1Roster: RosterName): Scenario {
 }
 
 async function injure(game: HeadlessGame, dice: number[]) {
-  const player = game.ctx.team1.players[0];
+  const player = game.ctx.teams[0].players[0];
   forceDice(game.ctx.rng, dice);
   await runUntilDecision(game, new InjuryOperation(fixtureValue(player).id));
   return player;
@@ -346,24 +346,24 @@ describe("Wandering Apothecary", () => {
     await game.execute({ type: "use-apothecary", accept: true });
     expect(fixtureValue(first).status).toBe(PlayerStatus.STUNNED);
 
-    fixtureValue(game.ctx.team1.players[1]).status = PlayerStatus.ACTIVE;
+    fixtureValue(game.ctx.teams[0].players[1]).status = PlayerStatus.ACTIVE;
     await runUntilDecision(
       game,
-      new InjuryOperation(fixtureValue(game.ctx.team1.players[1]).id)
+      new InjuryOperation(fixtureValue(game.ctx.teams[0].players[1]).id)
     );
     expect(game.pendingDecision()).toBeNull();
   });
 
   it("adds a second use to a team that has an Apothecary", async () => {
     const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
-    game.ctx.team1.apothecary = true;
+    game.ctx.teams[0].apothecary = true;
     await induce(game, [
       { inducement: Inducement.WANDERING_APOTHECARY, quantity: 1 },
     ]);
 
     await injure(game, [4, 5]);
     await game.execute({ type: "use-apothecary", accept: true });
-    const second = game.ctx.team1.players[1];
+    const second = game.ctx.teams[0].players[1];
     forceDice(game.ctx.rng, [4, 5]);
     await runUntilDecision(game, new InjuryOperation(fixtureValue(second).id));
     expect(game.pendingDecision()?.type).toBe("apothecary");
@@ -386,13 +386,13 @@ describe("Mortuary Assistant", () => {
     await induce(game, [
       { inducement: Inducement.MORTUARY_ASSISTANT, quantity: 1 },
     ]);
-    regenerates(fixtureValue(game.ctx.team1.players[0]));
-    regenerates(fixtureValue(game.ctx.team1.players[1]));
+    regenerates(fixtureValue(game.ctx.teams[0].players[0]));
+    regenerates(fixtureValue(game.ctx.teams[0].players[1]));
 
     const first = await injure(game, [5, 5, 2, 5]);
     expect(fixtureValue(first).status).toBe(PlayerStatus.RESERVE);
 
-    const second = game.ctx.team1.players[1];
+    const second = game.ctx.teams[0].players[1];
     forceDice(game.ctx.rng, [5, 5, 2, 5]);
     await runUntilDecision(game, new InjuryOperation(fixtureValue(second).id));
     expect(fixtureValue(second).status).toBe(PlayerStatus.INJURED);
@@ -406,7 +406,7 @@ describe("Plague Doctor", () => {
       seed: 1,
     });
     await induce(game, [{ inducement: Inducement.PLAGUE_DOCTOR, quantity: 1 }]);
-    regenerates(fixtureValue(game.ctx.team1.players[0]));
+    regenerates(fixtureValue(game.ctx.teams[0].players[0]));
 
     const player = await injure(game, [5, 5, 3, 4]);
 
@@ -431,11 +431,11 @@ describe("Plague Doctor", () => {
 describe("Halfling Master Chef", () => {
   it("moves a team re-roll from the opposition for each 4+ on 3D6, each half", async () => {
     const game = new HeadlessGame({ scenario: kickoff, seed: 1 });
-    game.ctx.team1.rerolls = 2;
+    game.ctx.teams[0].rerolls = 2;
     await induce(game, [
       { inducement: Inducement.HALFLING_MASTER_CHEF, quantity: 1 },
     ]);
-    game.ctx.team2.rerolls = 3;
+    game.ctx.teams[1].rerolls = 3;
     const state = game.ctx.gameService.getState();
 
     const response = await kick(game, [5, 1, 1, 1, 2, 4, 6, 1]);
@@ -449,8 +449,8 @@ describe("Halfling Master Chef", () => {
         )
         .filter((rollType) => rollType.startsWith("Halfling Master Chef"))
     ).toEqual(["Halfling Master Chef (Home Team)"]);
-    expect(teamRerollsLeft(state, game.ctx.team1)).toBe(4);
-    expect(teamRerollsLeft(state, game.ctx.team2)).toBe(1);
+    expect(teamRerollsLeft(state, game.ctx.teams[0])).toBe(4);
+    expect(teamRerollsLeft(state, game.ctx.teams[1])).toBe(1);
 
     forceDice(game.ctx.rng, [1, 1, 1]);
     game.ctx.gameService.endHalf();
@@ -459,8 +459,8 @@ describe("Halfling Master Chef", () => {
     }
 
     expect(state.phase).toBe(GamePhase.SETUP);
-    expect(teamRerollsLeft(state, game.ctx.team1)).toBe(2);
-    expect(teamRerollsLeft(state, game.ctx.team2)).toBe(3);
+    expect(teamRerollsLeft(state, game.ctx.teams[0])).toBe(2);
+    expect(teamRerollsLeft(state, game.ctx.teams[1])).toBe(3);
     expect(state.inducements?.masterChef).toEqual({
       half: "h2",
       rerolls: { team1: 0, team2: 0 },
@@ -471,23 +471,23 @@ describe("Halfling Master Chef", () => {
 describe("Extra Team Training", () => {
   it("adds a team re-roll for each half", async () => {
     const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
-    game.ctx.team1.rerolls = 2;
+    game.ctx.teams[0].rerolls = 2;
     await induce(game, [
       { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 3 },
     ]);
 
     const state = game.ctx.gameService.getState();
-    expect(teamRerollsLeft(state, game.ctx.team1)).toBe(5);
+    expect(teamRerollsLeft(state, game.ctx.teams[0])).toBe(5);
   });
 
   it("never takes a half above the tracker's 6 team re-rolls", async () => {
     const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
-    game.ctx.team1.rerolls = 3;
+    game.ctx.teams[0].rerolls = 3;
     await induce(game, [
       { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 6 },
     ]);
 
     const state = game.ctx.gameService.getState();
-    expect(teamRerollsLeft(state, game.ctx.team1)).toBe(6);
+    expect(teamRerollsLeft(state, game.ctx.teams[0])).toBe(6);
   });
 });

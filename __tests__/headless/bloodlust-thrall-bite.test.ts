@@ -49,8 +49,8 @@ async function failBloodlustThenEnd(
     scenario: scenario(thrallX, ball),
     seed: BLOODLUST_FAILS_SEED,
   });
-  const vampire = game.ctx.team1.players[0];
-  const thrall = game.ctx.team1.players[1];
+  const vampire = game.ctx.teams[0].players[0];
+  const thrall = game.ctx.teams[0].players[1];
   let turnovers = 0;
   game.ctx.eventBus.on(GameEventNames.Turnover, () => turnovers++);
   const declared = await game.execute({
@@ -150,7 +150,7 @@ describe("Bloodlust failure on reaching the End Zone", () => {
       scenario: { ...base, setup },
       seed: BLOODLUST_FAILS_SEED,
     });
-    const vampire = game.ctx.team1.players[0];
+    const vampire = game.ctx.teams[0].players[0];
     let turnovers = 0;
     game.ctx.eventBus.on(GameEventNames.Turnover, () => turnovers++);
     await game.execute({

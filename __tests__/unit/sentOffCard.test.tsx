@@ -24,6 +24,7 @@ vi.mock("../../src/services/ServiceContainer", () => {
     getPlayerById: () => ({ playerName: "Lineman #1" }),
     getTeam: (id: string) => teams.find((team) => team.id === id),
     getTeams: () => teams,
+    getSeating: () => ({ kind: "pair", seats: teams.map((team, index) => ({ index, team })) }),
     getState: () => ({ bribes: { home: 1 } }),
   };
   return {

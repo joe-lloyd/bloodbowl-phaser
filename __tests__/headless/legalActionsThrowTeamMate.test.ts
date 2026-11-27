@@ -24,7 +24,7 @@ const scenario = (mateSkills: SkillType[]): Scenario => ({
 async function legalFor(mateSkills: SkillType[]) {
   const game = new HeadlessGame({ scenario: scenario(mateSkills), seed: 1 });
   const response = await game.execute({ type: "legal-actions" });
-  const thrower = game.ctx.team1.players[0];
+  const thrower = game.ctx.teams[0].players[0];
   return response.legalActions?.players.find(
     (p) => p.playerId === fixtureValue(thrower).id
   )?.actions;
@@ -46,7 +46,7 @@ describe("legal actions", () => {
     });
     game.ctx.gameService.getState().turn.hasThrownTeamMate = true;
     const response = await game.execute({ type: "legal-actions" });
-    const thrower = game.ctx.team1.players[0];
+    const thrower = game.ctx.teams[0].players[0];
     expect(
       response.legalActions?.players.find(
         (p) => p.playerId === fixtureValue(thrower).id
@@ -69,7 +69,7 @@ describe("legal actions", () => {
       seed: 1,
     });
     const response = await game.execute({ type: "legal-actions" });
-    const kicker = game.ctx.team1.players[0];
+    const kicker = game.ctx.teams[0].players[0];
     expect(
       response.legalActions?.players.find(
         (p) => p.playerId === fixtureValue(kicker).id

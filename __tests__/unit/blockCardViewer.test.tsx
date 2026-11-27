@@ -22,7 +22,7 @@ let game: HeadlessGame;
 beforeEach(() => {
   game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
+  ServiceContainer.initialize({ eventBus: bus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -46,7 +46,7 @@ async function showBlock(
     myTeamId,
     mayAct: () => true,
   } as unknown as OnlineMatch);
-  const attacker = game.ctx.team1.players[0];
+  const attacker = game.ctx.teams[0].players[0];
   fixtureValue(defender).skills = [getSkill(SkillType.BLOCK)];
   await act(async () => {
     root.render(<BlockDiceDialog eventBus={bus} />);
@@ -62,7 +62,7 @@ async function showBlock(
         defenderST: 4,
         barricadeCover: false,
         attackerAssists: [],
-        defenderAssists: [fixtureValue(game.ctx.team2.players[1])],
+        defenderAssists: [fixtureValue(game.ctx.teams[1].players[1])],
       },
     });
   });
@@ -74,20 +74,20 @@ async function showBlock(
 }
 
 const showUphillBlock = (myTeamId: string) =>
-  showBlock(myTeamId, game.ctx.team2.players[0], true);
+  showBlock(myTeamId, game.ctx.teams[1].players[0], true);
 
 it("tells a coach whose Fanatic hits their own teammate that they pick", async () => {
   const lines = await showBlock(
-    game.ctx.team1.id,
-    game.ctx.team1.players[1],
+    game.ctx.teams[0].id,
+    game.ctx.teams[0].players[1],
     false
   );
   expect(lines[0]).toBe("2 dice, you pick");
 });
 
 it("speaks to the defending coach as the one who picks", async () => {
-  const defenderNumber = fixtureValue(game.ctx.team2.players[1]).number;
-  expect(await showUphillBlock(game.ctx.team2.id)).toEqual([
+  const defenderNumber = fixtureValue(game.ctx.teams[1].players[1]).number;
+  expect(await showUphillBlock(game.ctx.teams[1].id)).toEqual([
     "2 dice, you pick",
     "ST 3 vs 4 (3 +1)",
     `Our assists: #${String(defenderNumber)}`,
@@ -96,8 +96,8 @@ it("speaks to the defending coach as the one who picks", async () => {
 });
 
 it("still speaks to the attacking coach from their side", async () => {
-  const defenderNumber = fixtureValue(game.ctx.team2.players[1]).number;
-  expect(await showUphillBlock(game.ctx.team1.id)).toEqual([
+  const defenderNumber = fixtureValue(game.ctx.teams[1].players[1]).number;
+  expect(await showUphillBlock(game.ctx.teams[0].id)).toEqual([
     "2 dice, they pick",
     "ST 3 vs 4 (3 +1)",
     `Their assists: #${String(defenderNumber)}`,

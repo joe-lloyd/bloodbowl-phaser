@@ -29,8 +29,8 @@ function foulScenario(id: string): Scenario {
 
 async function runFoul(id: string, seed: number) {
   const game = new HeadlessGame({ scenario: foulScenario(id), seed });
-  const fouler = game.ctx.team1.players[0];
-  const target = game.ctx.team2.players[0];
+  const fouler = game.ctx.teams[0].players[0];
+  const target = game.ctx.teams[1].players[0];
 
   await game.execute({
     type: "declare-action",
@@ -62,8 +62,8 @@ describe("A foul-caused KO reaches the KO box", () => {
     expect(fixtureValue(target).gridPosition).toBeUndefined();
     expect(
       findBoardStateConflicts(game.ctx.gameService.getState(), [
-        ...game.ctx.team1.players,
-        ...game.ctx.team2.players,
+        ...game.ctx.teams[0].players,
+        ...game.ctx.teams[1].players,
       ])
     ).toEqual([]);
 
@@ -102,8 +102,8 @@ describe("A foul-caused Casualty reaches dead-and-injured", () => {
     expect(fixtureValue(target).gridPosition).toBeUndefined();
     expect(
       findBoardStateConflicts(game.ctx.gameService.getState(), [
-        ...game.ctx.team1.players,
-        ...game.ctx.team2.players,
+        ...game.ctx.teams[0].players,
+        ...game.ctx.teams[1].players,
       ])
     ).toEqual([]);
 
@@ -139,8 +139,8 @@ describe("A sent-off player leaves the pitch", () => {
     expect(fixtureValue(fouler).gridPosition).toBeUndefined();
     expect(
       findBoardStateConflicts(game.ctx.gameService.getState(), [
-        ...game.ctx.team1.players,
-        ...game.ctx.team2.players,
+        ...game.ctx.teams[0].players,
+        ...game.ctx.teams[1].players,
       ])
     ).toEqual([]);
 

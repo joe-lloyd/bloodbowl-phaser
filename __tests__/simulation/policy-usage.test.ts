@@ -37,8 +37,8 @@ describe("policy-lab play usage", () => {
       },
     });
     const initial = game.matchSave();
-    const carrier = fixtureValue(game.ctx.team1.players[0]).id;
-    const blocker = fixtureValue(game.ctx.team2.players[0]).id;
+    const carrier = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const blocker = fixtureValue(game.ctx.teams[1].players[0]).id;
     const steps: {
       command: HeadlessCommand;
       ok: boolean;

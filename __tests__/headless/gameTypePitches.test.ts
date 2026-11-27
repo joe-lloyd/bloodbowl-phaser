@@ -89,7 +89,7 @@ const passAt = async (
 ) => {
   const { game, rolls, wallHits } = pitchGame(pitch);
   forceDice(game.ctx.rng, dice);
-  const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+  const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: passerId,
@@ -122,7 +122,7 @@ describe("GB-P4 obstacles block movement", () => {
       team1: [{ playerIndex: 0, x: 10, y: 4 }],
       team2: [{ playerIndex: 0, x: 22, y: 9 }],
     });
-    const player = fixtureValue(game.ctx.team1.players[0]);
+    const player = fixtureValue(game.ctx.teams[0].players[0]);
     await game.execute({
       type: "declare-action",
       playerId: player.id,
@@ -394,8 +394,8 @@ describe("SB-M10 and GB-M8 throwing a team-mate at walls and pits", () => {
   ) => {
     const { game, rolls } = pitchGame(pitch);
     forceDice(game.ctx.rng, dice);
-    const throwerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const teammate = fixtureValue(game.ctx.team1.players[1]);
+    const throwerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const teammate = fixtureValue(game.ctx.teams[0].players[1]);
     await game.execute({
       type: "declare-action",
       playerId: throwerId,

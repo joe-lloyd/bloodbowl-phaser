@@ -24,10 +24,10 @@ function saveCurrent(
 ) {
   return createMatchSave({
     state: game.gameService.getState(),
-    teams: [game.team1, game.team2],
+    teams: [game.teams[0], game.teams[1]],
     drive: {
-      kickingTeamId: game.team1.id,
-      receivingTeamId: game.team2.id,
+      kickingTeamId: game.teams[0].id,
+      receivingTeamId: game.teams[1].id,
     },
     rng: game.rng.captureState(),
     matchStats: game.matchStats.captureState(),
@@ -132,8 +132,8 @@ describe("resumable match save", () => {
 
     const resumed = createHeadlessGame({ matchSave: saveCurrent(game) });
 
-    expect(resumed.gameService.getTurnNumber(resumed.team1.id)).toBe(3);
-    expect(resumed.gameService.getTurnNumber(resumed.team2.id)).toBe(3);
+    expect(resumed.gameService.getTurnNumber(resumed.teams[0].id)).toBe(3);
+    expect(resumed.gameService.getTurnNumber(resumed.teams[1].id)).toBe(3);
   });
 
   it("continues RNG and legal commands identically after a cold restore", async () => {
@@ -154,14 +154,14 @@ describe("resumable match save", () => {
 
   it("preserves full player progression, conditions, and injuries", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 17 });
-    const player = game.team1.players[0];
+    const player = game.teams[0].players[0];
     fixtureValue(player).status = PlayerStatus.PRONE;
     fixtureValue(player).spp = 12;
     fixtureValue(player).injuries = [InjuryType.NIGGLING_INJURY];
     fixtureValue(player).skills = [...fixtureValue(player).skills, getSkill(SkillType.BLOCK)];
 
     const resumed = createHeadlessGame({ matchSave: saveCurrent(game) });
-    const restored = fixtureValue(resumed.team1.players.find(
+    const restored = fixtureValue(resumed.teams[0].players.find(
       (candidate) => candidate.id === fixtureValue(player).id
     ));
     expect(restored.status).toBe(PlayerStatus.PRONE);
@@ -176,8 +176,8 @@ describe("resumable match save", () => {
       seed: 42,
       progressionEnabled: true,
     });
-    const passer = game.team1.players[0];
-    const catcher = game.team1.players[1];
+    const passer = game.teams[0].players[0];
+    const catcher = game.teams[0].players[1];
     game.eventBus.emit(GameEventNames.PassCompleted, {
       playerId: fixtureValue(passer).id,
       catcherId: fixtureValue(catcher).id,
@@ -192,7 +192,7 @@ describe("resumable match save", () => {
     });
 
     const stats = fixtureValue(resumed.matchStats
-      .summary(resumed.team1.players)
+      .summary(resumed.teams[0].players)
       .players.find((entry) => entry.playerId === fixtureValue(passer).id));
     expect(stats.completions).toBe(2);
   });

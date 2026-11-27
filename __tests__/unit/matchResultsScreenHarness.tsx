@@ -79,7 +79,7 @@ export function setup(progressionEnabled: boolean) {
     p.playerName = `Player ${String(p.number)}`;
   }
   const eventBus = new EventBus();
-  const services = ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2, progressionEnabled: progressionEnabled });
+  const services = ServiceContainer.initialize({ eventBus: eventBus, teams: [team1, team2], progressionEnabled: progressionEnabled });
   const state = services.gameService.getState();
   state.phase = GamePhase.GAME_OVER;
   return { services, state, team1, team2 };

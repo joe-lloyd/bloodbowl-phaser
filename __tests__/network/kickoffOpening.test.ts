@@ -41,7 +41,7 @@ const scenario: Scenario = {
 
 const kick = (game: HeadlessGame): HeadlessCommand => ({
   type: "kick-ball",
-  playerId: fixtureValue(game.ctx.team1.players[0]).id,
+  playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
   x: 14,
   y: 5,
 });
@@ -85,12 +85,11 @@ function online(seed: number): Table {
   const guestGame = new HeadlessGame({
     scenario,
     seed,
-    team1: structuredClone(game.ctx.team1),
-    team2: structuredClone(game.ctx.team2),
+    teams: [structuredClone(game.ctx.teams[0]), structuredClone(game.ctx.teams[1])],
   });
   const [hostEnd, guestEnd] = createInMemoryTransportPair();
-  const hostTeamId = game.ctx.team1.id;
-  const guestTeamId = game.ctx.team2.id;
+  const hostTeamId = game.ctx.teams[0].id;
+  const guestTeamId = game.ctx.teams[1].id;
   let resyncs = 0;
   const session = (
     engine: HeadlessGame,
@@ -137,7 +136,7 @@ const ownerOf = (game: HeadlessGame, pending: PendingDecision) =>
     activeTeamId: game.ctx.gameService.getState().activeTeamId,
     pendingDecision: pending,
     teamIdOfPlayer: (id) => game.ctx.gameService.getPlayerById(id)?.teamId,
-    hostTeamId: game.ctx.team1.id,
+    hostTeamId: game.ctx.teams[0].id,
   }));
 
 const isFree = (game: HeadlessGame, x: number, y: number) =>
@@ -178,7 +177,7 @@ async function playMiniTurn(
   const confirmed = await play(owner, { type: "kickoff-confirm" });
   expect(confirmed.ok).toBe(true);
 
-  const other = [game.ctx.team1.id, game.ctx.team2.id].find((id) => id !== owner);
+  const other = [game.ctx.teams[0].id, game.ctx.teams[1].id].find((id) => id !== owner);
   if (guarded) {
     const trespass = await play(fixtureValue(other), {
       type: "declare-action",
@@ -261,7 +260,7 @@ describe.each([
     async (event) => {
       const table = build(await seedFor(event));
       const { game, play } = table;
-      const kicked = await play(game.ctx.team1.id, kick(game));
+      const kicked = await play(game.ctx.teams[0].id, kick(game));
       expect(kicked.ok).toBe(true);
       await resolveOpening(table);
       table.agreed();
@@ -269,16 +268,16 @@ describe.each([
       expect(game.pendingDecision()).toBeNull();
       expect(game.snapshot()).toMatchObject({
         phase: GamePhase.PLAY,
-        activeTeamId: game.ctx.team2.id,
+        activeTeamId: game.ctx.teams[1].id,
       });
-      const { player, to } = mover(game, game.ctx.team2.id);
-      const declared = await play(game.ctx.team2.id, {
+      const { player, to } = mover(game, game.ctx.teams[1].id);
+      const declared = await play(game.ctx.teams[1].id, {
         type: "declare-action",
         playerId: player.id,
         action: "move",
       });
       expect(declared.ok).toBe(true);
-      const moved = await play(game.ctx.team2.id, {
+      const moved = await play(game.ctx.teams[1].id, {
         type: "move",
         playerId: player.id,
         path: [to],

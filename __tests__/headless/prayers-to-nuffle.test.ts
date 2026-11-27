@@ -23,7 +23,7 @@ function prayersOf(game: HeadlessGame, teamId: string): PrayerToNuffle[] {
 describe("Prayers to Nuffle (D8)", () => {
   it("re-rolls a prayer the team already has and grants Stiletto and Blessing to random players", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
-    const team1 = game.ctx.team1;
+    const team1 = game.ctx.teams[0];
 
     forceDice(game.ctx.rng, [2, 2, 5, 1, 2]);
     await commit(game, [bought(team1.id, Inducement.PRAYERS_TO_NUFFLE, 2)]);
@@ -55,13 +55,13 @@ describe("Prayers to Nuffle (D8)", () => {
     expect(
       team1.players.filter((p) => hasSkill(p.skills, SkillType.STAB))
     ).toHaveLength(1);
-    expect(prayersOf(game, game.ctx.team2.id)).toEqual([]);
+    expect(prayersOf(game, game.ctx.teams[1].id)).toEqual([]);
   });
 
   it("rolls prayers bought through the pregame inducement commands", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
-    const team1 = game.ctx.team1;
-    game.ctx.team2.rerolls += 1;
+    const team1 = game.ctx.teams[0];
+    game.ctx.teams[1].rerolls += 1;
     const selected = await game.execute({
       type: "select-inducement",
       teamId: team1.id,
@@ -73,7 +73,7 @@ describe("Prayers to Nuffle (D8)", () => {
     await game.execute({ type: "confirm-inducements", teamId: team1.id });
     await game.execute({
       type: "confirm-inducements",
-      teamId: game.ctx.team2.id,
+      teamId: game.ctx.teams[1].id,
     });
 
     expect(prayersOf(game, team1.id)).toEqual([
@@ -83,7 +83,7 @@ describe("Prayers to Nuffle (D8)", () => {
 
   it("takes granted skills back at full time", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
-    const team1 = game.ctx.team1;
+    const team1 = game.ctx.teams[0];
     forceDice(game.ctx.rng, [2, 1]);
     await commit(game, [bought(team1.id, Inducement.PRAYERS_TO_NUFFLE, 1)]);
     expect(
@@ -121,7 +121,7 @@ const openField: Scenario = {
 };
 
 async function rushOnce(game: HeadlessGame) {
-  const runner = game.ctx.team1.players[0];
+  const runner = game.ctx.teams[0].players[0];
   const path = Array.from(
     { length: fixtureValue(runner).stats.MA + 1 },
     (_, i) => ({
@@ -151,7 +151,7 @@ describe("prayers that change the rules", () => {
 
     forceDice(game.ctx.rng, [6]);
     await commit(game, [
-      bought(game.ctx.team2.id, Inducement.PRAYERS_TO_NUFFLE, 1),
+      bought(game.ctx.teams[1].id, Inducement.PRAYERS_TO_NUFFLE, 1),
     ]);
     forceDice(game.ctx.rng, [2, 1, 1]);
     const runner = await rushOnce(game);
@@ -162,7 +162,7 @@ describe("prayers that change the rules", () => {
     const game = new HeadlessGame({ scenario: openField, seed: 3 });
     forceDice(game.ctx.rng, [6]);
     await commit(game, [
-      bought(game.ctx.team1.id, Inducement.PRAYERS_TO_NUFFLE, 1),
+      bought(game.ctx.teams[0].id, Inducement.PRAYERS_TO_NUFFLE, 1),
     ]);
     forceDice(game.ctx.rng, [2]);
     const runner = await rushOnce(game);
@@ -177,9 +177,9 @@ describe("prayers that change the rules", () => {
     const game = new HeadlessGame({ scenario: openField, seed: 3 });
     forceDice(game.ctx.rng, [7]);
     await commit(game, [
-      bought(game.ctx.team2.id, Inducement.PRAYERS_TO_NUFFLE, 1),
+      bought(game.ctx.teams[1].id, Inducement.PRAYERS_TO_NUFFLE, 1),
     ]);
-    const fouler = game.ctx.team1.players[1];
+    const fouler = game.ctx.teams[0].players[1];
 
     forceDice(game.ctx.rng, [5, 6, 2, 3, 1]);
     await game.execute({
@@ -198,7 +198,7 @@ describe("prayers that change the rules", () => {
 
   it("without Under Scrutiny the same Foul goes unseen", async () => {
     const game = new HeadlessGame({ scenario: openField, seed: 3 });
-    const fouler = game.ctx.team1.players[1];
+    const fouler = game.ctx.teams[0].players[1];
     forceDice(game.ctx.rng, [5, 6, 2, 3, 1]);
     await game.execute({
       type: "declare-action",
@@ -218,7 +218,7 @@ describe("prayers that change the rules", () => {
 describe("prayers that ask the coach", () => {
   it("Iron Man gives the chosen player +1 AV, refusing a player not offered", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
-    const team1 = game.ctx.team1;
+    const team1 = game.ctx.teams[0];
     const chosen = team1.players[2];
     const av = fixtureValue(chosen).stats.AV;
     forceDice(game.ctx.rng, [3]);
@@ -232,7 +232,7 @@ describe("prayers that ask the coach", () => {
     });
     const refused = await game.execute({
       type: "choose-inducement",
-      playerId: fixtureValue(game.ctx.team2.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[1].players[0]).id,
     });
     expect(refused.ok).toBe(false);
 
@@ -247,7 +247,7 @@ describe("prayers that ask the coach", () => {
 
   it("Knuckle Dusters gives the chosen player Mighty Blow", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
-    const team2 = game.ctx.team2;
+    const team2 = game.ctx.teams[1];
     forceDice(game.ctx.rng, [4]);
     await commit(game, [bought(team2.id, Inducement.PRAYERS_TO_NUFFLE, 1)]);
 
@@ -266,7 +266,7 @@ describe("prayers that ask the coach", () => {
 
   it("Intensive Training lets the coach pick a Primary skill for a random player", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
-    const team1 = game.ctx.team1;
+    const team1 = game.ctx.teams[0];
 
     forceDice(game.ctx.rng, [8, 1]);
     await commit(game, [bought(team1.id, Inducement.PRAYERS_TO_NUFFLE, 1)]);

@@ -32,8 +32,8 @@ describe("hand-off protocol", () => {
       setup: config.setup,
     };
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const targetId = fixtureValue(game.ctx.team1.players[1]).id;
+    const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const targetId = fixtureValue(game.ctx.teams[0].players[1]).id;
 
     await game.execute({
       type: "declare-action",
@@ -75,8 +75,8 @@ describe("hand-off protocol", () => {
       },
     };
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const targetId = fixtureValue(game.ctx.team1.players[1]).id;
+    const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const targetId = fixtureValue(game.ctx.teams[0].players[1]).id;
 
     await game.execute({
       type: "declare-action",

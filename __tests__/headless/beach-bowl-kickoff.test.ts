@@ -18,7 +18,7 @@ import {
 } from "./variantKickoffs";
 
 const noSidelineStaff = (game: HeadlessGame) => {
-  for (const team of [game.ctx.team1, game.ctx.team2]) {
+  for (const team of [game.ctx.teams[0], game.ctx.teams[1]]) {
     team.cheerleaders = 0;
     team.coaches = 0;
   }

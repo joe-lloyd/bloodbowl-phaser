@@ -47,9 +47,9 @@ function vampireBlock() {
   });
   return {
     game,
-    vampire: fixtureValue(game.ctx.team1.players[0]),
-    thrall: fixtureValue(game.ctx.team1.players[1]),
-    target: fixtureValue(game.ctx.team2.players[0]),
+    vampire: fixtureValue(game.ctx.teams[0].players[0]),
+    thrall: fixtureValue(game.ctx.teams[0].players[1]),
+    target: fixtureValue(game.ctx.teams[1].players[0]),
   };
 }
 
@@ -87,6 +87,6 @@ describe("a Vampire with unsated Bloodlust that ends its Block prone", () => {
     expect(vampire.status).toBe(PlayerStatus.PRONE);
     expect(thrall.status).toBe(PlayerStatus.ACTIVE);
     expect(hasCondition(vampire, PlayerCondition.DISTRACTED)).toBe(true);
-    expect(game.snapshot().activeTeamId).toBe(game.ctx.team2.id);
+    expect(game.snapshot().activeTeamId).toBe(game.ctx.teams[1].id);
   });
 });

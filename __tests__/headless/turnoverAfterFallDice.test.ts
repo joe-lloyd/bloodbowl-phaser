@@ -35,7 +35,7 @@ it("raises the turnover banner after the armour and injury dice", async () => {
   });
 
   forceDice(game.ctx.rng, [1, 6, 6, 1, 2]);
-  const mover = game.ctx.team1.players[0];
+  const mover = game.ctx.teams[0].players[0];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(mover).id,

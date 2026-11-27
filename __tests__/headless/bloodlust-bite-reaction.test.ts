@@ -36,8 +36,8 @@ function start() {
     },
   };
   const game = new HeadlessGame({ scenario, seed: BLOODLUST_FAILS_SEED });
-  const vampire = game.ctx.team1.players[0];
-  const thrall = game.ctx.team1.players[1];
+  const vampire = game.ctx.teams[0].players[0];
+  const thrall = game.ctx.teams[0].players[1];
 
   const heard: string[] = [];
   game.ctx.eventBus.on(GameEventNames.PlayerStatusChanged, (p: Player) => {
@@ -87,7 +87,7 @@ describe("A Bloodlust bite announces the bitten Thrall at once", () => {
       "Injury Roll (Thrall Lineman #2): 1 + 6 = 7",
     ]);
     expect(fixtureValue(r.thrall).status).toBe(PlayerStatus.STUNNED);
-    expect(r.game.snapshot().activeTeamId).toBe(r.game.ctx.team1.id);
+    expect(r.game.snapshot().activeTeamId).toBe(r.game.ctx.teams[0].id);
 
     expect(r.heard).toEqual([`thrall ${PlayerStatus.STUNNED}`]);
   });
@@ -107,7 +107,7 @@ describe("A Bloodlust bite announces the bitten Thrall at once", () => {
       "Injury Roll (Thrall Lineman #2): 1 + 6 = 7",
     ]);
     expect(fixtureValue(r.thrall).status).toBe(PlayerStatus.STUNNED);
-    expect(r.game.snapshot().activeTeamId).toBe(r.game.ctx.team2.id);
+    expect(r.game.snapshot().activeTeamId).toBe(r.game.ctx.teams[1].id);
     expect(r.heard).toEqual([`thrall ${PlayerStatus.STUNNED}`, "turn ended"]);
   });
 });

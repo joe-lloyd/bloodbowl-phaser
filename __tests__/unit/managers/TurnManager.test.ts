@@ -31,8 +31,7 @@ describe("TurnManager", () => {
     mockTeam2 = teamWith({ id: "team2", players: [] });
 
     mockState = createInitialState({
-      team1: mockTeam1,
-      team2: mockTeam2,
+      teams: [mockTeam1, mockTeam2],
       startingPhase: GamePhase.SETUP,
     });
 

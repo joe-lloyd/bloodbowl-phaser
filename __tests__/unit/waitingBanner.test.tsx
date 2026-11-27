@@ -22,7 +22,7 @@ beforeEach(async () => {
   vi.useFakeTimers();
   const game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
+  ServiceContainer.initialize({ eventBus: bus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
   ServiceContainer.getInstance().gameService.getState().phase = GamePhase.PLAY;
   container = document.createElement("div");
   document.body.append(container);

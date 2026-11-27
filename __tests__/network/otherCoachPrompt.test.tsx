@@ -51,7 +51,7 @@ let guestSeq: number;
 
 beforeEach(async () => {
   game = new HeadlessGame({ scenario, seed: 3 });
-  const { team1, team2 } = game.ctx;
+  const [team1, team2] = game.ctx.teams;
   team2.name = "Orc Founders";
   const lobby: LobbyDoc = {
     code: "PROMPT",
@@ -138,7 +138,7 @@ const line = () =>
 
 describe("the acting coach's step prompt", () => {
   it("is sent to the other coach while it is open, and cleared when answered", async () => {
-    const mover = game.ctx.team1.players[0];
+    const mover = game.ctx.teams[0].players[0];
     const step: StepPrompt = {
       playerId: fixtureValue(mover).id,
       rolls: [{ type: "dodge", target: 3 }],
@@ -162,7 +162,7 @@ describe("the acting coach's step prompt", () => {
   });
 
   it("sends the pass being aimed, and clears it when aiming stops", async () => {
-    const passer = game.ctx.team1.players[0];
+    const passer = game.ctx.teams[0].players[0];
     const aim: StepPrompt = {
       playerId: fixtureValue(passer).id,
       rolls: [
@@ -191,7 +191,7 @@ describe("the acting coach's step prompt", () => {
 
 describe("the waiting coach's decision dock", () => {
   it("shows what the other coach is deciding, read-only, until they answer", async () => {
-    const orc = game.ctx.team2.players[0];
+    const orc = game.ctx.teams[1].players[0];
     await fromGuest({
       playerId: fixtureValue(orc).id,
       rolls: [{ type: "rush", target: 2 }],
@@ -204,7 +204,7 @@ describe("the waiting coach's decision dock", () => {
   });
 
   it("shows the other coach's foul, read-only, with its armour roll", async () => {
-    const orc = game.ctx.team2.players[0];
+    const orc = game.ctx.teams[1].players[0];
     await fromGuest({
       playerId: fixtureValue(orc).id,
       rolls: [{ type: "armour", target: 8 }],
@@ -213,7 +213,7 @@ describe("the waiting coach's decision dock", () => {
   });
 
   it("shows Secure the Ball by name over the online prompt channel", async () => {
-    const orc = game.ctx.team2.players[0];
+    const orc = game.ctx.teams[1].players[0];
     await fromGuest({
       playerId: fixtureValue(orc).id,
       rolls: [{ type: "secureBall", target: 2 }],
@@ -222,7 +222,7 @@ describe("the waiting coach's decision dock", () => {
   });
 
   it("shows the pass the other coach is aiming, with the catch", async () => {
-    const orc = game.ctx.team2.players[0];
+    const orc = game.ctx.teams[1].players[0];
     await fromGuest({
       playerId: fixtureValue(orc).id,
       rolls: [
@@ -234,7 +234,7 @@ describe("the waiting coach's decision dock", () => {
   });
 
   it("names both rolls of a Rush and Dodge without their odds", async () => {
-    const orc = game.ctx.team2.players[0];
+    const orc = game.ctx.teams[1].players[0];
     await fromGuest({
       playerId: fixtureValue(orc).id,
       rolls: [
@@ -246,7 +246,7 @@ describe("the waiting coach's decision dock", () => {
   });
 
   it("ignores a prompt that claims a player from the wrong team", async () => {
-    const human = game.ctx.team1.players[0];
+    const human = game.ctx.teams[0].players[0];
     await fromGuest({
       playerId: fixtureValue(human).id,
       rolls: [{ type: "rush", target: 2 }],
@@ -255,7 +255,7 @@ describe("the waiting coach's decision dock", () => {
   });
 
   it("clears when the turn passes", async () => {
-    const orc = game.ctx.team2.players[0];
+    const orc = game.ctx.teams[1].players[0];
     await fromGuest({
       playerId: fixtureValue(orc).id,
       rolls: [{ type: "pickup", target: 3 }],
@@ -263,7 +263,7 @@ describe("the waiting coach's decision dock", () => {
     expect(line()).toContain("Pick up 3+");
     await act(async () => {
       bus.emit(GameEventNames.TurnStarted, {
-        teamId: game.ctx.team1.id,
+        teamId: game.ctx.teams[0].id,
         turnNumber: 2,
       });
     });
@@ -271,7 +271,7 @@ describe("the waiting coach's decision dock", () => {
   });
 
   it("gives way to the re-roll choice when the roll fails", async () => {
-    const orc = game.ctx.team2.players[0];
+    const orc = game.ctx.teams[1].players[0];
     await fromGuest({
       playerId: fixtureValue(orc).id,
       rolls: [{ type: "dodge", target: 4 }],
@@ -292,7 +292,7 @@ describe("the waiting coach's decision dock", () => {
   });
 
   it("clears once the other coach's move has run here", async () => {
-    const orc = game.ctx.team2.players[0];
+    const orc = game.ctx.teams[1].players[0];
     await fromGuest({
       playerId: fixtureValue(orc).id,
       rolls: [{ type: "dodge", target: 4 }],

@@ -206,8 +206,8 @@ export async function playPuzzle(
   });
   if (puzzle.setup.turn !== undefined)
     game.ctx.gameService.seedTurnCounts(puzzle.setup.turn);
-  game.ctx.team1.rerolls = puzzle.rerolls;
-  const team1 = game.ctx.team1.id;
+  game.ctx.teams[0].rerolls = puzzle.rerolls;
+  const team1 = game.ctx.teams[0].id;
   const rng = createCoachRng(seed);
   let scored = false;
   let turnover = false;

@@ -259,7 +259,7 @@ function checkKickoff(
   before: Map<string, Team>,
   leagueFixture: boolean
 ): void {
-  for (const team of [game.ctx.team1, game.ctx.team2]) {
+  for (const team of [game.ctx.teams[0], game.ctx.teams[1]]) {
     if (!isLeagueMode(team.advancementMode)) continue;
     const owed = fixtureValue(before.get(team.id)).players.filter((p) =>
       p.injuries.includes(InjuryType.MISS_NEXT_GAME)

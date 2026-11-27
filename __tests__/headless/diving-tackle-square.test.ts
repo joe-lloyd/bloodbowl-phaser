@@ -28,9 +28,9 @@ describe("Diving Tackle", () => {
       },
       seed: 1,
     });
-    game.ctx.team1.rerolls = 1;
-    const dodger = game.ctx.team1.players[0];
-    const diver = game.ctx.team2.players[0];
+    game.ctx.teams[0].rerolls = 1;
+    const dodger = game.ctx.teams[0].players[0];
+    const diver = game.ctx.teams[1].players[0];
 
     forceDice(game.ctx.rng, [4, 1]);
 
@@ -77,9 +77,9 @@ describe("Diving Tackle", () => {
       },
       seed: 1,
     });
-    game.ctx.team1.rerolls = 1;
-    const jumper = game.ctx.team1.players[0];
-    const diver = game.ctx.team2.players[0];
+    game.ctx.teams[0].rerolls = 1;
+    const jumper = game.ctx.teams[0].players[0];
+    const diver = game.ctx.teams[1].players[0];
 
     forceDice(game.ctx.rng, [5, 1]);
 

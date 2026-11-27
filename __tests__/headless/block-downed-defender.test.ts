@@ -30,8 +30,8 @@ const downedNeighbour: Scenario = {
 describe("a Block against a downed opponent", () => {
   it("is refused by the service and leaves the declaration free to become a Foul", async () => {
     const game = new HeadlessGame({ scenario: downedNeighbour, seed: 1 });
-    const blockerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const victimId = fixtureValue(game.ctx.team2.players[0]).id;
+    const blockerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const victimId = fixtureValue(game.ctx.teams[1].players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -75,7 +75,7 @@ describe("a Foul whose declaration a failed negatrait ended", () => {
     };
     for (let seed = 1; seed <= 300; seed++) {
       const game = new HeadlessGame({ scenario, seed });
-      const foulerId = fixtureValue(game.ctx.team1.players[0]).id;
+      const foulerId = fixtureValue(game.ctx.teams[0].players[0]).id;
       const declared = await game.execute({
         type: "declare-action",
         playerId: foulerId,
@@ -113,7 +113,7 @@ describe("a Foul on a downed opponent out of reach", () => {
       },
     };
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const foulerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const foulerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: foulerId,

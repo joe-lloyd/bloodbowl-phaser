@@ -16,9 +16,9 @@ async function injure(
   opts: { stunty?: boolean; modifier?: number; apothecary?: boolean } = {}
 ): Promise<{ game: HeadlessGame; player: Player; d16: number }> {
   const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
-  const player = game.ctx.team1.players[0];
+  const player = game.ctx.teams[0].players[0];
   if (opts.stunty) fixtureValue(player).skills.push(getSkill(SkillType.STUNTY));
-  game.ctx.team1.apothecary = !!opts.apothecary;
+  game.ctx.teams[0].apothecary = !!opts.apothecary;
   const dice = game.ctx.gameService.getDiceController();
   vi.spyOn(dice, "roll2D6").mockReturnValue(total);
   const d16 = vi.spyOn(dice, "rollD16");

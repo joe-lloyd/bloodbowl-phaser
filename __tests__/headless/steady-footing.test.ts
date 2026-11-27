@@ -29,15 +29,15 @@ function board(
     },
   };
   const game = new HeadlessGame({ scenario, seed });
-  game.ctx.team1.rerolls = 0;
+  game.ctx.teams[0].rerolls = 0;
   return game;
 }
 
 describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
   it("keeps a blitzing carrier standing on a Skull without a turnover or bounce", async () => {
     const game = board([SkillType.STEADY_FOOTING]);
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(attacker).id,
@@ -58,7 +58,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     );
     expect(rolls).toEqual([6]);
     expect(fixtureValue(attacker).status).toBe(PlayerStatus.ACTIVE);
-    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.teams[0].id);
     expect(game.ctx.gameService.getState().ballPosition).toEqual({
       x: 5,
       y: 5,
@@ -67,7 +67,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
 
   it("still knocks the attacker down when the save fails", async () => {
     const game = board([SkillType.STEADY_FOOTING], [], 1);
-    const attacker = game.ctx.team1.players[0];
+    const attacker = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(attacker).id,
@@ -75,7 +75,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     });
     await game.ctx.gameService.resolveBlock(
       fixtureValue(attacker).id,
-      fixtureValue(game.ctx.team2.players[0]).id,
+      fixtureValue(game.ctx.teams[1].players[0]).id,
       { type: "skull", icon: "", label: "Skull" }
     );
     expect(fixtureValue(attacker).status).toBe(PlayerStatus.PRONE);
@@ -83,8 +83,8 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
 
   it("saves a defender from Both Down while the attacker with Block stays up", async () => {
     const game = board([SkillType.BLOCK], [SkillType.STEADY_FOOTING]);
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(attacker).id,
@@ -100,13 +100,13 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
       }
     );
     expect(fixtureValue(defender).status).toBe(PlayerStatus.ACTIVE);
-    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.teams[0].id);
   });
 
   it("does not save a player placed prone by Wrestle", async () => {
     const game = board([SkillType.STEADY_FOOTING], [SkillType.WRESTLE]);
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     game.ctx.eventBus.on(GameEventNames.DecisionRequested, (request) => {
       if (request.type === "reaction")
         game.ctx.gameService.getDecisionService().answer({ accept: true });
@@ -140,8 +140,8 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     "keeps a pushed defender standing on %s",
     async (type) => {
       const game = board([], [SkillType.STEADY_FOOTING]);
-      const attacker = game.ctx.team1.players[0];
-      const defender = game.ctx.team2.players[0];
+      const attacker = game.ctx.teams[0].players[0];
+      const defender = game.ctx.teams[1].players[0];
       await game.execute({
         type: "declare-action",
         playerId: fixtureValue(attacker).id,
@@ -170,8 +170,8 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
 
   it("saves a defender that refuses the push with Stand Firm", async () => {
     const game = board([], [SkillType.STEADY_FOOTING, SkillType.STAND_FIRM]);
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     game.ctx.eventBus.on(GameEventNames.DecisionRequested, (request) => {
       if (request.type === "reaction")
         game.ctx.gameService.getDecisionService().answer({ accept: true });
@@ -196,8 +196,8 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
 
   it("offers a team re-roll for a failed save during the player's turn", async () => {
     const game = board([SkillType.STEADY_FOOTING], [], 9);
-    game.ctx.team1.rerolls = 1;
-    const attacker = game.ctx.team1.players[0];
+    game.ctx.teams[0].rerolls = 1;
+    const attacker = game.ctx.teams[0].players[0];
     const offers: { kind: string; roll: number; needed?: number }[] = [];
     game.ctx.eventBus.on(GameEventNames.DecisionRequested, (request) => {
       if (request.type !== "reroll") return;
@@ -217,7 +217,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     });
     await game.ctx.gameService.resolveBlock(
       fixtureValue(attacker).id,
-      fixtureValue(game.ctx.team2.players[0]).id,
+      fixtureValue(game.ctx.teams[1].players[0]).id,
       { type: "skull", icon: "", label: "Skull" }
     );
     expect(offers).toEqual([{ kind: "steady-footing", roll: 2, needed: 6 }]);
@@ -227,7 +227,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
 
   it("saves a failed Rush for the Block part of a Blitz", async () => {
     const game = board([SkillType.STEADY_FOOTING], [], 45);
-    const attacker = game.ctx.team1.players[0];
+    const attacker = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(attacker).id,
@@ -245,13 +245,13 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
       )
     ).toBe(true);
     expect(fixtureValue(attacker).status).toBe(PlayerStatus.ACTIVE);
-    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.teams[0].id);
   });
 
   it("saves a failed Rush before a Blitz Stab and completes the attack", async () => {
     const game = board([SkillType.STEADY_FOOTING, SkillType.STAB]);
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     expect(
       await game.execute({
         type: "declare-action",
@@ -278,7 +278,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     expect(game.ctx.gameService.hasPlayerActed(fixtureValue(attacker).id)).toBe(
       true
     );
-    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.teams[0].id);
     expect(
       game
         .events()
@@ -300,8 +300,8 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
 
   it("continues the route after saving a failed movement Rush without armour or turnover", async () => {
     const game = board([SkillType.STEADY_FOOTING]);
-    const player = game.ctx.team1.players[0];
-    fixtureValue(game.ctx.team2.players[0]).status = PlayerStatus.PRONE;
+    const player = game.ctx.teams[0].players[0];
+    fixtureValue(game.ctx.teams[1].players[0]).status = PlayerStatus.PRONE;
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(player).id,
@@ -325,7 +325,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     expect(result.ok).toBe(true);
     expect(fixtureValue(player).status).toBe(PlayerStatus.ACTIVE);
     expect(fixtureValue(player).gridPosition).toEqual({ x: 5, y: 7 });
-    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.teams[0].id);
     const expectedRollType: unknown = expect.stringContaining("Armour Roll");
     expect(
       result.events
@@ -340,8 +340,8 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
 
   it("continues a saved Dodge, and only the successful Dodge is Shadowed", async () => {
     const game = board([SkillType.STEADY_FOOTING], [SkillType.SHADOWING]);
-    const player = game.ctx.team1.players[0];
-    const shadower = game.ctx.team2.players[0];
+    const player = game.ctx.teams[0].players[0];
+    const shadower = game.ctx.teams[1].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(player).id,
@@ -369,7 +369,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     expect(fixtureValue(player).gridPosition).toEqual({ x: 5, y: 7 });
     expect(fixtureValue(shadower).status).toBe(PlayerStatus.ACTIVE);
     expect(fixtureValue(shadower).gridPosition).toEqual({ x: 5, y: 6 });
-    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.teams[0].id);
     const expectedRollType2: unknown = expect.stringContaining("Armour Roll");
     expect(
       game
@@ -385,7 +385,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
 
   it("still falls and loses the Blitz Stab when Steady Footing fails", async () => {
     const game = board([SkillType.STEADY_FOOTING, SkillType.STAB]);
-    const attacker = game.ctx.team1.players[0];
+    const attacker = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(attacker).id,
@@ -402,11 +402,11 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     const result = await game.execute({
       type: "stab",
       attackerId: fixtureValue(attacker).id,
-      defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+      defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
     });
     expect(result.ok).toBe(true);
     expect(fixtureValue(attacker).status).toBe(PlayerStatus.PRONE);
-    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team2.id);
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.teams[1].id);
     expect(
       result.events
         .filter((event) => event.name === GameEventNames.SkillTriggered)
@@ -421,8 +421,8 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     "saves a failed Jump in the fall square for seed %s",
     async (seed, square) => {
       const game = board([SkillType.STEADY_FOOTING], [], seed);
-      const attacker = game.ctx.team1.players[0];
-      fixtureValue(game.ctx.team2.players[0]).status = PlayerStatus.PRONE;
+      const attacker = game.ctx.teams[0].players[0];
+      fixtureValue(game.ctx.teams[1].players[0]).status = PlayerStatus.PRONE;
       await game.execute({
         type: "declare-action",
         playerId: fixtureValue(attacker).id,
@@ -434,7 +434,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
       });
       expect(fixtureValue(attacker).gridPosition).toEqual(square);
       expect(fixtureValue(attacker).status).toBe(PlayerStatus.ACTIVE);
-      expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+      expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.teams[0].id);
       expect(game.ctx.gameService.getState().ballPosition).toEqual(square);
     }
   );

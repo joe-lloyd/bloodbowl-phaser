@@ -33,7 +33,7 @@ describe("HeadlessGame action protocol", () => {
   it("rejects squares and indexes that are not whole numbers", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 21 });
     const before = JSON.stringify(game.snapshot());
-    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     for (const command of [
       { type: "place-player", playerId, x: 2.5, y: 3 },
@@ -41,7 +41,7 @@ describe("HeadlessGame action protocol", () => {
       { type: "move", playerId, path: [{ x: 3.5, y: 4 }] },
       {
         type: "apply-formation",
-        teamId: game.ctx.team1.id,
+        teamId: game.ctx.teams[0].id,
         formation: [{ playerId, x: 1, y: 0.5 }],
       },
       { type: "pro-reroll-block", attackerId: playerId, dieIndex: 1.5 },
@@ -76,7 +76,7 @@ describe("HeadlessGame action protocol", () => {
       progressionEnabled: true,
       seed: 24,
     });
-    const nominees = game.ctx.team1.players.slice(0, 6);
+    const nominees = game.ctx.teams[0].players.slice(0, 6);
     for (const [index, player] of nominees.entries()) {
       game.ctx.eventBus.emit(GameEventNames.PlayerPlaced, {
         playerId: player.id,
@@ -87,7 +87,7 @@ describe("HeadlessGame action protocol", () => {
 
     const mvp = await game.execute({
       type: "award-mvp",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       nominatedPlayerIds: nominees.map((player) => player.id),
     });
     expect(mvp.ok).toBe(true);
@@ -96,7 +96,7 @@ describe("HeadlessGame action protocol", () => {
     );
     const expectedRoll: unknown = expect.any(Number);
     expect(mvpEvent?.data).toMatchObject({
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       roll: expectedRoll,
     });
 
@@ -111,7 +111,7 @@ describe("HeadlessGame action protocol", () => {
       )
     ).toBe(true);
 
-    const summary = game.ctx.matchStats.summary(game.ctx.team1.players);
+    const summary = game.ctx.matchStats.summary(game.ctx.teams[0].players);
     const recipient = summary.players.find(
       (entry) => entry.playerId === fixtureValue(nominees[0]).id
     );

@@ -27,7 +27,7 @@ async function kickedCharge() {
     const game = new HeadlessGame({ scenario: kickoffScenario, seed, delay: paced });
     await game.execute({
       type: "kick-ball",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -64,7 +64,7 @@ describe("a kick during a kick-off turn", () => {
 describe("Change picks with a real kick in the air", () => {
   it("still answers the turn's end once the ball has landed", async () => {
     const game = await kickedCharge();
-    const player = fixtureValue(game.ctx.team1.players[1]);
+    const player = fixtureValue(game.ctx.teams[0].players[1]);
     await choose(game, [player.id]);
     await game.execute({ type: "kickoff-reselect" });
     await settle();
@@ -79,8 +79,8 @@ describe("Change picks with a real kick in the air", () => {
 
   it("stays suspended through a Block's own choices", async () => {
     const game = await kickedCharge();
-    const attacker = fixtureValue(game.ctx.team1.players[1]);
-    const defender = fixtureValue(game.ctx.team2.players[1]);
+    const attacker = fixtureValue(game.ctx.teams[0].players[1]);
+    const defender = fixtureValue(game.ctx.teams[1].players[1]);
     await choose(game, [attacker.id]);
     await blitzPush(game, attacker.id, defender.id);
     expect(game.isSuspended()).toBe(true);
@@ -91,7 +91,7 @@ describe("Change picks with a real kick in the air", () => {
 
 async function resumedCharge(options: { picks?: number } = {}) {
   const game = await kickedCharge();
-  const picks = game.ctx.team1.players.slice(1, 1 + (options.picks ?? 1));
+  const picks = game.ctx.teams[0].players.slice(1, 1 + (options.picks ?? 1));
   await choose(game, picks.map(({ id }) => id));
   const save = matchSaveSchema.parse(structuredClone(game.matchSave()));
   const resumed = new HeadlessGame({ matchSave: save, delay: paced });
@@ -105,7 +105,7 @@ async function resumedCharge(options: { picks?: number } = {}) {
 const anotherKick = (game: HeadlessGame) =>
   game.execute({
     type: "kick-ball",
-    playerId: fixtureValue(game.ctx.team1.players[0]).id,
+    playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
     x: 14,
     y: 5,
   });
@@ -176,10 +176,10 @@ describe("a kick resumed from a save", () => {
 
   it("lands once after a turnover", async () => {
     const { game, landings, ids } = await resumedCharge({ picks: 2 });
-    game.ctx.team1.rerolls = 0;
+    game.ctx.teams[0].rerolls = 0;
     const faller = fixtureValue(game.ctx.gameService.getPlayerById(fixtureValue(ids[0])));
     faller.gridPosition = { x: 9, y: 5 };
-    fixtureValue(game.ctx.team2.players[1]).gridPosition = { x: 10, y: 5 };
+    fixtureValue(game.ctx.teams[1].players[1]).gridPosition = { x: 10, y: 5 };
     await game.execute({ type: "declare-action", playerId: faller.id, action: "move" });
     forceDice(game.ctx.rng, [1, 1, 1]);
     await game.execute({ type: "move", playerId: faller.id, path: [{ x: 8, y: 5 }] });
@@ -242,7 +242,7 @@ describe("an autosave around a kick", () => {
   it("waits while the ball lands, and saves the choosing and the turn", async () => {
     const game = await kickedCharge();
     expect(await saved(game)).toEqual({ wrote: true, writes: 1 });
-    await choose(game, [fixtureValue(game.ctx.team1.players[1]).id]);
+    await choose(game, [fixtureValue(game.ctx.teams[0].players[1]).id]);
     expect(await saved(game)).toEqual({ wrote: true, writes: 1 });
     const ending = game.execute({ type: "end-turn" });
     expect(await saved(game)).toEqual({ wrote: false, writes: 0 });
@@ -254,7 +254,7 @@ describe("an autosave around a kick", () => {
 describe("a Punt in a save", () => {
   it("stays spent for the turn", async () => {
     const game = new HeadlessGame({ scenario: { ...PLAY, setup: { ...PLAY.setup, ballPosition: { x: 5, y: 1 } } }, seed: 1 });
-    const punters = game.ctx.team1.players.slice(1, 3);
+    const punters = game.ctx.teams[0].players.slice(1, 3);
     for (const punter of punters)
       punter.skills = [...punter.skills, getSkill(SkillType.PUNT)];
     const [first, second] = punters.map(({ id }) => id);
@@ -329,10 +329,10 @@ describe("a save taken after a Blitz's Block", () => {
         ? await rehearse(KickoffEvent.CHARGE, { players: 2 })
         : null;
     const game = charged?.game ?? new HeadlessGame({ scenario: PLAY, seed: 1 });
-    const attackerId = fixtureValue(game.ctx.team1.players[1]).id;
-    const defenderId = fixtureValue(game.ctx.team2.players[1]).id;
+    const attackerId = fixtureValue(game.ctx.teams[0].players[1]).id;
+    const defenderId = fixtureValue(game.ctx.teams[1].players[1]).id;
     if (where === "a Charge")
-      await choose(game, [attackerId, fixtureValue(game.ctx.team1.players[2]).id]);
+      await choose(game, [attackerId, fixtureValue(game.ctx.teams[0].players[2]).id]);
     await blitzPush(game, attackerId, defenderId);
     expect(game.ctx.gameService.hasUsedBlitzBlock(attackerId)).toBe(true);
 

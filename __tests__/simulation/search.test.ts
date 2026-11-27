@@ -70,7 +70,7 @@ const score = (hasBall: "team1" | "team2" | null) => {
     x: 17,
   };
   const game = new HeadlessGame({ scenario, seed: 1 });
-  return evaluate(readBoard(game, game.ctx.team1.id));
+  return evaluate(readBoard(game, game.ctx.teams[0].id));
 };
 
 const after = (ball: "scorer" | "gone") => {
@@ -83,7 +83,7 @@ const after = (ball: "scorer" | "gone") => {
   };
   delete scenario.setup.ballPosition;
   const game = new HeadlessGame({ scenario, seed: 1 });
-  return evaluate(readBoard(game, game.ctx.team1.id));
+  return evaluate(readBoard(game, game.ctx.teams[0].id));
 };
 
 const declaration = async () => {
@@ -145,8 +145,8 @@ describe("the lookahead inside an action", () => {
     for (let seed = 1; seed < 200; seed++) {
       const game = new HeadlessGame({ scenario: block, seed });
       if (keepForks) game.keepForks();
-      const attacker = fixtureValue(game.ctx.team1.players[0]).id;
-      const defender = fixtureValue(game.ctx.team2.players[0]).id;
+      const attacker = fixtureValue(game.ctx.teams[0].players[0]).id;
+      const defender = fixtureValue(game.ctx.teams[1].players[0]).id;
       await game.execute({
         type: "declare-action",
         playerId: attacker,
@@ -380,8 +380,8 @@ describe("the lookahead over workers", () => {
     const { game, context } = await declaration();
     const reroll = {
       type: "reroll",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
-      chooserTeamId: game.ctx.team1.id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
+      chooserTeamId: game.ctx.teams[0].id,
       rollKind: "dodge",
       sources: ["team"],
       roll: 1,

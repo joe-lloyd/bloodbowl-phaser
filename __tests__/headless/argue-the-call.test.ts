@@ -31,7 +31,7 @@ const scenario: Scenario = {
 
 async function foul(game: HeadlessGame, playerIndex: number, argue: number) {
   forceDice(game.ctx.rng, [1, 1, argue]);
-  const fouler = game.ctx.team1.players[playerIndex];
+  const fouler = game.ctx.teams[0].players[playerIndex];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(fouler).id,
@@ -169,7 +169,7 @@ async function foulWith(
   argue: number[]
 ) {
   forceDice(game.ctx.rng, [1, 1, ...argue]);
-  const fouler = game.ctx.team1.players[playerIndex];
+  const fouler = game.ctx.teams[0].players[playerIndex];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(fouler).id,

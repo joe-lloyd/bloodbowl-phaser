@@ -19,8 +19,8 @@ beforeEach(async () => {
   vi.useFakeTimers();
   const game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
-  player = fixtureValue(game.ctx.team1.players[0]);
+  ServiceContainer.initialize({ eventBus: bus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
+  player = fixtureValue(game.ctx.teams[0].players[0]);
   player.gridPosition = { x: 5, y: 5 };
   player.status = PlayerStatus.ACTIVE;
   container = document.createElement("div");

@@ -35,7 +35,7 @@ describe("a player pushed onto a loose ball", () => {
         },
         seed,
       });
-      const attacker = game.ctx.team1.players[0];
+      const attacker = game.ctx.teams[0].players[0];
       await game.execute({
         type: "declare-action",
         playerId: fixtureValue(attacker).id,
@@ -44,7 +44,7 @@ describe("a player pushed onto a loose ball", () => {
       let response = await game.execute({
         type: "block",
         attackerId: fixtureValue(attacker).id,
-        defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+        defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
       });
       if (response.pendingDecision?.type !== "block-dice") continue;
       const push = response.pendingDecision.options.findIndex(
@@ -105,7 +105,7 @@ describe("a player pushed onto a loose ball", () => {
         },
         seed,
       });
-      const attacker = game.ctx.team1.players[0];
+      const attacker = game.ctx.teams[0].players[0];
       await game.execute({
         type: "declare-action",
         playerId: fixtureValue(attacker).id,
@@ -114,7 +114,7 @@ describe("a player pushed onto a loose ball", () => {
       const rolled = await game.execute({
         type: "block",
         attackerId: fixtureValue(attacker).id,
-        defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+        defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
       });
       if (rolled.pendingDecision?.type !== "block-dice") continue;
       const push = rolled.pendingDecision.options.findIndex(
@@ -172,7 +172,7 @@ async function pushDefender({
       },
       seed,
     });
-    const attacker = game.ctx.team1.players[0];
+    const attacker = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(attacker).id,
@@ -181,7 +181,7 @@ async function pushDefender({
     const rolled = await game.execute({
       type: "block",
       attackerId: fixtureValue(attacker).id,
-      defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+      defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
     });
     if (rolled.pendingDecision?.type !== "block-dice") continue;
     const index = rolled.pendingDecision.options.findIndex(
@@ -209,7 +209,7 @@ describe("a push onto a loose ball, further cases", () => {
       result: "pow",
       skills: [SkillType.STEADY_FOOTING],
     });
-    expect(fixtureValue(game.ctx.team2.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[1].players[0]).status).toBe(
       PlayerStatus.ACTIVE
     );
     expect(events).toContain("Bounce Direction");
@@ -222,6 +222,6 @@ describe("a push onto a loose ball, further cases", () => {
       result: "push",
     });
     expect(events).toContain("Bounce Direction");
-    expect(game.snapshot().score[game.ctx.team2.id] ?? 0).toBe(0);
+    expect(game.snapshot().score[game.ctx.teams[1].id] ?? 0).toBe(0);
   });
 });

@@ -20,9 +20,9 @@ const scenario: Scenario = {
 
 async function block() {
   const game = new HeadlessGame({ scenario, seed: 1 });
-  game.ctx.team1.rerolls = 2;
-  const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
-  const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
+  game.ctx.teams[0].rerolls = 2;
+  const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+  const defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: attackerId,
@@ -40,23 +40,23 @@ describe("uphill block re-roll window", () => {
     if (pending?.type !== "block-dice") throw new Error("Block did not roll");
     expect(pending.choiceStage).toBe("attacker-reroll");
     const ctx = {
-      activeTeamId: game.ctx.team1.id,
+      activeTeamId: game.ctx.teams[0].id,
       pendingDecision: pending,
       teamIdOfPlayer: (id: string) =>
         game.ctx.gameService.getPlayerById(id)?.teamId,
-      hostTeamId: game.ctx.team1.id,
+      hostTeamId: game.ctx.teams[0].id,
     };
     expect(
       checkOwnership(
         { type: "choose-block-result", index: 0 },
-        game.ctx.team2.id,
+        game.ctx.teams[1].id,
         ctx
       )
     ).toEqual({ allowed: false, reason: "not-your-decision" });
     expect(
       checkOwnership(
         { type: "team-reroll-block", attackerId },
-        game.ctx.team1.id,
+        game.ctx.teams[0].id,
         ctx
       )
     ).toEqual({ allowed: true });
@@ -65,7 +65,7 @@ describe("uphill block re-roll window", () => {
     expect(kept.pendingDecision).toMatchObject({
       type: "block-dice",
       choiceStage: "pick",
-      chooserTeamId: game.ctx.team2.id,
+      chooserTeamId: game.ctx.teams[1].id,
     });
     expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(2);
     expect(
@@ -84,7 +84,7 @@ describe("uphill block re-roll window", () => {
     expect(rerolled.pendingDecision).toMatchObject({
       type: "block-dice",
       choiceStage: "pick",
-      chooserTeamId: game.ctx.team2.id,
+      chooserTeamId: game.ctx.teams[1].id,
     });
     expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(1);
   });

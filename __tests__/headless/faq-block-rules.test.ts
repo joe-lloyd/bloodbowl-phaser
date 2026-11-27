@@ -72,8 +72,8 @@ describe("Brawler", () => {
       ),
       [2, 3]
     );
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
 
     await run({
       type: "declare-action",
@@ -113,8 +113,8 @@ describe("Brawler", () => {
       ),
       [2, 3, 2, 3]
     );
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
 
     await run({
       type: "declare-action",
@@ -168,8 +168,8 @@ const grabScenario = (targetSkills: SkillType[] = []) =>
 
 async function grabPush(setup: Scenario, action: "block" | "blitz") {
   const s = session(setup, [3, 3]);
-  const attacker = s.game.ctx.team1.players[0];
-  const defender = s.game.ctx.team2.players[0];
+  const attacker = s.game.ctx.teams[0].players[0];
+  const defender = s.game.ctx.teams[1].players[0];
   await s.run({
     type: "declare-action",
     playerId: fixtureValue(attacker).id,
@@ -240,7 +240,7 @@ describe("Grab", () => {
 
     setup.setup.team1Placements.push({ playerIndex: 1, x: 10, y: 4 });
     const { run, pushed, game } = await grabPush(setup, "block");
-    const chained = game.ctx.team2.players[3];
+    const chained = game.ctx.teams[1].players[3];
 
     expect(pushed.pendingDecision).toMatchObject({ type: "push-direction" });
     const reaction = await run({ type: "choose-push-direction", x: 11, y: 5 });
@@ -262,8 +262,8 @@ describe("Eye Gouge", () => {
       ),
       [3]
     );
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
 
     await run({
       type: "declare-action",
@@ -303,8 +303,8 @@ describe("Eye Gouge", () => {
       ),
       [3]
     );
-    const attacker = game.ctx.team1.players[0];
-    const [defender, , chained] = game.ctx.team2.players;
+    const attacker = game.ctx.teams[0].players[0];
+    const [defender, , chained] = game.ctx.teams[1].players;
 
     await run({
       type: "declare-action",
@@ -363,8 +363,8 @@ function multipleBlock({
     ),
     dice
   );
-  const attacker = s.game.ctx.team1.players[0];
-  const [first, second] = s.game.ctx.team2.players;
+  const attacker = s.game.ctx.teams[0].players[0];
+  const [first, second] = s.game.ctx.teams[1].players;
   const start = async () => {
     await s.run({
       type: "declare-action",

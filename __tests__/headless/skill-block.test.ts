@@ -39,8 +39,8 @@ describe("Block skill â€” Both Down immunity", () => {
 
   it("without Block, both players are knocked down on Both Down", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
 
     await game.ctx.gameService.resolveBlock(
       fixtureValue(attacker).id,
@@ -54,8 +54,8 @@ describe("Block skill â€” Both Down immunity", () => {
 
   it("the attacker with Block stays up (and no turnover) on Both Down", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     giveBlock(fixtureValue(attacker));
     expect(hasSkill(fixtureValue(attacker).skills, SkillType.BLOCK)).toBe(true);
 
@@ -77,8 +77,8 @@ describe("Block skill â€” Both Down immunity", () => {
 
   it("when both have Block, neither is knocked down", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     giveBlock(fixtureValue(attacker));
     giveBlock(fixtureValue(defender));
 
@@ -96,8 +96,8 @@ describe("Block skill â€” Both Down immunity", () => {
 describe("inert skills", () => {
   it("an inert skill does not change a Both Down outcome", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
 
     fixtureValue(attacker).skills.push({
       type: SkillType.DAUNTLESS,

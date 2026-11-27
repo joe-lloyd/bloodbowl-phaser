@@ -27,10 +27,10 @@ async function charge(
     },
   };
   const game = new HeadlessGame({ scenario, seed: 3 });
-  game.ctx.team1.rerolls = 0;
-  game.ctx.team2.rerolls = 0;
-  const attacker = game.ctx.team1.players[0];
-  const defender = game.ctx.team2.players[0];
+  game.ctx.teams[0].rerolls = 0;
+  game.ctx.teams[1].rerolls = 0;
+  const attacker = game.ctx.teams[0].players[0];
+  const defender = game.ctx.teams[1].players[0];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(attacker).id,
@@ -39,7 +39,7 @@ async function charge(
 
   const state = game.ctx.gameService.getState();
   state.phase = GamePhase.KICKOFF;
-  state.kick = newKick(game.ctx.team1.id, "coach");
+  state.kick = newKick(game.ctx.teams[0].id, "coach");
   state.ballPosition = { ...landing };
   const ballEvents: string[] = [];
 

@@ -72,7 +72,7 @@ async function coachPlays(game: HeadlessGame, coach: Coach = plannerCoach) {
 }
 
 const reach = (game: HeadlessGame) =>
-  game.ctx.team1.players
+  game.ctx.teams[0].players
     .flatMap(({ gridPosition }) => gridPosition ?? [])
     .map(({ x, y }) =>
       Math.max(Math.abs(x - LANDING.x), Math.abs(y - LANDING.y))
@@ -141,7 +141,7 @@ describe("the computer coach plays its kick-off moves", () => {
       ),
     });
     await coachPlays(game);
-    expect(game.ctx.team1.players.map((p) => p.gridPosition)).toContainEqual(
+    expect(game.ctx.teams[0].players.map((p) => p.gridPosition)).toContainEqual(
       LANDING
     );
   });
@@ -242,7 +242,7 @@ describe("the computer coach plays its kick-off moves", () => {
       ),
     });
     await coachPlays(game);
-    expect(game.ctx.team2.players.map((p) => p.gridPosition)).toContainEqual(
+    expect(game.ctx.teams[1].players.map((p) => p.gridPosition)).toContainEqual(
       LANDING
     );
   });

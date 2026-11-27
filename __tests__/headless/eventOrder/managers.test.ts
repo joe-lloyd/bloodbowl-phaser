@@ -28,7 +28,7 @@ function touchbackToFirstStanding(
   pending: PendingDecision
 ): HeadlessCommand | undefined {
   if (pending.type !== "touchback") return undefined;
-  const team = [game.ctx.team1, game.ctx.team2].find(
+  const team = [game.ctx.teams[0], game.ctx.teams[1]].find(
     (candidate) => candidate.id === pending.teamId
   );
   const receiver = team?.players.find(
@@ -66,8 +66,8 @@ async function block({
     ],
     ballPosition: { x: 11, y: 5 },
   });
-  const [attacker] = game.ctx.team1.players;
-  const [defender] = game.ctx.team2.players;
+  const [attacker] = game.ctx.teams[0].players;
+  const [defender] = game.ctx.teams[1].players;
   return playOut(
     game,
     [
@@ -158,7 +158,7 @@ describe("manager events keep their order", () => {
         [
           {
             type: "kick-ball",
-            playerId: fixtureValue(game.ctx.team1.players[0]).id,
+            playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
             x: 16,
             y: 1,
           },
@@ -183,7 +183,7 @@ describe("manager events keep their order", () => {
           y: 1,
         },
       });
-      const [passer] = game.ctx.team1.players;
+      const [passer] = game.ctx.teams[0].players;
       return playOut(game, [
         {
           type: "declare-action",
@@ -200,18 +200,17 @@ describe("manager events keep their order", () => {
     const game = new HeadlessGame({
       seed: 1,
 
-      team1: stabilizeIds(
+      teams: [stabilizeIds(
         createReadyMadeTeam(RosterName.HUMAN, "Home", 1),
         "team1"
-      ),
-      team2: stabilizeIds(
+      ), stabilizeIds(
         createReadyMadeTeam(RosterName.ORC, "Away", 2),
         "team2"
-      ),
+      )],
     });
-    const [a, b, c] = game.ctx.team1.players;
+    const [a, b, c] = game.ctx.teams[0].players;
     const order = await playOut(game, [
-      { type: "start-setup", kickingTeamId: game.ctx.team1.id },
+      { type: "start-setup", kickingTeamId: game.ctx.teams[0].id },
       { type: "place-player", playerId: fixtureValue(a).id, x: 4, y: 5 },
       { type: "place-player", playerId: fixtureValue(b).id, x: 4, y: 6 },
       {

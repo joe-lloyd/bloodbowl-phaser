@@ -11,6 +11,7 @@ import { isTurnRunning, kickoffTurnAllows } from "../game/kickoff/kickoffTurn";
 import { GamePhase, type GameState } from "../types/GameState";
 import { type Player, PlayerStatus } from "../types/Player";
 import { FormationManager } from "../game/managers/FormationManager";
+import { seatOf } from "../game/seating";
 import { areAdjacent } from "../game/elements/GridUtils";
 import {
   type ActionAvailability,
@@ -283,10 +284,11 @@ function setupActions(ctx: HeadlessGameContext): LegalActions["setup"] {
   if (state.phase !== GamePhase.SETUP || !state.activeTeamId) return undefined;
   const status = gs.getSetupStatus(state.activeTeamId);
   if (!status) return undefined;
-  const isTeam1 = state.activeTeamId === ctx.team1.id;
+  const { index, team } = seatOf(gs.getSeating(), state.activeTeamId);
+  const isTeam1 = index === 0;
   return {
     status,
-    placements: (isTeam1 ? ctx.team1 : ctx.team2).players.flatMap((player) =>
+    placements: team.players.flatMap((player) =>
       player.gridPosition
         ? { playerId: player.id, ...player.gridPosition }
         : []

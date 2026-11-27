@@ -28,7 +28,7 @@ afterEach(async () => {
 async function mount(remote = false, myTeamId?: string) {
   const game = pregameGame();
   const bus = game.ctx.eventBus as EventBus;
-  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2, initialState: game.ctx.gameService.getState(), seed: 23, gameServiceFactory: () =>
+  ServiceContainer.initialize({ eventBus: bus, teams: [game.ctx.teams[0], game.ctx.teams[1]], initialState: game.ctx.gameService.getState(), seed: 23, gameServiceFactory: () =>
       remote
         ? new NetworkedGameService({ inner: game.ctx.gameService, dispatch: (command) => game.execute(command), pendingDecision: () => game.pendingDecision(), eventBus: bus })
         : game.ctx.gameService });
@@ -51,8 +51,8 @@ async function mount(remote = false, myTeamId?: string) {
   });
   await act(async () => {
     bus.emit(GameEventNames.UI_StartCoinFlip, {
-      team1: game.ctx.team1,
-      team2: game.ctx.team2,
+      team1: game.ctx.teams[0],
+      team2: game.ctx.teams[1],
     });
   });
   return game;
@@ -127,7 +127,7 @@ describe("ready and purchase screens before the coin toss", () => {
   });
   it("goes straight to the toss when neither coach can afford an inducement", async () => {
     const game = await mount();
-    game.ctx.team1.rerolls += 3;
+    game.ctx.teams[0].rerolls += 3;
     await ready(game);
     expect(container.textContent).not.toMatch(/inducement/i);
     expect(button("FLIP COIN")).toBeDefined();

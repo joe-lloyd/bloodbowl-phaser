@@ -34,7 +34,7 @@ describe("jump protocol round-trip", () => {
   it("resolves a Jump over a Prone player via the `jump` command", async () => {
     const { seed } = await findSeed(JUMP_OVER_PRONE_SCENARIO, "cleared");
     const game = new HeadlessGame({ scenario, seed });
-    const jumperId = fixtureValue(game.ctx.team1.players[0]).id;
+    const jumperId = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -49,7 +49,7 @@ describe("jump protocol round-trip", () => {
     });
 
     expect(res.ok).toBe(true);
-    const jumper = game.ctx.team1.players[0];
+    const jumper = game.ctx.teams[0].players[0];
     expect(fixtureValue(jumper).gridPosition).toEqual({ x: 12, y: 5 });
     expect(fixtureValue(jumper).status).toBe(PlayerStatus.ACTIVE);
   });
@@ -66,7 +66,7 @@ describe("jump protocol round-trip", () => {
       },
     };
     const game = new HeadlessGame({ scenario: standingScenario, seed: 1 });
-    const jumperId = fixtureValue(game.ctx.team1.players[0]).id;
+    const jumperId = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -82,7 +82,7 @@ describe("jump protocol round-trip", () => {
 
     expect(res.ok).toBe(false);
 
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 10,
       y: 5,
     });

@@ -50,7 +50,7 @@ async function declareAndStep(
 describe("declaring a Blitz against a team", () => {
   it("refuses a team that is not playing", async () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
-    const blitzer = fixtureValue(game.ctx.team1.players[0]).id;
+    const blitzer = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     const result = await game.execute({
       type: "declare-action",
@@ -65,30 +65,30 @@ describe("declaring a Blitz against a team", () => {
 
   it("refuses the mover's own team", async () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
-    const blitzer = fixtureValue(game.ctx.team1.players[0]).id;
+    const blitzer = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     const result = await game.execute({
       type: "declare-action",
       playerId: blitzer,
       action: "blitz",
-      against: game.ctx.team1.id,
+      against: game.ctx.teams[0].id,
     });
 
     expect(result).toMatchObject({
       ok: false,
-      reason: `command-failed: own-team-target:${game.ctx.team1.id}`,
+      reason: `command-failed: own-team-target:${game.ctx.teams[0].id}`,
     });
   });
 
   it("spends the Blitz against the rival once it moves, with no block thrown", async () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
     const gs = game.ctx.gameService;
-    const blitzer = fixtureValue(game.ctx.team1.players[0]).id;
+    const blitzer = fixtureValue(game.ctx.teams[0].players[0]).id;
     await declareAndStep(game, blitzer, "blitz");
     await game.execute({ type: "end-activation", playerId: blitzer });
 
-    expect(gs.getState().turn.spend.blitzed).toEqual([game.ctx.team2.id]);
-    const other = fixtureValue(game.ctx.team1.players[1]).id;
+    expect(gs.getState().turn.spend.blitzed).toEqual([game.ctx.teams[1].id]);
+    const other = fixtureValue(game.ctx.teams[0].players[1]).id;
     expect(gs.declareAction({ playerId: other, action: "blitz" })).toBe(false);
   });
 });
@@ -97,7 +97,7 @@ describe("declaring an Action", () => {
   it("refuses a switch to another Action once the player has moved", async () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
     const gs = game.ctx.gameService;
-    const mover = fixtureValue(game.ctx.team1.players[0]).id;
+    const mover = fixtureValue(game.ctx.teams[0].players[0]).id;
     await declareAndStep(game, mover, "move");
 
     const { result, events } = eventsDuring(game, () =>
@@ -120,7 +120,7 @@ describe("declaring an Action", () => {
   it("keeps a committed Blitz when another player is declared", async () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
     const gs = game.ctx.gameService;
-    const [blitzer, other] = game.ctx.team1.players.map((p) => p.id);
+    const [blitzer, other] = game.ctx.teams[0].players.map((p) => p.id);
     await declareAndStep(game, fixtureValue(blitzer), "blitz");
 
     const { result, events } = eventsDuring(game, () =>
@@ -143,7 +143,7 @@ describe("declaring an Action", () => {
   it("releases an uncommitted Pass to another player", async () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
     const gs = game.ctx.gameService;
-    const [passer, other] = game.ctx.team1.players.map((p) => p.id);
+    const [passer, other] = game.ctx.teams[0].players.map((p) => p.id);
     await game.execute({
       type: "declare-action",
       playerId: passer,
@@ -168,7 +168,7 @@ describe("declaring an Action", () => {
   it("refuses a Move for a Rooted player", () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
     const gs = game.ctx.gameService;
-    const player = game.ctx.team1.players[0];
+    const player = game.ctx.teams[0].players[0];
     addCondition(fixtureValue(player), PlayerCondition.ROOTED);
 
     const { result, events } = eventsDuring(game, () =>
@@ -190,7 +190,7 @@ describe("declaring an Action", () => {
       seed: 1,
     });
     const gs = game.ctx.gameService;
-    const stabber = game.ctx.team1.players[0];
+    const stabber = game.ctx.teams[0].players[0];
     await declareAndStep(game, fixtureValue(stabber).id, "move");
 
     const { result, events } = eventsDuring(game, () =>
@@ -212,7 +212,7 @@ describe("declaring an Action", () => {
       seed: 1,
     });
     const gs = game.ctx.gameService;
-    const fanatic = fixtureValue(game.ctx.team1.players[0]).id;
+    const fanatic = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     const refused = eventsDuring(game, () =>
       gs.declareAction({ playerId: fanatic, action: "move" })
@@ -226,7 +226,7 @@ describe("declaring an Action", () => {
   it("clears Distracted, then Eye Gouged, before the declaration", () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
     const gs = game.ctx.gameService;
-    const player = game.ctx.team1.players[0];
+    const player = game.ctx.teams[0].players[0];
     addCondition(fixtureValue(player), PlayerCondition.DISTRACTED);
     addCondition(fixtureValue(player), PlayerCondition.EYE_GOUGED);
 

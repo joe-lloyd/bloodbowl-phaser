@@ -73,7 +73,7 @@ describe("match strip text", () => {
   it("hides consumed assists and names modified players on the owning team", () => {
     const team = TeamFactory.createTestTeam(RosterName.HUMAN, "Home", 0xff0000);
     const other = TeamFactory.createTestTeam(RosterName.ORC, "Away", 0x0000ff);
-    const state = GameService.createInitialState({ team1: team, team2: other });
+    const state = GameService.createInitialState({ teams: [team, other] });
     state.driveEffects = {
       freeRerolls: {},
       owedAssists: { [team.id]: { turn: 1, used: true } },

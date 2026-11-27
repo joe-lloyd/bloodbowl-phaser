@@ -133,8 +133,7 @@ export async function simulateFixture(
 
   const game = new HeadlessGame({
     seed,
-    team1: structuredClone(home),
-    team2: structuredClone(away),
+    teams: [structuredClone(home), structuredClone(away)],
     startingPhase: GamePhase.SETUP,
     progressionEnabled: true,
     knockout: context.knockout,
@@ -148,7 +147,7 @@ export async function simulateFixture(
   options.inspect?.(game);
 
   const sittingOut = new Set(
-    [game.ctx.team1, game.ctx.team2].flatMap((team) =>
+    game.ctx.teams.flatMap((team) =>
       team.players.filter((element) => isOut(element)).map((player) => player.id)
     )
   );

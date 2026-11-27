@@ -13,7 +13,7 @@ afterEach(() => {
 });
 it("names the team and decision in plain words for the waiting coach", () => {
   const game = new HeadlessGame({ seed: 1 });
-  const { team1, team2 } = game.ctx;
+  const [team1, team2] = game.ctx.teams;
   const snapshot = game.snapshot();
   snapshot.phase = GamePhase.PLAY;
   snapshot.subPhase = SubPhase.TURN_RECEIVING;

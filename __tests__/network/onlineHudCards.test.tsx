@@ -48,7 +48,7 @@ let game: HeadlessGame;
 
 beforeEach(async () => {
   game = new HeadlessGame({ scenario: guestTurn, seed: 3 });
-  const { team1, team2 } = game.ctx;
+  const [team1, team2] = game.ctx.teams;
   team1.name = "Reikland Reavers";
   team2.name = "Gouged Eye";
   for (const p of team1.players) (p.playerName = `Human ${String(p.number)}`);
@@ -123,14 +123,14 @@ describe("online HUD cards", () => {
   it("shows the waiting coach what the other turn did when their turn starts", async () => {
     const player = fixtureValue(
       ServiceContainer.getInstance().gameService.getPlayerById(
-        fixtureValue(game.ctx.team1.players[0]).id
+        fixtureValue(game.ctx.teams[0].players[0]).id
       )
     );
     await act(async () => {
       player.status = PlayerStatus.KO;
       bus.emit(GameEventNames.PlayerStatusChanged, player);
       bus.emit(GameEventNames.TurnStarted, {
-        teamId: game.ctx.team1.id,
+        teamId: game.ctx.teams[0].id,
         turnNumber: 2,
       });
     });
@@ -143,7 +143,7 @@ describe("online HUD cards", () => {
     await act(async () => {
       bus.emit(GameEventNames.DriveEnded, {
         reason: "halftime",
-        nextKickingTeamId: game.ctx.team2.id,
+        nextKickingTeamId: game.ctx.teams[1].id,
       });
       bus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.SETUP });
     });

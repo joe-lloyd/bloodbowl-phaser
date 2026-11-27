@@ -106,7 +106,8 @@ const DRIVE_ENDS = [
     name: "the other team scores",
     prepare: () => Promise.resolve(),
     end: async (game: HeadlessGame) => {
-      const { gameService, team2 } = game.ctx;
+      const { gameService } = game.ctx;
+      const [, team2] = game.ctx.teams;
       gameService.addTouchdown(team2.id, fixtureValue(team2.players[0]).id);
       await gameService.getFlowContext().flowManager.whenIdle();
     },
@@ -114,7 +115,7 @@ const DRIVE_ENDS = [
   {
     name: "half-time",
     prepare: async (game: HeadlessGame) => {
-      game.ctx.gameService.startGame(game.ctx.team1.id);
+      game.ctx.gameService.startGame(game.ctx.teams[0].id);
       await endTurns(game, 11);
     },
     end: (game: HeadlessGame) => endTurns(game, 1),
@@ -124,7 +125,7 @@ const DRIVE_ENDS = [
     prepare: async (game: HeadlessGame) => {
       game.ctx.gameService.getState().knockout = true;
       game.ctx.gameService.getState().turn.isHalf2 = true;
-      game.ctx.gameService.startGame(game.ctx.team1.id);
+      game.ctx.gameService.startGame(game.ctx.teams[0].id);
       await endTurns(game, 11);
     },
     end: (game: HeadlessGame) => endTurns(game, 1),
@@ -136,7 +137,8 @@ describe("drive reset", () => {
     "resets every player and the whole turn when $name",
     async ({ prepare, end }) => {
       const game = new HeadlessGame({ scenario: tdScenario, seed: 3 });
-      const { team1, team2, gameService } = game.ctx;
+      const { gameService } = game.ctx;
+      const [team1, team2] = game.ctx.teams;
       await prepare(game);
       const state = gameService.getState();
       for (const [index, team] of [team1, team2].entries()) {
@@ -241,8 +243,8 @@ describe("drive reset", () => {
     for (let seed = 1; seed <= 40 && !(sawRecovered && sawStuckOut); seed++) {
       const game = new HeadlessGame({ scenario: tdScenario, seed });
 
-      fixtureValue(game.ctx.team1.players[3]).status = PlayerStatus.KO;
-      fixtureValue(game.ctx.team2.players[3]).status = PlayerStatus.KO;
+      fixtureValue(game.ctx.teams[0].players[3]).status = PlayerStatus.KO;
+      fixtureValue(game.ctx.teams[1].players[3]).status = PlayerStatus.KO;
 
       const response = await scoreTouchdown(game);
       const rolls = response.events.filter(
@@ -353,7 +355,7 @@ describe("drive reset", () => {
 
   it("resets any player left prone when the drive ends (no lingering prone orientation)", async () => {
     const game = new HeadlessGame({ scenario: tdScenario, seed: 3 });
-    const proneVictim = game.ctx.team2.players[0];
+    const proneVictim = game.ctx.teams[1].players[0];
     fixtureValue(proneVictim).status = PlayerStatus.PRONE;
 
     const response = await scoreTouchdown(game);

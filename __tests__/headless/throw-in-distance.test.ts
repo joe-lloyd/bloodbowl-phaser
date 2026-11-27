@@ -29,7 +29,7 @@ describe("a Throw-in", () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
 
     forceDice(game.ctx.rng, [4, 1, 5, 8, 3, 4]);
-    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passerId,

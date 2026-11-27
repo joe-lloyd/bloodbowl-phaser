@@ -52,7 +52,7 @@ function diceOf(events: { name: string; data?: unknown }[]): string[] {
 describe("a Jump Agility Test", () => {
   it("offers a team re-roll when it fails", async () => {
     const game = new HeadlessGame({ scenario: scenario(null), seed: 9 });
-    game.ctx.team1.rerolls = 3;
+    game.ctx.teams[0].rerolls = 3;
 
     const first = await jump(game);
     expect(diceOf(first.events)).toEqual([
@@ -68,11 +68,11 @@ describe("a Jump Agility Test", () => {
     expect(diceOf(second.events)).toEqual([
       "Jump (Human Lineman #1): 6, needs 3+",
     ]);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 12,
       y: 5,
     });
-    expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[0]).status).toBe(
       PlayerStatus.ACTIVE
     );
   });
@@ -96,7 +96,7 @@ describe("skills of a marker the jumper leaves", () => {
       "Jump (Human Lineman #1): 4, needs 5+",
       "Armour Roll (Human Lineman #1): 1 + 4 = 5",
     ]);
-    expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[0]).status).toBe(
       PlayerStatus.PRONE
     );
   });
@@ -125,18 +125,18 @@ describe("skills of a marker the jumper leaves", () => {
     expect(diceOf(dived.events)).toEqual([
       "Armour Roll (Human Lineman #1): 2 + 2 = 4",
     ]);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 12,
       y: 5,
     });
-    expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[0]).status).toBe(
       PlayerStatus.PRONE
     );
-    expect(fixtureValue(game.ctx.team2.players[1]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[1].players[1]).gridPosition).toEqual({
       x: 10,
       y: 5,
     });
-    expect(fixtureValue(game.ctx.team2.players[1]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[1].players[1]).status).toBe(
       PlayerStatus.PRONE
     );
   });
@@ -161,13 +161,13 @@ describe("skills of a marker the jumper leaves", () => {
 
     const held = await game.execute({ type: "use-reaction", accept: true });
     expect(diceOf(held.events)).toEqual(["Tentacles (Human Lineman #2): 4"]);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 10,
       y: 5,
     });
-    expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[0]).status).toBe(
       PlayerStatus.ACTIVE
     );
-    expect(held.snapshot.activeTeamId).toBe(game.ctx.team1.id);
+    expect(held.snapshot.activeTeamId).toBe(game.ctx.teams[0].id);
   });
 });

@@ -39,7 +39,7 @@ const scenario: Scenario = {
 };
 
 async function rerollFailedPickup(game: HeadlessGame, after: number[]) {
-  const mover = game.ctx.team1.players[0];
+  const mover = game.ctx.teams[0].players[0];
   forceDice(game.ctx.rng, [1, ...after]);
   await game.execute({
     type: "declare-action",
@@ -71,13 +71,13 @@ async function rerollFailedPickup(game: HeadlessGame, after: number[]) {
 }
 
 const rerollsLeft = (game: HeadlessGame) =>
-  teamRerollsLeft(game.ctx.gameService.getState(), game.ctx.team1);
+  teamRerollsLeft(game.ctx.gameService.getState(), game.ctx.teams[0]);
 
 describe("the Team Captain's free Team Re-roll", () => {
   it("gives the Captain Pro for the game", () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
     expect(
-      hasSkill(fixtureValue(game.ctx.team1.players[1]).skills, SkillType.PRO)
+      hasSkill(fixtureValue(game.ctx.teams[0].players[1]).skills, SkillType.PRO)
     ).toBe(true);
   });
 
@@ -103,7 +103,7 @@ describe("the Team Captain's free Team Re-roll", () => {
 
   it("rolls nothing while the Captain is off the pitch", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    movePlayerToBox(fixtureValue(game.ctx.team1.players[1]), {
+    movePlayerToBox(fixtureValue(game.ctx.teams[0].players[1]), {
       box: "reserves",
     });
     const { captainRolls } = await rerollFailedPickup(game, [6]);
@@ -119,9 +119,9 @@ describe("the Team Captain's free Team Re-roll", () => {
     const resumed = new HeadlessGame({ matchSave: game.matchSave() });
 
     expect(
-      teamRerollsLeft(resumed.ctx.gameService.getState(), resumed.ctx.team1)
+      teamRerollsLeft(resumed.ctx.gameService.getState(), resumed.ctx.teams[0])
     ).toBe(1);
-    expect(fixtureValue(resumed.ctx.team1.players[1]).teamCaptain).toBe(true);
+    expect(fixtureValue(resumed.ctx.teams[0].players[1]).teamCaptain).toBe(true);
   });
 });
 
@@ -154,8 +154,7 @@ async function settingUp() {
   chooseTeamCaptain(team1, fixtureValue(team1.players[7]).id);
   const game = new HeadlessGame({
     seed: 3,
-    team1,
-    team2: eightManHumans("team2"),
+    teams: [team1, eightManHumans("team2")],
     startingPhase: GamePhase.SETUP,
   });
   await game.execute({ type: "start-setup", kickingTeamId: "team1" });
@@ -169,7 +168,7 @@ describe("fielding the Team Captain", () => {
     for (const [index, position] of positions.entries()) {
       await game.execute({
         type: "place-player",
-        playerId: fixtureValue(game.ctx.team1.players[index]).id,
+        playerId: fixtureValue(game.ctx.teams[0].players[index]).id,
         x: position.x,
         y: position.y,
       });
@@ -194,7 +193,7 @@ describe("fielding the Team Captain", () => {
       formation: preset(),
     });
 
-    expect(fixtureValue(game.ctx.team1.players[7]).gridPosition).toBeDefined();
+    expect(fixtureValue(game.ctx.teams[0].players[7]).gridPosition).toBeDefined();
     const confirmed = await game.execute({
       type: "confirm-setup",
       teamId: "team1",
@@ -204,7 +203,7 @@ describe("fielding the Team Captain", () => {
 
   it("allows a set-up without a Captain who cannot play", async () => {
     const game = await settingUp();
-    movePlayerToBox(fixtureValue(game.ctx.team1.players[7]), { box: "ko" });
+    movePlayerToBox(fixtureValue(game.ctx.teams[0].players[7]), { box: "ko" });
     await game.execute({
       type: "apply-formation",
       teamId: "team1",
@@ -238,8 +237,7 @@ describe("appointing a new Team Captain before a League Fixture", () => {
   it("asks a team without a Captain to appoint one", async () => {
     const game = new HeadlessGame({
       seed: 5,
-      team1: leagueHumans("team1"),
-      team2: leagueHumans("team2"),
+      teams: [leagueHumans("team1"), leagueHumans("team2")],
       paysWinnings: true,
       startingPhase: GamePhase.SETUP,
     });
@@ -251,7 +249,7 @@ describe("appointing a new Team Captain before a League Fixture", () => {
       chooserTeamId: "team1",
       optional: true,
     });
-    const appointed = game.ctx.team1.players[2];
+    const appointed = game.ctx.teams[0].players[2];
     const next = await game.execute({
       type: "choose-inducement",
       playerId: fixtureValue(appointed).id,
@@ -264,14 +262,13 @@ describe("appointing a new Team Captain before a League Fixture", () => {
       chooserTeamId: "team2",
     });
     await game.execute({ type: "choose-inducement" });
-    expect(game.ctx.team2.players.some((p) => p.teamCaptain)).toBe(false);
+    expect(game.ctx.teams[1].players.some((p) => p.teamCaptain)).toBe(false);
   });
 
   it("asks nothing in a friendly", async () => {
     const game = new HeadlessGame({
       seed: 5,
-      team1: leagueHumans("team1"),
-      team2: leagueHumans("team2"),
+      teams: [leagueHumans("team1"), leagueHumans("team2")],
       startingPhase: GamePhase.SETUP,
     });
 

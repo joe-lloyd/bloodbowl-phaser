@@ -32,8 +32,8 @@ describe("operation events keep their order", () => {
         team2: [{ x: 11, y: 5, stats: { ST: 5 } }],
         ballPosition: { x: 11, y: 5 },
       });
-      const [attacker] = game.ctx.team1.players;
-      const [target] = game.ctx.team2.players;
+      const [attacker] = game.ctx.teams[0].players;
+      const [target] = game.ctx.teams[1].players;
       return playOut(game, [
         {
           type: "declare-action",
@@ -59,8 +59,8 @@ describe("operation events keep their order", () => {
         team2: [{ x: 11, y: 5 }],
         ballPosition: { x: 11, y: 5 },
       });
-      const [attacker] = game.ctx.team1.players;
-      const [target] = game.ctx.team2.players;
+      const [attacker] = game.ctx.teams[0].players;
+      const [target] = game.ctx.teams[1].players;
       return playOut(game, [
         {
           type: "declare-action",
@@ -86,8 +86,8 @@ describe("operation events keep their order", () => {
         team2: [{ x: 11, y: 5 }],
         ballPosition: { x: 10, y: 5 },
       });
-      const [attacker] = game.ctx.team1.players;
-      const [defender] = game.ctx.team2.players;
+      const [attacker] = game.ctx.teams[0].players;
+      const [defender] = game.ctx.teams[1].players;
       return playOut(
         game,
         [
@@ -119,7 +119,7 @@ describe("operation events keep their order", () => {
         team2: [{ x: 8, y: 5 }],
         ballPosition: { x: 3, y: 5 },
       });
-      const [punter] = game.ctx.team1.players;
+      const [punter] = game.ctx.teams[0].players;
       return playOut(
         game,
         [
@@ -166,7 +166,7 @@ describe("operation events keep their order", () => {
           team2: [{ x: 8, y: 7 }],
           ballPosition: { x: 5, y: 5 },
         });
-        const [thrower, teammate] = game.ctx.team1.players;
+        const [thrower, teammate] = game.ctx.teams[0].players;
         return playOut(game, [
           {
             type: "declare-action",
@@ -197,7 +197,7 @@ describe("operation events keep their order", () => {
         team2: [{ x: 8, y: 6 }],
         ballPosition: { x: 1, y: 1 },
       });
-      const [thrower, teammate] = game.ctx.team1.players;
+      const [thrower, teammate] = game.ctx.teams[0].players;
       return playOut(game, [
         {
           type: "declare-action",
@@ -225,7 +225,7 @@ describe("operation events keep their order", () => {
         team2: [{ x: 8, y: 6 }],
         ballPosition: { x: 5, y: 5 },
       });
-      const [thrower, teammate] = game.ctx.team1.players;
+      const [thrower, teammate] = game.ctx.teams[0].players;
       return playOut(game, [
         {
           type: "declare-action",
@@ -276,7 +276,7 @@ describe("operation events keep their order", () => {
           team2: variant.team2,
           ballPosition: { x: 4, y: 5 },
         });
-        const [passer] = game.ctx.team1.players;
+        const [passer] = game.ctx.teams[0].players;
         return playOut(
           game,
           [
@@ -314,8 +314,8 @@ describe("operation events keep their order", () => {
         ],
         ballPosition: { x: 10, y: 0 },
       });
-      const [attacker] = game.ctx.team1.players;
-      const [defender] = game.ctx.team2.players;
+      const [attacker] = game.ctx.teams[0].players;
+      const [defender] = game.ctx.teams[1].players;
       return playOut(
         game,
         [
@@ -347,7 +347,7 @@ describe("operation events keep their order", () => {
         team2: [{ x: 12, y: 9, skills: [SkillType.SECRET_WEAPON] }],
         ballPosition: { x: 17, y: 5 },
       });
-      const [carrier] = game.ctx.team1.players;
+      const [carrier] = game.ctx.teams[0].players;
       return playOut(game, [
         {
           type: "declare-action",

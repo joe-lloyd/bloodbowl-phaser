@@ -73,8 +73,7 @@ describe("pregame lockstep purchases", () => {
       ).toEqual([{ inducement: Inducement.BLITZERS_BEST_KEGS, quantity: 1 }]);
 
       const restored = new HeadlessGame({
-        team1: structuredClone(away.ctx.team1),
-        team2: structuredClone(away.ctx.team2),
+        teams: [structuredClone(away.ctx.teams[0]), structuredClone(away.ctx.teams[1])],
         initialState: deserializeGameState(away.snapshot()),
         seed: 23,
       });
@@ -95,7 +94,7 @@ describe("pregame lockstep purchases", () => {
   it("finishes on both peers when neither coach can afford an inducement", async () => {
     const home = pregameGame();
     const away = pregameGame();
-    for (const game of [home, away]) game.ctx.team1.rerolls += 3;
+    for (const game of [home, away]) game.ctx.teams[0].rerolls += 3;
     const [a, b] = createInMemoryTransportPair();
     const host = session(home, a, true);
     const guest = session(away, b, false);

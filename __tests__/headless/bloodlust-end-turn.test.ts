@@ -48,8 +48,8 @@ function start({ thrall = false, teammate = false, seed = FAILS }: Setup) {
     },
   };
   const game = new HeadlessGame({ scenario, seed });
-  const vampire = game.ctx.team1.players[0];
-  const thrallPlayer = game.ctx.team1.players[1];
+  const vampire = game.ctx.teams[0].players[0];
+  const thrallPlayer = game.ctx.teams[0].players[1];
   let turnovers = 0;
   let penalties = 0;
   game.ctx.eventBus.on(GameEventNames.Turnover, () => turnovers++);
@@ -61,8 +61,8 @@ function start({ thrall = false, teammate = false, seed = FAILS }: Setup) {
     game,
     vampire,
     thrall: thrallPlayer,
-    team1: game.ctx.team1.id,
-    team2: game.ctx.team2.id,
+    team1: game.ctx.teams[0].id,
+    team2: game.ctx.teams[1].id,
     turnovers: () => turnovers,
     penalties: () => penalties,
   };

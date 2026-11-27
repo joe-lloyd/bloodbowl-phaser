@@ -7,8 +7,8 @@ import { AgilityTestOperation } from "../../src/game/operations/AgilityTestOpera
 it("rolls a catch for the catcher's team, not the active team", async () => {
   const game = new HeadlessGame({ seed: 1 });
   const service = game.ctx.gameService;
-  service.getState().activeTeamId = game.ctx.team1.id;
-  const catcher = game.ctx.team2.players[0];
+  service.getState().activeTeamId = game.ctx.teams[0].id;
+  const catcher = game.ctx.teams[1].players[0];
   const teams: (string | undefined)[] = [];
   game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ teamId }) => {
     teams.push(teamId);
@@ -21,5 +21,5 @@ it("rolls a catch for the catcher's team, not the active team", async () => {
     0
   ).execute(service.getFlowContext());
 
-  expect(teams).toEqual([game.ctx.team2.id]);
+  expect(teams).toEqual([game.ctx.teams[1].id]);
 });

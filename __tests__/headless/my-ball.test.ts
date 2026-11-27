@@ -26,7 +26,7 @@ function scenario(ball: { x: number; y: number }): Scenario {
 
 async function optionsFor(ball: { x: number; y: number }) {
   const game = new HeadlessGame({ scenario: scenario(ball), seed: 1 });
-  const id = fixtureValue(game.ctx.team1.players[0]).id;
+  const id = fixtureValue(game.ctx.teams[0].players[0]).id;
   const legal = await game.execute({ type: "legal-actions", playerId: id });
   const actions = fixtureValue(
     fixtureValue(legal.legalActions).players.find((p) => p.playerId === id)

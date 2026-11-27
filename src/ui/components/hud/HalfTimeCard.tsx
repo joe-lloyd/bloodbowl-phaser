@@ -5,6 +5,7 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { GameEventNames } from "../../../types/events";
 import { GamePhase } from "../../../types/GameState";
 import { teamRerollsLeft } from "../../../game/teamRerolls";
+import { pairSeating, pairTeams } from "../../../game/seating";
 import { useEventBus } from "../../hooks/useEventBus";
 import { HudButton, Panel, PanelHeader } from "../componentWarehouse/HudKit";
 import {
@@ -31,12 +32,13 @@ export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
     try {
       const game = ServiceContainer.getInstance().gameService;
       const state = game.getState();
+      const teams = pairTeams(pairSeating(game.getSeating()));
       setCard({
         kind: "summary",
 
         extraTime: !!state.turn.extraTime,
         summary: summarizeHalfTime({
-          teams: game.getTeams(),
+          teams,
           score: state.score,
           rerollsLeft: (team) => teamRerollsLeft(state, team),
           recoveries: recoveries.current,

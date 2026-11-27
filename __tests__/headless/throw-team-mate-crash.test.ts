@@ -38,7 +38,7 @@ function scenario(throwerSkills: SkillType[]): Scenario {
 
 async function throwAtCarrier(seed: number, throwerSkills: SkillType[]) {
   const game = new HeadlessGame({ scenario: scenario(throwerSkills), seed });
-  const [thrower, mate] = game.ctx.team1.players;
+  const [thrower, mate] = game.ctx.teams[0].players;
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(thrower).id,

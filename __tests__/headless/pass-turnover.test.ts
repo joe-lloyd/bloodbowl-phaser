@@ -63,7 +63,7 @@ async function declineRerolls(
 
 async function passTo(seed: number) {
   const game = new HeadlessGame({ scenario: passScenario, seed });
-  const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+  const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: passerId,
@@ -77,8 +77,8 @@ async function passTo(seed: number) {
 
 async function handOff(seed: number) {
   const game = new HeadlessGame({ scenario: handoffScenario, seed });
-  const passerId = fixtureValue(game.ctx.team1.players[0]).id;
-  const targetId = fixtureValue(game.ctx.team1.players[1]).id;
+  const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+  const targetId = fixtureValue(game.ctx.teams[0].players[1]).id;
   await game.execute({
     type: "declare-action",
     playerId: passerId,

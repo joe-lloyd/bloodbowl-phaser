@@ -88,7 +88,7 @@ describe("skill-aware tactical choices", () => {
       ],
       ballPosition: undefined,
     });
-    const player = subject.ctx.team1.players[0];
+    const player = subject.ctx.teams[0].players[0];
     const c = context({
       board: readBoard(subject, fieldPlayer(player).teamId),
       w: DEFAULT_WEIGHTS,
@@ -115,7 +115,7 @@ describe("skill-aware tactical choices", () => {
         { playerIndex: 0, x: 3, y: 5, skills: [SkillType.BLOODLUST] },
       ],
     });
-    const player = subject.ctx.team1.players[0];
+    const player = subject.ctx.teams[0].players[0];
     const c = context({
       board: readBoard(subject, fieldPlayer(player).teamId),
       w: DEFAULT_WEIGHTS,
@@ -144,7 +144,7 @@ describe("skill-aware tactical choices", () => {
       ballPosition: { x: 19, y: 5 },
       team2Placements: [{ playerIndex: 0, x: 2, y: 8 }],
     });
-    const player = subject.ctx.team1.players[0];
+    const player = subject.ctx.teams[0].players[0];
     const c = context({
       board: readBoard(subject, fieldPlayer(player).teamId),
       w: DEFAULT_WEIGHTS,
@@ -223,7 +223,7 @@ describe("skill-aware tactical choices", () => {
         },
       },
     });
-    const gazer = subject.ctx.team1.players[0];
+    const gazer = subject.ctx.teams[0].players[0];
     await subject.execute({
       type: "declare-action",
       action: "gaze",
@@ -233,7 +233,7 @@ describe("skill-aware tactical choices", () => {
       type: "special-action",
       action: "gaze",
       attackerId: fixtureValue(gazer).id,
-      defenderId: fixtureValue(subject.ctx.team2.players[0]).id,
+      defenderId: fixtureValue(subject.ctx.teams[1].players[0]).id,
     });
     expect(subject.pendingDecision()).toMatchObject({
       type: "reroll",
@@ -290,12 +290,12 @@ describe("skill-aware tactical choices", () => {
     expect(await choose(subject)).toMatchObject({
       type: "declare-action",
       action: "gaze",
-      playerId: fixtureValue(subject.ctx.team1.players[0]).id,
+      playerId: fixtureValue(subject.ctx.teams[0].players[0]).id,
     });
     expect(await choose(subject)).toMatchObject({
       type: "special-action",
       action: "gaze",
-      defenderId: fixtureValue(subject.ctx.team2.players[0]).id,
+      defenderId: fixtureValue(subject.ctx.teams[1].players[0]).id,
     });
   });
 
@@ -311,7 +311,7 @@ describe("skill-aware tactical choices", () => {
     expect(await choose(subject)).toMatchObject({
       type: "declare-action",
       action: "move",
-      playerId: fixtureValue(subject.ctx.team1.players[1]).id,
+      playerId: fixtureValue(subject.ctx.teams[0].players[1]).id,
     });
   });
 
@@ -327,7 +327,7 @@ describe("skill-aware tactical choices", () => {
     subject.ctx.gameService
       .getState()
       .turn.activatedPlayerIds.add(
-        fixtureValue(subject.ctx.team1.players[1]).id
+        fixtureValue(subject.ctx.teams[0].players[1]).id
       );
     expect(await choose(subject)).not.toMatchObject({
       type: "declare-action",
@@ -358,8 +358,8 @@ describe("skill-aware tactical choices", () => {
     });
     expect(await choose(subject)).toMatchObject({
       type: "multiple-block",
-      defender1Id: fixtureValue(subject.ctx.team2.players[0]).id,
-      defender2Id: fixtureValue(subject.ctx.team2.players[1]).id,
+      defender1Id: fixtureValue(subject.ctx.teams[1].players[0]).id,
+      defender2Id: fixtureValue(subject.ctx.teams[1].players[1]).id,
     });
   });
 
@@ -420,7 +420,7 @@ describe("skill-aware tactical choices", () => {
       team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
       ballPosition: undefined,
     });
-    const [vampire, thrall] = subject.ctx.team1.players;
+    const [vampire, thrall] = subject.ctx.teams[0].players;
     fixtureValue(thrall).keywords = [
       TraitKeyWord.THRALL,
       PositionKeyWord.LINEMAN,
@@ -479,7 +479,7 @@ describe("skill-aware tactical choices", () => {
         },
       },
     });
-    const [vampire, thrall] = subject.ctx.team1.players;
+    const [vampire, thrall] = subject.ctx.teams[0].players;
     fixtureValue(thrall).keywords = [
       TraitKeyWord.THRALL,
       PositionKeyWord.LINEMAN,
@@ -528,7 +528,7 @@ describe("skill-aware tactical choices", () => {
         },
       },
     });
-    const [vampire, carrier, food] = subject.ctx.team1.players;
+    const [vampire, carrier, food] = subject.ctx.teams[0].players;
     for (const p of [carrier, food])
       fixtureValue(p).keywords = [TraitKeyWord.THRALL, PositionKeyWord.LINEMAN];
     await subject.execute({
@@ -577,7 +577,7 @@ describe("skill-aware tactical choices", () => {
         },
       },
     });
-    const [vampire, thrall] = subject.ctx.team1.players;
+    const [vampire, thrall] = subject.ctx.teams[0].players;
     fixtureValue(thrall).keywords = [
       TraitKeyWord.THRALL,
       PositionKeyWord.LINEMAN,
@@ -612,7 +612,7 @@ describe("skill-aware tactical choices", () => {
       team2Placements: [{ playerIndex: 0, x: 18, y: 8, hasBall: true }],
       ballPosition: undefined,
     });
-    const [vampire, thrall] = subject.ctx.team1.players;
+    const [vampire, thrall] = subject.ctx.teams[0].players;
     fixtureValue(thrall).keywords = [
       TraitKeyWord.THRALL,
       PositionKeyWord.LINEMAN,
@@ -656,7 +656,7 @@ describe("skill-aware tactical choices", () => {
         },
       },
     });
-    const [vampire, carrier] = subject.ctx.team1.players;
+    const [vampire, carrier] = subject.ctx.teams[0].players;
     fixtureValue(carrier).keywords = [
       TraitKeyWord.THRALL,
       PositionKeyWord.LINEMAN,
@@ -698,7 +698,7 @@ describe("skill-aware tactical choices", () => {
       team2Placements: [{ playerIndex: 0, x: 2, y: 8 }],
       ballPosition: undefined,
     });
-    const [vampire, thrall] = subject.ctx.team1.players;
+    const [vampire, thrall] = subject.ctx.teams[0].players;
     fixtureValue(thrall).keywords = [
       TraitKeyWord.THRALL,
       PositionKeyWord.LINEMAN,
@@ -729,7 +729,7 @@ describe("skill-aware tactical choices", () => {
 
   it("prices securing as a D6 without Sure Hands or Extra Arms", () => {
     const subject = game();
-    const player = subject.ctx.team1.players[0];
+    const player = subject.ctx.teams[0].players[0];
     fieldPlayer(player).skills = [
       getSkill(SkillType.SURE_HANDS),
       getSkill(SkillType.EXTRA_ARMS),

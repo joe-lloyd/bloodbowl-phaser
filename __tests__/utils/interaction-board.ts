@@ -67,9 +67,9 @@ export function board(
   });
   const controller = new GameplayInteractionController({
     scene: {
-      team1: game.ctx.team1,
-      team2: game.ctx.team2,
-      kickingTeam: game.ctx.team2,
+      team1: game.ctx.teams[0],
+      team2: game.ctx.teams[1],
+      kickingTeam: game.ctx.teams[1],
       events: { on: vi.fn(), off: vi.fn() },
       highlightPlayer: vi.fn(),
       unhighlightPlayer: vi.fn(),
@@ -96,10 +96,10 @@ export function board(
     seen.dice.push(roll.description);
   });
   const act = (index: number, action: ActionType) => {
-    const id = fixtureValue(game.ctx.team1.players[index]).id;
+    const id = fixtureValue(game.ctx.teams[0].players[index]).id;
     controller.handlePlayerClick(id);
     eventBus.emit(GameEventNames.UI_ActionSelected, { playerId: id, action });
-    return fixtureValue(game.ctx.team1.players[index]);
+    return fixtureValue(game.ctx.teams[0].players[index]);
   };
   return { game, controller, seen, act };
 }

@@ -14,7 +14,7 @@ import { PlayerStatus } from "../../../src/types/Player";
 
 function endpoints(game: HeadlessGame) {
   const state = game.ctx.gameService.getState();
-  return [game.ctx.team1, game.ctx.team2].map((team) => ({
+  return [game.ctx.teams[0], game.ctx.teams[1]].map((team) => ({
     score: state.score[team.id] ?? 0,
     rerolls: team.rerolls,
     players: team.players.map((p) => ({
@@ -46,7 +46,7 @@ export async function probeRun(
     triggers = 0,
     turnovers = 0;
   const result = await runRuleConfig(config, seed, (game) => {
-    for (const p of [...game.ctx.team1.players, ...game.ctx.team2.players]) {
+    for (const p of [...game.ctx.teams[0].players, ...game.ctx.teams[1].players]) {
       if (p.skills.some((s) => s.type === skill)) holders++;
       if (remove) p.skills = p.skills.filter((s) => s.type !== skill);
     }

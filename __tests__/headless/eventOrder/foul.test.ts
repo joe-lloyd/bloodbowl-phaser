@@ -44,7 +44,7 @@ function foulGame(
   });
 
   vi.spyOn(game.ctx.rng, "rollDie").mockReturnValue(1);
-  return { game, fouler: game.ctx.team1.players[roster ? 1 : 0] };
+  return { game, fouler: game.ctx.teams[0].players[roster ? 1 : 0] };
 }
 
 async function foulReporting(

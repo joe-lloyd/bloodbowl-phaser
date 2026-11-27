@@ -31,7 +31,7 @@ describe("an inaccurate pass scattering off the pitch", () => {
       scenario,
       seed: SCATTERS_OFF_THEN_BACK_SEED,
     });
-    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passerId,

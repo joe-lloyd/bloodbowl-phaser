@@ -17,8 +17,8 @@ const of1296 = (n: number) => n / 1296;
 
 describe("foul odds", () => {
   const game = new HeadlessGame({ seed: 1 });
-  const [fouler] = game.ctx.team1.players;
-  const [target] = game.ctx.team2.players;
+  const [fouler] = game.ctx.teams[0].players;
+  const [target] = game.ctx.teams[1].players;
   const av9 = {
     ...fixtureValue(target),
     stats: { ...fixtureValue(target).stats, AV: 9 },
@@ -106,7 +106,7 @@ async function foulValues(
     (a) =>
       a.action === "foul" &&
       a.player.id ===
-        fixtureValue(subject.ctx.team1.players[fouler.playerIndex]).id
+        fixtureValue(subject.ctx.teams[0].players[fouler.playerIndex]).id
   );
   return plan?.value ?? null;
 }
@@ -208,7 +208,7 @@ describe("who fouls", () => {
       },
     });
     const point = await enumerateDecision(subject, null);
-    const [fouler] = subject.ctx.team1.players;
+    const [fouler] = subject.ctx.teams[0].players;
 
     const fouls = activations({
       board: readBoard(subject, "team1"),

@@ -29,7 +29,7 @@ interface Narration {
 const sideLetter = (side: number) => (side === 0 ? "A" : "b");
 
 function teamsOf(game: HeadlessGame) {
-  return [game.ctx.team1, game.ctx.team2] as const;
+  return [game.ctx.teams[0], game.ctx.teams[1]] as const;
 }
 
 function playerName(game: HeadlessGame, id: string): string {

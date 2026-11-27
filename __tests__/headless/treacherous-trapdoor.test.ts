@@ -33,12 +33,12 @@ const nearTrapdoor: Scenario = {
 async function prayForTrapdoor(game: HeadlessGame): Promise<void> {
   forceDice(game.ctx.rng, [1]);
   await commit(game, [
-    bought(game.ctx.team2.id, Inducement.PRAYERS_TO_NUFFLE, 1),
+    bought(game.ctx.teams[1].id, Inducement.PRAYERS_TO_NUFFLE, 1),
   ]);
 }
 
 async function walkOntoTrapdoor(game: HeadlessGame) {
-  const carrier = game.ctx.team1.players[0];
+  const carrier = game.ctx.teams[0].players[0];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(carrier).id,
@@ -97,15 +97,15 @@ describe("Trapdoors", () => {
       y: 2,
     });
     expect(game.ctx.gameService.getState().activeTeamId).toBe(
-      game.ctx.team2.id
+      game.ctx.teams[1].id
     );
   });
 
   it("swallow a player pushed onto one", async () => {
     const game = new HeadlessGame({ scenario: atTheOtherTrapdoor, seed: 5 });
     await prayForTrapdoor(game);
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     await block(game, fixtureValue(attacker).id, fixtureValue(defender).id);
 
     forceDice(game.ctx.rng, [1, 4, 4]);
@@ -123,8 +123,8 @@ describe("Trapdoors", () => {
   it("swallow a blocker following up onto one, a Turnover", async () => {
     const game = new HeadlessGame({ scenario: onTheOtherTrapdoor, seed: 5 });
     await prayForTrapdoor(game);
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     await block(game, fixtureValue(attacker).id, fixtureValue(defender).id);
     await game.execute({ type: "choose-push-direction", x: 14, y: 8 });
 
@@ -133,7 +133,7 @@ describe("Trapdoors", () => {
     expect(fixtureValue(attacker).gridPosition).toBeUndefined();
     expect(fixtureValue(attacker).status).toBe(PlayerStatus.RESERVE);
     expect(game.ctx.gameService.getState().activeTeamId).toBe(
-      game.ctx.team2.id
+      game.ctx.teams[1].id
     );
   });
 });

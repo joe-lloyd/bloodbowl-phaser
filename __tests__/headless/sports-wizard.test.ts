@@ -34,7 +34,7 @@ const pitch: Scenario = {
 
 async function withWizard({ both = false } = {}) {
   const game = new HeadlessGame({ scenario: pitch, seed: 1 });
-  const teams = both ? [game.ctx.team1, game.ctx.team2] : [game.ctx.team1];
+  const teams = both ? [game.ctx.teams[0], game.ctx.teams[1]] : [game.ctx.teams[0]];
   forceDice(
     game.ctx.rng,
     teams.map(() => 8)
@@ -56,10 +56,10 @@ describe("Magic Scroll", () => {
   it("is used before set-up and gives the team a Sports-Wizard", async () => {
     const game = await withWizard();
     const mi = fixtureValue(game.ctx.gameService.getState().matchInducements);
-    expect(mi.measures[game.ctx.team1.id]).toEqual([
+    expect(mi.measures[game.ctx.teams[0].id]).toEqual([
       { measure: DesperateMeasure.MAGIC_SCROLL, used: true },
     ]);
-    expect(mi.sportsWizards).toEqual([game.ctx.team1.id]);
+    expect(mi.sportsWizards).toEqual([game.ctx.teams[0].id]);
     expect(game.pendingDecision()).toBeNull();
   });
 });
@@ -73,23 +73,23 @@ describe("the Sports-Wizard", () => {
     expect(game.pendingDecision()).toMatchObject({
       type: "inducement-choice",
       kind: "sports-wizard",
-      chooserTeamId: game.ctx.team1.id,
+      chooserTeamId: game.ctx.teams[0].id,
       spells: ["fireball", "zap"],
       optional: true,
     });
 
-    expect(state.activeTeamId).toBe(game.ctx.team1.id);
+    expect(state.activeTeamId).toBe(game.ctx.teams[0].id);
 
     await game.execute({ type: "choose-inducement" });
     await settle();
-    expect(state.activeTeamId).toBe(game.ctx.team2.id);
-    expect(state.matchInducements?.sportsWizards).toEqual([game.ctx.team1.id]);
+    expect(state.activeTeamId).toBe(game.ctx.teams[1].id);
+    expect(state.matchInducements?.sportsWizards).toEqual([game.ctx.teams[0].id]);
   });
 
   it("Fireball: each player in or next to the square is hit on a 4+, the Standing are Knocked Down, and every Armour Roll is at +1", async () => {
     const game = await withWizard();
-    const [inSquare, prone] = game.ctx.team2.players;
-    const beside = game.ctx.team1.players[0];
+    const [inSquare, prone] = game.ctx.teams[1].players;
+    const beside = game.ctx.teams[0].players[0];
     await endTurn(game);
 
     forceDice(game.ctx.rng, [3, 4, 6, 4, 4, 3, 3, 1, 1]);
@@ -112,13 +112,13 @@ describe("the Sports-Wizard", () => {
     });
     const state = game.ctx.gameService.getState();
     expect(state.matchInducements?.sportsWizards).toEqual([]);
-    expect(state.activeTeamId).toBe(game.ctx.team2.id);
+    expect(state.activeTeamId).toBe(game.ctx.teams[1].id);
     expect(state.phase).toBe(GamePhase.PLAY);
   });
 
   it("Zap!: a roll at or over the target's ST turns them into a Frog, and the Frog is themselves again after the drive", async () => {
     const game = await withWizard();
-    const target = game.ctx.team2.players[0];
+    const target = game.ctx.teams[1].players[0];
     const skills = fixtureValue(target).skills.map((s) => s.type);
     const stats = { ...fixtureValue(target).stats };
     await endTurn(game);
@@ -156,7 +156,7 @@ describe("the Sports-Wizard", () => {
     });
 
     game.ctx.gameService.endDrive("touchdown", {
-      kickingTeamId: game.ctx.team1.id,
+      kickingTeamId: game.ctx.teams[0].id,
     });
     await settle();
     expect(fixtureValue(target).stats).toEqual(stats);
@@ -166,7 +166,7 @@ describe("the Sports-Wizard", () => {
 
   it("Zap!: under the target's ST does nothing, and a natural 1 always fails", async () => {
     const game = await withWizard();
-    const target = game.ctx.team2.players[0];
+    const target = game.ctx.teams[1].players[0];
     await endTurn(game);
     forceDice(game.ctx.rng, [2]);
     await game.execute({
@@ -187,7 +187,7 @@ describe("the Sports-Wizard", () => {
     "a Frog suffering a fatal %s roll is only Badly Hurt",
     async (route) => {
       const game = await withWizard();
-      const target = game.ctx.team2.players[0];
+      const target = game.ctx.teams[1].players[0];
       await endTurn(game);
       forceDice(game.ctx.rng, [6]);
       const spellCast = await game.execute({
@@ -219,7 +219,7 @@ describe("the Sports-Wizard", () => {
 
   it("asks both coaches, and a Frog's Casualty is always Badly Hurt", async () => {
     const game = await withWizard({ both: true });
-    const target = game.ctx.team2.players[0];
+    const target = game.ctx.teams[1].players[0];
     await endTurn(game);
     forceDice(game.ctx.rng, [6]);
     await game.execute({
@@ -232,7 +232,7 @@ describe("the Sports-Wizard", () => {
 
     expect(game.pendingDecision()).toMatchObject({
       kind: "sports-wizard",
-      chooserTeamId: game.ctx.team2.id,
+      chooserTeamId: game.ctx.teams[1].id,
     });
     forceDice(game.ctx.rng, [3, 4, 3, 3, 6, 6]);
     await game.execute({
@@ -254,11 +254,11 @@ describe("the Sports-Wizard sandbox scenario", () => {
     );
     const game = new HeadlessGame({ scenario });
     const mi = fixtureValue(game.ctx.gameService.getState().matchInducements);
-    expect(mi.sportsWizards).toEqual([game.ctx.team1.id]);
+    expect(mi.sportsWizards).toEqual([game.ctx.teams[0].id]);
     await endTurn(game);
     expect(game.pendingDecision()).toMatchObject({
       kind: "sports-wizard",
-      chooserTeamId: game.ctx.team1.id,
+      chooserTeamId: game.ctx.teams[0].id,
     });
   });
 });
@@ -272,7 +272,7 @@ describe("an online coach who does not answer", () => {
     expect(timedOut.ok).toBe(true);
     await settle();
     const state = game.ctx.gameService.getState();
-    expect(state.activeTeamId).toBe(game.ctx.team2.id);
-    expect(state.matchInducements?.sportsWizards).toEqual([game.ctx.team1.id]);
+    expect(state.activeTeamId).toBe(game.ctx.teams[1].id);
+    expect(state.matchInducements?.sportsWizards).toEqual([game.ctx.teams[0].id]);
   });
 });
