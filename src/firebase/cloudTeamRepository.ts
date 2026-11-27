@@ -175,6 +175,11 @@ export class CloudTeamRepository implements TeamRepository {
   }
 
   resync(): Promise<void> {
+    if (!navigator.onLine) {
+      this.offline = true;
+      this.publish();
+      return Promise.resolve();
+    }
     return this.enqueue(async () => {
       this.setSyncing(1);
       try {

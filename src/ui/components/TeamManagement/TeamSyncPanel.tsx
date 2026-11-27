@@ -17,12 +17,12 @@ function changes(count: number): string {
 }
 
 function summary(status: TeamSyncStatus): string {
-  if (status.syncing) return "Syncing your teams…";
   if (status.waiting > 0) {
     return status.offline
       ? `${changes(status.waiting)} saved on this device. They upload when you are back online.`
       : `${changes(status.waiting)} saved on this device, waiting to upload.`;
   }
+  if (status.syncing) return "Syncing your teams…";
   if (status.offline) return "Offline. Your teams are saved on this device.";
   if (status.syncedAt === null) return "Your teams are saved to your account.";
   const time = new Date(status.syncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
