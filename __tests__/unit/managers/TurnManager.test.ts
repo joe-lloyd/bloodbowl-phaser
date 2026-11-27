@@ -9,6 +9,8 @@ import { type Team } from "../../../src/types/Team";
 import { GameEventNames } from "../../../src/types/events";
 import { createInitialState } from "../../../src/services/gameService/matchStart";
 import { busWith, teamWith } from "../controllers/controllerFixtures";
+import { seatTeams } from "../../../src/game/seating";
+import { activeLayout } from "../../../src/game/variants/activeMatch";
 
 const noop = () => {};
 
@@ -41,8 +43,7 @@ describe("TurnManager", () => {
     manager = new TurnManager(
       mockEventBus,
       mockState,
-      mockTeam1,
-      mockTeam2,
+      seatTeams([mockTeam1, mockTeam2], activeLayout()),
       mockCallbacks
     );
   });
@@ -211,8 +212,7 @@ describe("TurnManager", () => {
       const manual = new TurnManager(
         mockEventBus,
         mockState,
-        mockTeam1,
-        mockTeam2,
+        seatTeams([mockTeam1, mockTeam2], activeLayout()),
         mockCallbacks,
         (ms) =>
           new Promise<void>(ms === 500 ? (resolve) => (autoEnd = resolve) : () => {})

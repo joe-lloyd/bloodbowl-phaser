@@ -24,6 +24,14 @@ import {
 } from "../kickoff/kickoffTurn";
 import type { KickoffEvent } from "../kickoff/kickoffEvents";
 import { undecided } from "../rules/extraTime";
+import {
+  everyone,
+  pairTeams,
+  playOrderAfter,
+  type Seating,
+  seatOf,
+  teamsOf,
+} from "../seating";
 
 export interface TurnManagerState {
   turnCounts: Record<string, number>;
@@ -79,31 +87,27 @@ export class TurnManager {
 
   private eventBus: IEventBus;
   private state: GameState;
-  private team1: Team;
-  private team2: Team;
+  private seating: Seating;
   private callbacks: TurnCallbacks;
   private delay: import("../core/GameFlowManager").DelayProvider;
   constructor(
     eventBus: IEventBus,
     state: GameState,
-    team1: Team,
-    team2: Team,
+    seating: Seating,
     callbacks: TurnCallbacks,
     delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
     this.eventBus = eventBus;
     this.state = state;
-    this.team1 = team1;
-    this.team2 = team2;
+    this.seating = seating;
     this.callbacks = callbacks;
     this.delay = delay;
-    this.turnCounts[team1.id] = 0;
-    this.turnCounts[team2.id] = 0;
+    this.seedTurnCounts(0);
   }
 
   public seedTurnCounts(turnNumber: number): void {
-    this.turnCounts[this.team1.id] = turnNumber;
-    this.turnCounts[this.team2.id] = turnNumber;
+    for (const team of teamsOf(this.seating))
+      this.turnCounts[team.id] = turnNumber;
   }
 
   public captureState(): TurnManagerState {
@@ -117,10 +121,9 @@ export class TurnManager {
   }
 
   public restoreState(snapshot: TurnManagerState): void {
-    this.turnCounts = {
-      [this.team1.id]: snapshot.turnCounts[this.team1.id] ?? 0,
-      [this.team2.id]: snapshot.turnCounts[this.team2.id] ?? 0,
-    };
+    this.turnCounts = Object.fromEntries(
+      teamsOf(this.seating).map(({ id }) => [id, snapshot.turnCounts[id] ?? 0])
+    );
     this.driveKickingTeamId = snapshot.driveKickingTeamId;
     this.firstHalfKickingTeamId = snapshot.firstHalfKickingTeamId;
     this.turnoverInProgress = snapshot.turnoverInProgress;
@@ -134,14 +137,12 @@ export class TurnManager {
       this.firstHalfKickingTeamId = kickingTeamId;
     }
 
-    const receivingTeamId =
-      kickingTeamId === this.team1.id ? this.team2.id : this.team1.id;
+    const receivingTeamId = this.pairRivalOf(kickingTeamId).id;
 
     this.state.subPhase = SubPhase.TURN_RECEIVING;
     this.state.activeTeamId = receivingTeamId;
 
-    activatePlayers(this.team1);
-    activatePlayers(this.team2);
+    for (const team of teamsOf(this.seating)) activatePlayers(team);
 
     this.startTurn(receivingTeamId);
     this.callbacks.onPhaseChanged(GamePhase.PLAY, this.state.subPhase);
@@ -172,7 +173,7 @@ export class TurnManager {
       turnNumber: currentTurn,
     };
 
-    const activeTeam = teamId === this.team1.id ? this.team1 : this.team2;
+    const activeTeam = seatOf(this.seating, teamId).team;
     this.stunnedAtTurnStart = activeTeam.players
       .filter((p) => p.status === PlayerStatus.STUNNED && p.gridPosition)
       .map((p) => p.id);
@@ -183,7 +184,7 @@ export class TurnManager {
   }
 
   public startKickoffTurn(start: KickoffTurnStart): boolean {
-    const players = [...this.team1.players, ...this.team2.players];
+    const players = everyone(this.seating);
     const opened = openedKickoffTurn(this.state, start, players);
     if (!opened || !this.state.kick) return false;
     this.turnoverInProgress = false;
@@ -242,8 +243,7 @@ export class TurnManager {
     const currentTeamId = this.state.activeTeamId;
     if (!currentTeamId) return;
 
-    const endingTeam =
-      currentTeamId === this.team1.id ? this.team1 : this.team2;
+    const endingTeam = seatOf(this.seating, currentTeamId).team;
     for (const player of endingTeam.players) {
       if (!(this.stunnedAtTurnStart.includes(player.id) &&
         player.status === PlayerStatus.STUNNED &&
@@ -276,17 +276,15 @@ export class TurnManager {
   }
 
   private beginNextTurn(currentTeamId: string): void {
-    const otherTeamId =
-      currentTeamId === this.team1.id ? this.team2.id : this.team1.id;
-    const nextTeamId = [otherTeamId, currentTeamId].find(
-      (teamId) => (this.turnCounts[teamId] ?? 0) < this.maxTurns
+    const next = playOrderAfter(this.seating, currentTeamId, 1).find(
+      (team) => (this.turnCounts[team.id] ?? 0) < this.maxTurns
     );
-    if (!nextTeamId) {
+    if (!next) {
       this.endHalf();
       return;
     }
 
-    this.startTurn(nextTeamId);
+    this.startTurn(next.id);
   }
 
   public skipNextTurn(teamId: string): void {
@@ -297,15 +295,14 @@ export class TurnManager {
   }
 
   public isHalfExhausted(): boolean {
-    return (
-      (this.turnCounts[this.team1.id] ?? 0) >= this.maxTurns &&
-      (this.turnCounts[this.team2.id] ?? 0) >= this.maxTurns
+    return teamsOf(this.seating).every(
+      (team) => (this.turnCounts[team.id] ?? 0) >= this.maxTurns
     );
   }
 
   public beginNextHalf(): NextHalf | null {
     const undecidedGame =
-      !this.state.result && undecided(this.state, this.team1, this.team2);
+      !this.state.result && undecided(this.state, ...pairTeams(this.seating));
     if (this.state.turn.isHalf2 && undecidedGame && !this.state.turn.extraTime)
       return this.beginExtraTime();
     if (this.state.turn.isHalf2) {
@@ -321,22 +318,17 @@ export class TurnManager {
 
     this.state.turn.isHalf2 = true;
     replenishTeamRerolls(this.state);
-    this.turnCounts[this.team1.id] = 0;
-    this.turnCounts[this.team2.id] = 0;
+    this.seedTurnCounts(0);
     this.announceBreak("Halftime");
 
     return {
-      kickingTeamId:
-        this.firstHalfKickingTeamId === this.team1.id
-          ? this.team2.id
-          : this.team1.id,
+      kickingTeamId: this.pairRivalOf(this.firstHalfKickingTeamId).id,
     };
   }
 
   private beginExtraTime(): NextHalf {
     this.state.turn.extraTime = true;
-    this.turnCounts[this.team1.id] = 0;
-    this.turnCounts[this.team2.id] = 0;
+    this.seedTurnCounts(0);
     this.announceBreak("Extra Time");
     return { rollOff: true };
   }
@@ -344,7 +336,8 @@ export class TurnManager {
   private announceBreak(headline: string): void {
     this.state.phase = GamePhase.HALFTIME;
     this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
-    const score = `${this.team1.name} ${String(this.state.score?.[this.team1.id] ?? 0)} : ${String(this.state.score?.[this.team2.id] ?? 0)} ${this.team2.name}`;
+    const [home, away] = pairTeams(this.seating);
+    const score = `${home.name} ${String(this.state.score?.[home.id] ?? 0)} : ${String(this.state.score?.[away.id] ?? 0)} ${away.name}`;
     this.eventBus.emit(GameEventNames.UI_LogEntry, {
       category: "drive",
       headline,
@@ -371,8 +364,8 @@ export class TurnManager {
       this.eventBus.emit(GameEventNames.PlayerActivated, playerId);
     }
 
-    const activeTeam =
-      this.state.activeTeamId === this.team1.id ? this.team1 : this.team2;
+    const activeTeam = this.activeTeam();
+    if (!activeTeam) return;
     const hasActions = this.activationValidator.hasAvailablePlayers(
       activeTeam,
       this.state.turn
@@ -398,13 +391,10 @@ export class TurnManager {
     }
     this.turnoverInProgress = true;
 
-    const player = [...this.team1.players, ...this.team2.players].find(
+    const player = everyone(this.seating).find(
       (candidate) => candidate.id === this.state.activePlayer?.id
     );
-    const who =
-      player?.playerName ??
-      (this.state.activeTeamId === this.team1.id ? this.team1 : this.team2)
-        .name;
+    const who = player?.playerName ?? this.activeTeamName();
     const activeTeamId = this.state.activeTeamId;
     this.eventBus.emit(GameEventNames.UI_LogEntry, {
       category: "action",
@@ -443,7 +433,7 @@ export class TurnManager {
   }
 
   public moveTurnMarkers(delta: number): void {
-    for (const teamId of [this.team1.id, this.team2.id]) {
+    for (const { id: teamId } of teamsOf(this.seating)) {
       const current = this.turnCounts[teamId] || 0;
       this.turnCounts[teamId] = Math.max(
         0,
@@ -453,11 +443,24 @@ export class TurnManager {
   }
 
   public reset(): void {
-    this.turnCounts = {
-      [this.team1.id]: 0,
-      [this.team2.id]: 0,
-    };
+    this.turnCounts = {};
+    this.seedTurnCounts(0);
     this.driveKickingTeamId = null;
+  }
+
+  private activeTeam(): Team | undefined {
+    return teamsOf(this.seating).find(
+      (team) => team.id === this.state.activeTeamId
+    );
+  }
+
+  private activeTeamName(): string {
+    return this.activeTeam()?.name ?? "";
+  }
+
+  private pairRivalOf(teamId: string | null): Team {
+    const [home, away] = pairTeams(this.seating);
+    return teamId === home.id ? away : home;
   }
 
   public hasGameStarted(): boolean {

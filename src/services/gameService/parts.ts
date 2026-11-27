@@ -211,12 +211,11 @@ function makeTurnManager(
   delay: DelayProvider,
   getParts: () => GameParts
 ): TurnManager {
-  const { game, eventBus, state, team1, team2, seating, diceController } = core;
+  const { game, eventBus, state, seating, diceController } = core;
   return new TurnManager(
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     {
       onPhaseChanged: (phase, subPhase) => {
         eventBus.emit(GameEventNames.PhaseChanged, {
