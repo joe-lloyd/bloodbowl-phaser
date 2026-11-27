@@ -7,6 +7,7 @@ import {
   orcaColaBreak,
 } from "@/game/inducements/potionHooks";
 import type { GameParts } from "./parts";
+import { everyone } from "@/game/seating";
 import { type IEventBus } from "../EventBus";
 
 function hookServices(parts: GameParts): PotionHookServices {
@@ -33,9 +34,6 @@ export function bindPotionHooks(
   });
   eventBus.on(GameEventNames.TurnStarted, () => {
     const parts = getParts();
-    fungusBeerCollapse(hookServices(parts), parts.diceController, [
-      ...parts.team1.players,
-      ...parts.team2.players,
-    ]);
+    fungusBeerCollapse(hookServices(parts), parts.diceController, everyone(parts.seating));
   });
 }

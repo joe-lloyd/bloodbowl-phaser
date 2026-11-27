@@ -33,6 +33,7 @@ import {
   legalBlockReplacementTargets,
 } from "@/game/rules/blockReplacements";
 import type { GameParts } from "./parts";
+import { everyone } from "@/game/seating";
 import { couldScoreWithoutDice } from "./activation";
 
 type Declaration = NonNullable<GameState["activePlayer"]>;
@@ -344,7 +345,7 @@ function moveRefused(
     return true;
   }
   if (action !== "secureBall") return false;
-  const others = [...parts.team1.players, ...parts.team2.players].filter(
+  const others = everyone(parts.seating).filter(
     (p) => p.id !== activating.id && p.gridPosition
   );
   if (canSecureBall(activating, parts.state.ballPosition, others)) return false;

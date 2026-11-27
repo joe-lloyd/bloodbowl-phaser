@@ -1,7 +1,7 @@
 import type { Player } from "@/types/Player";
 import type { Team } from "@/types/Team";
 import type { Frame } from "./rules/frames";
-import type { PitchLayout } from "./variants/pitchLayouts";
+import type { PitchLayout, Square } from "./variants/pitchLayouts";
 
 type SeatIndex = 0 | 1 | 2 | 3;
 
@@ -66,8 +66,38 @@ export function teamOfPlayer(
   )?.team;
 }
 
+export function teamsOf(seating: Seating): Team[] {
+  return seating.seats.map(({ team }) => team);
+}
+
 export function everyone(seating: Seating): Player[] {
   return seating.seats.flatMap(({ team }) => team.players);
+}
+
+function findPlayer(
+  seating: Seating,
+  test: (player: Player) => boolean
+): Player | undefined {
+  for (const { team } of seating.seats) {
+    const player = team.players.find((candidate) => test(candidate));
+    if (player) return player;
+  }
+  return undefined;
+}
+
+export function playerById(
+  seating: Seating,
+  playerId: string
+): Player | undefined {
+  return findPlayer(seating, (player) => player.id === playerId);
+}
+
+export function playerAt(seating: Seating, square: Square): Player | undefined {
+  return findPlayer(
+    seating,
+    ({ gridPosition }) =>
+      gridPosition?.x === square.x && gridPosition.y === square.y
+  );
 }
 
 export function rivalsOf(seating: Seating, teamId: string): readonly Seat[] {

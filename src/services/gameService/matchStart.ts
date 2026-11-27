@@ -10,6 +10,7 @@ import { type Team } from "@/types/Team";
 import { SetupManager } from "@/game/managers/SetupManager";
 import { rollMasterChefs as cookMasterChefs } from "@/game/inducements/masterChef";
 import type { GameParts } from "./parts";
+import { teamsOf } from "@/game/seating";
 import { readyInducements, skipUnaffordableInducements } from "./inducements";
 import { prepareClubSquad } from "@/game/rules/club";
 
@@ -83,7 +84,7 @@ export function createInitialState({
 
 export function readyForWeather(parts: GameParts, teamId: string): boolean {
   const { state } = parts;
-  const teamIds = [parts.team1.id, parts.team2.id];
+  const teamIds = teamsOf(parts.seating).map((team) => team.id);
   if (
     state.phase !== GamePhase.SETUP ||
     state.subPhase !== SubPhase.INTRO ||
@@ -133,6 +134,8 @@ export function rollMasterChefs(parts: GameParts): void {
 
 export function startGame(parts: GameParts, kickingTeamId: string): void {
   rollMasterChefs(parts);
-  parts.rerollArbiter.beginHalf([parts.team1.id, parts.team2.id]);
+  parts.rerollArbiter.beginHalf(
+    teamsOf(parts.seating).map((team) => team.id)
+  );
   parts.turnManager.startGame(parts.state.kick?.kickingTeamId ?? kickingTeamId);
 }
