@@ -42,6 +42,7 @@ export interface TurnSnapshot extends SpendWire {
   hasKickedTeamMate: boolean;
   hasThrownBomb: boolean;
   hasPunted?: boolean;
+  endsAfterActivation?: true;
   movementUsed: Record<string, number>;
 
 }
@@ -209,6 +210,9 @@ function inducementFields(source: GameState | GameSnapshot) {
 function optionalTurnFields(turn: TurnData | TurnSnapshot) {
   return {
     ...(turn.hasPunted && { hasPunted: true }),
+    ...(turn.endsAfterActivation && {
+      endsAfterActivation: turn.endsAfterActivation,
+    }),
   };
 }
 

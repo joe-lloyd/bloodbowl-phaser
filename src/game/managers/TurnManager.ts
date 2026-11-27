@@ -27,6 +27,7 @@ import {
   pairSeating,
   pairTeams,
   playOrderAfter,
+  type Rotation,
   type Seating,
   seatOf,
   teamsOf,
@@ -39,6 +40,7 @@ export interface TurnManagerState {
   turnoverInProgress: boolean;
 
   stunnedAtTurnStart?: string[];
+  rotation?: Rotation;
 }
 
 export function possessive(name: string): string {
@@ -76,6 +78,7 @@ export class TurnManager {
   private driveKickingTeamId: string | null = null;
   private firstHalfKickingTeamId: string | null = null;
   private turnoverInProgress = false;
+  private rotation: Rotation = 1;
 
   private stunnedAtTurnStart: string[] = [];
   private activationValidator: ActivationValidator = new ActivationValidator();
@@ -112,6 +115,7 @@ export class TurnManager {
       firstHalfKickingTeamId: this.firstHalfKickingTeamId,
       turnoverInProgress: this.turnoverInProgress,
       stunnedAtTurnStart: [...this.stunnedAtTurnStart],
+      ...(this.rotation !== 1 && { rotation: this.rotation }),
     };
   }
 
@@ -123,6 +127,7 @@ export class TurnManager {
     this.firstHalfKickingTeamId = snapshot.firstHalfKickingTeamId;
     this.turnoverInProgress = snapshot.turnoverInProgress;
     this.stunnedAtTurnStart = [...(snapshot.stunnedAtTurnStart ?? [])];
+    this.rotation = snapshot.rotation ?? 1;
   }
 
   public startGame(kickingTeamId: string): void {
@@ -141,6 +146,11 @@ export class TurnManager {
 
     this.startTurn(receivingTeamId);
     this.callbacks.onPhaseChanged(GamePhase.PLAY, this.state.subPhase);
+  }
+
+  public beginHalf(first: string, rotation: Rotation): void {
+    this.rotation = rotation;
+    this.startTurn(first);
   }
 
   public startTurn(teamId: string): void {
@@ -271,9 +281,11 @@ export class TurnManager {
   }
 
   private beginNextTurn(currentTeamId: string): void {
-    const next = playOrderAfter(this.seating, currentTeamId, 1).find(
-      (team) => (this.turnCounts[team.id] ?? 0) < this.maxTurns
-    );
+    const next = playOrderAfter(
+      this.seating,
+      currentTeamId,
+      this.rotation
+    ).find((team) => (this.turnCounts[team.id] ?? 0) < this.maxTurns);
     if (!next) {
       this.callbacks.halfOver();
       return;
@@ -301,6 +313,10 @@ export class TurnManager {
     if (!this.state.turn.activatedPlayerIds.has(playerId)) {
       this.state.turn.activatedPlayerIds.add(playerId);
       this.eventBus.emit(GameEventNames.PlayerActivated, playerId);
+    }
+    if (this.state.turn.endsAfterActivation) {
+      this.endTurn();
+      return;
     }
 
     const activeTeam = this.activeTeam();
