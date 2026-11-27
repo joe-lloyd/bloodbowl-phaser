@@ -50,6 +50,21 @@ interface MatchSummary {
   hash: string;
 }
 
+export interface PlannedMatch {
+  seed: number;
+  rosters: [RosterName, RosterName];
+}
+
+export function planMatches(
+  options: Pick<RunOptions, "seed" | "games" | "rosters">
+): PlannedMatch[] {
+  const pairing = createCoachRng(options.seed);
+  return Array.from({ length: options.games }, (_, i) => ({
+    seed: options.seed + i,
+    rosters: [pairing.pick(options.rosters), pairing.pick(options.rosters)],
+  }));
+}
+
 export async function runBatch(options: RunOptions): Promise<number> {
   fs.mkdirSync(options.out, { recursive: true });
   const jevStats: JevStats[] = [];
@@ -57,14 +72,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
     makeCoach(options.home, jevStats),
     makeCoach(options.away, jevStats),
   ];
-  const pairing = createCoachRng(options.seed);
-  const plan = Array.from({ length: options.games }, (_, i) => ({
-    seed: options.seed + i,
-    rosters: [pairing.pick(options.rosters), pairing.pick(options.rosters)] satisfies [
-      RosterName,
-      RosterName,
-    ],
-  }));
+  const plan = planMatches(options);
 
   const matches: MatchSummary[] = [];
   const findings: (Finding & { file: string | null; seed: number })[] = [];

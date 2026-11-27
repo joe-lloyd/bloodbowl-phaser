@@ -299,9 +299,17 @@ heavy sim pnpm parity record sim-results/parity-head.json   # from the branch
 pnpm parity compare sim-results/parity-base.json sim-results/parity-head.json
 ```
 
-The compare exits 1 and names the first changed match when any differ. Replay
-that seed with `pnpm sim --seed <seed> --games 1 --home planner --away planner`
-on both trees to find the first step that differs.
+The compare exits 1 and lists every changed match when any differ. Replay one
+of them on both trees:
+
+```bash
+pnpm parity replay sevens/7003 sim-results/replay-head.json
+```
+
+The replay plays the same rosters, game type and seed as the batch and writes
+the whole command recording. The first entry where the two recordings' `steps`
+differ is the first command the change affected. A plain `pnpm sim --seed 7003`
+draws a different roster pair, so it cannot stand in for the replay.
 
 ## Where things live
 

@@ -4,7 +4,9 @@ import path from "node:path";
 import { z } from "zod";
 import { parseJson } from "../src/boundary/json";
 import type { GameType } from "../src/game/variants/gameTypes";
-import { runBatch } from "../src/simulation/commands/run";
+import { planMatches, runBatch } from "../src/simulation/commands/run";
+import { makeCoach } from "../src/simulation/commands/shared";
+import { runMatch } from "../src/simulation/runMatch";
 import { RosterName } from "../src/types/Team";
 
 interface ParityRun {
@@ -23,6 +25,8 @@ const RUNS: readonly ParityRun[] = [
 
 const FIRST_SEED = 7000;
 
+const ROSTERS = Object.values(RosterName);
+
 const hashesSchema = z.record(z.string(), z.string());
 
 const matchSchema = z.object({ seed: z.number(), hash: z.string() });
@@ -37,7 +41,7 @@ async function hashesOf(run: ParityRun): Promise<Hashes> {
     await runBatch({
       games: run.games,
       seed: FIRST_SEED,
-      rosters: Object.values(RosterName),
+      rosters: ROSTERS,
       home: "planner",
       away: "planner",
       out,
@@ -87,14 +91,44 @@ function compare(baseFile: string, headFile: string): boolean {
   console.log(
     `Parity broken: ${String(changed.length)} of ${String(keys.length)} matches end differently. First: ${changed[0] ?? ""}`
   );
-  for (const key of changed.slice(0, 20))
+  for (const key of changed)
     console.log(`  ${key}  base ${base[key] ?? "missing"}  head ${head[key] ?? "missing"}`);
   return false;
 }
 
+function parityMatch(key: string) {
+  const [label, seedText] = key.split("/", 2);
+  const run = RUNS.find((candidate) => candidate.label === label);
+  const seed = Number(seedText);
+  const match = run
+    ? planMatches({ seed: FIRST_SEED, games: run.games, rosters: ROSTERS }).find(
+        (planned) => planned.seed === seed
+      )
+    : undefined;
+  if (!run || !match) throw new Error(`${key} is not a parity match`);
+  return { run, match };
+}
+
+async function replay(key: string, file: string): Promise<void> {
+  const { run, match } = parityMatch(key);
+  const planner = makeCoach("planner", []);
+  const recording = await runMatch({
+    seed: match.seed,
+    rosters: match.rosters,
+    coaches: [planner, planner],
+    ...(run.gameType !== undefined && { gameType: run.gameType }),
+  });
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(recording));
+  console.log(
+    `${key}: ${match.rosters.join(" vs ")}, final hash ${recording.final.hash}, ${String(recording.steps.length)} commands written to ${file}`
+  );
+}
+
 const USAGE = `Usage:
-  pnpm parity record <hashes.json>          run the parity matches and write their final-state hashes
-  pnpm parity compare <base.json> <head.json>  name every match whose final state changed`;
+  pnpm parity record <hashes.json>             run the parity matches and write their final-state hashes
+  pnpm parity compare <base.json> <head.json>  name every match whose final state changed
+  pnpm parity replay <match> <recording.json>  replay one match, such as sevens/7003, and keep its commands`;
 
 async function main(argv: readonly string[]): Promise<number> {
   const [command, first, second] = argv;
@@ -103,6 +137,10 @@ async function main(argv: readonly string[]): Promise<number> {
     return 0;
   }
   if (command === "compare" && first && second) return compare(first, second) ? 0 : 1;
+  if (command === "replay" && first && second) {
+    await replay(first, second);
+    return 0;
+  }
   console.error(USAGE);
   return 2;
 }

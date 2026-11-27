@@ -17,3 +17,12 @@
 
 - **WHEN** the head tree changes a rule that two-team matches use
 - **THEN** the compare names the first match whose final state changed
+
+### Requirement: Parity replay
+
+`pnpm parity replay <match> <file>` SHALL replay one parity match with the rosters, game type and seed the record used, and write its command recording.
+
+#### Scenario: Replay matches the record
+
+- **WHEN** a match is replayed on the tree that recorded it
+- **THEN** its final hash equals the recorded one
