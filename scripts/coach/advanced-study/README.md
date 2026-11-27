@@ -31,8 +31,8 @@ To reproduce the published acquisition exactly, use its frozen source archive an
 ```sh
 pnpm exec vitest run __tests__/simulation/advanced-study.test.ts \
   __tests__/simulation/catalogue-study.test.ts
-pnpm exec tsc -p scripts/coach/advanced-study/tsconfig.json
-pnpm exec eslint scripts/coach/advanced-study __tests__/simulation/advanced-study.test.ts
+pnpm exec tsrs -p scripts/coach/advanced-study/tsconfig.json
+pnpm exec oxlint scripts/coach/advanced-study __tests__/simulation/advanced-study.test.ts
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
   -s scripts/coach/advanced-study -p 'test_*.py'
 ```

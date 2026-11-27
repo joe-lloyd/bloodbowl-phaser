@@ -6,7 +6,7 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsrs",
     "serve": "pnpm build && pnpm dlx firebase-tools@15.34.1 emulators:start --only functions",
     "deploy": "pnpm dlx firebase-tools@15.34.1 deploy --only functions"
   },

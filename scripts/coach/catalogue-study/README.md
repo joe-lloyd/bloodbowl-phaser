@@ -77,13 +77,13 @@ points estimate but omits the paired confidence interval. Scores, team and skill
 negative-trait contexts, all rule outcomes and event totals are available as CSV.
 The HTML embeds its tables and requires no server or network connection.
 
-Validate changes with the focused integration tests, ESLint, and the study's
+Validate changes with the focused integration tests, oxlint, and the study's
 TypeScript project:
 
 ```sh
 pnpm exec vitest run __tests__/simulation/catalogue-study.test.ts
-pnpm exec eslint scripts/coach/catalogue-study.ts scripts/coach/catalogue-study
-pnpm exec tsc -p scripts/coach/catalogue-study/tsconfig.json
+pnpm exec oxlint scripts/coach/catalogue-study.ts scripts/coach/catalogue-study
+pnpm exec tsrs -p scripts/coach/catalogue-study/tsconfig.json
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
   -s scripts/coach/catalogue-study/report -p 'test_*.py'
 ```

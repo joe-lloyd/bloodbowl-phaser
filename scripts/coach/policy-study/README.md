@@ -50,7 +50,7 @@ Limitations: one frozen scripted opponent, fixed skill inventories, no induced l
 pnpm exec vitest run __tests__/simulation/skill-plans.test.ts \
   __tests__/simulation/policy-study.test.ts \
   __tests__/headless/frenzy-second-block.test.ts
-pnpm exec tsc --noEmit -p scripts/coach/policy-study/tsconfig.json
+pnpm exec tsrs --noEmit -p scripts/coach/policy-study/tsconfig.json
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
   -s scripts/coach/policy-study -p test_report.py
 ```
