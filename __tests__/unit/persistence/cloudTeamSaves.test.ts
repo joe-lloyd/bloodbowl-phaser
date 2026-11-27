@@ -250,6 +250,9 @@ describe("a signed-out library", () => {
       })
     );
     const saved = repository.saveTeams([activeTeam("first", 55_000)]);
+    await vi.waitFor(() => {
+      expect(runTransaction).toHaveBeenCalled();
+    });
     repository.retire();
     refuse(new FirebaseError("permission-denied", "Signed out"));
     await saved;
