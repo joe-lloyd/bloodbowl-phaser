@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createCompetition } from "../../../competition/create";
 import { getComputerTeamTemplates } from "../../../competition/computerTeamTemplates";
@@ -22,7 +22,7 @@ import {
 } from "../../../competition/rosterRules";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { type Difficulty } from "../../../simulation/ai/difficulty";
-import { type Team } from "../../../types/Team";
+import { type SeasonFormat, type Team } from "../../../types/Team";
 import { useAuth } from "../../hooks/useAuth";
 import {
   DEFAULT_SEVENS_RULESET,
@@ -30,12 +30,18 @@ import {
   type SevensRuleset,
 } from "../../../game/rules/sevensRuleset";
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
-import { GameTypeSelector } from "../common/GameTypeSelector";
+import { GameTypeMixPicker } from "../common/GameTypeMixPicker";
 import {
   DEFAULT_GAME_TYPE,
+  GAME_TYPES,
   type GameType,
   isGameType,
 } from "../../../game/variants/gameTypes";
+import {
+  fitRounds,
+  formatGameTypes,
+} from "../../../game/rules/seasonFormat";
+import { seasonRoundRules } from "../../../competition/homeLeague";
 import { draftRulesFor } from "../../../game/rules/draftRules";
 import {
   cx,
@@ -53,6 +59,21 @@ interface Candidate {
   label: string;
   team: Team;
   ownerUid?: string | undefined;
+}
+
+function roundCount(
+  type: CompetitionType,
+  format: TournamentFormat,
+  entrants: number
+): number {
+  const teams = Math.max(2, entrants);
+  if (type === "tournament" && format === "single-elimination")
+    return Math.ceil(Math.log2(teams));
+  return teams % 2 === 0 ? teams - 1 : teams;
+}
+
+function teamBuildType(involved: readonly GameType[]): GameType {
+  return involved.find((gameType) => gameType !== "gutter-bowl") ?? "gutter-bowl";
 }
 
 interface ComputerRow {
@@ -82,13 +103,13 @@ function LocalCompetitionBuilder({
       : DEFAULT_SEVENS_RULESET
   );
   const gameTypeParam = searchParams.get("gameType");
-  const [gameType, setGameType] = useState<GameType>(
-    isGameType(gameTypeParam) ? gameTypeParam : DEFAULT_GAME_TYPE
-  );
-  const templates = useMemo(
-    () => getComputerTeamTemplates({ ruleset, gameType }),
-    [ruleset, gameType]
-  );
+  const [chosenFormat, setGameFormat] = useState<SeasonFormat>({
+    kind: "single",
+    gameType: isGameType(gameTypeParam) ? gameTypeParam : DEFAULT_GAME_TYPE,
+  });
+  const [involved, setInvolved] = useState<readonly GameType[]>(() => formatGameTypes(chosenFormat));
+  const gameType = teamBuildType(involved);
+  const templates = getComputerTeamTemplates({ ruleset, gameType });
   const rosters = [
     ...new Set(templates.map((template) => template.rosterName)),
   ];
@@ -142,6 +163,8 @@ function LocalCompetitionBuilder({
   };
 
   const entrantCount = selected.length + computerRows.length;
+  const rounds = roundCount(type, format, entrantCount);
+  const gameFormat = fitRounds(chosenFormat, rounds);
 
   const computerEntrants = computerRows.length;
 
@@ -153,6 +176,7 @@ function LocalCompetitionBuilder({
     try {
       const competition = await createCompetition({
         ruleset,
+        ...seasonRoundRules(gameFormat, { first: 0, count: rounds }, Math.random),
         gameType,
         type,
         name,
@@ -241,26 +265,31 @@ function LocalCompetitionBuilder({
       <Section title="Rules for this competition">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <GameTypeSelector
-              label="Game type"
-              value={gameType}
-              onChange={(next) => {
-                setGameType(next);
+            <GameTypeMixPicker
+              scope={type}
+              open={GAME_TYPES}
+              rounds={rounds}
+              value={gameFormat}
+              onChange={(next, nextInvolved) => {
+                const nextBuild = teamBuildType(nextInvolved);
+                setGameFormat(next);
+                setInvolved(nextInvolved);
+                if (nextBuild === gameType) return;
                 setProfileChoice((choice) => ({
                   ...choice,
-                  draftBudget: draftRulesFor(next).budget,
+                  draftBudget: draftRulesFor(nextBuild).budget,
                 }));
                 setComputerRows([]);
               }}
             />
           </div>
-          {gameType === DEFAULT_GAME_TYPE && (
+          {involved.includes(DEFAULT_GAME_TYPE) && (
             <SevensRulesetSelector value={ruleset} onChange={setRuleset} />
           )}
         </div>
         <p className="mt-3 font-hud-body text-hud-sm text-hud-dim">
           These choices apply to the whole tournament or league season. Every
-          entrant must meet the game type&apos;s draft rules.
+          entrant must meet the draft rules of each game type in it.
         </p>
       </Section>
 
@@ -276,11 +305,18 @@ function LocalCompetitionBuilder({
             const seed = selected.indexOf(candidate.id) + 1;
 
             const committed = !!candidate.team.activeCompetitionId;
-            const compatibility = checkTeamCompatibility(
-              candidate.team,
-              profile,
-              { ruleset, gameType }
-            );
+            const reasons = [
+              ...new Set(
+                involved.flatMap(
+                  (each) =>
+                    checkTeamCompatibility(candidate.team, profile, {
+                      ruleset,
+                      gameType: each,
+                    }).reasons
+                )
+              ),
+            ];
+            const compatibility = { compatible: reasons.length === 0, reasons };
             return (
               <button
                 key={candidate.id}

@@ -57,7 +57,8 @@ export type SeasonMix = "random" | "order";
 
 export function seasonFormatFor(
   involved: readonly GameType[],
-  mix: SeasonMix
+  mix: SeasonMix,
+  rounds: number = SEASON_ROUNDS
 ): SeasonFormat {
   const [only, ...others] = involved;
   if (!only) return SEVENS_SEASON;
@@ -65,6 +66,18 @@ export function seasonFormatFor(
   if (mix === "random") return { kind: "random", gameTypes: [...involved] };
   return {
     kind: "order",
-    gameTypes: Array.from({ length: SEASON_ROUNDS }, (_, round) => pick(involved, round)),
+    gameTypes: Array.from({ length: rounds }, (_, round) => pick(involved, round)),
+  };
+}
+
+export function fitRounds(format: SeasonFormat, rounds: number): SeasonFormat {
+  if (format.kind !== "order" || format.gameTypes.length === rounds) return format;
+  const involved = formatGameTypes(format);
+  return {
+    kind: "order",
+    gameTypes: Array.from(
+      { length: rounds },
+      (_, round) => format.gameTypes[round] ?? pick(involved, round)
+    ),
   };
 }
