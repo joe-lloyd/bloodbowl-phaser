@@ -68,7 +68,7 @@
       "count": 6
     },
     "typescript/no-unsafe-assignment": {
-      "count": 17
+      "count": 13
     },
     "typescript/no-unsafe-member-access": {
       "count": 10
@@ -1475,7 +1475,7 @@
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 7
+      "count": 5
     },
     "typescript/no-unsafe-member-access": {
       "count": 2
@@ -4005,9 +4005,6 @@
   },
   "src/headless/createHeadlessGame.ts": {
     "complexity": {
-      "count": 2
-    },
-    "max-params": {
       "count": 1
     },
     "typescript/consistent-type-imports": {
