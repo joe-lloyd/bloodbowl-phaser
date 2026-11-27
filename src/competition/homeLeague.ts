@@ -1,28 +1,31 @@
 import type { GameType } from "../game/variants/gameTypes";
-import { readGameType } from "../game/variants/gameTypes";
-import {
-  newHomeLeague,
-  rotateRivals,
-  SEASON_RIVALS,
-} from "../game/rules/homeLeague";
+import { newHomeLeague, SEASON_RIVALS } from "../game/rules/homeLeague";
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import type { Difficulty } from "../simulation/ai/difficulty";
-import type { HomeLeague, SeasonRecord, Team } from "../types/Team";
+import type { HomeLeague, Team } from "../types/Team";
 import { pickComputerTemplates } from "./computerFill";
 import {
   createComputerTeamFromTemplate,
   getComputerTeamTemplates,
 } from "./computerTeamTemplates";
 import { createCompetition, uniqueTeamName } from "./create";
-import { findCompetitionById, getCompetition } from "./repository";
+import { findCompetitionById } from "./repository";
 import { clearActiveCompetition } from "./resultRecording";
-import { createRosterRuleProfile } from "./rosterRules";
+import {
+  createRosterRuleProfile,
+  type RosterRuleProfile,
+} from "./rosterRules";
 import { lockIsStale } from "./teamLocks";
-import type { LeagueDoc } from "./types";
+import type { CompetitionDoc, LeagueDoc } from "./types";
 
 type Random = () => number;
 
-export type SeasonPhase = "ready" | "playing" | "finished";
+export type SeasonPhase =
+  | "ready"
+  | "playing"
+  | "play-offs-due"
+  | "play-offs"
+  | "finished";
 
 export interface SeasonSetup {
   gameType: GameType;
@@ -36,7 +39,12 @@ export const SEASON_GAME_TYPES: readonly GameType[] = [
   "beach-bowl",
 ];
 
-const NO_VALUE_CAP = Number.MAX_SAFE_INTEGER;
+export function seasonProfile(): RosterRuleProfile {
+  return createRosterRuleProfile({
+    advancementMode: "advanced-league",
+    draftBudget: Number.MAX_SAFE_INTEGER,
+  });
+}
 
 export function homeLeagueOf(team: Team): HomeLeague {
   return team.club?.league ?? newHomeLeague();
@@ -44,13 +52,18 @@ export function homeLeagueOf(team: Team): HomeLeague {
 
 export function seasonPhase(
   league: HomeLeague,
-  competition: LeagueDoc | null
+  regular: CompetitionDoc | null,
+  playOffs: CompetitionDoc | null
 ): SeasonPhase {
   if (!league.leagueId) return "ready";
-  return competition?.status === "complete" ? "finished" : "playing";
+  if (regular?.status !== "complete") return "playing";
+  if (!league.playOffsId) return "play-offs-due";
+  return playOffs?.status === "complete" ? "finished" : "play-offs";
 }
 
-function loadClub(clubId: string): Team & { club: NonNullable<Team["club"]> } {
+export function loadClub(
+  clubId: string
+): Team & { club: NonNullable<Team["club"]> } {
   const team = getTeamById(clubId);
   if (!team?.club) throw new Error("This club could not be found.");
   return { ...team, club: team.club };
@@ -122,10 +135,7 @@ export async function startSeason(
       team,
       ownerUid: setup.organizerUid,
     })),
-    profile: createRosterRuleProfile({
-      advancementMode: "advanced-league",
-      draftBudget: NO_VALUE_CAP,
-    }),
+    profile: seasonProfile(),
     computerDifficulty: setup.difficulty,
   });
   if (competition.type !== "league") throw new Error("The season is not a league.");
@@ -137,55 +147,4 @@ export async function startSeason(
   };
   await saveTeam(stored);
   return competition;
-}
-
-function seasonRecord(
-  competition: LeagueDoc,
-  clubId: string,
-  season: number
-): SeasonRecord {
-  const entrant = competition.entrants.find((each) => each.teamId === clubId);
-  const index = competition.standings.findIndex(
-    (standing) => standing.entrantId === entrant?.id
-  );
-  const standing = competition.standings[index];
-  const leader = competition.entrants.find(
-    (each) => each.id === competition.standings[0]?.entrantId
-  );
-  if (!standing || !leader)
-    throw new Error("The season's table does not include the club.");
-  return {
-    season,
-    gameType: readGameType(competition.gameType),
-    leagueId: competition.id,
-    position: index + 1,
-    wins: standing.wins,
-    draws: standing.draws,
-    losses: standing.losses,
-    champion: leader.name,
-  };
-}
-
-export async function finishSeason(
-  clubId: string,
-  random: Random = Math.random
-): Promise<SeasonRecord> {
-  const league = homeLeagueOf(loadClub(clubId));
-  if (!league.leagueId) throw new Error("No season is under way.");
-  const competition = await getCompetition("league", league.leagueId);
-  if (competition?.type !== "league" || competition.status !== "complete")
-    throw new Error(`Season ${String(league.season)} is not over yet.`);
-  const record = seasonRecord(competition, clubId, league.season);
-  for (const entrant of competition.entrants)
-    await clearActiveCompetition(entrant.teamId, competition.id);
-  const rotation = rotateRivals(league, random);
-  const stored = loadClub(clubId);
-  stored.club.league = {
-    season: league.season + 1,
-    rivalIds: [...rotation.returning, ...rotation.comingBack],
-    benchIds: rotation.bench,
-    history: [...league.history, record],
-  };
-  await saveTeam(stored);
-  return record;
 }

@@ -28,8 +28,10 @@ Lineman's row says so.
 | CL-8 | A club in a tournament plays no other games, friendlies included, until the tournament ends. A knocked-out club waits for the final, as every tournament team does. A club in a league may play friendlies between fixtures. A club enters one competition at a time. |
 | CL-9 | Dedicated Fans belong to the club and carry between game types. |
 | CL-10 | A club's career runs through its club league, one season at a time. Each season the club and seven computer clubs play one round robin in Sevens, Street Bowl or Beach Bowl, as the coach chooses. The season has no team value cap. |
-| CL-11 | After the last game, the coach finishes the season. The club's finish, record and the champion are kept, and every club in the season is free to enter other competitions again. |
+| CL-11 | After the play-offs, the coach finishes the season. The club's table finish, record and play-off finish and the champion are kept, and every club in the season is free to enter other competitions again. |
 | CL-12 | Four rivals, drawn at random, return the next season. The other three rest on a bench that holds up to nine clubs, dropping the longest-resting first. Each open place has an even chance to bring a benched club back. The places left go to new computer clubs. |
+| CL-13 | After the regular season, the top four play the play-offs: first against fourth and second against third, then a final and a third-place game. A level play-off game goes to extra time and penalties. |
+| CL-14 | The play-off champion wins 100,000 and an extra team re-roll that it holds until the next champion takes it. The runner-up wins 60,000 and third place 30,000. The prizes go straight to the treasury when the season is finished. |
 
 The rules live in `src/game/rules/club.ts`. `prepareClubSquad` takes the
 players and staff who stay home out of the match copy of the team when the
@@ -39,8 +41,9 @@ A club opens its season page from its team sheet with **Club league ·
 season N**. The page starts a season, shows its table and finishes it. The
 games themselves are played and simulated on the league page, as in any
 league. The season rules live in `src/game/rules/homeLeague.ts` and
-`src/competition/homeLeague.ts`. Play-offs, scouting offers and the redraft
-between seasons are not built yet.
+`src/competition/homeLeague.ts`, and the play-offs in
+`src/competition/seasonEnd.ts`. Scouting offers and the redraft between
+seasons are not built yet.
 
 ## Simulating a club career
 
@@ -59,8 +62,9 @@ The run lifts the competition team value cap. The default 1,200,000 cap
 shuts a successful club out of new competitions within a season.
 
 `__tests__/campaign/clubSeasons.test.ts` plays one club through several club
-league seasons with real simulated matches. It checks every season has eight
-clubs, four of them returning, and that nobody stays locked after a season.
+league seasons with real simulated matches, play-offs included. It checks
+every season has eight clubs, four of them returning, that nobody stays locked
+after a season and that the trophy goes to the play-off champion.
 
 ```sh
 CLUB_SEASONS=1 CLUB_SEASONS_COUNT=4 CLUB_SEASONS_OUT=sim-results/club-seasons.json pnpm exec vitest run __tests__/campaign/clubSeasons.test.ts

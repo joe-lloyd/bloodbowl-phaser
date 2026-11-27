@@ -48,19 +48,38 @@ function fixtureState(
   return homeEntrantId && awayEntrantId ? "ready" : "scheduled";
 }
 
+function fillSlot(
+  fixtures: CompetitionFixture[],
+  target: { id: string | undefined; slot: "home" | "away" | undefined },
+  entrantId: string
+): void {
+  const next = fixtures.find((candidate) => candidate.id === target.id);
+  if (!next || !target.slot) return;
+  if (target.slot === "home") next.homeEntrantId = entrantId;
+  else next.awayEntrantId = entrantId;
+  next.status = fixtureState(next.homeEntrantId, next.awayEntrantId);
+}
+
 function advanceWinner(
   fixtures: CompetitionFixture[],
   fixture: CompetitionFixture,
   winnerEntrantId: string
 ): void {
-  if (!fixture.nextFixtureId || !fixture.nextSlot) return;
-  const next = fixtures.find(
-    (candidate) => candidate.id === fixture.nextFixtureId
+  fillSlot(
+    fixtures,
+    { id: fixture.nextFixtureId, slot: fixture.nextSlot },
+    winnerEntrantId
   );
-  if (!next) return;
-  if (fixture.nextSlot === "home") next.homeEntrantId = winnerEntrantId;
-  else next.awayEntrantId = winnerEntrantId;
-  next.status = fixtureState(next.homeEntrantId, next.awayEntrantId);
+  const loser =
+    fixture.homeEntrantId === winnerEntrantId
+      ? fixture.awayEntrantId
+      : fixture.homeEntrantId;
+  if (loser)
+    fillSlot(
+      fixtures,
+      { id: fixture.loserNextFixtureId, slot: fixture.loserNextSlot },
+      loser
+    );
 }
 
 function byeWinner(
@@ -215,6 +234,32 @@ function repairNext(
   fixture.nextFixtureId = next.id;
   fixture.nextSlot = fixture.order % 2 ? "home" : "away";
   return true;
+}
+
+export const THIRD_PLACE_FIXTURE = "third-place";
+
+export function generatePlayOffs(
+  entrants: CompetitionEntrant[]
+): CompetitionFixture[] {
+  if (entrants.length !== 4)
+    throw new Error("The play-offs need exactly four clubs.");
+  const fixtures = generateSingleElimination(entrants);
+  const semis = fixtures.filter((fixture) => fixture.round === 1);
+  for (const [index, semi] of semis.entries()) {
+    semi.loserNextFixtureId = THIRD_PLACE_FIXTURE;
+    semi.loserNextSlot = index === 0 ? "home" : "away";
+  }
+  fixtures.push({
+    id: THIRD_PLACE_FIXTURE,
+    round: 2,
+    order: 2,
+    homeEntrantId: null,
+    awayEntrantId: null,
+    status: "scheduled",
+    sourceFixtureIds: semis.map((semi) => semi.id),
+    thirdPlace: true,
+  });
+  return fixtures;
 }
 
 function rotateRoundRobin(rotation: (string | null)[]): (string | null)[] {
@@ -456,8 +501,9 @@ function tournamentChampion(
   allComplete: boolean
 ): string | undefined {
   if (tournament.format === SINGLE_ELIMINATION)
-    return tournament.fixtures.find((fixture) => !fixture.nextFixtureId)?.result
-      ?.winnerEntrantId;
+    return tournament.fixtures.find(
+      (fixture) => !fixture.nextFixtureId && !fixture.thirdPlace
+    )?.result?.winnerEntrantId;
   return allComplete ? standings[0]?.entrantId : undefined;
 }
 
@@ -535,7 +581,7 @@ function advanceTournament(
     return;
   advanceWinner(tournament.fixtures, fixture, result.winnerEntrantId);
   resolveByes(tournament.fixtures);
-  if (!fixture.nextFixtureId)
+  if (!fixture.nextFixtureId && !fixture.thirdPlace)
     tournament.championEntrantId = result.winnerEntrantId;
 }
 

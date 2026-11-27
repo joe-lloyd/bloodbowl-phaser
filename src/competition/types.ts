@@ -87,6 +87,11 @@ export interface CompetitionFixture {
   sourceFixtureIds?: string[];
   nextFixtureId?: string;
   nextSlot?: "home" | "away";
+
+  loserNextFixtureId?: string;
+  loserNextSlot?: "home" | "away";
+
+  thirdPlace?: true;
 }
 
 export interface Standing {

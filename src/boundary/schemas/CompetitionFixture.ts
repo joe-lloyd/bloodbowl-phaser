@@ -18,4 +18,7 @@ export const competitionFixtureSchema: z.ZodType<CompetitionFixture> =
     sourceFixtureIds: z.string().array().exactOptional(),
     nextFixtureId: z.string().exactOptional(),
     nextSlot: z.union([z.literal("home"), z.literal("away")]).exactOptional(),
+    loserNextFixtureId: z.string().exactOptional(),
+    loserNextSlot: z.union([z.literal("home"), z.literal("away")]).exactOptional(),
+    thirdPlace: z.literal(true).exactOptional(),
   });

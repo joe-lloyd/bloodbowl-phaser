@@ -204,6 +204,8 @@ export interface Formation {
   positions: { playerId: string; x: number; y: number }[];
 }
 
+export type PlayOffFinish = "champion" | "runner-up" | "third" | "fourth";
+
 export interface SeasonRecord {
   season: number;
   gameType: GameType;
@@ -213,6 +215,7 @@ export interface SeasonRecord {
   draws: number;
   losses: number;
   champion: string;
+  playOff?: PlayOffFinish;
 }
 
 export interface HomeLeague {
@@ -220,6 +223,8 @@ export interface HomeLeague {
   rivalIds: string[];
   benchIds: string[];
   leagueId?: string;
+  playOffsId?: string;
+  trophyHolderId?: string;
   history: SeasonRecord[];
 }
 
