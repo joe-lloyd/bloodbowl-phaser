@@ -70,4 +70,40 @@ const noComments = {
   },
 };
 
-export default { meta: { name: "house" }, rules: { "no-comments": noComments } };
+function writesBalls(target) {
+  for (let node = target; node?.type === "MemberExpression"; node = node.object) {
+    if (!node.computed && node.property.name === "balls") return true;
+  }
+  return false;
+}
+
+const noBallWrites = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      write: "Move a ball with placeBall from src/game/rules/balls.ts. It is the only write path.",
+    },
+  },
+  create(context) {
+    const check = (target) => {
+      if (writesBalls(target)) context.report({ node: target, messageId: "write" });
+    };
+    return {
+      AssignmentExpression(node) {
+        check(node.left);
+      },
+      UpdateExpression(node) {
+        check(node.argument);
+      },
+      UnaryExpression(node) {
+        if (node.operator === "delete") check(node.argument);
+      },
+    };
+  },
+};
+
+export default {
+  meta: { name: "house" },
+  rules: { "no-comments": noComments, "no-ball-writes": noBallWrites },
+};
