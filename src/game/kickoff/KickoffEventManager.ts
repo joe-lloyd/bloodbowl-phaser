@@ -14,6 +14,14 @@ import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames, type AllEvents } from "../../types/events";
 import { type GameState } from "@/types/GameState";
 import { type Team } from "@/types/Team";
+import {
+  everyone,
+  opponentsOf,
+  type PairSeating,
+  pairTeams,
+  playerAt,
+  seatOf,
+} from "../seating";
 import { type Player } from "@/types/Player";
 import type { DiceController } from "../controllers/DiceController";
 import type { WeatherManager } from "../managers/WeatherManager";
@@ -66,8 +74,7 @@ const STEP_READ_MS = 900;
 interface KickoffManagerOptions {
 eventBus: IEventBus;
 state: GameState;
-team1: Team;
-team2: Team;
+seating: PairSeating;
 diceController: DiceController;
 weatherManager: WeatherManager;
 flowManager: GameFlowManager;
@@ -101,16 +108,14 @@ export class KickoffEventManager {
 
   private eventBus: IEventBus;
   private state: GameState;
-  private team1: Team;
-  private team2: Team;
+  private readonly seating: PairSeating;
   private diceController: DiceController;
   private readonly delay: DelayProvider;
   private readonly callbacks: KickoffManagerOptions["callbacks"];
-  constructor({ eventBus, state, team1, team2, diceController, weatherManager, flowManager, callbacks, delay }: KickoffManagerOptions) {
+  constructor({ eventBus, state, seating, diceController, weatherManager, flowManager, callbacks, delay }: KickoffManagerOptions) {
     this.eventBus = eventBus;
     this.state = state;
-    this.team1 = team1;
-    this.team2 = team2;
+    this.seating = seating;
     this.diceController = diceController;
     this.delay = delay;
     this.callbacks = callbacks;
@@ -139,11 +144,12 @@ export class KickoffEventManager {
   }
 
   private sides(kick: KickRecord) {
-    const isTeam1Kicking = kick.kickingTeamId === this.team1.id;
+    const [home, away] = pairTeams(this.seating);
+    const isTeam1Kicking = kick.kickingTeamId === home.id;
     return {
       isTeam1Kicking,
-      kickingTeam: isTeam1Kicking ? this.team1 : this.team2,
-      receivingTeam: isTeam1Kicking ? this.team2 : this.team1,
+      kickingTeam: isTeam1Kicking ? home : away,
+      receivingTeam: isTeam1Kicking ? away : home,
     };
   }
 
@@ -266,9 +272,7 @@ export class KickoffEventManager {
       return null;
     }
 
-    const holder = [...this.team1.players, ...this.team2.players].find(
-      (player) => player.gridPosition?.x === x && player.gridPosition.y === y
-    );
+    const holder = playerAt(this.seating, { x, y });
     if (holder) {
       this.eventBus.emit(
         GameEventNames.UI_GameLog,
@@ -344,8 +348,11 @@ export class KickoffEventManager {
   }
 
   private selectable(player: Player, event: KickoffEvent): boolean {
-    const opponents = player.teamId === this.team1.id ? this.team2.players : this.team1.players;
-    return isPickableKickoffPlayer(event, player, opponents);
+    return isPickableKickoffPlayer(
+      event,
+      player,
+      opponentsOf(this.seating, player.teamId)
+    );
   }
 
   private eligiblePlayerIds(event: KickoffEvent, teamId: string): string[] {
@@ -355,8 +362,7 @@ export class KickoffEventManager {
   }
 
   private stepPlayers(teamId: string): Player[] {
-    const team = teamId === this.team1.id ? this.team1 : this.team2;
-    return team.players;
+    return seatOf(this.seating, teamId).team.players;
   }
 
   public togglePlayerSelection(playerId: string): boolean {
@@ -404,7 +410,7 @@ export class KickoffEventManager {
 
   private isFreeDestination(playerId: string, x: number, y: number): boolean {
     if (!isStandableSquare({ x, y })) return false;
-    return [...this.team1.players, ...this.team2.players].every((other) => !(other.id !== playerId && other.gridPosition?.x === x && other.gridPosition.y === y));
+    return everyone(this.seating).every((other) => !(other.id !== playerId && other.gridPosition?.x === x && other.gridPosition.y === y));
   }
 
   public placePlayer(playerId: string, x: number, y: number): boolean {

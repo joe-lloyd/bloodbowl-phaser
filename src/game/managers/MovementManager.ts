@@ -1,6 +1,11 @@
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
-import { type Team } from "@/types/Team";
+import {
+  opponentsOf,
+  playerById,
+  type Seating,
+  teammatesOf,
+} from "../seating";
 import {
   type Player,
   PlayerStatus,
@@ -20,12 +25,10 @@ import {
 import { SkillType, hasSkill } from "../../types/Skills";
 import {
   type MovementDeps,
-  findPlayer,
   finishIfSpent,
   movementUsed,
   rise,
   standToMove,
-  teamsOf,
 } from "./movementShared";
 import { movePlayer } from "./moveAction";
 import { jumpPlayer } from "./jumpAction";
@@ -47,8 +50,7 @@ export class MovementManager {
   constructor(
     eventBus: IEventBus,
     state: GameState,
-    team1: Team,
-    team2: Team,
+    seating: Seating,
     diceController: DiceController,
     callbacks: {
       onTurnover: (reason: string) => void;
@@ -63,8 +65,7 @@ export class MovementManager {
     this.deps = {
       eventBus,
       state,
-      team1,
-      team2,
+      seating,
       diceController,
       dodgeController: new DodgeController(diceController),
       movementValidator: this.movementValidator,
@@ -80,7 +81,7 @@ export class MovementManager {
     playerId: string,
     reach: MoveReach = "walk"
   ): { x: number; y: number; cost?: number }[] {
-    const player = findPlayer(this.deps, playerId);
+    const player = playerById(this.deps.seating, playerId);
     const position = player?.gridPosition;
     if (!position || player.teamId !== this.state.activeTeamId) return [];
 
@@ -95,11 +96,10 @@ export class MovementManager {
     if (used >= moveAllowance(withDriveModifiers(player, this.state)))
       return [];
 
-    const { own, opp } = teamsOf(this.deps, player);
-    const opponents = opp.players.filter((p) => p.gridPosition);
-    const teammates = own.players.filter(
-      (p) => p.gridPosition && p.id !== player.id
+    const opponents = opponentsOf(this.deps.seating, player.teamId).filter(
+      (p) => p.gridPosition
     );
+    const teammates = teammatesOf(this.deps.seating, player.id);
     const proxyPlayer = this.withMovementLeft(player, used);
     return reach === "walk"
       ? this.movementValidator.findReachableSquares(
@@ -151,7 +151,7 @@ export class MovementManager {
   }
 
   public async standUp(playerId: string): Promise<void> {
-    const player = findPlayer(this.deps, playerId);
+    const player = playerById(this.deps.seating, playerId);
     if (player?.status !== PlayerStatus.PRONE) {
       throw new Error("Player is not prone");
     }

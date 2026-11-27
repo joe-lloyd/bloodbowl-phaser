@@ -8,6 +8,8 @@ import { GameEventNames } from "../../../types/events";
 import { SubPhase } from "../../../types/GameState";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { CAMERA_INTRO_MS } from "../CameraController";
+import { pairSeating, pairTeams, seatOf } from "../../seating";
+import { sceneSeating } from "../sceneSeating";
 
 const BANNER_MS = 2300;
 
@@ -44,10 +46,7 @@ export class SetupPhaseHandler implements PhaseHandler {
       this.resumeWeather(isOnline);
     } else if (subPhase === SubPhase.COIN_FLIP) {
       if (!this.isIntroSequence && !isOnline) {
-        this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
-          team1: this.scene.team1,
-          team2: this.scene.team2,
-        });
+        this.startCoinFlip();
       }
     } else if (
       subPhase === SubPhase.SETUP_KICKING ||
@@ -60,16 +59,25 @@ export class SetupPhaseHandler implements PhaseHandler {
   private enterPlacement(subPhase: SubPhase): void {
     const activeTeamId = this.gameService.getState().activeTeamId;
     if (!activeTeamId) return;
-    const activeTeam = activeTeamId === this.scene.team1.id ? this.scene.team1 : this.scene.team2;
+    const activeTeam = seatOf(sceneSeating(this.scene), activeTeamId).team;
     showSetupPlacement({ scene: this.scene, gameService: this.gameService, eventBus: this.eventBus }, { subPhase, team: activeTeam });
   }
 
   private resumeWeather(isOnline: boolean): void {
     if (isOnline || this.isIntroSequence) return;
     this.gameService.beginCoinFlip();
+    this.startCoinFlip();
+  }
+
+  private homeAway() {
+    return pairTeams(pairSeating(sceneSeating(this.scene)));
+  }
+
+  private startCoinFlip(): void {
+    const [home, away] = this.homeAway();
     this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
-      team1: this.scene.team1,
-      team2: this.scene.team2,
+      team1: home,
+      team2: away,
     });
   }
 
@@ -121,12 +129,10 @@ export class SetupPhaseHandler implements PhaseHandler {
 
   private handleSetupAction(data: { action: string; name?: string }): void {
     const state = this.gameService.getState();
-    const activeTeamId = state.activeTeamId ?? this.scene.team1.id;
-    const activeTeam =
-      activeTeamId === this.scene.team1.id
-        ? this.scene.team1
-        : this.scene.team2;
-    const isTeam1 = activeTeam.id === this.scene.team1.id;
+    const seating = sceneSeating(this.scene);
+    const seat = seatOf(seating, state.activeTeamId ?? seating.seats[0].team.id);
+    const activeTeam = seat.team;
+    const isTeam1 = seat.index === 0;
     const placementController =
       this.scene.placementController;
     const key = this.formationKey(activeTeam, isTeam1);
@@ -165,9 +171,12 @@ export class SetupPhaseHandler implements PhaseHandler {
   }
 
   private weatherRead(): Promise<void> {
-    const { team1, team2 } = this.scene;
+    const [home, away] = this.homeAway();
     const show = () => {
-      this.eventBus.emit(GameEventNames.UI_StartWeather, { team1, team2 });
+      this.eventBus.emit(GameEventNames.UI_StartWeather, {
+        team1: home,
+        team2: away,
+      });
     };
     return new Promise((resolve) => {
       const offRequest = this.register(
@@ -284,12 +293,12 @@ export class SetupPhaseHandler implements PhaseHandler {
     this.isIntroSequence = true;
     const pause = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms));
-    const { team1, team2 } = this.scene;
+    const [home, away] = this.homeAway();
 
     await pause(CAMERA_INTRO_MS);
     for (const [team, side] of [
-      [team1, "Home"],
-      [team2, "Away"],
+      [home, "Home"],
+      [away, "Away"],
     ] as const) {
       this.eventBus.emit(GameEventNames.UI_Announce, {
         kind: "team-intro",
@@ -306,6 +315,6 @@ export class SetupPhaseHandler implements PhaseHandler {
 
     this.isIntroSequence = false;
     this.gameService.beginCoinFlip();
-    this.eventBus.emit(GameEventNames.UI_StartCoinFlip, { team1, team2 });
+    this.startCoinFlip();
   }
 }

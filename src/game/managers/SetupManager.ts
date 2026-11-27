@@ -19,7 +19,7 @@ import { isConfinedToReserves } from "../kickoff/driveEffects";
 import { type GameReadiness, readyForLeagueGame } from "../rules/leagueRoster";
 import { teamCaptain } from "../rules/teamCaptain";
 import { assignPlayers } from "../setup/deployment";
-import { pairTeams, playerById, type Seating, teamsOf } from "../seating";
+import { pairSeating, pairTeams, playerById, type Seating, teamsOf } from "../seating";
 import {
   emptySetupStatus,
   swarmPlayerLimits,
@@ -666,7 +666,7 @@ export class SetupManager {
   private ensureSetupState(): SetupState {
     if (!this.state.setup) {
       const kicking =
-        this.state.activeTeamId ?? pairTeams(this.seating)[0].id;
+        this.state.activeTeamId ?? pairTeams(pairSeating(this.seating))[0].id;
       this.state.setup = this.createSetupState(
         kicking,
         this.pairRivalOf(kicking)
@@ -781,11 +781,11 @@ export class SetupManager {
   }
 
   private isHome(teamId: string): boolean {
-    return teamId === pairTeams(this.seating)[0].id;
+    return teamId === pairTeams(pairSeating(this.seating))[0].id;
   }
 
   private pairRivalOf(teamId: string): string {
-    const [home, away] = pairTeams(this.seating);
+    const [home, away] = pairTeams(pairSeating(this.seating));
     return teamId === home.id ? away.id : home.id;
   }
 }

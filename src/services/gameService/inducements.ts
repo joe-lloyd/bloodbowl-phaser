@@ -38,6 +38,16 @@ import { resumeApothecaryDecision } from "@/game/inducements/apothecary";
 import type { GameParts } from "./parts";
 import { matchTeamValue } from "@/types/Team";
 import { grantFreePotion } from "@/game/inducements/inventory";
+import { pairSeating, pairTeams } from "@/game/seating";
+
+function homeAway(parts: GameParts) {
+  return pairTeams(pairSeating(parts.seating));
+}
+
+function pairIds(parts: GameParts): [string, string] {
+  const [home, away] = homeAway(parts);
+  return [home.id, away.id];
+}
 
 export function commitInducements({
   parts,
@@ -50,7 +60,8 @@ export function commitInducements({
   budgets: Record<string, number>;
   inventory: InducementInventoryEntry[];
 }): void {
-  const { state, team1, team2 } = parts;
+  const { state } = parts;
+  const teams = homeAway(parts);
   if (state.pregameInducements) state.pregameInducements.resolving = true;
   state.inducements = {
     ...emptyInducementsState(),
@@ -60,11 +71,11 @@ export function commitInducements({
     inventory: inventory.map((entry) => ({ ...entry })),
   };
   for (const kind of startingFreeInducements(activeMatchFormat().gameType))
-    for (const team of [team1, team2]) grantFreePotion(state, team.id, kind);
+    for (const team of teams) grantFreePotion(state, team.id, kind);
 
   if (
     state.paysWinnings &&
-    [team1, team2].some((team) => captainVacancyCandidates(team).length > 0)
+    teams.some((team) => captainVacancyCandidates(team).length > 0)
   ) {
     parts.flowManager.add(new AppointTeamCaptainOperation());
   }
@@ -77,7 +88,7 @@ export function commitInducements({
   if (rollsOnTables && !getMatchInducements(state).rolled) {
     parts.flowManager.add(new ResolvePregameInducementsOperation());
   }
-  if (holdsDriveInducements(state, [team1, team2])) {
+  if (holdsDriveInducements(state, teams)) {
     parts.flowManager.add(new PreDriveInducementsOperation());
   }
   const pregame = state.pregameInducements;
@@ -95,10 +106,7 @@ export function commitInducements({
 
 function draftListInventory(parts: GameParts) {
   const { gameType } = activeMatchFormat();
-  return [
-    ...teamDraftList(parts.team1, gameType),
-    ...teamDraftList(parts.team2, gameType),
-  ];
+  return homeAway(parts).flatMap((team) => teamDraftList(team, gameType));
 }
 
 function session(parts: GameParts): InducementSession {
@@ -112,11 +120,12 @@ function session(parts: GameParts): InducementSession {
     );
   if (!parts.inducementSession) {
     const profile = buildSeventsInducementProfile({ advancedLeague: false });
-    const budgets = calculateInducementBudgets(parts.team1, parts.team2);
+    const [home, away] = homeAway(parts);
+    const budgets = calculateInducementBudgets(home, away);
     const { gameType } = activeMatchFormat();
     parts.inducementSession = new InducementSession(profile, budgets, {
-      [parts.team1.id]: inducementCatalog(parts.team1, gameType),
-      [parts.team2.id]: inducementCatalog(parts.team2, gameType),
+      [home.id]: inducementCatalog(home, gameType),
+      [away.id]: inducementCatalog(away, gameType),
     });
   }
   return parts.inducementSession;
@@ -130,51 +139,52 @@ function offerFor(
   parts: GameParts,
   negotiation: InducementSession
 ): InducementOffer {
-  const { team1, team2 } = parts;
+  const [home, away] = homeAway(parts);
   return {
     profile: negotiation.getProfile(),
     budgets: negotiation.getBudgets(),
     catalogs: negotiation.getCatalogs(),
     selections: {
-      [team1.id]: negotiation.getSelection(team1.id),
-      [team2.id]: negotiation.getSelection(team2.id),
+      [home.id]: negotiation.getSelection(home.id),
+      [away.id]: negotiation.getSelection(away.id),
     },
     confirmed: {
-      [team1.id]: negotiation.isConfirmed(team1.id),
-      [team2.id]: negotiation.isConfirmed(team2.id),
+      [home.id]: negotiation.isConfirmed(home.id),
+      [away.id]: negotiation.isConfirmed(away.id),
     },
   };
 }
 
 function purchaseError(parts: GameParts, teamId: string): string | undefined {
-  if (![parts.team1.id, parts.team2.id].includes(teamId)) return "unknown-team";
+  if (!pairIds(parts).includes(teamId)) return "unknown-team";
   const pregame = parts.state.pregameInducements;
   if (!pregame) return undefined;
   if (pregame.complete) return "inducements-already-confirmed";
-  if ([parts.team1.id, parts.team2.id].some((id) => pregame.ready[id] !== true))
+  if (pairIds(parts).some((id) => pregame.ready[id] !== true))
     return "teams-not-ready";
   if (!isPregameOpening(parts.state)) return "pregame-finished";
-  if (shoppingTeamId(pregame, [parts.team1.id, parts.team2.id]) !== teamId)
+  if (shoppingTeamId(pregame, pairIds(parts)) !== teamId)
     return "not-your-turn-to-buy";
   return undefined;
 }
 
 export function readyInducements(parts: GameParts, teamId: string) {
   const pregame = parts.state.pregameInducements;
-  if (!pregame || ![parts.team1.id, parts.team2.id].includes(teamId))
+  if (!pregame || !pairIds(parts).includes(teamId))
     return { ok: false, errors: ["pregame-unavailable"] };
   if (pregame.complete || !isPregameOpening(parts.state))
     return { ok: false, errors: ["pregame-finished"] };
   pregame.ready[teamId] = true;
   if (
-    [parts.team1.id, parts.team2.id].every((id) => pregame.ready[id]) &&
+    pairIds(parts).every((id) => pregame.ready[id]) &&
     !pregame.offer
   ) {
     parts.inducementSession = null;
     pregame.offer = offerFor(parts, session(parts));
+    const [home, away] = homeAway(parts);
     pregame.buyOrder = buyOrder(
-      { id: parts.team1.id, value: matchTeamValue(parts.team1) },
-      { id: parts.team2.id, value: matchTeamValue(parts.team2) }
+      { id: home.id, value: matchTeamValue(home) },
+      { id: away.id, value: matchTeamValue(away) }
     );
   }
   parts.eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
@@ -208,7 +218,7 @@ export function confirmInducements(
   teamId: string
 ): { ok: boolean; errors: string[] } {
   const pregame = parts.state.pregameInducements;
-  if (![parts.team1.id, parts.team2.id].includes(teamId))
+  if (!pairIds(parts).includes(teamId))
     return { ok: false, errors: ["unknown-team"] };
 
   if (pregame?.complete || pregame?.offer?.confirmed[teamId] === true)
@@ -228,7 +238,7 @@ function recordConfirmations(
 ): void {
   const pregame = parts.state.pregameInducements;
   if (pregame) pregame.offer = offerFor(parts, negotiation);
-  if (negotiation.bothConfirmed([parts.team1.id, parts.team2.id])) {
+  if (negotiation.bothConfirmed(pairIds(parts))) {
     if (pregame) pregame.complete = true;
     parts.game.commitInducements(
       negotiation.getProfile(),
@@ -244,7 +254,7 @@ export function skipUnaffordableInducements(parts: GameParts): void {
   if (!pregame?.offer || pregame.complete || !isPregameOpening(parts.state))
     return;
   const negotiation = session(parts);
-  const broke = [parts.team1.id, parts.team2.id].filter(
+  const broke = pairIds(parts).filter(
     (teamId) =>
       !negotiation.isConfirmed(teamId) &&
       !affordsInducement(
@@ -266,7 +276,7 @@ export function restoreMatchInducements(parts: GameParts): void {
   ) {
     parts.game.commitInducements(
       buildSeventsInducementProfile({ advancedLeague: false }),
-      calculateInducementBudgets(parts.team1, parts.team2),
+      calculateInducementBudgets(...homeAway(parts)),
       draftList
     );
   }

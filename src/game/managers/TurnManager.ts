@@ -26,6 +26,7 @@ import type { KickoffEvent } from "../kickoff/kickoffEvents";
 import { undecided } from "../rules/extraTime";
 import {
   everyone,
+  pairSeating,
   pairTeams,
   playOrderAfter,
   type Seating,
@@ -302,7 +303,7 @@ export class TurnManager {
 
   public beginNextHalf(): NextHalf | null {
     const undecidedGame =
-      !this.state.result && undecided(this.state, ...pairTeams(this.seating));
+      !this.state.result && undecided(this.state, pairSeating(this.seating));
     if (this.state.turn.isHalf2 && undecidedGame && !this.state.turn.extraTime)
       return this.beginExtraTime();
     if (this.state.turn.isHalf2) {
@@ -336,7 +337,7 @@ export class TurnManager {
   private announceBreak(headline: string): void {
     this.state.phase = GamePhase.HALFTIME;
     this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
-    const [home, away] = pairTeams(this.seating);
+    const [home, away] = pairTeams(pairSeating(this.seating));
     const score = `${home.name} ${String(this.state.score?.[home.id] ?? 0)} : ${String(this.state.score?.[away.id] ?? 0)} ${away.name}`;
     this.eventBus.emit(GameEventNames.UI_LogEntry, {
       category: "drive",
@@ -459,7 +460,7 @@ export class TurnManager {
   }
 
   private pairRivalOf(teamId: string | null): Team {
-    const [home, away] = pairTeams(this.seating);
+    const [home, away] = pairTeams(pairSeating(this.seating));
     return teamId === home.id ? away : home;
   }
 

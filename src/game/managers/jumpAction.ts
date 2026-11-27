@@ -5,7 +5,7 @@ import { type IGameService } from "@/services/interfaces/IGameService";
 import { type FlowContext } from "../core/GameFlowManager";
 import { steadyFootingSaves } from "../rules/steadyFooting";
 import { scoresAt } from "../rules/frames";
-import { pairFrame } from "../variants/activeMatch";
+import { everyone, opponentsOf, playerById, seatOf } from "../seating";
 import { withRerollOffer, foldTrigger, adjacentStanding } from "../skills";
 import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
@@ -22,13 +22,11 @@ import {
   diveIntoVacated,
   dropThroughTrapdoor,
   fallOver,
-  findPlayer,
   finishIfSpent,
   heldInSquare,
   isBallAt,
   movementUsed,
   rollRush,
-  teamsOf,
 } from "./movementShared";
 
 interface JumpRun {
@@ -133,7 +131,7 @@ function prepareJump(
   context: FlowContext | undefined
 ): { ok: true; jump: JumpRun } | { ok: false; reason: string } {
   const { state, eventBus } = deps;
-  const player = findPlayer(deps, playerId);
+  const player = playerById(deps.seating, playerId);
   if (!player?.gridPosition) return { ok: false, reason: "Player not found!" };
 
   if (heldInSquare(eventBus, player))
@@ -171,7 +169,7 @@ function prepareJump(
     from,
     target,
     over,
-    opponents: teamsOf(deps, player).opp.players.filter(
+    opponents: opponentsOf(deps.seating, player.teamId).filter(
       (p) => p.status === PlayerStatus.ACTIVE && p.gridPosition
     ),
     preUsed,
@@ -181,12 +179,12 @@ function prepareJump(
 }
 
 function jumpedSquare(
-  { team1, team2 }: MovementDeps,
+  { seating }: MovementDeps,
   player: Player,
   from: Square,
   target: Square
 ): Square | undefined {
-  return legalJumpTargets(player, from, [...team1.players, ...team2.players]).find(
+  return legalJumpTargets(player, from, everyone(seating)).find(
     (t) => t.dest.x === target.x && t.dest.y === target.y
   )?.over;
 }
@@ -295,7 +293,7 @@ function carriedBallScores(jump: JumpRun, destination: Square): boolean {
   jump.gameService?.setBallPosition(destination.x, destination.y);
   deps.state.ballPosition = { ...destination };
   deps.eventBus.emit(GameEventNames.BallPlaced, { ...destination });
-  const frame = pairFrame(player.teamId === deps.team1.id);
+  const { frame } = seatOf(deps.seating, player.teamId);
   if (!scoresAt(frame, destination)) return false;
   deps.callbacks.onTouchdown?.(player.teamId, player.id);
   return true;

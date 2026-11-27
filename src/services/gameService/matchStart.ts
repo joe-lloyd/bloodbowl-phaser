@@ -10,7 +10,7 @@ import { type Team } from "@/types/Team";
 import { SetupManager } from "@/game/managers/SetupManager";
 import { rollMasterChefs as cookMasterChefs } from "@/game/inducements/masterChef";
 import type { GameParts } from "./parts";
-import { teamsOf } from "@/game/seating";
+import { pairSeating, teamsOf } from "@/game/seating";
 import { readyInducements, skipUnaffordableInducements } from "./inducements";
 import { prepareClubSquad } from "@/game/rules/club";
 
@@ -126,7 +126,7 @@ export function canCoinFlip(parts: GameParts): boolean {
 export function rollMasterChefs(parts: GameParts): void {
   cookMasterChefs(
     parts.state,
-    [parts.team1, parts.team2],
+    pairSeating(parts.seating),
     parts.diceController,
     parts.eventBus
   );

@@ -5,7 +5,7 @@ import { SubPhase } from "@/types/GameState";
 import { type Player } from "@/types/Player";
 import { GameConfig } from "@/config/GameConfig";
 import { inOwnHalf } from "../../rules/frames";
-import { pairFrame } from "../../variants/activeMatch";
+import { seatOf } from "../../seating";
 import { GamePhase } from "@/types/GameState";
 import { getActiveOnlineMatch } from "@/network/OnlineMatch";
 import type { KickoffEventStepState } from "../../kickoff/KickoffEventManager";
@@ -125,9 +125,9 @@ function clickKickAim(
     return;
   }
 
-  const isTeam1Kicking = c.scene.kickingTeam.id === c.scene.team1.id;
+  const kicking = seatOf(c.seating(), c.scene.kickingTeam.id);
   const isOpponentHalf =
-    !inOwnHalf(pairFrame(isTeam1Kicking), { x, y }) && isStandableSquare({ x, y });
+    !inOwnHalf(kicking.frame, { x, y }) && isStandableSquare({ x, y });
 
   if (!isOpponentHalf) {
     if (c.selectedPlayerId) {
@@ -142,7 +142,7 @@ function clickKickAim(
   if (c.selectedPlayerId) {
     c.isBusy = true;
     try {
-      void c.gameService.kickBall({ isTeam1Kicking: isTeam1Kicking, playerId: c.selectedPlayerId, targetX: x, targetY: y });
+      void c.gameService.kickBall({ isTeam1Kicking: kicking.index === 0, playerId: c.selectedPlayerId, targetX: x, targetY: y });
       c.selectedPlayerId = null;
     } finally {
       c.isBusy = false;

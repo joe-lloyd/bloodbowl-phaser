@@ -3420,12 +3420,6 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 3
     },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-optional-chain": {
-      "count": 1
-    },
     "max-params": {
       "count": 1
     },
@@ -3655,7 +3649,7 @@
       "count": 4
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
+      "count": 1
     },
     "max-params": {
       "count": 1
@@ -4087,9 +4081,6 @@
   },
   "src/game/rules/extraTime.ts": {
     "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "max-params": {
       "count": 1
     }
   },

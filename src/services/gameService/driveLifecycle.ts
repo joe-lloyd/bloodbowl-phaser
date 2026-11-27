@@ -8,6 +8,7 @@ import {
 import { activeRules } from "@/game/variants/activeMatch";
 import {
   everyone,
+  pairSeating,
   pairTeams,
   seatOf,
   teamsOf,
@@ -155,7 +156,7 @@ function announceTouchdown(
   scorerId: string | undefined
 ): void {
   const { state } = parts;
-  const [team1, team2] = pairTeams(parts.seating);
+  const [team1, team2] = pairTeams(pairSeating(parts.seating));
   const scorer = scorerId ? parts.game.getPlayerById(scorerId) : undefined;
   const who = scorer?.playerName ?? parts.game.getTeam(teamId)?.name ?? teamId;
   const score = `${team1.name} ${String(state.score[team1.id] ?? 0)} : ${String(state.score[team2.id] ?? 0)} ${team2.name}`;
@@ -179,7 +180,7 @@ function announceTouchdown(
 }
 
 export function announceFullTime(parts: GameParts): void {
-  const [team1, team2] = pairTeams(parts.seating);
+  const [team1, team2] = pairTeams(pairSeating(parts.seating));
   const score1 = parts.state.score[team1.id] ?? 0;
   const score2 = parts.state.score[team2.id] ?? 0;
   const scoreline = `${team1.name} ${String(score1)} : ${String(score2)} ${team2.name}`;
@@ -193,7 +194,7 @@ function fullTimeOutcome(
   score1: number,
   score2: number
 ): string {
-  const [team1, team2] = pairTeams(parts.seating);
+  const [team1, team2] = pairTeams(pairSeating(parts.seating));
   const result = parts.state.result;
   if (result?.reason === "concession" || result?.reason === "forfeit") {
     return concededOutcome(parts, result);
@@ -375,7 +376,7 @@ function penaltyOutcome(
   parts: GameParts,
   penalties: Record<string, number>
 ): string {
-  const [team1, team2] = pairTeams(parts.seating);
+  const [team1, team2] = pairTeams(pairSeating(parts.seating));
   const won1 = penalties[team1.id] ?? 0;
   const won2 = penalties[team2.id] ?? 0;
   const winner = won1 > won2 ? team1 : team2;
@@ -388,7 +389,7 @@ function updateTeamFans(
   penalties: Record<string, number>
 ): void {
   const { state } = parts;
-  const [team1, team2] = pairTeams(parts.seating);
+  const [team1, team2] = pairTeams(pairSeating(parts.seating));
   const dice = parts.diceController;
   const otherId = team.id === team1.id ? team2.id : team1.id;
   const lead =

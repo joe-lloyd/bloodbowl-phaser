@@ -3,7 +3,12 @@ import {
   activeLayout,
   formatOf,
 } from "@/game/variants/activeMatch";
-import { everyone, pairTeams, type Seating, seatTeams } from "@/game/seating";
+import {
+  everyone,
+  pairSeating,
+  type Seating,
+  seatTeams,
+} from "@/game/seating";
 import type { GameService } from "../GameService";
 import { type IEventBus } from "../EventBus.js";
 import { type IRNGService } from "../rng/RNGService.js";
@@ -224,7 +229,7 @@ function makeTurnManager(
       onHalfEnded: (next) => {
         game.endDrive("halftime", next);
       },
-      shootout: () => penaltyShootout(diceController, ...pairTeams(seating)),
+      shootout: () => penaltyShootout(diceController, pairSeating(seating)),
       onTurnEnding: (endingTeamId) => {
         handleTurnEnding(getParts(), endingTeamId);
       },
@@ -291,8 +296,7 @@ function makeKickoffManagers(
     game,
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     diceController,
     weatherService,
     flowManager,
@@ -301,7 +305,7 @@ function makeKickoffManagers(
     game.getPlayerById(id)
   );
 
-  const kickoffEventManager = new KickoffEventManager({ eventBus: eventBus, state: state, team1: team1, team2: team2, diceController: diceController, weatherManager: weatherService, flowManager: flowManager, callbacks: {
+  const kickoffEventManager = new KickoffEventManager({ eventBus: eventBus, state: state, seating: pairSeating(seating), diceController: diceController, weatherManager: weatherService, flowManager: flowManager, callbacks: {
       getTurnNumber: (teamId) => turnManager.getTurnNumber(teamId),
       moveTurnMarkers: (delta) => {
         turnManager.moveTurnMarkers(delta);
@@ -363,8 +367,7 @@ function makeActionControllers(
   ballManager: BallManager,
   blockResolutionService: BlockResolutionService
 ) {
-  const { eventBus, state, team1, team2, diceController, game, flowManager } =
-    core;
+  const { eventBus, state, seating, diceController, game, flowManager } = core;
   const passController = new PassController(
     eventBus,
     ballManager.movementController,
@@ -378,8 +381,7 @@ function makeActionControllers(
   const movementManager = new MovementManager(
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     diceController,
     {
       onTurnover: (reason: string) => {
@@ -397,8 +399,7 @@ function makeActionControllers(
   const blockManager = new BlockManager(
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     blockResolutionService,
     diceController,
     {

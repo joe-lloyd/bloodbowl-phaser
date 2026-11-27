@@ -8,7 +8,7 @@ import { type IGameService } from "@/services/interfaces/IGameService";
 import { type FlowContext } from "../core/GameFlowManager";
 import { steadyFootingSaves } from "../rules/steadyFooting";
 import { scoresAt } from "../rules/frames";
-import { pairFrame } from "../variants/activeMatch";
+import { opponentsOf, playerById, seatOf, teammatesOf } from "../seating";
 import {
   withRerollOffer,
   foldTrigger,
@@ -35,14 +35,12 @@ import {
   diveIntoVacated,
   dropThroughTrapdoor,
   fallOver,
-  findPlayer,
   finishIfSpent,
   heldInSquare,
   isBallAt,
   movementUsed,
   rollRush,
   standToMove,
-  teamsOf,
 } from "./movementShared";
 
 import type { MoveStep } from "../../headless/protocol";
@@ -266,7 +264,7 @@ function prepareMove(
   path: MoveStep[]
 ): PreparedMove {
   const { state, eventBus } = deps;
-  const player = findPlayer(deps, playerId);
+  const player = playerById(deps.seating, playerId);
   if (!player) return { ok: false, reason: "Player not found!" };
 
   const maView = withDriveModifiers(player, state);
@@ -274,12 +272,12 @@ function prepareMove(
   if (heldInSquare(eventBus, player))
     return { ok: false, reason: "Cannot move" };
 
-  const { own, opp } = teamsOf(deps, player);
-  const opponents = opp.players.filter(
+  const rivals = opponentsOf(deps.seating, player.teamId);
+  const opponents = rivals.filter(
     (p) => p.status === PlayerStatus.ACTIVE && p.gridPosition
   );
 
-  const result = deps.movementValidator.validatePath({ player: maView, path: [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path], opponents: opp.players.filter((p) => p.gridPosition), teammates: own.players.filter((p) => p.gridPosition && p.id !== player.id), movementUsed: movementUsed(state, playerId) });
+  const result = deps.movementValidator.validatePath({ player: maView, path: [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path], opponents: rivals.filter((p) => p.gridPosition), teammates: teammatesOf(deps.seating, player.id), movementUsed: movementUsed(state, playerId) });
   if (!result.valid) {
     console.warn(`Invalid move attempted for player ${playerId}`);
     return { ok: false, reason: "Invalid Move" };
@@ -567,7 +565,7 @@ function carryBall(run: MoveRun): string | undefined {
     y: currentPos.y,
   });
 
-  const frame = pairFrame(player.teamId === deps.team1.id);
+  const { frame } = seatOf(deps.seating, player.teamId);
   if (!scoresAt(frame, currentPos)) return undefined;
   player.gridPosition = currentPos;
   deps.state.turn.movementUsed.set(player.id, run.preUsed + run.stepsTaken);

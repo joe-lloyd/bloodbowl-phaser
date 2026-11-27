@@ -73,8 +73,7 @@ export class BlockManager extends BlockPushChain {
       return;
     }
 
-    const allPlayers = [...this.team1.players, ...this.team2.players];
-    const analysis = this.blockValidator.analyzeBlock({ attacker: attacker, defender: defender, allPlayers: allPlayers, activeTeamId: this.state.activeTeamId });
+    const analysis = this.blockValidator.analyzeBlock({ attacker: attacker, defender: defender, allPlayers: this.allPlayers(), activeTeamId: this.state.activeTeamId });
     this.applyOwedAssist(attacker, analysis);
 
     this.eventBus.emit(GameEventNames.UI_BlockDialog, {

@@ -3,6 +3,7 @@ import {
   everyone,
   type FourSeating,
   opponentsOf,
+  pairSeating,
   pairTeams,
   playOrderAfter,
   rivalsOf,
@@ -50,7 +51,7 @@ describe("seatTeams", () => {
     expect(seating.kind).toBe("pair");
     expect(seatOf(seating, "home").frame).toBe(stadium.frames[0]);
     expect(seatOf(seating, "away").frame).toBe(stadium.frames[1]);
-    expect(ids(pairTeams(seating))).toEqual(["home", "away"]);
+    expect(ids(pairTeams(pairSeating(seating)))).toEqual(["home", "away"]);
   });
 
   it("refuses a team count that does not match the pitch's frames", () => {
@@ -137,7 +138,7 @@ describe("players by seat", () => {
   });
 
   it("has no home and away with four seats", () => {
-    expect(() => pairTeams(fourSeats())).toThrow(
+    expect(() => pairSeating(fourSeats())).toThrow(
       "Only a two-team match has a home and an away team."
     );
   });
