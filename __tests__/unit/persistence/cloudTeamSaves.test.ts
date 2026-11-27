@@ -2,7 +2,11 @@ import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FirebaseError } from "firebase/app";
 import { getDocsFromServer, runTransaction } from "firebase/firestore";
-import { CloudTeamRepository } from "../../../src/firebase/cloudTeamRepository";
+import {
+  CloudTeamRepository,
+  assertTeamsInAccount,
+  connectTeamPersistenceToAuth,
+} from "../../../src/firebase/cloudTeamRepository";
 import { cloudDocument, libraryFromMirror } from "../../../src/firebase/teamLibrarySync";
 import { readTeamMirror } from "../../../src/boundary/teamMirror";
 import { getComputerTeamTemplates, createComputerTeamFromTemplate } from "../../../src/competition/computerTeamTemplates";
@@ -14,6 +18,17 @@ vi.mock("firebase/firestore", async () => {
   const fake = await import("../../utils/fakeTeamCloud");
   return fake.firestoreFake;
 });
+const auth = vi.hoisted(() => {
+  const state: { listener: ((user: unknown) => void) | null } = { listener: null };
+  return state;
+});
+vi.mock("../../../src/firebase/auth", () => ({
+  isAuthResolved: () => true,
+  subscribeToAuth: (listener: (user: unknown) => void) => {
+    auth.listener = listener;
+    return vi.fn();
+  },
+}));
 vi.mock("../../../src/firebase/config", () => ({
   isFirebaseConfigured: () => true,
   getDb: vi.fn(),
@@ -224,3 +239,49 @@ describe("a team changed on two devices", () => {
     expect(mirror().conflicts).toEqual({ first: null });
   });
 });
+
+describe("a signed-out library", () => {
+  it("keeps an edit whose upload is refused after the coach signed out", async () => {
+    const repository = primed([activeTeam("first", 10_000)]);
+    let refuse!: (cause: unknown) => void;
+    vi.mocked(runTransaction).mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        refuse = reject;
+      })
+    );
+    const saved = repository.saveTeams([activeTeam("first", 55_000)]);
+    repository.retire();
+    refuse(new FirebaseError("permission-denied", "Signed out"));
+    await saved;
+
+    expect(fixtureValue(repository.loadTeams()[0]).treasury).toBe(55_000);
+    expect(mirror().pending).toEqual(["first"]);
+  });
+});
+
+async function signedIn(teams: Team[]): Promise<void> {
+  for (const team of teams) cloudDocuments.set(path(team.id), cloudDocument(team));
+  connectTeamPersistenceToAuth(() => false);
+  fixtureValue(auth.listener)({ uid: UID });
+  await vi.waitFor(() => {
+    expect(readTeamMirror(UID)).not.toBeNull();
+  });
+}
+
+describe("entering an online competition", () => {
+  it("accepts a team that matches the account", async () => {
+    await signedIn([activeTeam("first", 10_000)]);
+
+    await expect(assertTeamsInAccount([activeTeam("first", 10_000)])).resolves.toBeUndefined();
+  });
+
+  it("refuses a copy that another device has since changed", async () => {
+    await signedIn([activeTeam("first", 10_000)]);
+    cloudDocuments.set(path("first"), cloudDocument(activeTeam("first", 1000)));
+
+    await expect(assertTeamsInAccount([activeTeam("first", 10_000)])).rejects.toThrow(
+      "first on this device does not match your account."
+    );
+  });
+});
+

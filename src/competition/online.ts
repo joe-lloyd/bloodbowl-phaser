@@ -1,3 +1,4 @@
+import { assertTeamsInAccount } from "../firebase/cloudTeamRepository";
 import { resolveCoachName } from "../firebase/coaches";
 import { readSevensRuleset } from "../game/rules/sevensRuleset";
 import { readGameType } from "../game/variants/gameTypes";
@@ -75,6 +76,7 @@ export async function openOnlineCompetition(
   const ruleset = readSevensRuleset(input.ruleset);
   const gameType = readGameType(input.gameType);
   const teams = input.team ? [input.team] : [];
+  await assertTeamsInAccount(teams);
   await assertTeamsCanEnter({
     teams,
     ruleset,
@@ -131,6 +133,7 @@ export async function enterCompetition({
   team: Team;
   uid: string;
 }): Promise<CompetitionDoc> {
+  await assertTeamsInAccount([team]);
   await assertTeamsCanEnter({
     teams: [team],
     ruleset: readSevensRuleset(competition.ruleset),

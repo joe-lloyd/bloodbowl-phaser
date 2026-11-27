@@ -149,6 +149,7 @@ export class CloudTeamRepository implements TeamRepository {
   private queue: Promise<unknown> = Promise.resolve();
   private syncing = 0;
   private offline = false;
+  private retired = false;
   private readonly uid: string;
 
   constructor(uid: string, teams: readonly Team[], restored?: LibraryState) {
@@ -174,11 +175,11 @@ export class CloudTeamRepository implements TeamRepository {
     );
   }
 
-  resync(): Promise<void> {
+  resync(): Promise<boolean> {
     if (!navigator.onLine) {
       this.offline = true;
       this.publish();
-      return Promise.resolve();
+      return Promise.resolve(false);
     }
     return this.enqueue(async () => {
       this.setSyncing(1);
@@ -186,12 +187,21 @@ export class CloudTeamRepository implements TeamRepository {
         const pulled = await this.pull();
         const uploaded = await this.uploadPending(undefined);
         if (pulled && uploaded) this.update({ ...this.state, syncedAt: Date.now() });
+        return pulled && uploaded;
       } catch (cause) {
         this.noteFailure(cause);
+        return false;
       } finally {
         this.setSyncing(-1);
       }
     });
+  }
+
+  unsyncedName(teams: readonly Team[]): string | undefined {
+    return teams.find((team) => {
+      const kept = this.state.teams.find(({ id }) => id === team.id);
+      return this.state.pending.has(team.id) || !kept || teamText(kept) !== teamText(team);
+    })?.name;
   }
 
   private async pull(): Promise<boolean> {
@@ -216,6 +226,14 @@ export class CloudTeamRepository implements TeamRepository {
 
   takeCloud(teamId: string): void {
     this.update(takeCloudVersion(this.state, teamId));
+  }
+
+  retire(): void {
+    this.retired = true;
+  }
+
+  private isRetired(): boolean {
+    return this.retired;
   }
 
   persist(): void {
@@ -262,7 +280,7 @@ export class CloudTeamRepository implements TeamRepository {
     this.publish();
   }
 
-  private enqueue(work: () => Promise<void>): Promise<void> {
+  private enqueue<Result>(work: () => Promise<Result>): Promise<Result> {
     const run = this.queue.then(work);
     this.queue = run.catch(() => undefined);
     return run;
@@ -277,6 +295,7 @@ export class CloudTeamRepository implements TeamRepository {
   }
 
   private async upload(id: string, before: readonly Team[] | undefined): Promise<boolean> {
+    if (this.isRetired()) return false;
     const local = this.state.teams.find((team) => team.id === id);
     try {
       const outcome = await pushTeam(this.uid, { id, local, base: this.state.synced.get(id) });
@@ -288,6 +307,7 @@ export class CloudTeamRepository implements TeamRepository {
         this.noteFailure(cause);
         return false;
       }
+      if (this.isRetired()) return false;
       if (before) this.revert(id, before);
       throw cause;
     }
@@ -316,8 +336,22 @@ export class CloudTeamRepository implements TeamRepository {
   }
 }
 
-export function syncTeamsNow(): Promise<void> {
-  return library.active?.resync() ?? Promise.resolve();
+export function syncTeamsNow(): Promise<boolean> {
+  return library.active?.resync() ?? Promise.resolve(true);
+}
+
+export async function assertTeamsInAccount(teams: readonly Team[]): Promise<void> {
+  const repository = library.active;
+  if (!repository || teams.length === 0) return;
+  if (!(await repository.resync())) {
+    throw new Error("Your teams could not be synced with your account. Check your connection and try again.");
+  }
+  const name = repository.unsyncedName(teams);
+  if (name !== undefined) {
+    throw new Error(
+      `${name} on this device does not match your account. Sync it on the Teams page, then try again.`
+    );
+  }
 }
 
 export function keepThisDeviceTeam(teamId: string): Promise<void> {
@@ -329,6 +363,7 @@ export function takeOtherDeviceTeam(teamId: string): void {
 }
 
 function install(repository: CloudTeamRepository | null): void {
+  if (library.active !== repository) library.active?.retire();
   library.active = repository;
   setTeamRepository(repository);
   if (repository) repository.publish();
