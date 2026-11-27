@@ -26,14 +26,15 @@ function attach(): HeadlessGame {
   const gs = ((c.gameService as unknown as { inner?: unknown }).inner ??
     c.gameService) as Record<string, unknown>;
   const teams = getActiveOnlineMatch()?.teams;
+  const [home, away] = c.gameService.getTeams();
   game = new HeadlessGame({
     autoStartOnReady: false,
     ctx: {
       eventBus: c.eventBus,
       gameService: gs as never,
       rng: c.rngService,
-      team1: (teams?.team1 ?? gs["team1"]) as never,
-      team2: (teams?.team2 ?? gs["team2"]) as never,
+      team1: teams?.team1 ?? home,
+      team2: teams?.team2 ?? away,
       seed: 0,
       matchStats: c.matchStats,
     },
