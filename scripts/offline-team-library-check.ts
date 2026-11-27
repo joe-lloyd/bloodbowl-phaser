@@ -120,7 +120,7 @@ await page.screenshot({ path: path.join(SHOTS, "offline-library-waiting.png") })
 check("nothing reached the cloud while offline", (await cloudName(QUIET.id)) === QUIET.name);
 
 await setDoc(teamDoc(BUSY.id), coachTeam(BUSY, `${BUSY.name} Elsewhere`));
-await context.unroute(() => true);
+await context.unrouteAll();
 dist = serveDist(DIST, PORT);
 await syncPanel.getByRole("button", { name: "Sync now" }).click();
 check("back online, the edit made only here uploads", (await cloudNameBecomes(QUIET.id, `${QUIET.name} Offline`)) === `${QUIET.name} Offline`);
