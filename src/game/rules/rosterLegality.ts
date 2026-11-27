@@ -20,8 +20,8 @@ import {
   type SidelineStaff,
   dedicatedFanPrice,
   draftRulesFor,
+  draftStaffRefusal,
   rerollPrice,
-  staffRefusal,
   teamDraftRules,
   teamGameType,
 } from "./draftRules";
@@ -172,19 +172,36 @@ function veteranViolations(team: Team, draft: DraftRules): RosterViolation[] {
   return draft.veteran ? requiredVeteranViolations(team) : [];
 }
 
-function staffViolations(team: Team, gameType: GameType): RosterViolation[] {
+export function positionLimitViolations(
+  team: Team,
+  roster: TeamRoster
+): RosterViolation[] {
+  const rostered = team.players.filter(
+    (player) => !isDeadLeaguePlayer(team, player)
+  );
+  return [
+    ...positionViolations(rostered, roster),
+    ...bigGuyViolations(rostered, roster),
+  ];
+}
+
+export function staffViolations(
+  team: Team,
+  label: string,
+  draft: DraftRules
+): RosterViolation[] {
   const hired: [SidelineStaff, boolean][] = [
     ["apothecary", team.apothecary],
     ["coach", team.coaches > 0],
     ["cheerleader", team.cheerleaders > 0],
   ];
   return hired.flatMap(([staff, has]) => {
-    const refusal = has ? staffRefusal(gameType, staff) : undefined;
+    const refusal = has ? draftStaffRefusal(label, draft, staff) : undefined;
     return refusal ? { rule: "staff", detail: refusal } : [];
   });
 }
 
-function boughtDedicatedFans(team: Team): number {
+export function boughtDedicatedFans(team: Team): number {
   return team.dedicatedFans - startingDedicatedFans(team.advancementMode);
 }
 
@@ -283,15 +300,11 @@ export function validateRosterLegality(
   if (team.club) return clubViolations(team, roster, gameType);
   const draft = draftRulesFor(gameType);
   const label = GAME_TYPE_LABELS[gameType];
-  const rostered = team.players.filter(
-    (player) => !isDeadLeaguePlayer(team, player)
-  );
   return [
     ...sizeViolations(team, draft, label),
-    ...positionViolations(rostered, roster),
-    ...bigGuyViolations(rostered, roster),
+    ...positionLimitViolations(team, roster),
     ...veteranViolations(team, draft),
-    ...staffViolations(team, gameType),
+    ...staffViolations(team, label, draft),
     ...fanViolations(team, draft, label),
     ...budgetViolations(team, gameType),
   ];

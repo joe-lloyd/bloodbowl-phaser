@@ -53,11 +53,23 @@ function staffAllowed(draft: DraftRules, staff: SidelineStaff): boolean {
   }
 }
 
+export function draftStaffRefusal(
+  label: string,
+  draft: DraftRules,
+  staff: SidelineStaff
+): string | undefined {
+  return staffAllowed(draft, staff)
+    ? undefined
+    : `${label} teams cannot have ${STAFF_NAMES[staff]}.`;
+}
+
 export function staffRefusal(
   gameType: GameType,
   staff: SidelineStaff
 ): string | undefined {
-  return staffAllowed(draftRulesFor(gameType), staff)
-    ? undefined
-    : `${GAME_TYPE_LABELS[gameType]} teams cannot have ${STAFF_NAMES[staff]}.`;
+  return draftStaffRefusal(
+    GAME_TYPE_LABELS[gameType],
+    draftRulesFor(gameType),
+    staff
+  );
 }
