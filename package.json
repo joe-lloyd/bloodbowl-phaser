@@ -19,6 +19,7 @@
     "sprites:portrait-check": "tsx scripts/sprites/portrait_check.ts",
     "gallery:shots": "playwright test -c scripts/hud-shots/playwright.config.ts",
     "pwa:offline-match": "tsx scripts/offline-match-check.ts",
+    "pwa:offline-library": "tsx scripts/offline-team-library-check.ts",
     "headless": "tsx src/headless/cli.ts",
     "sim": "tsx src/simulation/cli.ts",
     "sim:replay": "tsx src/simulation/cli.ts replay",
