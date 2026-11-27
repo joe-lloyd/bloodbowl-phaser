@@ -153,7 +153,7 @@ export interface IGameService {
     playerId: string;
     action: import("@/types/events").ActionType;
     blockReplacement?: import("@/types/BlockReplacement").BlockReplacement;
-    options?: { razzleDazzle?: boolean };
+    options?: { razzleDazzle?: boolean; against?: string };
   }): boolean;
 
   cancelAction(playerId: string): boolean;

@@ -3,6 +3,7 @@ import type { ActionType } from "./events";
 import type { Weather } from "../game/rules/weather";
 import type { LostBall } from "../game/kickoff/ballConditions";
 import type { MatchFormat } from "../game/variants/activeMatch";
+import type { TurnSpend } from "../game/rules/turnSpend";
 export const SubPhase = {
   INTRO: "INTRO",
   WEATHER: "WEATHER",
@@ -49,10 +50,7 @@ export interface TurnData {
 
   extraTime?: boolean;
   activatedPlayerIds: Set<string>;
-  hasBlitzed: boolean;
-  hasPassed: boolean;
-  hasHandedOff: boolean;
-  hasFouled: boolean;
+  spend: TurnSpend;
 
   hasThrownTeamMate: boolean;
   hasKickedTeamMate: boolean;
@@ -111,6 +109,8 @@ export interface GameState {
     bloodlustUnsated?: boolean;
 
     grudgeMatch?: boolean;
+
+    against?: string;
 
     razzleDazzle?: {
       actions: ActionType[];

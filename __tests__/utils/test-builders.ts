@@ -1,3 +1,4 @@
+import { freshSpend, spend } from "../../src/game/rules/turnSpend.js";
 import { RosterName, type Team, createTeam } from "../../src/types/Team.js";
 import {
   type Player,
@@ -197,10 +198,7 @@ export class GameStateBuilder {
         turnNumber: 0,
         isHalf2: false,
         activatedPlayerIds: new Set(),
-        hasBlitzed: false,
-        hasPassed: false,
-        hasHandedOff: false,
-        hasFouled: false,
+        spend: freshSpend(),
         hasThrownTeamMate: false,
         hasKickedTeamMate: false,
         hasThrownBomb: false,
@@ -239,23 +237,11 @@ export class GameStateBuilder {
     return this;
   }
 
-  withBlitzUsed(): this {
-    this.state.turn.hasBlitzed = true;
-    return this;
-  }
-
-  withPassUsed(): this {
-    this.state.turn.hasPassed = true;
-    return this;
-  }
-
-  withHandOffUsed(): this {
-    this.state.turn.hasHandedOff = true;
-    return this;
-  }
-
-  withFoulUsed(): this {
-    this.state.turn.hasFouled = true;
+  withBlitzUsed(against: string): this {
+    this.state.turn.spend = spend(this.state.turn.spend, {
+      kind: "blitz",
+      against,
+    });
     return this;
   }
 

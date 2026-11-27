@@ -1,3 +1,4 @@
+import { freshSpend } from "@/game/rules/turnSpend";
 import type { Team } from "@/types/Team";
 import {
   type GameState,
@@ -415,10 +416,7 @@ function resetTurnUsage(state: GameParts["state"]): void {
   state.turn.activatedPlayerIds.clear();
   state.turn.movementUsed.clear();
   delete state.turn.hasPunted;
-  state.turn.hasBlitzed = false;
-  state.turn.hasPassed = false;
-  state.turn.hasHandedOff = false;
-  state.turn.hasFouled = false;
+  state.turn.spend = freshSpend();
   state.turn.hasThrownTeamMate = false;
   state.turn.hasKickedTeamMate = false;
   state.turn.hasThrownBomb = false;

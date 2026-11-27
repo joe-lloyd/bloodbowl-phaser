@@ -59,10 +59,7 @@ export class ScenarioLoader {
     });
 
     this.eventBus.emit(GameEventNames.TurnDataUpdated, {
-      hasBlitzed: initialState.turn.hasBlitzed,
-      hasPassed: initialState.turn.hasPassed,
-      hasHandedOff: initialState.turn.hasHandedOff,
-      hasFouled: initialState.turn.hasFouled,
+      spend: initialState.turn.spend,
     });
 
     this.eventBus.emit(GameEventNames.RefreshBoard, undefined);

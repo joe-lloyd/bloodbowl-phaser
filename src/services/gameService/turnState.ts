@@ -1,3 +1,4 @@
+import { freshSpend } from "@/game/rules/turnSpend";
 import type { TurnData } from "@/types/GameState";
 
 export function freshTurn(
@@ -10,10 +11,7 @@ export function freshTurn(
     turnNumber,
     isHalf2,
     activatedPlayerIds: new Set(),
-    hasBlitzed: false,
-    hasPassed: false,
-    hasHandedOff: false,
-    hasFouled: false,
+    spend: freshSpend(),
     hasThrownTeamMate: false,
     hasKickedTeamMate: false,
     hasThrownBomb: false,

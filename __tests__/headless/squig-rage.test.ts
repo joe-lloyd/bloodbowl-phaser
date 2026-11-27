@@ -224,11 +224,11 @@ describe("Squig Rage", () => {
     it("leaves the Handoff unspent and lets the Hopper Move without a second roll", async () => {
       const { gs, rolls, declare } = await ragedHopper();
       const rolled = rolls.length;
-      expect(gs.getState().turn.hasHandedOff).toBe(false);
+      expect(gs.getState().turn.spend.handOffs).toBe(0);
       const moveDeclared = await declare("move");
       expect(moveDeclared.ok).toBe(true);
       expect(gs.getState().activePlayer?.action).toBe("move");
-      expect(gs.getState().turn.hasHandedOff).toBe(false);
+      expect(gs.getState().turn.spend.handOffs).toBe(0);
       expect(rolls).toHaveLength(rolled);
     });
 
@@ -248,7 +248,7 @@ describe("Squig Rage", () => {
       const moveDeclared = await declare("move");
       expect(moveDeclared.ok).toBe(true);
       expect(rolls).toHaveLength(rolled);
-      expect(gs.getState().turn.hasHandedOff).toBe(false);
+      expect(gs.getState().turn.spend.handOffs).toBe(0);
     });
 
     it("ends the Hopper's activation when another player is declared", async () => {
@@ -257,7 +257,7 @@ describe("Squig Rage", () => {
       const otherDeclared = await declare("move", other.id);
       expect(otherDeclared.ok).toBe(true);
       expect(gs.hasPlayerActed(hopper.id)).toBe(true);
-      expect(gs.getState().turn.hasHandedOff).toBe(false);
+      expect(gs.getState().turn.spend.handOffs).toBe(0);
     });
 
     it("keeps the Hopper's activation when another player's declaration is refused", async () => {
@@ -281,7 +281,7 @@ describe("Squig Rage", () => {
       const otherHandoffDeclared = await declare("handoff", other.id);
       expect(otherHandoffDeclared.ok).toBe(true);
       expect(gs.hasPlayerActed(hopper.id)).toBe(true);
-      expect(gs.getState().turn.hasHandedOff).toBe(false);
+      expect(gs.getState().turn.spend.handOffs).toBe(0);
     });
 
     it("rolls Bone Head but not Squig Rage again when the Hopper redeclares", async () => {
@@ -461,7 +461,7 @@ describe("Squig Rage", () => {
     });
     await gs.performSpecialAction("chomp", hopper.id, target.id);
     await game.execute({ type: "use-reroll", accept: false });
-    expect(gs.getState().turn.hasBlitzed).toBe(false);
+    expect(gs.getState().turn.spend.blitzed).toHaveLength(0);
     expect(gs.getMovementUsed(hopper.id)).toBe(0);
   });
 

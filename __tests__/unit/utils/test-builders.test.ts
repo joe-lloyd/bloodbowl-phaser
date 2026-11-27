@@ -112,13 +112,13 @@ describe("Test Builders", () => {
         .inPhase(GamePhase.PLAY)
         .withActiveTeam("team-1")
         .withTurnNumber(3)
-        .withBlitzUsed()
+        .withBlitzUsed("team-2")
         .build();
 
       expect(state.phase).toBe(GamePhase.PLAY);
       expect(state.activeTeamId).toBe("team-1");
       expect(state.turn.turnNumber).toBe(3);
-      expect(state.turn.hasBlitzed).toBe(true);
+      expect(state.turn.spend.blitzed).toEqual(["team-2"]);
     });
 
     it("should track activated players", () => {

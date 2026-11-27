@@ -1,3 +1,4 @@
+import { freshSpend } from "../../src/game/rules/turnSpend";
 import { z } from "zod";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
@@ -165,8 +166,12 @@ describe("drive reset", () => {
           state.turn.movementUsed.set(player.id, 3);
         }
       }
-      state.turn.hasBlitzed = true;
-      state.turn.hasFouled = true;
+      state.turn.spend = {
+        blitzed: [team2.id],
+        fouled: [team2.id],
+        passes: 0,
+        handOffs: 0,
+      };
       state.turnUsage = { turn: "h1", teams: [team1.id], once: [], uses: {} };
 
       const recovered = new Map<string, boolean>();
@@ -201,7 +206,7 @@ describe("drive reset", () => {
       ]) {
         expect(turn.activatedPlayerIds.size).toBe(0);
         expect(turn.movementUsed.size).toBe(0);
-        expect(turn).toMatchObject({ hasBlitzed: false, hasFouled: false });
+        expect(turn.spend).toEqual(freshSpend());
       }
       expect(state.turnUsage).toBeUndefined();
       expect(state.activePlayer).toBeNull();

@@ -50,10 +50,12 @@ const SCORE_ROWS: MatchRow[] = [
       const state = fx.services.gameService.getState();
       state.turn.turnNumber = 5;
       fx.services.gameService.seedTurnCounts(5);
-      state.turn.hasBlitzed = true;
-      state.turn.hasPassed = true;
-      state.turn.hasHandedOff = true;
-      state.turn.hasFouled = true;
+      state.turn.spend = {
+        blitzed: [fx.team2.id],
+        fouled: [fx.team2.id],
+        passes: 1,
+        handOffs: 1,
+      };
       state.weather = "Pouring Rain";
       state.activeTeamId = fx.team1.id;
       state.driveEffects = {

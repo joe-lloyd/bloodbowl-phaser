@@ -3501,9 +3501,6 @@
     }
   },
   "src/game/managers/PlayerActionManager.ts": {
-    "@typescript-eslint/no-redundant-type-constituents": {
-      "count": 1
-    },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 3
     },
@@ -4054,7 +4051,7 @@
       "count": 6
     },
     "complexity": {
-      "count": 3
+      "count": 2
     }
   },
   "src/game/rules/blockReplacements.ts": {

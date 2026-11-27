@@ -1,3 +1,4 @@
+import { freshSpend } from "../rules/turnSpend";
 import { GamePhase, type GameState, type TurnData } from "@/types/GameState";
 import type { Player } from "@/types/Player";
 import type { ActionType } from "@/types/events";
@@ -49,10 +50,7 @@ export function unspentTurn(turn: TurnData): TurnData {
     isHalf2: turn.isHalf2,
     ...(turn.extraTime && { extraTime: true }),
     activatedPlayerIds: new Set(),
-    hasBlitzed: false,
-    hasPassed: false,
-    hasHandedOff: false,
-    hasFouled: false,
+    spend: freshSpend(),
     hasThrownTeamMate: false,
     hasKickedTeamMate: false,
     hasThrownBomb: false,

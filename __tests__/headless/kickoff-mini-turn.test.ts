@@ -41,7 +41,7 @@ function expectReceivingTurn(game: HeadlessGame) {
   expect(state.activeTeamId).toBe("team2");
   expect(state.turn).toMatchObject({
     teamId: "team2",
-    hasBlitzed: false,
+    spend: { blitzed: [] },
     hasThrownTeamMate: false,
     hasKickedTeamMate: false,
   });
@@ -103,7 +103,7 @@ describe("Charge! as a miniature turn", () => {
       action: "blitz",
     });
     await game.execute({ type: "cancel-action", playerId: home(1).id });
-    expect(gs.getState().turn.hasBlitzed).toBe(false);
+    expect(gs.getState().turn.spend.blitzed).toHaveLength(0);
     expect(await walk(game, home(2).id)).toEqual(played);
     expect(gs.canActivate(home(1).id)).toBe(true);
   });
@@ -169,7 +169,7 @@ describe("Charge! as a miniature turn", () => {
     await endActivation(game, home(1).id);
 
     expect(away(1).gridPosition).not.toEqual({ x: 10, y: 5 });
-    expect(gs.getState().turn.hasBlitzed).toBe(true);
+    expect(gs.getState().turn.spend.blitzed).toHaveLength(1);
     const second = await game.execute({
       type: "declare-action",
       playerId: home(2).id,

@@ -35,6 +35,7 @@ const COMMAND_SHAPES: Record<string, CommandShape> = {
     playerId: "string",
     action: "string",
     razzleDazzle: "boolean?",
+    against: "string?",
   },
   "cancel-action": { playerId: "string" },
   move: { playerId: "string", path: "path" },

@@ -293,7 +293,6 @@ function makeKickoffManagers(
   turnManager: TurnManager
 ) {
   const {
-    game,
     eventBus,
     state,
     seating,
@@ -301,9 +300,7 @@ function makeKickoffManagers(
     weatherService,
     flowManager,
   } = core;
-  const playerActionManager = new PlayerActionManager(eventBus, state, (id) =>
-    game.getPlayerById(id)
-  );
+  const playerActionManager = new PlayerActionManager(eventBus, state, seating);
 
   const kickoffEventManager = new KickoffEventManager({ eventBus: eventBus, state: state, seating: pairSeating(seating), diceController: diceController, weatherManager: weatherService, flowManager: flowManager, callbacks: {
       getTurnNumber: (teamId) => turnManager.getTurnNumber(teamId),

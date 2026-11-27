@@ -1,3 +1,4 @@
+import { freshSpend, spend } from "../../../src/game/rules/turnSpend";
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import {
@@ -26,10 +27,7 @@ const P = (over: Partial<Player>): Player =>
   }) as Player;
 
 const noTurn: TurnFlags = {
-  hasBlitzed: false,
-  hasPassed: false,
-  hasHandedOff: false,
-  hasFouled: false,
+  spend: freshSpend(),
   hasThrownTeamMate: false,
   hasKickedTeamMate: false,
 };
@@ -310,7 +308,10 @@ describe("computeActionAvailability", () => {
       "vomit",
     ]);
 
-    input.turn.hasBlitzed = true;
+    input.turn.spend = spend(input.turn.spend, {
+      kind: "blitz",
+      against: "team2",
+    });
     expect(computeActionAvailability(input).blitzBlockReplacements).toEqual([]);
   });
 

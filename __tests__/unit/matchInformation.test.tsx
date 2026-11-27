@@ -1,3 +1,4 @@
+import { freshSpend, spend } from "../../src/game/rules/turnSpend";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -103,7 +104,10 @@ describe("match information", () => {
     state.weather = "Pouring Rain";
     state.activeTeamId = fx.team1.id;
     state.turn.turnNumber = 5;
-    state.turn.hasBlitzed = true;
+    state.turn.spend = spend(freshSpend(), {
+      kind: "blitz",
+      against: fx.team2.id,
+    });
     state.driveEffects = {
       freeRerolls: { [fx.team1.id]: 1 },
       owedAssists: { [fx.team2.id]: { turn: 5, used: false } },
@@ -142,7 +146,7 @@ describe("match information", () => {
         owedAssists: {},
         playerModifiers: {},
       };
-      state.turn.hasBlitzed = false;
+      state.turn.spend = freshSpend();
       fx.bus.emit(GameEventNames.GameStateRestored, state);
     });
     expect(container.textContent).not.toContain("Brilliant Coaching");

@@ -452,6 +452,7 @@ export class NetworkedGameService implements IGameService {
       action,
       ...(blockReplacement !== undefined && { blockReplacement }),
       ...(options.razzleDazzle && { razzleDazzle: true }),
+      ...(options.against !== undefined && { against: options.against }),
     });
     return true;
   }

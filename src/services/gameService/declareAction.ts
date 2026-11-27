@@ -67,7 +67,7 @@ export function declareAction({
   playerId: string;
   action: ActionType;
   blockReplacement?: BlockReplacement;
-  options?: { razzleDazzle?: boolean };
+  options?: { razzleDazzle?: boolean; against?: string };
 }): boolean {
   if (!parts.game.canActivate(playerId)) return false;
   if (!kickoffTurnAllows(parts.state, action)) return false;
@@ -98,15 +98,7 @@ function declareForPlayer({
 }: PlayerDeclaration): boolean {
   const held = parts.state.activePlayer;
   const firstAction = secondActionAfter(held, playerId);
-  if (
-    razzleDazzleRefuses({
-      parts,
-      activating,
-      action,
-      firstAction,
-      options,
-    })
-  ) {
+  if (razzleDazzleRefuses({ parts, activating, action, firstAction, options })) {
     return false;
   }
 
@@ -134,6 +126,7 @@ function declareForPlayer({
         direct: directReplacement,
         chosen: blockReplacement,
       },
+      against: options.against,
     })
   ) {
     return false;
@@ -148,6 +141,7 @@ function declareForPlayer({
     firstAction,
     held,
     razzleDazzle: options.razzleDazzle,
+    against: options.against,
   });
 }
 
@@ -279,6 +273,7 @@ function replacementAllowed({
   activating,
   action,
   replacement,
+  against,
 }: {
   parts: GameParts;
   activating: Player;
@@ -288,6 +283,7 @@ function replacementAllowed({
     direct: BlockReplacement | undefined;
     chosen: BlockReplacement | undefined;
   };
+  against: string | undefined;
 }): boolean {
   const { requested, direct, chosen } = replacement;
   if (requested && action !== "blitz" && direct !== requested) return false;
@@ -296,7 +292,7 @@ function replacementAllowed({
   if (!hasSkill(activating.skills, definition.skill)) return false;
   if (action === "blitz") {
     return (
-      !parts.state.turn.hasBlitzed &&
+      parts.playerActionManager.canDeclareAction(activating.id, action, against) &&
       hasReachableBlockReplacementTarget(
         activating,
         parts.game.getOpponents(activating.teamId),
@@ -452,12 +448,13 @@ function recordDeclaration(
 
     held: Declaration | null;
     razzleDazzle: boolean | undefined;
+    against: string | undefined;
   }
 ): boolean {
   const { player, action } = declaring;
   const playerId = player.id;
 
-  if (!parts.playerActionManager.canDeclareAction(playerId, action)) {
+  if (!parts.playerActionManager.canDeclareAction(playerId, action, declaring.against)) {
     return false;
   }
   finishOnSwitch(parts, declaring.held, playerId);
@@ -468,11 +465,10 @@ function recordDeclaration(
       ? prior.stalling
       : couldScoreWithoutDice(parts, player);
   if (
-    !parts.playerActionManager.declareAction(
-      playerId,
-      action,
-      declaring.blockReplacement
-    )
+    !parts.playerActionManager.declareAction(playerId, action, {
+      blockReplacement: declaring.blockReplacement,
+      against: declaring.against,
+    })
   ) {
     return false;
   }

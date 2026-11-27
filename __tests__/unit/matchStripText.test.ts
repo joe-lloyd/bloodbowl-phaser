@@ -48,18 +48,12 @@ describe("match strip text", () => {
   it("names only spent once-per-turn actions", () => {
     expect(
       spentActions({
-        hasBlitzed: true,
-        hasPassed: false,
-        hasHandedOff: true,
-        hasFouled: true,
+        spend: { blitzed: ["team2"], fouled: ["team2"], passes: 0, handOffs: 1 },
       })
     ).toEqual(["Blitz", "Hand-off", "Foul"]);
     expect(
       spentActions({
-        hasBlitzed: false,
-        hasPassed: true,
-        hasHandedOff: false,
-        hasFouled: false,
+        spend: { blitzed: [], fouled: [], passes: 1, handOffs: 0 },
       })
     ).toEqual(["Pass"]);
   });

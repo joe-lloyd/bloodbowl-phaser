@@ -244,7 +244,7 @@ describe("defer-action-commitment", () => {
     });
 
     const state = game.ctx.gameService.getState();
-    expect(state.turn.hasBlitzed).toBe(false);
+    expect(state.turn.spend.blitzed).toHaveLength(0);
     const snapshot = serializeGameState(state, [
       game.ctx.team1,
       game.ctx.team2,
@@ -257,7 +257,7 @@ describe("defer-action-commitment", () => {
     const restoredState = deserializeGameState(roundTripped);
     applySnapshotToTeams(roundTripped, [game.ctx.team1, game.ctx.team2]);
 
-    expect(restoredState.turn.hasBlitzed).toBe(false);
+    expect(restoredState.turn.spend.blitzed).toHaveLength(0);
     expect(restoredState.activePlayer?.id).toBe(blitzerId);
     expect(restoredState.activePlayer?.committed).toBeFalsy();
 
@@ -267,7 +267,7 @@ describe("defer-action-commitment", () => {
       initialState: restoredState,
     });
     expect(resumed.gameService.cancelAction(blitzerId)).toBe(true);
-    expect(resumed.gameService.getState().turn.hasBlitzed).toBe(false);
+    expect(resumed.gameService.getState().turn.spend.blitzed).toHaveLength(0);
     expect(resumed.gameService.getState().activePlayer).toBeNull();
   });
 

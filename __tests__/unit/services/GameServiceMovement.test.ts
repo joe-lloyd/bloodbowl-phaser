@@ -1,3 +1,4 @@
+import { freshSpend } from "../../../src/game/rules/turnSpend";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameService } from "../../../src/services/GameService";
 import { TeamBuilder, PlayerBuilder } from "../../utils/test-builders";
@@ -31,10 +32,7 @@ describe("GameService Movement Integration", () => {
         turnNumber: 1,
         isHalf2: false,
         activatedPlayerIds: new Set(),
-        hasBlitzed: false,
-        hasPassed: false,
-        hasHandedOff: false,
-        hasFouled: false,
+        spend: freshSpend(),
         movementUsed: new Map(),
       },
       score: { t1: 0, t2: 0 },

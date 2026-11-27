@@ -1,3 +1,4 @@
+import { maySpend, type TurnSpend } from "../rules/turnSpend";
 import { type GameState } from "@/types/GameState";
 import { Inducement, PrayerToNuffle } from "@/types/Inducements";
 import {
@@ -116,11 +117,22 @@ export function spendMeasure(
   return true;
 }
 
-export function foulSpent(state: GameState, teamId: string): boolean {
-  return (
-    state.turn.hasFouled &&
-    !holdsMeasure(state, teamId, DesperateMeasure.GRUDGE_MATCH)
-  );
+export function spendFor(
+  state: GameState,
+  teamId: string,
+  ledger: TurnSpend = state.turn.spend
+): TurnSpend {
+  return holdsMeasure(state, teamId, DesperateMeasure.GRUDGE_MATCH)
+    ? { ...ledger, fouled: [] }
+    : ledger;
+}
+
+export function foulSpent(
+  state: GameState,
+  teamId: string,
+  against: string
+): boolean {
+  return !maySpend(spendFor(state, teamId), { kind: "foul", against });
 }
 
 export function rushModifier(state: GameState, player: Player): number {

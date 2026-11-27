@@ -1,3 +1,4 @@
+import { freshSpend } from "../../src/game/rules/turnSpend";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -51,10 +52,7 @@ it("closes the action panel when a turnover happens", async () => {
           phase: GamePhase.PLAY,
           activeTeamId: teamId,
           movementUsed: new Map(),
-          hasBlitzed: false,
-          hasPassed: false,
-          hasHandedOff: false,
-          hasFouled: false,
+          spend: freshSpend(),
         }}
       />
     );
@@ -85,10 +83,7 @@ it("hides the action panel while an online match cannot take commands", async ()
           phase: GamePhase.PLAY,
           activeTeamId: teamId,
           movementUsed: new Map(),
-          hasBlitzed: false,
-          hasPassed: false,
-          hasHandedOff: false,
-          hasFouled: false,
+          spend: freshSpend(),
         }}
       />
     );

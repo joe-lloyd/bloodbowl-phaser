@@ -1,3 +1,4 @@
+import { spend } from "../../src/game/rules/turnSpend";
 import { parseJson } from "../../src/boundary/json";
 import { gameSnapshotSchema } from "../../src/boundary/schemas/GameSnapshot";
 import { fixtureValue } from "../../src/testing/fixtureValue";
@@ -80,7 +81,10 @@ describe("game state serialization", () => {
     state.turn.activatedPlayerIds.add(fixtureValue(p1).id);
     state.turn.activatedPlayerIds.add(fixtureValue(p2).id);
     state.turn.movementUsed.set(fixtureValue(p1).id, 3);
-    state.turn.hasBlitzed = true;
+    state.turn.spend = spend(state.turn.spend, {
+      kind: "blitz",
+      against: game.team2.id,
+    });
 
     const snapshot = serializeGameState(state, [game.team1, game.team2]);
 
@@ -96,6 +100,59 @@ describe("game state serialization", () => {
     );
     expect(p1Snap.movementUsed).toBe(3);
     expect(p1Snap.position).toEqual(fixtureValue(p1).gridPosition);
+  });
+
+  it("writes a two-team turn's spend as the four flags alone", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 14 });
+    const state = game.gameService.getState();
+    const rival = game.team2.id;
+    state.turn.spend = spend(spend(state.turn.spend, { kind: "foul", against: rival }), {
+      kind: "pass",
+    });
+
+    const turn = serializeGameState(state, [game.team1, game.team2]).turn;
+
+    expect(Object.keys(turn)).toEqual([
+      "teamId",
+      "turnNumber",
+      "isHalf2",
+      "activatedPlayerIds",
+      "hasBlitzed",
+      "hasPassed",
+      "hasHandedOff",
+      "hasFouled",
+      "hasThrownTeamMate",
+      "hasKickedTeamMate",
+      "hasThrownBomb",
+      "movementUsed",
+    ]);
+    expect(turn).toMatchObject({
+      hasBlitzed: false,
+      hasPassed: true,
+      hasHandedOff: false,
+      hasFouled: true,
+    });
+  });
+
+  it("loads an old save's flags as spent against the other team", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 15 });
+    const state = game.gameService.getState();
+    const snapshot = serializeGameState(state, [game.team1, game.team2]);
+    const old = {
+      ...snapshot,
+      turn: { ...snapshot.turn, teamId: game.team1.id, hasBlitzed: true, hasHandedOff: true },
+    };
+
+    const restored = deserializeGameState(
+      parseJson(JSON.stringify(old), gameSnapshotSchema)
+    );
+
+    expect(restored.turn.spend).toEqual({
+      blitzed: [game.team2.id],
+      fouled: [],
+      passes: 0,
+      handOffs: 1,
+    });
   });
 
   it("deserializes back to an equivalent in-memory state", () => {

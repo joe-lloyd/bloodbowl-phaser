@@ -61,6 +61,7 @@ import {
   type MatchOptionsMenuEntry,
 } from "./computeMatchOptionsMenu";
 import type { ConnectionState } from "../../../firebase/lobby";
+import type { TurnSpend } from "../../../game/rules/turnSpend";
 
 const DECISION_DOCK = {
   OtherCoachPrompt,
@@ -107,10 +108,7 @@ interface TurnData {
   activeTeamId: string | null;
   isTeam1Active: boolean | null;
   phase: GamePhase;
-  hasBlitzed: boolean | null;
-  hasPassed: boolean | null;
-  hasHandedOff: boolean | null;
-  hasFouled: boolean | null;
+  spend: TurnSpend | null;
 }
 
 const handleEndTurn = () => {
@@ -138,10 +136,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     activeTeamId: null,
     isTeam1Active: null,
     phase: mode === "normal" ? GamePhase.SETUP : GamePhase.SANDBOX_IDLE,
-    hasBlitzed: null,
-    hasPassed: null,
-    hasHandedOff: null,
-    hasFouled: null,
+    spend: null,
   });
 
   useEffect(() => {
@@ -170,10 +165,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               activeTeamId: activeTeam.id,
               isTeam1Active: activeTeamId === team1?.id,
               phase: state.phase,
-              hasBlitzed: state.turn.hasBlitzed,
-              hasPassed: state.turn.hasPassed,
-              hasHandedOff: state.turn.hasHandedOff,
-              hasFouled: state.turn.hasFouled,
+              spend: state.turn.spend,
             });
           }
         }
@@ -202,10 +194,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       activeTeamId: activeTeam.id,
       isTeam1Active: turn.teamId === "team1",
       phase: state.phase,
-      hasBlitzed: state.turn.hasBlitzed,
-      hasPassed: state.turn.hasPassed,
-      hasHandedOff: state.turn.hasHandedOff,
-      hasFouled: state.turn.hasFouled,
+      spend: state.turn.spend,
     });
   };
   useEventBus(eventBus, GameEventNames.TurnStarted, showTurn);
@@ -224,10 +213,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   useEventBus(eventBus, GameEventNames.TurnDataUpdated, (updatedTurn) => {
     setTurnData((prev) => ({
       ...prev,
-      hasBlitzed: updatedTurn.hasBlitzed,
-      hasPassed: updatedTurn.hasPassed,
-      hasHandedOff: updatedTurn.hasHandedOff,
-      hasFouled: updatedTurn.hasFouled,
+      spend: updatedTurn.spend,
     }));
   });
 
