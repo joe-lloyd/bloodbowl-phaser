@@ -9,6 +9,7 @@ import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { EventBus } from "../../../src/services/EventBus";
 import { createTestPlayer } from "../../fixtures/players";
 import { createTestTeam } from "../../fixtures/teams";
+import type { Team } from "../../../src/types/Team";
 import type { GameState } from "../../../src/types/GameState";
 import type { Pitch } from "../../../src/game/elements/Pitch";
 import type { MovementValidator } from "../../../src/game/validators/MovementValidator";
@@ -36,7 +37,7 @@ function mockFunction<Fn extends (...args: never[]) => unknown>() {
 }
 export const mockScene = {
   team1, team2, kickingTeam: team1,
-  get teams() { return [this.team1, this.team2]; },
+  get teams(): readonly Team[] { return [mockScene.team1, mockScene.team2]; },
   cameras: { main: {worldView:{x:0,y:0},zoom:1} }, scale: {width:1600,height:900},
   events: { on: vi.fn(), off: vi.fn() },
   highlightPlayer: vi.fn(),
