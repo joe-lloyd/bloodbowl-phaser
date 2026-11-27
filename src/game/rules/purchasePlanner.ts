@@ -235,7 +235,10 @@ export function planPurchases(team: Team): PlannedPurchase[] {
 
   while (hireJourneymanFor("journeyman", spare));
 
-  while (hireCheapest("roster", spare()));
+  const squadSize = teamDraftRules(sim).maxPlayers;
+  const hireForRoster = () =>
+    draftListPlayers(sim).length < squadSize && hireCheapest("roster", spare());
+  while (hireForRoster());
 
   while (sim.treasury >= EXPENSIVE_MISTAKES_THRESHOLD) {
     const item = SPEND_DOWN.find((candidate) => {

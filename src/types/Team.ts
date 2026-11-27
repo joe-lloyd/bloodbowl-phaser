@@ -233,11 +233,13 @@ export interface HomeLeague {
 export interface ClubState {
   gutterUnlocked?: true;
 
-  gutterSpecialistId?: string;
-
-  gutterSitsOutId?: string;
+  squads?: Partial<Record<GameType, string[]>>;
 
   matchSquad?: string[];
+
+  matchHome?: string[];
+
+  matchServed?: string[];
 
   trophy?: true;
 

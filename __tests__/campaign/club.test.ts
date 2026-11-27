@@ -1,5 +1,6 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { env } from "node:process";
 import { describe, expect, it, vi } from "vitest";
 
@@ -18,12 +19,12 @@ import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { getTeamById, saveTeam } from "../../src/game/managers/TeamManager";
 import {
   clubWorth,
-  gutterSpecialist,
-  gutterSpecialistRefusal,
+  setSquadMember,
+  squadIds,
   gutterUnlocked,
-  hireGutterSpecialist,
 } from "../../src/game/rules/club";
 import { draftRulesFor } from "../../src/game/rules/draftRules";
+import { hirePlayer, hireRefusal } from "../../src/game/rules/teamPricing";
 import type { GameType } from "../../src/game/variants/gameTypes";
 import type { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { RNGService } from "../../src/services/rng/RNGService";
@@ -119,11 +120,11 @@ function foundClubs(): string[] {
 function checkSquad(where: string, gameType: GameType, game: HeadlessGame): void {
   const draft = draftRulesFor(gameType);
   for (const team of [game.ctx.team1, game.ctx.team2]) {
-    const stored = mustLoad(team.id);
-    const specialist = gutterSpecialist(stored);
-    const inMatch = new Set(team.players.map((player) => player.id));
-    if (specialist && gameType !== "gutter-bowl" && inMatch.has(specialist.id))
-      note(where, "specialist-played", `${team.name}: ${specialist.playerName} played ${gameType}`);
+    const squad = new Set(squadIds(mustLoad(team.id), gameType));
+    for (const player of team.players) {
+      if (player.playerKind !== "journeyman" && !squad.has(player.id))
+        note(where, "outside-squad", `${team.name}: ${player.playerName} played ${gameType} outside its squad`);
+    }
     if (team.apothecary && !draft.apothecary)
       note(where, "staff-played", `${team.name} brought an Apothecary to ${gameType}`);
     const hired = team.players.filter((player) => player.playerKind !== "journeyman");
@@ -135,19 +136,26 @@ function checkSquad(where: string, gameType: GameType, game: HeadlessGame): void
   }
 }
 
+function extraPlayer(team: Team): Team["players"][number] | undefined {
+  return team.players.find((player) => player.number === 12);
+}
+
 function hireSpecialists(where: string, clubIds: string[]): void {
   for (const id of clubIds) {
     const team = mustLoad(id);
-    if (!gutterUnlocked(team) || gutterSpecialist(team)) continue;
+    if (!gutterUnlocked(team) || extraPlayer(team) || team.players.length < 11) continue;
     const positionals = getRosterByRosterName(team.rosterName)
       .playerTemplates.filter((template) => !template.keywords.includes(PositionKeyWord.LINEMAN))
-      .filter((template) => gutterSpecialistRefusal(team, template) === undefined)
+      .filter((template) => hireRefusal(team, template) === undefined && template.cost <= team.treasury)
       .sort((a, b) => b.cost - a.cost);
     const [best] = positionals;
     if (!best) continue;
-    const result = hireGutterSpecialist(team, best);
-    if (!result.hired) continue;
-    everSeen.get(id)?.add(result.player.id);
+    const hired = hirePlayer(team, best);
+    if (!hired.player) continue;
+    const benched = team.players.findLast((player) => player.keywords.includes(PositionKeyWord.LINEMAN));
+    setSquadMember(team, "gutter-bowl", { playerId: hired.player.id, plays: true });
+    if (benched) setSquadMember(team, "gutter-bowl", { playerId: benched.id, plays: false });
+    everSeen.get(id)?.add(hired.player.id);
     void saveTeam(team);
     events.push({
       where,
@@ -178,7 +186,7 @@ function snapshot(
   const game = (gamesPlayed.get(team.id) ?? 0) + 1;
   gamesPlayed.set(team.id, game);
   const [own, other] = context.score;
-  const specialist = gutterSpecialist(team);
+  const specialist = extraPlayer(team);
   snapshots.push({
     club: team.name,
     roster: team.rosterName,
@@ -212,7 +220,6 @@ async function playCompetition(competition: CompetitionDoc, gameType: GameType, 
     const entrant = (entrantId: string | null) => fixtureValue(latest.entrants.find((e) => e.id === entrantId));
     const homeId = entrant(fixture.homeEntrantId).teamId;
     const awayId = entrant(fixture.awayEntrantId).teamId;
-    const specialists = [homeId, awayId].map((id) => gutterSpecialist(mustLoad(id))?.id);
     let outcome: Awaited<ReturnType<typeof simulateFixture>>;
     try {
       outcome = await simulateFixture(latest, fixture.id, {
@@ -231,9 +238,6 @@ async function playCompetition(competition: CompetitionDoc, gameType: GameType, 
     const result = fixtureValue(outcome.fixture.result);
     for (const [index, id] of [homeId, awayId].entries()) {
       const team = mustLoad(id);
-      const specialistId = specialists[index];
-      if (specialistId && team.players.every((player) => player.id !== specialistId) && gameType !== "gutter-bowl")
-        note(where, "specialist-lost", `${team.name} lost its specialist after a ${gameType} match`);
       const home = index === 0;
       snapshot(team, {
         competition: latest,
@@ -294,9 +298,11 @@ describe.runIf(env["CLUB_CAMPAIGN"] === "1")("a club campaign across every game 
       }
     }
 
-    if (env["CLUB_OUT"]) {
+    const output = env["CLUB_OUT"];
+    if (output) {
+      mkdirSync(path.dirname(output), { recursive: true });
       writeFileSync(
-        env["CLUB_OUT"],
+        output,
         JSON.stringify({ findings, engineFindings, events, competitions, snapshots }, null, 2)
       );
     }

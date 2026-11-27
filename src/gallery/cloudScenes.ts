@@ -10,7 +10,7 @@ import type { Team } from "../types/Team";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import { isLinemanPosition } from "../game/rules/rosterLegality";
 import { hireWithIdentity } from "../game/names/playerIdentity";
-import { clubSheetHandlers } from "../ui/components/club/clubSheet";
+import { setSquadMember } from "../game/rules/club";
 import { putDocument, signIn } from "./cloud/cloudData";
 
 const ME = "gallery-me";
@@ -243,7 +243,7 @@ export function withClubs(): void {
   );
 }
 
-function gutterClub(team: Team): Team {
+function squadsClub(team: Team): Team {
   const club: Team = { ...team, club: {}, treasury: 1_000_000 };
   const { playerTemplates } = getRosterByRosterName(club.rosterName);
   const lineman = playerTemplates.find((template) =>
@@ -254,15 +254,20 @@ function gutterClub(team: Team): Team {
   const positional = playerTemplates.find(
     (template) => !isLinemanPosition(template.keywords)
   );
-  if (positional) clubSheetHandlers(club, () => undefined).onHireSpecialist?.(positional);
+  const extra = positional && hireWithIdentity(club, positional).player;
+  const benched = club.players.find((player) => player.number === 11);
+  if (extra && benched) {
+    setSquadMember(club, "street-bowl", { playerId: extra.id, plays: true });
+    setSquadMember(club, "street-bowl", { playerId: benched.id, plays: false });
+  }
   return club;
 }
 
-export function withGutterClub(): void {
+export function withSquadsClub(): void {
   signedIn();
   void saveTeams(
     loadTeams().map((team) =>
-      team.rosterName === ROSTERS[0] ? gutterClub(team) : team
+      team.rosterName === ROSTERS[0] ? squadsClub(team) : team
     )
   );
 }

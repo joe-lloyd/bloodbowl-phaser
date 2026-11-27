@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { shirtMoveRefusal } from "../../../game/rules/club";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { type Team, RosterName, createTeam } from "../../../types/Team";
 import { validateInsignificant } from "../../../game/rules/insignificant";
@@ -43,7 +42,6 @@ import {
   Section,
 } from "../componentWarehouse/HudKit";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
-import { TeamRoster } from "../TeamBuilder/TeamRoster";
 import { AdvancementModePanel } from "../TeamBuilder/AdvancementModePanel";
 import { TeamBuilderActionBar } from "../TeamBuilder/TeamBuilderActionBar";
 import { PostMatchSection } from "../TeamBuilder/PostMatchSection";
@@ -76,7 +74,7 @@ import {
 } from "../../hooks/teamSaveLock";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import { ClubNotice } from "../club/ClubNotice";
-import { clubSheetHandlers } from "../club/clubSheet";
+import { RosterPanel } from "../club/RosterPanel";
 import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 
 const MODE_EYEBROWS: Record<TeamMode, string> = {
@@ -430,11 +428,6 @@ export function TeamBuilder() {
 
   const handleReorderPlayers = (sourceSlot: number, targetSlot: number) => {
     if (!team || isTeamSaving()) return;
-    const refusal = shirtMoveRefusal(team, sourceSlot, targetSlot);
-    if (refusal) {
-      alert(refusal);
-      return;
-    }
 
     const newPlayers = team.players.map((p) => ({ ...p }));
     const sourcePlayer = newPlayers.find((p) => p.number === sourceSlot);
@@ -753,12 +746,12 @@ export function TeamBuilder() {
         </div>
 
         <div className="mb-6">
-          <TeamRoster
+          <RosterPanel
             team={team}
+            onSquadsChange={setTeam}
             onFirePlayer={handleFirePlayer}
             onReorderPlayers={handleReorderPlayers}
             onOpenPlayer={handleOpenPlayer}
-            {...clubSheetHandlers(team, setTeam)}
             onChooseVeteran={
               active || !teamDraftRules(team).veteran
                 ? undefined

@@ -206,6 +206,9 @@ export const getDoc = (ref: DocumentRef) =>
 export const getDocs = (source: CollectionRef | CloudQuery) =>
   Promise.resolve(querySnapshot(source));
 
+export const getDocsFromServer = (source: CollectionRef | CloudQuery) =>
+  getDocs(source);
+
 function write(ref: DocumentRef, data: Data) {
   putDocument(ref.path, data);
 }

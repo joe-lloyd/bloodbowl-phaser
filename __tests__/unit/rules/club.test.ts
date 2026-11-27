@@ -1,18 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { RosterName, type Team, createTeam } from "../../../src/types/Team";
+import { InjuryType } from "../../../src/types/Player";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { hirePlayer, purchase } from "../../../src/game/rules/teamPricing";
 import { legalGameTypes, validateRosterLegality } from "../../../src/game/rules/rosterLegality";
 import { chooseFirstLinemanAsVeteran } from "../../../src/game/rules/veteran";
 import {
-  chooseGutterSitsOut,
+  followSevens,
   friendlyRefusal,
-  hireGutterSpecialist,
   latchGutterUnlock,
   prepareClubSquad,
   restoreClubHome,
-  shirtMoveRefusal,
+  setSquadMember,
+  squadFollowsSevens,
+  squadIds,
 } from "../../../src/game/rules/club";
+import type { GameType } from "../../../src/game/variants/gameTypes";
 import { createMatchState } from "../../../src/services/gameService/matchStart";
 import { getTeamById, saveTeam } from "../../../src/game/managers/TeamManager";
 import { matchFormatFor } from "../../../src/game/variants/activeMatch";
@@ -120,103 +123,97 @@ function fixtureLineman(team: Team) {
   return lineman;
 }
 
-describe("the Gutter Bowl specialist", () => {
-  it("wears a number above 11, so the core can still hire its eleventh player", () => {
-    const team = club(2_000_000, 6);
-    const hire = hireGutterSpecialist(team, template("Dark Elf Blitzer"));
-    if (!hire.hired) throw new Error(hire.reason);
-    expect(hire.player.number).toBe(12);
-    expect(hirePlayer(team, template("Dark Elf Lineman")).amount).toBe(65_000);
-  });
+function hireExtra(team: Team) {
+  const hired = hirePlayer(team, template("Dark Elf Blitzer"));
+  if (!hired.player) throw new Error(hired.reason);
+  return hired.player;
+}
 
-  it("keeps its shirt above 11 when the Team Sheet reorders", () => {
-    const team = club(2_000_000, 6);
-    hireGutterSpecialist(team, template("Dark Elf Blitzer"));
-    const refusal =
-      "The Gutter Bowl specialist keeps a shirt number above 11, so the Core Sevens squad keeps all eleven.";
-    expect(shirtMoveRefusal(team, 12, 11)).toBe(refusal);
-    expect(shirtMoveRefusal(team, 3, 12)).toBe(refusal);
-    expect(shirtMoveRefusal(team, 3, 11)).toBeUndefined();
-  });
-
-  it("counts toward the roster's position limit when the core hires", () => {
-    const team = club(2_000_000);
-    team.firstMatchPlayedAt = 1;
-    hireGutterSpecialist(team, template("Dark Elf Blitzer"));
-    expect(hirePlayer(team, template("Dark Elf Blitzer"))).toEqual({
+describe("a club's extra player and squads", () => {
+  it("has a twelfth slot open from the start", () => {
+    const team = club(2_000_000, 7);
+    expect(team.players).toHaveLength(11);
+    expect(hireExtra(team).number).toBe(12);
+    expect(hirePlayer(team, template("Dark Elf Lineman"))).toEqual({
       amount: null,
-      reason: "Dark Elf Blitzer: the Dark Elf roster allows 0-2, and this team has 2.",
+      reason: "A Sevens team may have at most 12 permanently hired players.",
     });
   });
 
-  it("cannot join before Gutter Bowl opens", () => {
-    expect(hireGutterSpecialist(club(), template("Dark Elf Blitzer"))).toEqual({
-      hired: false,
-      reason: "Gutter Bowl opens when team value plus treasury reaches 750k (now 600k).",
-    });
-  });
-
-  it("joins as a fifth positional who plays only Gutter Bowl", () => {
-    const team = club(750_000);
-    const hire = hireGutterSpecialist(team, template("Dark Elf Blitzer"));
-    if (!hire.hired) throw new Error(hire.reason);
-    expect(team.treasury).toBe(65_000);
-    expect(legalGameTypes(team, darkElf)).toEqual([
-      "sevens",
-      "gutter-bowl",
-      "street-bowl",
-      "beach-bowl",
-    ]);
-
+  it("leaves the extra player out of every squad until the coach picks them", () => {
+    const team = club(2_000_000, 7);
+    const extra = hireExtra(team);
+    for (const gameType of ["sevens", "street-bowl", "beach-bowl", "gutter-bowl"] as const) {
+      expect(squadIds(team, gameType)).toHaveLength(11);
+      expect(squadIds(team, gameType)).not.toContain(extra.id);
+    }
     const sevens = structuredClone(team);
     prepareClubSquad(sevens, "sevens");
-    expect(sevens.players.map((player) => player.id)).not.toContain(hire.player.id);
-    expect(sevens.players).toHaveLength(7);
-
-    const gutter = structuredClone(team);
-    prepareClubSquad(gutter, "gutter-bowl");
-    expect(gutter.players.map((player) => player.id)).toContain(hire.player.id);
-    expect(gutter.players).toHaveLength(8);
+    expect(sevens.players.map((player) => player.id)).not.toContain(extra.id);
   });
 
-  it("respects the roster's position limit across the whole club", () => {
-    const team = club(900_000);
-    hire(team, { "Dark Elf Blitzer": 1 });
-    expect(hireGutterSpecialist(team, template("Dark Elf Blitzer"))).toEqual({
-      hired: false,
-      reason: "Dark Elf Blitzer: the Dark Elf roster allows 0-2, and the club has 2.",
-    });
-    expect(hireGutterSpecialist(team, template("Dark Elf Lineman"))).toEqual({
-      hired: false,
-      reason: "The Gutter Bowl specialist is the fifth positional, so it cannot be a Lineman.",
-    });
-  });
-
-  it("swaps out the last Lineman hired when the core is full, or the one the coach picks", () => {
+  it("follows the Sevens squad until a game type gets its own", () => {
     const team = club(2_000_000, 7);
-    hireGutterSpecialist(team, template("Dark Elf Blitzer"));
-    const linemen = team.players.filter((player) => player.positionName === "Dark Elf Lineman");
-    const veteran = linemen.find((player) => player.veteran);
-    const lastHired = linemen.at(-1);
+    const extra = hireExtra(team);
+    const benched = fixtureLineman(team);
+    setSquadMember(team, "street-bowl", { playerId: extra.id, plays: true });
+    setSquadMember(team, "street-bowl", { playerId: benched.id, plays: false });
 
-    const gutter = structuredClone(team);
-    prepareClubSquad(gutter, "gutter-bowl");
-    expect(gutter.players).toHaveLength(11);
-    expect(gutter.players.map((player) => player.id)).not.toContain(lastHired?.id);
+    expect(squadFollowsSevens(team, "street-bowl")).toBe(false);
+    expect(squadIds(team, "street-bowl")).toContain(extra.id);
+    expect(squadIds(team, "street-bowl")).not.toContain(benched.id);
+    expect(squadIds(team, "beach-bowl")).toEqual(squadIds(team, "sevens"));
 
-    expect(chooseGutterSitsOut(team, veteran?.id ?? "")).toEqual({ allowed: true });
-    const withoutVeteran = structuredClone(team);
-    prepareClubSquad(withoutVeteran, "gutter-bowl");
-    expect(withoutVeteran.players.some((player) => player.veteran)).toBe(false);
-    expect(withoutVeteran.players.map((player) => player.id)).toContain(lastHired?.id);
+    setSquadMember(team, "sevens", { playerId: benched.id, plays: false });
+    expect(squadIds(team, "beach-bowl")).not.toContain(benched.id);
+
+    followSevens(team, "street-bowl");
+    expect(squadIds(team, "street-bowl")).toEqual(squadIds(team, "sevens"));
+  });
+
+  it("checks each squad against its own game type", () => {
+    const team = club(2_000_000, 7);
+    latchGutterUnlock(team);
+    const extra = hireExtra(team);
+    for (const gameType of ["street-bowl", "gutter-bowl"] as const) {
+      setSquadMember(team, gameType, { playerId: extra.id, plays: true });
+      setSquadMember(team, gameType, { playerId: fixtureLineman(team).id, plays: false });
+    }
+    const detail = (gameType: GameType) =>
+      validateRosterLegality(team, darkElf, gameType).map((violation) => violation.detail);
+
+    expect(detail("street-bowl").join(" ")).toMatch(/positional|Lineman/);
+    expect(detail("gutter-bowl")).toEqual([]);
+    expect(detail("sevens")).toEqual([]);
+  });
+
+  it("gives a replacement the fired player's shirt but none of their squad places", () => {
+    const team = club(2_000_000, 7);
+    const extra = hireExtra(team);
+    setSquadMember(team, "street-bowl", { playerId: extra.id, plays: true });
+    const fired = fixtureLineman(team);
+    setSquadMember(team, "street-bowl", { playerId: fired.id, plays: true });
+    team.players = team.players.filter((player) => player.id !== fired.id);
+
+    const hired = hirePlayer(team, template("Dark Elf Lineman"));
+    if (!hired.player) throw new Error(hired.reason);
+    expect(hired.player.number).toBe(fired.number);
+    expect(hired.player.id).not.toBe(fired.id);
+    expect(squadIds(team, "street-bowl")).not.toContain(hired.player.id);
   });
 });
 
+function homeExtra(team: Team) {
+  const player = hireExtra(team);
+  setSquadMember(team, "sevens", { playerId: player.id, plays: false });
+  return player;
+}
+
 describe("a club in a match", () => {
-  it("leaves the specialist out of a Sevens match and brings everyone back afterwards", () => {
+  it("leaves a player the squad leaves out at home, and brings everyone back afterwards", () => {
     const stored = club(1_000_000);
     purchase(stored, { type: "apothecary" });
-    hireGutterSpecialist(stored, template("Dark Elf Blitzer"));
+    homeExtra(stored);
     const home = structuredClone(stored);
     const away = club();
     away.id = "away";
@@ -230,10 +227,10 @@ describe("a club in a match", () => {
     expect(home.apothecary).toBe(true);
   });
 
-  it("keeps a specialist hired while the match was suspended", () => {
+  it("keeps a player hired while the match was suspended", () => {
     const stored = club(1_000_000);
     const matchCopy = structuredClone(stored);
-    hireGutterSpecialist(stored, template("Dark Elf Blitzer"));
+    homeExtra(stored);
 
     restoreClubHome(matchCopy, stored);
     expect(matchCopy.club).toEqual(stored.club);
@@ -244,8 +241,7 @@ describe("a club in a match", () => {
 
   it("leaves out a player the match removed, and brings back only who stayed home", () => {
     const stored = club(1_000_000);
-    const hire = hireGutterSpecialist(stored, template("Dark Elf Blitzer"));
-    if (!hire.hired) throw new Error(hire.reason);
+    const extra = homeExtra(stored);
     const matchCopy = structuredClone(stored);
     prepareClubSquad(matchCopy, "sevens");
     const removed = fixtureLineman(matchCopy).id;
@@ -254,25 +250,59 @@ describe("a club in a match", () => {
     restoreClubHome(matchCopy, stored);
     const ids = matchCopy.players.map((player) => player.id);
     expect(ids).not.toContain(removed);
-    expect(ids).toContain(hire.player.id);
+    expect(ids).toContain(extra.id);
     expect(matchCopy.players).toHaveLength(7);
   });
 
   it("gives a Journeyman who took a home player's number a free one", () => {
     const stored = club(1_000_000);
-    const hire = hireGutterSpecialist(stored, template("Dark Elf Blitzer"));
-    if (!hire.hired) throw new Error(hire.reason);
+    const extra = homeExtra(stored);
     const matchCopy = structuredClone(stored);
     prepareClubSquad(matchCopy, "sevens");
     const journeyman = structuredClone(fixtureLineman(matchCopy));
     journeyman.id = "journeyman";
-    journeyman.number = hire.player.number;
+    journeyman.number = extra.number;
     matchCopy.players.push(journeyman);
 
     restoreClubHome(matchCopy, stored);
     const numbers = matchCopy.players.map((player) => player.number);
     expect(new Set(numbers).size).toBe(numbers.length);
-    expect(matchCopy.players.find((player) => player.id === hire.player.id)?.number).toBe(12);
+    expect(matchCopy.players.find((player) => player.id === extra.id)?.number).toBe(extra.number);
+  });
+
+  it("gives a Journeyman an ID that no player at home holds", () => {
+    const stored = club(1_000_000);
+    const extra = homeExtra(stored);
+    extra.id = `${stored.id}-journeyman-${String(extra.number)}`;
+    fixtureLineman(stored).injuries = [InjuryType.MISS_NEXT_GAME];
+    const home = structuredClone(stored);
+    const away = club();
+    away.id = "away";
+
+    createMatchState({ team1: home, team2: away, fixture: { paysWinnings: true } });
+    restoreClubHome(home, stored);
+
+    const ids = home.players.map((player) => player.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(home.players.find((player) => player.id === extra.id)?.positionName).toBe("Dark Elf Blitzer");
+    expect(home.players.filter((player) => player.playerKind === "journeyman")).toHaveLength(1);
+  });
+
+  it("counts a competition game spent at home as the game a player had to miss", () => {
+    const missedGame = (competition: boolean) => {
+      const stored = club(1_000_000);
+      const extra = homeExtra(stored);
+      extra.injuries = [InjuryType.MISS_NEXT_GAME];
+      const home = structuredClone(stored);
+      const away = club();
+      away.id = "away";
+      createMatchState({ team1: home, team2: away, fixture: { competition } });
+      restoreClubHome(home, stored);
+      return home.players.find((player) => player.id === extra.id)?.injuries;
+    };
+
+    expect(missedGame(true)).toEqual([]);
+    expect(missedGame(false)).toEqual([InjuryType.MISS_NEXT_GAME]);
   });
 
   it("plays no friendlies during a tournament but may during a league", () => {

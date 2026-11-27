@@ -21,8 +21,12 @@ import {
   teamGameType,
   teamGameTypeLabel,
 } from "./draftRules";
-import { freeRosterNumber, uniquePlayerId } from "./playerSlots";
-import { isGutterSpecialist } from "./club";
+import {
+  freeRosterNumber,
+  rosterSlotsFor,
+  uniquePlayerId,
+} from "./playerSlots";
+import { CLUB_MAX_POSITIONALS, CLUB_ROSTER_SLOTS } from "./club";
 import { countInsignificant } from "./insignificant";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { Inducement } from "../../types/Inducements";
@@ -304,9 +308,7 @@ export function draftInducementCount(
 export function draftListPlayers(team: Team): Player[] {
   return team.players.filter(
     (player) =>
-      staysOnRoster(team, player) &&
-      !isPendingRecruit(team, player.id) &&
-      !isGutterSpecialist(team, player)
+      staysOnRoster(team, player) && !isPendingRecruit(team, player.id)
   );
 }
 
@@ -316,8 +318,13 @@ export interface PositionAllowance {
 }
 
 function rosterSizeLimit(team: Team): number {
+  if (team.club) return CLUB_ROSTER_SLOTS;
   const { maxPlayers } = teamDraftRules(team);
   return Math.min(team.maxRosterSize, maxPlayers);
+}
+
+function positionalLimit(team: Team): number {
+  return team.club ? CLUB_MAX_POSITIONALS : teamDraftRules(team).maxNonLinemen;
 }
 
 export function positionAllowance(
@@ -326,8 +333,7 @@ export function positionAllowance(
 ): PositionAllowance {
   const rosterLimit = rosterSizeLimit(team);
   const caps = [template.maxAllowed ?? rosterLimit, rosterLimit];
-  if (!isLinemanPosition(template.keywords))
-    caps.push(teamDraftRules(team).maxNonLinemen);
+  if (!isLinemanPosition(template.keywords)) caps.push(positionalLimit(team));
   return {
     hired: draftListPlayers(team).filter(
       (player) => player.positionName === template.positionName
@@ -352,10 +358,8 @@ export function hireRefusal(
   }
   if (
     joiningPlayerId === undefined &&
-    team.players.filter(
-      (player) =>
-        staysOnRoster(team, player) && !isGutterSpecialist(team, player)
-    ).length >= limit
+    team.players.filter((player) => staysOnRoster(team, player)).length >=
+      limit
   ) {
     return `A ${label} team may have at most ${String(limit)} players, counting a Journeyman or recruit still waiting on a hiring decision.`;
   }
@@ -368,14 +372,7 @@ function compositionRefusal(
   template: PlayerTemplate,
   listed: Player[]
 ): string | undefined {
-  const clubWide = [
-    ...listed,
-    ...team.players.filter(
-      (player) =>
-        isGutterSpecialist(team, player) && staysOnRoster(team, player)
-    ),
-  ];
-  const ofPosition = clubWide.filter(
+  const ofPosition = listed.filter(
     (player) => player.positionName === template.positionName
   ).length;
   if (template.maxAllowed !== undefined && ofPosition >= template.maxAllowed) {
@@ -385,11 +382,11 @@ function compositionRefusal(
   if (
     maxBigGuys !== undefined &&
     isBigGuy(template.keywords) &&
-    clubWide.filter((player) => isBigGuy(player.keywords)).length >= maxBigGuys
+    listed.filter((player) => isBigGuy(player.keywords)).length >= maxBigGuys
   ) {
     return `${team.rosterName} teams may have at most ${String(maxBigGuys)} Big Guy${maxBigGuys === 1 ? "" : "s"}.`;
   }
-  const { maxNonLinemen } = teamDraftRules(team);
+  const maxNonLinemen = positionalLimit(team);
   if (
     !isLinemanPosition(template.keywords) &&
     listed.filter((player) => !isLinemanPosition(player.keywords)).length >=
@@ -423,7 +420,7 @@ export function hirePlayer(
   if (number === null) {
     return {
       amount: null,
-      reason: "Every roster number from 1 to 11 is taken.",
+      reason: `Every roster number from 1 to ${String(rosterSlotsFor(team))} is taken.`,
     };
   }
   const player = createPlayer(template, team.id, number);

@@ -260,24 +260,18 @@ function clubViolations(
           },
         ]
       : [];
-  const core = validateRosterLegality(
-    clubSquad(team, DEFAULT_GAME_TYPE),
+  const squad = validateRosterLegality(
+    clubSquad(team, gameType),
     roster,
-    DEFAULT_GAME_TYPE
-  );
-  const squad =
-    gameType === DEFAULT_GAME_TYPE
-      ? []
-      : validateRosterLegality(clubSquad(team, gameType), roster, gameType).filter(
-          (violation) => !CLUB_SQUAD_IGNORES.has(violation.rule)
-        );
-  const unique = new Map(
-    [...core, ...squad].map((violation) => [violation.detail, violation])
+    gameType
+  ).filter(
+    (violation) =>
+      gameType === DEFAULT_GAME_TYPE || !CLUB_SQUAD_IGNORES.has(violation.rule)
   );
   return [
     ...(locked ? [{ rule: "gutter-locked", detail: locked }] : []),
     ...founding,
-    ...unique.values(),
+    ...squad,
   ];
 }
 
