@@ -1,6 +1,10 @@
 import { useId, useMemo, useState } from "react";
 import { Title } from "../componentWarehouse/HudTitle";
-import { roundFixtures, roundPlan } from "../../../competition/roundPlan";
+import {
+  roundFixtures,
+  roundGameType,
+  roundPlan,
+} from "../../../competition/roundPlan";
 import {
   type CompetitionDoc,
   type CompetitionEntrant,
@@ -9,6 +13,7 @@ import {
 import { type TeamColors } from "../../../types/Team";
 import { loadTeams } from "../../../game/managers/TeamManager";
 import { TeamCrest } from "../common/TeamCrest";
+import { GameTypeName } from "../common/GameTypeBadge";
 import { cx, Section } from "../componentWarehouse/HudKit";
 import { coachLabel, PLAYED_VIA } from "../competition/labels";
 import {
@@ -18,6 +23,19 @@ import {
 } from "./TournamentBracket";
 
 type Kits = (entrant?: CompetitionEntrant) => TeamColors | undefined;
+
+function RoundGameType({
+  fixtures,
+  round,
+}: {
+  fixtures: readonly CompetitionFixture[];
+  round: number;
+}) {
+  const gameType = roundGameType(fixtures, round);
+  return gameType ? (
+    <GameTypeName gameType={gameType} className="hud-label text-hud-dim" />
+  ) : null;
+}
 
 interface LeagueRoundsProps {
   competition: CompetitionDoc;
@@ -69,7 +87,10 @@ export function LeagueRounds({
           <div className="grid lg:grid-cols-2 gap-6">
             {plan.upcoming.map((round) => (
               <div key={round}>
-                <Title level="row" as="h3" className="mb-2">Round {round}</Title>
+                <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Title level="row" as="h3">Round {round}</Title>
+                  <RoundGameType fixtures={competition.fixtures} round={round} />
+                </div>
                 <div className="space-y-3">
                   {roundFixtures(competition.fixtures, round).map(
                     (element) => renderCompactFixture(element)
@@ -85,7 +106,11 @@ export function LeagueRounds({
         <Section title="Completed rounds">
           <div className="space-y-3">
             {plan.completed.map((round) => (
-              <CompletedRound key={round} round={round}>
+              <CompletedRound
+                key={round}
+                round={round}
+                gameType={<RoundGameType fixtures={competition.fixtures} round={round} />}
+              >
                 {roundFixtures(competition.fixtures, round).map(
                   (element) => renderCompactFixture(element)
                 )}
@@ -124,9 +149,12 @@ function NextRound({
         data-testid="next-round"
         className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
       >
-        <Title level="card" as="h3">
-          Round {round}
-        </Title>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Title level="card" as="h3">
+            Round {round}
+          </Title>
+          <RoundGameType fixtures={fixtures} round={round} />
+        </span>
         <span className="hud-label text-hud-dim">
           {played} of {fixtures.length}{" "}
           {fixtures.length === 1 ? "game" : "games"} played
@@ -300,9 +328,11 @@ function FixtureSide({
 
 function CompletedRound({
   round,
+  gameType,
   children,
 }: {
   round: number;
+  gameType: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -325,7 +355,10 @@ function CompletedRound({
           }}
           className="flex min-h-[44px] w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
         >
-          <Title level="row" as="span">Round {round}</Title>
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Title level="row" as="span">Round {round}</Title>
+            {gameType}
+          </span>
           <span aria-hidden className="flex items-center gap-2 text-hud-dim">
             <svg
               viewBox="0 0 12 12"

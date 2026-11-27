@@ -2,6 +2,7 @@ import type { Player } from "../../../types/Player";
 import type { Team } from "../../../types/Team";
 import { getRosterByRosterName } from "../../../data/RosterTemplates";
 import {
+  CLUB_GAME_TYPES,
   clubPlayers,
   followSevens,
   setSquadMember,
@@ -13,12 +14,6 @@ import { GAME_TYPE_LABELS, type GameType } from "../../../game/variants/gameType
 import { Chip, HudButton, Section } from "../componentWarehouse/HudKit";
 import { GameTypeName } from "../common/GameTypeBadge";
 
-const SQUAD_TYPES: readonly GameType[] = [
-  "sevens",
-  "street-bowl",
-  "beach-bowl",
-  "gutter-bowl",
-];
 
 type Change = (team: Team) => void;
 
@@ -87,7 +82,7 @@ function PlayerRow({ team, player, onChange }: { team: Team; player: Player; onC
           <span className="ml-2 text-hud-sm text-hud-dim">positional</span>
         )}
       </td>
-      {SQUAD_TYPES.map((gameType) => (
+      {CLUB_GAME_TYPES.map((gameType) => (
         <td key={gameType} className="text-center">
           <input
             type="checkbox"
@@ -122,7 +117,7 @@ export function SquadGrid({ team, onChange }: { team: Team; onChange: Change }) 
             <th>#</th>
             <th>Player</th>
             <th>Position</th>
-            {SQUAD_TYPES.map((gameType) => (
+            {CLUB_GAME_TYPES.map((gameType) => (
               <SquadHeading key={gameType} team={team} gameType={gameType} onChange={onChange} />
             ))}
           </tr>
@@ -133,7 +128,7 @@ export function SquadGrid({ team, onChange }: { team: Team; onChange: Change }) 
           ))}
           <tr>
             <td colSpan={3} className="hud-label">Squad</td>
-            {SQUAD_TYPES.map((gameType) => (
+            {CLUB_GAME_TYPES.map((gameType) => (
               <SquadStatus key={gameType} team={team} gameType={gameType} />
             ))}
           </tr>

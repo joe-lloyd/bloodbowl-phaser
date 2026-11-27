@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { fixtureResultSchema } from "./FixtureResult";
+import { gameTypeSchema } from "./GameType";
 import type { CompetitionFixture } from "../../competition/types";
 
 export const competitionFixtureSchema: z.ZodType<CompetitionFixture> =
@@ -18,6 +19,7 @@ export const competitionFixtureSchema: z.ZodType<CompetitionFixture> =
     sourceFixtureIds: z.string().array().exactOptional(),
     nextFixtureId: z.string().exactOptional(),
     nextSlot: z.union([z.literal("home"), z.literal("away")]).exactOptional(),
+    gameType: gameTypeSchema.exactOptional(),
     loserNextFixtureId: z.string().exactOptional(),
     loserNextSlot: z.union([z.literal("home"), z.literal("away")]).exactOptional(),
     thirdPlace: z.literal(true).exactOptional(),

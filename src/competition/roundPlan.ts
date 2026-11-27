@@ -1,3 +1,4 @@
+import type { GameType } from "../game/variants/gameTypes";
 import type { CompetitionFixture } from "./types";
 
 export interface RoundPlan {
@@ -29,4 +30,12 @@ export function roundFixtures(
   round: number
 ): CompetitionFixture[] {
   return fixtures.filter((fixture) => fixture.round === round);
+}
+
+export function roundGameType(
+  fixtures: readonly CompetitionFixture[],
+  round: number
+): GameType | undefined {
+  return fixtures.find((fixture) => fixture.round === round && fixture.gameType)
+    ?.gameType;
 }

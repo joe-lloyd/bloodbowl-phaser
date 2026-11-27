@@ -61,7 +61,7 @@ const MARKS: Record<GameType, ReactElement> = {
   ),
 };
 
-function GameTypeBadge({ gameType, size }: { gameType: GameType; size: number }) {
+export function GameTypeBadge({ gameType, size }: { gameType: GameType; size: number }) {
   return (
     <svg
       width={size}

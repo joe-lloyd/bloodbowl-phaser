@@ -10,11 +10,7 @@ vi.mock("../../src/firebase/config", () => ({
 }));
 
 import { createComputerTeam } from "../fixtures/computerTeam";
-import {
-  homeLeagueOf,
-  SEASON_GAME_TYPES,
-  startSeason,
-} from "../../src/competition/homeLeague";
+import { homeLeagueOf, startSeason } from "../../src/competition/homeLeague";
 import {
   finishSeason,
   playOffPlaces,
@@ -31,6 +27,7 @@ import { RNGService } from "../../src/services/rng/RNGService";
 import { RosterName, type SeasonRecord, type Team, calculateTeamValue } from "../../src/types/Team";
 
 const SEASONS = Number(env["CLUB_SEASONS_COUNT"] ?? "4");
+const SEASON_GAME_TYPES = ["sevens", "street-bowl", "beach-bowl"] as const;
 
 interface Finding {
   where: string;
@@ -151,7 +148,7 @@ describe.runIf(env["CLUB_SEASONS"] === "1")("club league seasons", () => {
     for (let season = 1; season <= SEASONS; season++) {
       const where = `season ${String(season)}`;
       const gameType = fixtureValue(SEASON_GAME_TYPES[(season - 1) % SEASON_GAME_TYPES.length]);
-      const league = await startSeason(club.id, { gameType, difficulty: "standard", organizerUid: null }, random);
+      const league = await startSeason(club.id, { format: { kind: "single", gameType }, difficulty: "standard", organizerUid: null }, random);
       checkSeasonStart(where, league, club.id);
       const rivalIds = league.entrants.map((entrant) => entrant.teamId).filter((id) => id !== club.id);
       const rivals = arrivals(previousRivals, everSeen, rivalIds);

@@ -90,6 +90,8 @@ export interface CompetitionFixture {
   nextFixtureId?: string;
   nextSlot?: "home" | "away";
 
+  gameType?: GameType;
+
   loserNextFixtureId?: string;
   loserNextSlot?: "home" | "away";
 

@@ -7,10 +7,11 @@ import {
   GAME_TYPE_SUMMARIES,
 } from "../../../game/variants/gameTypes";
 import { type CompetitionDoc } from "../../../competition/types";
+import { competitionGameTypes } from "../../../competition/fixtureContext";
 
 type RulesLineCompetition = Pick<
   CompetitionDoc,
-  "gameType" | "ruleset" | "online"
+  "gameType" | "ruleset" | "online" | "fixtures"
 >;
 
 function onlineNote({ online }: RulesLineCompetition): string {
@@ -24,6 +25,16 @@ export function CompetitionRulesLine({
 }: {
   competition: RulesLineCompetition;
 }) {
+  const gameTypes = competitionGameTypes(competition);
+  if (gameTypes.length > 1) {
+    return (
+      <p className="mb-6 font-hud-body text-hud-sm text-hud-dim">
+        Mixed game types: {gameTypes.map((gameType) => GAME_TYPE_LABELS[gameType]).join(", ")}.
+        Each round shows the game type it is played in.
+        {onlineNote(competition)}
+      </p>
+    );
+  }
   if (competition.gameType !== undefined && competition.gameType !== "sevens") {
     return (
       <p className="mb-6 font-hud-body text-hud-sm text-hud-dim">
