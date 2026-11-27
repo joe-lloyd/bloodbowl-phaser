@@ -67,31 +67,25 @@ export function dugoutGateX(squares: DugoutSquares): number {
 
 type Step = readonly [number, number];
 
+type BoxRun = readonly [DugoutBox, number];
+
 interface DugoutStrip {
   readonly start: Step;
   readonly along: Step;
   readonly depth: Step;
+  readonly boxes: readonly BoxRun[];
 }
 
 export const ARENA_SEATS = ["north", "east", "south", "west"] as const;
 
 type ArenaSeat = (typeof ARENA_SEATS)[number];
 
-export type ArenaStrips = Readonly<Record<ArenaSeat, DugoutStrip>>;
+export type ArenaStrips = Readonly<
+  Record<ArenaSeat, readonly [DugoutStrip, DugoutStrip]>
+>;
 
-const STRIP_ORDER = [
-  "reserves",
-  "ko",
-  "injured",
-  "sent off",
-] as const satisfies readonly DugoutBox[];
-
-function boxStart(name: DugoutBox): number {
-  return STRIP_ORDER.slice(0, STRIP_ORDER.indexOf(name)).reduce(
-    (sum, box) => sum + HOME_COLUMNS[box].length,
-    0
-  );
-}
+const BENCH_GAP = 1;
+const BENCH_BOX = 10;
 
 function stripPoint(
   strip: DugoutStrip,
@@ -105,21 +99,38 @@ function stripPoint(
   ];
 }
 
-function stripBox(strip: DugoutStrip, name: DugoutBox): [number, number][] {
-  const first = boxStart(name);
+function runSquares(
+  strip: DugoutStrip,
+  first: number,
+  length: number
+): [number, number][] {
   return BENCH_DEPTHS.flatMap((_, j) =>
-    HOME_COLUMNS[name].map((_column, k) =>
+    Array.from({ length }, (_square, k) =>
       stripPoint(strip, first + k + 0.5, j + 0.5)
     )
   );
 }
 
-function stripSquares(strip: DugoutStrip): DugoutSquares {
+function stripBox(strip: DugoutStrip, name: DugoutBox): [number, number][] {
+  return strip.boxes.flatMap(([box, length], index) =>
+    box === name
+      ? runSquares(
+          strip,
+          strip.boxes.slice(0, index).reduce((sum, [, n]) => sum + n, 0),
+          length
+        )
+      : []
+  );
+}
+
+function seatSquares(strips: readonly DugoutStrip[]): DugoutSquares {
+  const box = (name: DugoutBox) =>
+    strips.flatMap((strip) => stripBox(strip, name));
   return {
-    reserves: stripBox(strip, "reserves"),
-    ko: stripBox(strip, "ko"),
-    injured: stripBox(strip, "injured"),
-    "sent off": stripBox(strip, "sent off"),
+    reserves: box("reserves"),
+    ko: box("ko"),
+    injured: box("injured"),
+    "sent off": box("sent off"),
   };
 }
 
@@ -128,22 +139,44 @@ const turnStep = ([x, y]: Step): Step => [-y, x];
 function quarterTurn(size: number, strip: DugoutStrip): DugoutStrip {
   const [x, y] = strip.start;
   return {
+    ...strip,
     start: [size - y, x],
     along: turnStep(strip.along),
     depth: turnStep(strip.depth),
   };
 }
 
+function turnSeat(
+  size: number,
+  strips: readonly [DugoutStrip, DugoutStrip]
+): readonly [DugoutStrip, DugoutStrip] {
+  return [quarterTurn(size, strips[0]), quarterTurn(size, strips[1])];
+}
+
 export function arenaDugoutStrips(layout: PitchLayout): ArenaStrips {
   const { arm } = layout.frames[0];
-  const north: DugoutStrip = {
-    start: [arm.offset + arm.width + 1, arm.offset - 1],
+  const ring = BENCH_GAP + BENCH_DEPTHS.length;
+  const benchLength = layout.cols + ring + BENCH_GAP;
+  const reserves: DugoutStrip = {
+    start: [arm.offset + arm.width + BENCH_GAP, arm.offset - BENCH_GAP],
     along: [0, -1],
     depth: [1, 0],
+    boxes: [["reserves", HOME_COLUMNS.reserves.length]],
   };
-  const east = quarterTurn(layout.cols, north);
-  const south = quarterTurn(layout.cols, east);
-  return { north, east, south, west: quarterTurn(layout.cols, south) };
+  const bench: DugoutStrip = {
+    start: [layout.cols + ring, -BENCH_GAP],
+    along: [-1, 0],
+    depth: [0, -1],
+    boxes: [
+      ["ko", BENCH_BOX],
+      ["injured", BENCH_BOX],
+      ["sent off", benchLength - 2 * BENCH_BOX],
+    ],
+  };
+  const north = [reserves, bench] as const;
+  const east = turnSeat(layout.cols, north);
+  const south = turnSeat(layout.cols, east);
+  return { north, east, south, west: turnSeat(layout.cols, south) };
 }
 
 export function arenaDugouts(
@@ -151,9 +184,9 @@ export function arenaDugouts(
 ): Readonly<Record<ArenaSeat, DugoutSquares>> {
   const strips = arenaDugoutStrips(layout);
   return {
-    north: stripSquares(strips.north),
-    east: stripSquares(strips.east),
-    south: stripSquares(strips.south),
-    west: stripSquares(strips.west),
+    north: seatSquares(strips.north),
+    east: seatSquares(strips.east),
+    south: seatSquares(strips.south),
+    west: seatSquares(strips.west),
   };
 }
