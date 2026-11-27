@@ -1,7 +1,7 @@
 import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
-import { type Team } from "@/types/Team";
+import { everyone, playerAt, playerById, type Seating } from "../seating";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { BlockResolutionService } from "../../services/BlockResolutionService";
@@ -17,8 +17,7 @@ import { isStandableSquare } from "../rules/pitchSquares";
 export abstract class BlockManagerBase {
   protected eventBus: IEventBus;
   protected state: GameState;
-  protected team1: Team;
-  protected team2: Team;
+  protected seating: Seating;
   protected blockResolutionService: BlockResolutionService;
   protected diceController: DiceController;
   protected callbacks: {
@@ -28,8 +27,7 @@ export abstract class BlockManagerBase {
   constructor(
     eventBus: IEventBus,
     state: GameState,
-    team1: Team,
-    team2: Team,
+    seating: Seating,
     blockResolutionService: BlockResolutionService,
     diceController: DiceController,
     callbacks: {
@@ -39,8 +37,7 @@ export abstract class BlockManagerBase {
   ) {
     this.eventBus = eventBus;
     this.state = state;
-    this.team1 = team1;
-    this.team2 = team2;
+    this.seating = seating;
     this.blockResolutionService = blockResolutionService;
     this.diceController = diceController;
     this.callbacks = callbacks;
@@ -61,9 +58,7 @@ export abstract class BlockManagerBase {
   }
 
   protected getPlayerAt(x: number, y: number): Player | undefined {
-    return [...this.team1.players, ...this.team2.players].find(
-      (p) => p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
-    );
+    return playerAt(this.seating, { x, y });
   }
 
   protected isOnBall(player: Player): boolean {
@@ -137,14 +132,11 @@ export abstract class BlockManagerBase {
   }
 
   protected getPlayerById(playerId: string): Player | undefined {
-    return (
-      this.team1.players.find((p) => p.id === playerId) ||
-      this.team2.players.find((p) => p.id === playerId)
-    );
+    return playerById(this.seating, playerId);
   }
 
   protected allPlayers(): Player[] {
-    return [...this.team1.players, ...this.team2.players];
+    return everyone(this.seating);
   }
 
   protected decisions() {

@@ -4,6 +4,8 @@ import { type GameState } from "../../../src/types/GameState";
 import { type Team } from "../../../src/types/Team";
 import { type Player, PlayerStatus } from "../../../src/types/Player";
 import { GameEventNames } from "../../../src/types/events";
+import { seatTeams } from "../../../src/game/seating";
+import { activeLayout } from "../../../src/game/variants/activeMatch";
 
 describe("BlockManager", () => {
   let manager: BlockManager;
@@ -56,8 +58,7 @@ describe("BlockManager", () => {
     manager = new BlockManager(
       mockEventBus,
       mockState,
-      mockTeam1,
-      mockTeam2,
+      seatTeams([mockTeam1, mockTeam2], activeLayout()),
       mockBlockResolutionService,
       mockDiceController,
       {

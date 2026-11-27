@@ -363,8 +363,7 @@ function makeActionControllers(
   ballManager: BallManager,
   blockResolutionService: BlockResolutionService
 ) {
-  const { eventBus, state, team1, team2, diceController, game, flowManager } =
-    core;
+  const { eventBus, state, seating, diceController, game, flowManager } = core;
   const passController = new PassController(
     eventBus,
     ballManager.movementController,
@@ -378,8 +377,7 @@ function makeActionControllers(
   const movementManager = new MovementManager(
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     diceController,
     {
       onTurnover: (reason: string) => {
@@ -397,8 +395,7 @@ function makeActionControllers(
   const blockManager = new BlockManager(
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     blockResolutionService,
     diceController,
     {

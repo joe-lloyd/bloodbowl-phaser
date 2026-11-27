@@ -2,7 +2,12 @@ import { activeRules } from "@/game/variants/activeMatch";
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
 import { ballOnSquare, groundBall } from "@/game/rules/ballInTheAir";
-import { type Team } from "@/types/Team";
+import {
+  opponentsOf,
+  type Seating,
+  seatOf,
+  teammatesOf,
+} from "../seating";
 import {
   type Player,
   PlayerStatus,
@@ -44,8 +49,7 @@ export interface Square {
 export interface MovementDeps {
   eventBus: IEventBus;
   state: GameState;
-  team1: Team;
-  team2: Team;
+  seating: Seating;
   diceController: DiceController;
   dodgeController: DodgeController;
   movementValidator: MovementValidator;
@@ -58,25 +62,6 @@ export interface MovementDeps {
 
 export function movementUsed(state: GameState, playerId: string): number {
   return state.turn.movementUsed.get(playerId) || 0;
-}
-
-export function findPlayer(
-  { team1, team2 }: MovementDeps,
-  playerId: string
-): Player | undefined {
-  return (
-    team1.players.find((p) => p.id === playerId) ||
-    team2.players.find((p) => p.id === playerId)
-  );
-}
-
-export function teamsOf(
-  { team1, team2 }: MovementDeps,
-  player: Player
-): { own: Team; opp: Team } {
-  return player.teamId === team1.id
-    ? { own: team1, opp: team2 }
-    : { own: team2, opp: team1 };
 }
 
 export function heldInSquare(eventBus: IEventBus, player: Player): boolean {
@@ -102,11 +87,12 @@ async function rollToStand(
   player: Player
 ): Promise<boolean> {
   if (player.stats.MA >= 3) return true;
-  const { own, opp } = teamsOf(deps, player);
   const ctx: StandUpRollContext = {
     player,
-    teammates: own.players.filter((p) => p.id !== player.id && p.gridPosition),
-    opponents: opp.players.filter((p) => p.gridPosition),
+    teammates: teammatesOf(deps.seating, player.id),
+    opponents: opponentsOf(deps.seating, player.teamId).filter(
+      (p) => p.gridPosition
+    ),
     modifiers: 0,
     triggers: [],
   };
@@ -124,12 +110,13 @@ function actionContinues(deps: MovementDeps, player: Player): boolean {
   if (activePlayer?.id !== player.id || !activePlayer.action) return false;
   if (activePlayer.action === "pass" && !carrierMayPass(deps.state))
     return false;
-  const { own, opp } = teamsOf(deps, player);
   return actsFromHere(activePlayer.action, {
     player,
     ballPosition: groundBall(deps.state),
-    opponents: opp.players,
-    teammates: own.players.filter(({ id }) => id !== player.id),
+    opponents: opponentsOf(deps.seating, player.teamId),
+    teammates: seatOf(deps.seating, player.teamId).team.players.filter(
+      ({ id }) => id !== player.id
+    ),
   });
 }
 
