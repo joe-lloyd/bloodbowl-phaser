@@ -1,28 +1,32 @@
 import { readFileSync } from "node:fs";
-import { crc32, deflateSync, inflateSync } from "node:zlib";
-import { z } from "zod";
-import type { LayerData } from "../../src/boundary/layeredArt";
-import { parseJson } from "../../src/boundary/json";
+import { crc32, deflateSync } from "node:zlib";
+import { Decompress, decompress } from "fzstd";
+import {
+  LAYER_FILE,
+  readLayerBlob,
+  readLayerHeader,
+  type LayerData,
+  type LayerIndex,
+} from "../../src/boundary/layeredArt";
 
-const FRAME = z.tuple([
-  z.number(),
-  z.number(),
-  z.number(),
-  z.number(),
-  z.number(),
-]);
-
-const LAYER_INDEX = z.object({
-  frames: z.record(z.string(), FRAME),
-  pixels: z.number(),
-});
+const INDEX_CHUNK = 16_384;
 
 export function readLayerFiles(base: string): LayerData {
-  const meta = parseJson(readFileSync(`${base}.json`, "utf8"), LAYER_INDEX);
-  const planes = inflateSync(readFileSync(`${base}.bin`));
-  if (planes.length !== meta.pixels * 3)
-    throw new Error(`Bad sprite layer ${base}`);
-  return { ...meta, planes };
+  return readLayerBlob(decompress(readFileSync(`${base}${LAYER_FILE}`)), base);
+}
+
+export function readLayerIndex(base: string): LayerIndex {
+  const packed = readFileSync(`${base}${LAYER_FILE}`);
+  const head: Uint8Array[] = [];
+  const stream = new Decompress((chunk) => {
+    head.push(chunk);
+  });
+  for (let at = 0; at < packed.length; at += INDEX_CHUNK) {
+    stream.push(packed.subarray(at, at + INDEX_CHUNK), at + INDEX_CHUNK >= packed.length);
+    const index = readLayerHeader(Buffer.concat(head));
+    if (index) return index;
+  }
+  throw new Error(`Layer ${base} has no index`);
 }
 
 function chunk(type: string, data: Buffer): Buffer {

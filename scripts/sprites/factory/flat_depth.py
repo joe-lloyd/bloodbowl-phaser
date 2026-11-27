@@ -7,8 +7,9 @@ pixel's depth matters only where two layers of the same folder can both cover it
 Everywhere else this stores the depth of the kept pixel to its left, which delta-codes to 0, and zlib
 packs the depth plane far smaller. Any set of layers still composes to the same pixels: the script
 checks that every pixel two layers cover keeps its depth. Shade layers carry no depth and stay as they
-are. install_layered.py runs it before writing the portrait copies; run it by hand for models already in
-public/. Running it twice changes nothing.
+are. install_layered.py runs it on the unpacked .json/.bin layers before writing the portrait copies and
+packing them into .layer files, so it finds nothing to do on a packed model. Running it twice changes
+nothing.
 """
 import json
 import sys

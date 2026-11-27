@@ -2,7 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseLayeredModels, type LayeredModel } from "../../../src/boundary/layeredArt";
+import { LAYER_FILE, parseLayeredModels, type LayeredModel } from "../../../src/boundary/layeredArt";
 import manifest from "../../../src/game/presentation/spriteManifest.json";
 import { PlayerPortrait } from "../../../src/ui/components/common/PlayerPortrait";
 
@@ -12,7 +12,7 @@ const positions: Record<string, Record<string, string>> = manifest.positions;
 
 function portraitBytes(model: string, body: string, layer: string): number {
   const base = `public/sprites/bloodbowl/${model}/layered/${body}/portrait/${layer}`;
-  return statSync(`${base}.bin`).size + statSync(`${base}.json`).size;
+  return statSync(`${base}${LAYER_FILE}`).size;
 }
 
 function heaviestLook(model: string, art: LayeredModel, body: string): number {

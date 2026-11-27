@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.28.12",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.15"
   },
   "scripts": {
     "dev": "vite",
@@ -65,6 +65,7 @@
   "dependencies": {
     "cannon-es": "0.20.0",
     "firebase": "^12.16.0",
+    "fzstd": "0.1.1",
     "phaser": "^3.80.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
