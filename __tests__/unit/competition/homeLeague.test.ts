@@ -7,6 +7,7 @@ vi.mock("../../../src/firebase/config", () => ({
 
 import {
   homeLeagueOf,
+  liftForGutter,
   type SeasonSetup,
   startSeason,
 } from "../../../src/competition/homeLeague";
@@ -19,7 +20,10 @@ import {
 } from "../../../src/game/rules/redraft";
 import { fixtureContext } from "../../../src/competition/fixtureContext";
 import { getCompetition } from "../../../src/competition/repository";
-import { recordCompetitionFixture } from "../../../src/competition/resultRecording";
+import {
+  recordCompetitionFixture,
+  withdrawFromCompetition,
+} from "../../../src/competition/resultRecording";
 import type { CompetitionDoc, CompetitionType } from "../../../src/competition/types";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { getTeamById, saveTeam } from "../../../src/game/managers/TeamManager";
@@ -360,6 +364,54 @@ describe("a season of mixed game types", () => {
     const record = await finishSeason(club.id, seeded(14));
     expect(record.gameTypes).toEqual(["sevens", "beach-bowl"]);
     expect(homeLeagueOf(fixtureValue(getTeamById(club.id))).format).toEqual(format);
+  });
+
+  it("draws the next random round when a withdrawal finishes the round", async () => {
+    const club = await foundHumanClub();
+    const league = await startSeason(
+      club.id,
+      { ...setup, format: { kind: "random", gameTypes: ["sevens", "street-bowl"] } },
+      () => 0.1
+    );
+    const clubEntrant = fixtureValue(league.entrants.find((entrant) => entrant.teamId === club.id));
+    for (const fixture of league.fixtures) {
+      if (fixture.round !== 1) continue;
+      if ([fixture.homeEntrantId, fixture.awayEntrantId].includes(clubEntrant.id)) continue;
+      await recordCompetitionFixture({
+        context: fixtureContext({ competition: league, fixtureId: fixture.id, playedVia: "reported" }),
+        homeScore: 1,
+        awayScore: 0,
+      });
+    }
+
+    const withdrawn = await withdrawFromCompetition(
+      { competitionType: "league", competitionId: league.id },
+      clubEntrant.id
+    );
+    expect(roundTypes(withdrawn)[0]).toEqual(["sevens"]);
+    expect(fixtureValue(roundTypes(withdrawn)[1])[0]).toBeDefined();
+  });
+
+  it("lifts a computer club below 750k for Gutter Bowl and leaves other teams alone", async () => {
+    const coached = await foundHumanClub();
+    const computer = foundClub("Grail Fail", RosterName.HUMAN);
+    computer.computerCoached = true;
+    const rich = foundClub("Gold Diggers", RosterName.HUMAN);
+    rich.computerCoached = true;
+    rich.treasury = 900_000;
+    await saveTeam(computer);
+    await saveTeam(rich);
+
+    await liftForGutter([coached, computer, rich].map((team) => fixtureValue(getTeamById(team.id))));
+
+    const coachedAfter = fixtureValue(getTeamById(coached.id));
+    const computerAfter = fixtureValue(getTeamById(computer.id));
+    const richAfter = fixtureValue(getTeamById(rich.id));
+    expect(clubWorth(computerAfter)).toBe(750_000);
+    expect(computerAfter.club?.gutterUnlocked).toBe(true);
+    expect(coachedAfter.treasury).toBe(coached.treasury);
+    expect(coachedAfter.club?.gutterUnlocked).toBeUndefined();
+    expect(richAfter.treasury).toBe(900_000);
   });
 
   it("refuses a random season with only one game type to draw", async () => {

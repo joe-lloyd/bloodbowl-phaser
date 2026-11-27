@@ -4,6 +4,7 @@ import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import {
   type HomeLeague,
   type PlayOffFinish,
+  type SeasonFormat,
   type SeasonRecord,
   type Team,
   calculateTeamValue,
@@ -11,10 +12,12 @@ import {
 import { createCompetition } from "./create";
 import {
   homeLeagueOf,
+  liftForGutter,
   loadClub,
   seasonProfile,
   seasonRoundRules,
 } from "./homeLeague";
+import { formatGameTypes } from "../game/rules/seasonFormat";
 import { competitionGameTypes } from "./fixtureContext";
 import { getCompetition } from "./repository";
 import { runOffSeason } from "./offSeason";
@@ -74,15 +77,15 @@ function qualifiers(regular: LeagueDoc): Team[] {
   });
 }
 
+function seasonFormatOf(league: HomeLeague, regular: LeagueDoc): SeasonFormat {
+  return league.format ?? { kind: "single", gameType: readGameType(regular.gameType) };
+}
+
 function playOffRoundRules(
-  league: HomeLeague,
+  format: SeasonFormat,
   regular: LeagueDoc,
   random: Random
 ): ReturnType<typeof seasonRoundRules> {
-  const format = league.format ?? {
-    kind: "single",
-    gameType: readGameType(regular.gameType),
-  };
   const played = Math.max(0, ...regular.fixtures.map((fixture) => fixture.round));
   return seasonRoundRules(
     format,
@@ -100,15 +103,18 @@ export async function startPlayOffs(
   if (league.playOffsId) throw new Error("The play-offs have already started.");
   const regular = await regularSeason(league);
   await freeTeams(regular);
+  const format = seasonFormatOf(league, regular);
+  const teams = qualifiers(regular);
+  if (formatGameTypes(format).includes("gutter-bowl")) await liftForGutter(teams);
   const playOffs = await createCompetition({
     type: "tournament",
     format: "single-elimination",
     playOffs: true,
     name: `Club League, season ${String(league.season)} play-offs`,
-    ...playOffRoundRules(league, regular, random),
+    ...playOffRoundRules(format, regular, random),
     ...(regular.ruleset !== undefined && { ruleset: regular.ruleset }),
     organizerUid,
-    entrants: qualifiers(regular).map((team) => ({ team, ownerUid: organizerUid })),
+    entrants: teams.map((team) => ({ team, ownerUid: organizerUid })),
     profile: seasonProfile(),
     ...(regular.computerDifficulty !== undefined && {
       computerDifficulty: regular.computerDifficulty,

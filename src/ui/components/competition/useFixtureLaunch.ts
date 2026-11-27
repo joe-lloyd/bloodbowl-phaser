@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { errorText } from "../../errorText";
 import { fixtureContext, fixtureGameType } from "../../../competition/fixtureContext";
 import { fetchEntrantTeam } from "../../../competition/teamRefs";
+import { liftForGutter } from "../../../competition/homeLeague";
 import type {
   CompetitionDoc,
   CompetitionEntrant,
@@ -104,6 +105,8 @@ async function loadFixtureTeams(
   if (!home || !away) return null;
   const [homeTeam, awayTeam] = await Promise.all([fetchEntrantTeam(home), fetchEntrantTeam(away)]);
   if (!homeTeam || !awayTeam) return "Could not load one of the entrants' rosters.";
+  if (fixtureGameType(competition, fixture) === "gutter-bowl")
+    await liftForGutter([homeTeam, awayTeam]);
   const teams = { home, away, homeTeam, awayTeam };
   return (
     blockingDevelopment(competition, teams) ??

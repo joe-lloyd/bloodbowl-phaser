@@ -59,6 +59,14 @@ export function seasonRoundRules(
   };
 }
 
+export async function liftForGutter(teams: readonly Team[]): Promise<void> {
+  for (const team of teams) {
+    if (!team.club || !team.computerCoached || !gutterLockReason(team)) continue;
+    raiseToGutterFloor(team);
+    await saveTeam(team);
+  }
+}
+
 function assertFormatPlayable(club: Team, format: SeasonFormat): void {
   const problem = seasonFormatProblem(format);
   if (problem) throw new Error(problem);
@@ -166,7 +174,7 @@ export async function startSeason(
   assertFormatPlayable(club, setup.format);
   const rivals = await seasonRivals(club, league, random);
   if (formatGameTypes(setup.format).includes("gutter-bowl"))
-    for (const rival of rivals) raiseToGutterFloor(rival);
+    await liftForGutter(rivals);
   const competition = await createCompetition({
     type: "league",
     name: `Club League, season ${String(league.season)}`,
