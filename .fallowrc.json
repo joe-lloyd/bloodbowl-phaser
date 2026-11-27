@@ -1,0 +1,122 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "ignorePatterns": [
+    "**/*.{js,mjs,cjs,jsx}",
+    "**/*.css",
+    "**/vendor/**",
+    "public/**",
+    "**/.*/**",
+    "**/*.html"
+  ],
+  "entry": [
+    "src/gallery/cloud/firebaseApp.ts",
+    "src/gallery/cloud/firebaseAuth.ts",
+    "src/gallery/cloud/firebaseFirestore.ts",
+    "scripts/coach/catalogue-study.ts",
+    "scripts/coach/fit-evaluation.ts",
+    "scripts/coach/positions.ts",
+    "scripts/coach/race-rates.ts",
+    "scripts/page-shots/playwright.config.ts",
+    "scripts/perf/verifyRender.ts",
+    "scripts/coach/advanced-study/run.ts",
+    "scripts/coach/catalogue-study/audit.ts",
+    "scripts/coach/catalogue-study/repair.ts",
+    "scripts/coach/catalogue-study/rules.ts",
+    "scripts/coach/policy-lab/drama.ts",
+    "scripts/coach/policy-lab/evidence.ts",
+    "scripts/coach/policy-lab/fouls.ts",
+    "scripts/coach/policy-lab/moments.ts",
+    "scripts/coach/policy-lab/nailbiters.ts",
+    "scripts/coach/policy-lab/narrate.ts",
+    "scripts/coach/policy-study/run.ts",
+    "scripts/coach/trait-weights/collect.ts",
+    "e2e/fullgame/brain.ts",
+    "scripts/discover-block-seeds.ts",
+    "scripts/page-shots/page-shots.e2e.ts",
+    "scripts/sprites/venue_layouts.ts",
+    "studio/helper/main.ts",
+    "studio/worker/index.ts",
+    "gallery/main.ts",
+    "src/boundary/layerUnpackWorker.ts",
+    "vite.gallery.config.ts",
+    "studio/app/main.tsx"
+  ],
+  "ignoreExportsUsedInFile": false,
+  "rules": {
+    "unused-dev-dependencies": "error",
+    "unused-namespace-members": "error",
+    "unlisted-binaries": "error",
+    "duplicate-export-aliases": "error",
+    "complexity-cyclomatic": "off",
+    "complexity-crap": "off"
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/gallery/cloud/firebase*.ts"
+      ],
+      "rules": {
+        "unused-exports": "off"
+      }
+    },
+    {
+      "files": [
+        "tailwind.config.d.ts"
+      ],
+      "rules": {
+        "unused-exports": "off"
+      }
+    },
+    {
+      "files": [
+        "e2e/fullgame/brain.ts"
+      ],
+      "rules": {
+        "unused-exports": "off"
+      }
+    },
+    {
+      "files": [
+        "scripts/page-shots/playwright.config.ts"
+      ],
+      "rules": {
+        "unused-exports": "off"
+      }
+    },
+    {
+      "files": [
+        "studio/worker/index.ts"
+      ],
+      "rules": {
+        "unused-exports": "off"
+      }
+    }
+  ],
+  "includeEntryExports": true,
+  "duplicates": {
+    "minTokens": 50,
+    "minLines": 6,
+    "ignore": [
+      "**/*.test.*",
+      "**/*.spec.*",
+      "__tests__/**",
+      "e2e/**",
+      "src/testing/**",
+      "src/data/ruleScenarios/**"
+    ]
+  },
+  "health": {
+    "maxCognitive": 12,
+    "ignore": [
+      "**/*.test.*",
+      "**/*.spec.*",
+      "__tests__/**",
+      "e2e/**",
+      "src/testing/**",
+      "src/data/ruleScenarios/**"
+    ]
+  },
+  "ignoreDependencies": [
+    "marked"
+  ]
+}

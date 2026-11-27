@@ -62,53 +62,60 @@ smooth while testing any reduction in rendering work.
 ## Type and build checks
 
 ```bash
-pnpm exec tsc --noEmit
+pnpm typecheck
 pnpm lint
-pnpm dupes
 pnpm build:netlify
 ```
 
-The TypeScript check reports no errors, and CI fails a pull request that adds
-one. Vite transpilation does not replace this check. See
+`pnpm typecheck` runs tsrs, the Rust port of the TypeScript 7 checker, over the
+app and over `functions/`. It reports no errors, and CI fails a pull request
+that adds one. Vite transpilation does not replace this check. See
 [development](../DEVELOPMENT.md).
 
-## Size, complexity and duplication
+## Lint, size, complexity and duplication
 
-`pnpm lint` enforces these limits on every function and file:
+`pnpm lint` runs three tools, all native binaries:
+
+- **oxlint** runs every lint rule, configured in `.oxlintrc.json`. It gets type
+  information from tsrs. Rules oxlint has natively run natively. The rest run
+  from the original ESLint plugins (unicorn, sonarjs, eslint-plugin-n) in
+  oxlint's JS plugin host, under the names `unicorn-js/`, `n-js/` and
+  `sonarjs/`. The comment rule is in `house-rules.mjs`.
+- **fallow** finds unused files, exports and dependencies, import cycles,
+  copied code and cognitive complexity over 12, configured in `.fallowrc.json`.
+- **`pnpm lint:directives`** fails on file-wide or same-line `eslint-` and
+  `oxlint-` directives, because an oxlint directive could switch the comment
+  rule off.
+
+oxlint enforces these limits on every function and file outside the tests:
 
 | Rule | Limit |
 | --- | --- |
-| `complexity` | 15 paths through a function |
-| `sonarjs/cognitive-complexity` | 15 |
+| `complexity` | 10 paths through a function |
+| `max-lines` | 800 lines per file |
+| `max-lines-per-function` | 60 lines |
+| `max-params`, `max-depth` | 3 |
 | `sonarjs/no-identical-functions` | no two functions with the same body |
-| `max-lines` | 800 lines per file; data tables in `src/data` are exempt |
 
-Tests in `__tests__` are linted with the same rules as the source, except
-`@typescript-eslint/no-explicit-any`, which is off for them because mocks and
-fixtures use `any`. Split a test file that passes 800 lines by `describe` block,
-and put the setup the parts share in a helper module beside them.
+Tests, `e2e/`, `src/testing/` and `src/data/ruleScenarios/` are exempt from the
+size limits, from fallow's complexity check and from its copy check. Split a
+test file that passes 800 lines by `describe` block, and put the setup the parts
+share in a helper module beside them.
 
-`pnpm lint` runs two linters. oxlint runs the core ESLint and typescript-eslint
-rules, including the ones that need type information, configured in
-`.oxlintrc.json`. ESLint runs the plugin rules oxlint does not have: unicorn,
-sonarjs, react-hooks, eslint-plugin-n, the comment rules and
-`no-restricted-syntax`, configured in `eslint.config.mjs`. ESLint runs without
-type information, which is what makes it fast.
+JS plugins get no type information. A few unicorn rules that skipped `Map` and
+`Set` code under typed ESLint, such as `no-for-each`, now flag it; write
+`for…of` instead.
 
-Code written before these rules is recorded in `oxlint-suppressions.json` and
-`eslint-suppressions.json`, as a count per file and rule. New violations fail.
-When you split a long file or simplify a complex function, lint fails until you
-shrink the baseline:
+Code written before these rules is recorded as a baseline: oxlint's in
+`oxlint-suppressions.json`, as a count per file and rule, and fallow's in
+`fallow-baselines/`. New problems fail. When you split a long file, simplify a
+complex function or remove a cycle, lint fails until you shrink the baseline:
 
 ```bash
-pnpm exec oxlint --type-aware --prune-suppressions
-pnpm exec eslint . --prune-suppressions
+pnpm exec oxlint --prune-suppressions
+pnpm exec fallow dead-code --save-baseline fallow-baselines/dead-code.json
+pnpm exec fallow dupes --save-baseline fallow-baselines/dupes.json
+pnpm exec fallow health --complexity --save-baseline fallow-baselines/health.json
 ```
 
-Commit the smaller file with the change. Do not add entries to it by hand.
-Deleting or renaming a file does not fail lint, and its entry stays until you
-prune, so run the same command after any split or rename.
-
-`pnpm dupes` runs jscpd over `src`, `scripts`, `e2e` and `functions/src`. It
-fails when copied blocks of eight lines or more pass 1% of the code. It skips
-`__tests__`, where about 4.5% of the code is copied.
+Commit the smaller files with the change. Do not add entries by hand.

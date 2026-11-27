@@ -82,8 +82,8 @@ Remove `--smoke --blocks 24` and use a fresh `--seed-base` for confirmation. Eve
 Rerunning an unchanged command resumes missing games. Source, opponent, context or schedule changes reject an existing directory. Candidate engine and legal actions are shared with the frozen decision policy. Behaviour changes require fresh confirmation. The driver derives fresh confirmation seeds from the committed revision, while the diagnostic pilot keeps fixed seeds. Report-only changes can rebuild from saved games without replaying acquisition. Source archives live beside the run; the report records source and results digests.
 
 ```sh
-pnpm exec tsc -p scripts/coach/policy-lab/tsconfig.json
-pnpm exec eslint scripts/coach/policy-lab scripts/coach/policy-study
+pnpm exec tsrs -p scripts/coach/policy-lab/tsconfig.json
+pnpm exec oxlint scripts/coach/policy-lab scripts/coach/policy-study
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
   -s scripts/coach/policy-study -p 'test_*.py'
 ```

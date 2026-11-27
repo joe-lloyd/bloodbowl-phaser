@@ -1,0 +1,502 @@
+{
+  "kind": "health",
+  "finding_counts": {
+    "scripts/coach/advanced-study/probes.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "scripts/coach/catalogue-study/schedule.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "scripts/coach/fit-evaluation.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "scripts/coach/policy-lab/fouls.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "scripts/coach/policy-study/run.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "scripts/e2e-seeds.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/competition/computerTeamTemplates.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/competition/computerTeams.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/data/persistence/teamPersistence.ts": {
+      "complexity_high": {
+        "count": 3
+      },
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 3
+      }
+    },
+    "src/gallery/fixtures.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/game/inducements/apothecary.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/game/inducements/matchInducements.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/game/managers/SetupManager.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/game/managers/jumpAction.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/game/managers/moveAction.ts": {
+      "complexity_critical": {
+        "count": 1
+      }
+    },
+    "src/game/operations/BallAndChainOperation.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/game/operations/FoulOperation.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/game/operations/PassOperation.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/game/operations/ThrowTeammateOperation.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/game/presentation/layered/finish.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/game/progression/matchHistory.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/game/rules/jump.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/game/rules/playerLocation.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/game/rules/purchasePlanner.ts": {
+      "complexity_moderate": {
+        "count": 2
+      }
+    },
+    "src/game/rules/stalling.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/headless/pendingDecisions.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/scenes/SandboxScene.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/seeding/competitionFixtures.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/seeding/playerLifecycle.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/seeding/validateSeeds.ts": {
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/services/BlockResolutionService.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/simulation/ai/repositionActivations.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/simulation/candidates.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/simulation/cli.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/simulation/commands/replay.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/simulation/commands/tune.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/simulation/lineups.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/simulation/puzzles.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/simulation/runMatch.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/simulation/stepCandidates.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/simulation/viewer.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/TeamBuilder/AdvancementModePanel.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/common/SignInDialog.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/componentWarehouse/HudDialog.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/BlockDiceDialog.tsx": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/CoinFlipOverlay.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/DiceLog.tsx": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/EndTurnButton.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/GameHUD.tsx": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/HalfTimeCard.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/KickoffEventOverlay.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/MatchOptionsMenu.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/MatchResultsScreen.tsx": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/MovePlanBar.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/PlayerActionMenu.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/PlayerDevelopment.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/PlayerInfoPanel.tsx": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/PregameInducements.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/SandboxOverlay.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/ScenarioCasePanel.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/SetupControls.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/TurnCatchUpCard.tsx": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/ballMovementLog.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/diceTrayData.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/hud/usePlayerInfo.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/pages/CompetitionBuilder.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/pages/MainMenu.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/pages/OnlineLobby.tsx": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/ui/components/pages/PlayerPage.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/ui/components/pages/TeamBuilder.tsx": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/ui/components/pages/TeamSelect.tsx": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/ui/components/shared/AdvancementForm.tsx": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/ui/pages/GamePage.tsx": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/ui/pages/OnlineCoinFlip.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/ui/pages/OnlinePlayPage.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/ui/pages/TurnClock.tsx": {
+      "complexity_high": {
+        "count": 4
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    }
+  },
+  "runtime_coverage_findings": [],
+  "target_keys": [],
+  "file_lines_categories": true
+}

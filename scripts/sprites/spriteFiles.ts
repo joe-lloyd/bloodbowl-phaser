@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-// eslint-disable-next-line n/no-unsupported-features/node-builtins -- zstd is experimental before Node 23.8; installs and CI run Node 22.15+, which has it
+// oxlint-disable-next-line n-js/no-unsupported-features/node-builtins -- zstd is experimental before Node 23.8; installs and CI run Node 22.15+, which has it
 import { crc32, deflateSync, zstdCompressSync } from "node:zlib";
 import { Decompress, decompress } from "fzstd";
 import {
