@@ -1,5 +1,4 @@
-import { createServer } from "node:http";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { chromium, type Locator, type Page } from "@playwright/test";
 import spriteManifest from "../src/game/presentation/spriteManifest.json" with { type: "json" };
@@ -8,65 +7,16 @@ import {
   getComputerTeamTemplates,
 } from "../src/competition/computerTeamTemplates";
 import { dehydrateTeam } from "../src/data/persistence/teamPersistence";
+import { appears, check, failures, serveDist } from "./checkKit";
 
 const DIST = process.argv[2] ?? "dist";
 const PORT = Number(process.argv[3] ?? 5398);
-const ORIGIN = `http://127.0.0.1:${String(PORT)}`;
-const ROOT = path.resolve(DIST);
 const SHOTS = process.argv[4] ?? ".";
 const OWN_ROSTER = "Orc";
 const OPPONENT_ROSTER = "Human";
 const UNSAVED_ROSTER = "Skaven";
-const PAGE = "index.html";
-const TYPES: Record<string, string> = {
-  ".html": "text/html",
-  ".js": "text/javascript",
-  ".css": "text/css",
-  ".json": "application/json",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".woff2": "font/woff2",
-  ".mp3": "audio/mpeg",
-  ".svg": "image/svg+xml",
-};
-
-async function distFile(file: string): Promise<{ name: string; body: Buffer }> {
-  const full = path.resolve(ROOT, file);
-  try {
-    if (!full.startsWith(ROOT + path.sep)) throw new Error(`${file} is outside ${DIST}`);
-    return { name: file, body: await readFile(full) };
-  } catch {
-    return { name: PAGE, body: await readFile(path.join(DIST, PAGE)) };
-  }
-}
-
-const server = createServer((request, response) => {
-  const pathname = new URL(request.url ?? "/", ORIGIN).pathname;
-  const answer = async () => {
-    const { name, body } = await distFile(decodeURIComponent(pathname).slice(1) || PAGE);
-    response.writeHead(200, {
-      "content-type": TYPES[path.extname(name)] ?? "application/octet-stream",
-      "cache-control": "no-store",
-    });
-    response.end(body);
-  };
-  void answer();
-}).listen(PORT, "127.0.0.1");
-
-const failures: string[] = [];
-function check(name: string, passed: boolean, detail = ""): void {
-  console.log(`${passed ? "ok  " : "FAIL"} ${name} ${detail}`);
-  if (!passed) failures.push(name);
-}
-
-async function appears(locator: Locator, timeout: number): Promise<boolean> {
-  try {
-    await locator.waitFor({ timeout });
-    return true;
-  } catch {
-    return false;
-  }
-}
+const dist = serveDist(DIST, PORT);
+const ORIGIN = dist.origin;
 
 async function waitOrShoot(locator: Locator, shot: string): Promise<void> {
   if (await appears(locator, 60_000)) return;
@@ -164,8 +114,7 @@ check("online, team select offers to save every roster", offered, offerText ?? "
 await page.goto(ORIGIN);
 
 await context.setOffline(true);
-server.closeAllConnections();
-await new Promise((resolve) => server.close(resolve));
+await dist.stop();
 await page.reload();
 await page.getByRole("button", { name: "Play Local" }).click();
 await page.getByRole("radio", { name: /Versus computer/ }).click();
