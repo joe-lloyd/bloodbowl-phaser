@@ -6,6 +6,8 @@ import {
   type SetupTeamStatus,
 } from "@/types/SetupTypes";
 import { SetupValidator } from "../validators/SetupValidator";
+import type { Frame } from "../rules/frames";
+import { activeRules } from "../variants/activeMatch";
 
 type SwarmAllowance = NonNullable<SetupState["swarming"]>["teams"][string];
 
@@ -47,7 +49,7 @@ export function emptySetupStatus(teamId: string): SetupTeamStatus {
 
 export function teamSetupStatus(input: {
   teamId: string;
-  isTeam1: boolean;
+  frame: Frame;
   positions: FormationPosition[];
 
   eligible: Player[];
@@ -59,7 +61,8 @@ export function teamSetupStatus(input: {
   const { teamId, positions, eligible, captain, setup } = input;
   const swarm = setup.swarming?.teams[teamId];
   const availablePlayerCount = eligible.length;
-  const validation = input.validator.validateFormation({ positions: positions, isTeam1: input.isTeam1, availablePlayerCount: availablePlayerCount, limits: swarmPlayerLimits(setup, teamId, eligible) });
+  const fielded = Math.min(activeRules().setup.maxOnPitch, availablePlayerCount);
+  const validation = input.validator.validateFrameFormation({ positions, frame: input.frame, availablePlayerCount, limits: swarmPlayerLimits(setup, teamId, eligible) });
   const concessionDecision =
     setup.teams[teamId]?.concessionDecision ??
     (availablePlayerCount <= 3 ? "pending" : "not-offered");
@@ -84,8 +87,7 @@ export function teamSetupStatus(input: {
   return {
     teamId,
     placedPlayerCount: positions.length,
-    requiredPlayerCount:
-      swarm?.basePlayerIds.length ?? Math.min(7, availablePlayerCount),
+    requiredPlayerCount: swarm?.basePlayerIds.length ?? fielded,
     availablePlayerCount,
     restrictions,
     canConfirm:

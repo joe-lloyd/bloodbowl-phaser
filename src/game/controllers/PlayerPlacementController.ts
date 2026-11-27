@@ -7,6 +7,7 @@ import {
   type SetupPlayerLimits,
 } from "../../types/SetupTypes";
 import type { Pitch } from "../elements/Pitch";
+import { pairFrame } from "../variants/activeMatch";
 import {
   playerHitArea,
   replaceHitArea,
@@ -193,7 +194,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
           !UNAVAILABLE_STATUSES.has(player.status)
       ).length
     );
-    const validation = this.validator.validatePlacement({ candidate: { playerId, x: gridX, y: gridY }, currentPositions: current, isTeam1: this.isTeam1, availablePlayerCount: availablePlayerCount, limits: this.getPlayerLimits(this.currentTeam.id) });
+    const validation = this.validator.validatePlacement({ candidate: { playerId, x: gridX, y: gridY }, currentPositions: current, frame: pairFrame(this.isTeam1), availablePlayerCount: availablePlayerCount, limits: this.getPlayerLimits(this.currentTeam.id) });
     if (!validation.valid) {
       this.emit(GameEventNames.PlacementInvalid, {
         playerId,

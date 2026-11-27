@@ -91,27 +91,23 @@ export class SetupValidator {
     };
   }
 
-  isOnCentreLineOfScrimmage(x: number, y: number, isTeam1: boolean): boolean {
-    return onCentreLine(pairFrame(isTeam1), { x, y });
-  }
-
   validatePlacement({
     candidate,
     currentPositions,
-    isTeam1,
+    frame,
     availablePlayerCount,
     limits,
   }: {
     candidate: FormationPosition;
     currentPositions: FormationPosition[];
-    isTeam1: boolean;
+    frame: Frame;
     availablePlayerCount: number;
     limits?: SetupPlayerLimits | undefined;
   }): ValidationResult {
     const positions = [...currentPositions, candidate];
-    const full = this.validateFormation({
+    const full = this.validateFrameFormation({
       positions,
-      isTeam1,
+      frame,
       availablePlayerCount,
       limits,
     });
@@ -129,11 +125,7 @@ export class SetupValidator {
     if (availablePlayerCount < minOnLineOfScrimmage) {
       restrictions.push({
         id: "short-handed-line",
-        satisfied: this.isOnCentreLineOfScrimmage(
-          candidate.x,
-          candidate.y,
-          isTeam1
-        ),
+        satisfied: onCentreLine(frame, candidate),
         satisfiable: true,
         message: shortHandedMessage(minOnLineOfScrimmage),
       });
