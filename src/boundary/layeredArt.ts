@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { fetchJson } from "./json";
+import { parseJson } from "./json";
+import { unpackLayer } from "./layerUnpack";
 
 const index = z.number().int().nonnegative();
 const optionValue = z.tuple([z.string(), z.string()]);
@@ -68,20 +69,53 @@ export interface LayerData {
   readonly planes: Uint8Array;
 }
 
+export const LAYER_FILE = ".layer";
+const HEADER_BYTES = 4;
+
 async function fetchBytes(url: string): Promise<Uint8Array<ArrayBuffer>> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`HTTP ${String(response.status)} for ${url}`);
   return new Uint8Array(await response.arrayBuffer());
 }
 
-async function inflate(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+export function readLayerParts(index: string, planes: Uint8Array, label: string): LayerData {
+  const meta = parseJson(index, layerIndex);
+  if (planes.length !== meta.pixels * 3) {
+    throw new Error(`Layer ${label} holds ${String(planes.length)} bytes, expected ${String(meta.pixels * 3)}`);
+  }
+  return { frames: meta.frames, pixels: meta.pixels, planes };
+}
+
+export type LayerIndex = z.infer<typeof layerIndex>;
+
+function indexEnd(blob: Uint8Array): number {
+  if (blob.length < HEADER_BYTES) return Infinity;
+  return HEADER_BYTES + new DataView(blob.buffer, blob.byteOffset, blob.byteLength).getUint32(0, true);
+}
+
+export function readLayerHeader(prefix: Uint8Array): LayerIndex | null {
+  const end = indexEnd(prefix);
+  if (prefix.length < end) return null;
+  return parseJson(new TextDecoder().decode(prefix.subarray(HEADER_BYTES, end)), layerIndex);
+}
+
+export function readLayerBlob(blob: Uint8Array, label: string): LayerData {
+  const end = indexEnd(blob);
+  if (blob.length < end) throw new Error(`Layer ${label} is cut short`);
+  const index = new TextDecoder().decode(blob.subarray(HEADER_BYTES, end));
+  return readLayerParts(index, blob.subarray(end), label);
+}
+
+export function writeLayerBlob(layer: LayerData): Uint8Array {
+  const index = new TextEncoder().encode(JSON.stringify({ frames: layer.frames, pixels: layer.pixels }));
+  const blob = new Uint8Array(HEADER_BYTES + index.length + layer.planes.length);
+  new DataView(blob.buffer).setUint32(0, index.length, true);
+  blob.set(index, HEADER_BYTES);
+  blob.set(layer.planes, HEADER_BYTES + index.length);
+  return blob;
 }
 
 export async function fetchLayer(url: string): Promise<LayerData> {
-  const [meta, packed] = await Promise.all([fetchJson(`${url}.json`, layerIndex), fetchBytes(`${url}.bin`)]);
-  const planes = await inflate(packed);
-  if (planes.length !== meta.pixels * 3) throw new Error(`Layer ${url} holds ${String(planes.length)} bytes, expected ${String(meta.pixels * 3)}`);
-  return { frames: meta.frames, pixels: meta.pixels, planes };
+  const packed = await fetchBytes(`${url}${LAYER_FILE}`);
+  return readLayerBlob(await unpackLayer(packed), url);
 }

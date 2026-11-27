@@ -1,8 +1,8 @@
 import { readFileSync, existsSync } from "node:fs";
-import { inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { parseLayeredModels, type LayerData } from "../../../src/boundary/layeredArt";
+import { LAYER_FILE, parseLayeredModels, type LayerData } from "../../../src/boundary/layeredArt";
+import { readLayerFiles, readLayerIndex } from "../../../scripts/sprites/spriteFiles";
 import { parseJson } from "../../../src/boundary/json";
 import { composeFrame } from "../../../src/game/presentation/layered/compose";
 import { finishFrame } from "../../../src/game/presentation/layered/finish";
@@ -12,15 +12,11 @@ import { resolveLook } from "../../../src/game/presentation/layered/looks";
 import { colourTable, rampTint } from "../../../src/game/presentation/layered/paint";
 import manifest from "../../../src/game/presentation/spriteManifest.json";
 
-const rect = z.tuple([z.number(), z.number(), z.number(), z.number(), z.number()]);
-const layerIndex = z.object({ frames: z.record(z.string(), rect), pixels: z.number() });
 const golden = z.object({ frame: z.string(), layers: z.array(z.string()), rle: z.array(z.tuple([z.number(), z.number()])) });
 const goldens = z.record(z.string(), golden);
 
 function readLayer(model: string, body: string, name: string): LayerData {
-  const base = `public/sprites/bloodbowl/${model}/layered/${body}/${name}`;
-  const meta = parseJson(readFileSync(`${base}.json`, "utf8"), layerIndex);
-  return { frames: meta.frames, pixels: meta.pixels, planes: new Uint8Array(inflateSync(readFileSync(`${base}.bin`))) };
+  return readLayerFiles(`public/sprites/bloodbowl/${model}/layered/${body}/${name}`);
 }
 
 function expand(rle: readonly (readonly [number, number])[]): number[] {
@@ -133,10 +129,6 @@ describe("buildLookAtlas", () => {
   });
 });
 
-function readIndex(path: string) {
-  return parseJson(readFileSync(`${path}.json`, "utf8"), layerIndex);
-}
-
 function portraitMismatches(model: string): string[] {
   const art = layeredArt(model);
   if (!art) return [`${model} has no layered art`];
@@ -144,10 +136,10 @@ function portraitMismatches(model: string): string[] {
     names.flatMap((name) => {
       const base = `public/sprites/bloodbowl/${model}/layered/${body}`;
       const small = `${base}/portrait/${name}`;
-      if (!existsSync(`${small}.json`) || !existsSync(`${small}.bin`)) return `${small} is missing`;
-      const full = readIndex(`${base}/${name}`).frames;
+      if (!existsSync(`${small}${LAYER_FILE}`)) return `${small} is missing`;
+      const full = readLayerIndex(`${base}/${name}`).frames;
       const wanted = Object.keys(full).filter((frame) => frame.startsWith("idle/se/")).sort((a, b) => a.localeCompare(b));
-      const got = readIndex(small).frames;
+      const got = readLayerIndex(small).frames;
       const same = wanted.every((frame) => got[frame]?.slice(0, 4).join(',') === full[frame]?.slice(0, 4).join(','));
       return same && Object.keys(got).length === wanted.length ? [] : `${small} does not hold the idle/se frames`;
     })
@@ -156,7 +148,7 @@ function portraitMismatches(model: string): string[] {
 
 describe("portrait layers", () => {
   it("give every layer of every model a portrait copy with its idle/se frames", () => {
-    const fix = "run python3 portrait_layers.py <model> in scripts/sprites/factory";
+    const fix = "re-install the model with python3 install_layered.py in scripts/sprites/factory";
     expect(MODELS.flatMap((MODEL) => portraitMismatches(MODEL)), fix).toEqual([]);
   });
 

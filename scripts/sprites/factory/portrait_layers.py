@@ -6,7 +6,8 @@ A portrait only draws the idle animation facing south-east, about 2% of a layer'
 holds every animation and facing. For each <body>/<layer>.{json,bin} of an installed model this writes
 <body>/portrait/<layer>.{json,bin} in the same format with only the idle/se frames, so a team page
 downloads kilobytes per player instead of megabytes. install_layered.py calls it for every model it
-installs; run it by hand to rebuild the files for models already in public/.
+installs, on the unpacked .json/.bin layers before packing them into .layer files; re-install a model
+to rebuild its portraits.
 """
 import json
 import sys

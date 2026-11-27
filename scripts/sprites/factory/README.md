@@ -68,8 +68,14 @@ a golden frame to `__tests__/fixtures/layered/` for the compositor's unit test.
 
 It also writes a `portrait/` copy of each body's layers that holds only the idle frames facing south-east.
 Roster portraits load those, about 2% of a full layer, so a team page downloads kilobytes per player
-instead of megabytes. `python3 portrait_layers.py [model ...]` rebuilds them for installed models, and the
-compositor test fails when a layer has no portrait copy.
+instead of megabytes. Re-install a model to rebuild them, and the compositor test fails when a layer has
+no portrait copy.
+
+Last, it packs each layer's `.json` index and `.bin` planes into one `<layer>.layer` file: a 4-byte
+little-endian index length, the index JSON, then the planes, all compressed with zstd level 19
+(`scripts/sprites/packLayers.ts`, Node 22.15 or later). The game unpacks them with `fzstd` in a Web
+Worker. zstd makes the art about a quarter smaller than zlib, and one file per layer halves the
+requests.
 `__tests__/unit/layered/portraitBudget.test.tsx` fails when a model's heaviest portrait look passes 150 KB,
 or when a team page portrait downloads anything outside the portrait folder. The Treeman is the heaviest at
 about 123 KB. `pnpm sprites:portrait-check <folder>` draws every portrait both ways and compares the pixels.
