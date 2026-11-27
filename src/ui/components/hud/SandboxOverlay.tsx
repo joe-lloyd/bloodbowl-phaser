@@ -23,6 +23,7 @@ import { ScenarioCasePanel } from "./ScenarioCasePanel";
 import { SCENARIO_CASES } from "../../../testing/cases";
 import { findScenarioCase } from "../../../testing/scenarioCase";
 import { GameEventNames } from "@/types/events";
+import { ARENA_SCENARIO_ID } from "../../../scenes/sandboxDefaultTeams";
 import {
   hudButtonClass,
   Panel,
@@ -37,18 +38,22 @@ const CORE_TOPIC = "core";
 
 const CASE_TOPIC = "e2e-cases";
 
+const emptyForm = (params: URLSearchParams) => ({
+  topic: "",
+  skill: "",
+  configId: "",
+  coreId: "",
+  seed: params.get("seed") ?? "",
+  outcomeId: "",
+});
+
 function formStateFromUrl() {
   const params = new URLSearchParams(location.search);
   const scenarioId = params.get("scenario") ?? "";
-  const empty = {
-    topic: "",
-    skill: "",
-    configId: "",
-    coreId: "",
-    seed: params.get("seed") ?? "",
-    outcomeId: "",
-  };
+  const empty = emptyForm(params);
   if (!scenarioId) return empty;
+  if (scenarioId === ARENA_SCENARIO_ID)
+    return { ...empty, topic: ARENA_SCENARIO_ID };
   if (SCENARIOS.some((s) => s.id === scenarioId)) {
     return { ...empty, topic: CORE_TOPIC, coreId: scenarioId };
   }
@@ -122,6 +127,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
     setConfigId("");
     setOutcomeId("");
     setSearchError(null);
+    if (value === ARENA_SCENARIO_ID) load(ARENA_SCENARIO_ID);
   };
 
   const pickSkill = (value: string) => {
@@ -194,6 +200,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
           <option value={CORE_TOPIC}>Core Rules</option>
           <option value={CASE_TOPIC}>E2E Cases</option>
           <option value={KICKOFF_TOPIC}>{KICKOFF_TOPIC}</option>
+          <option value={ARENA_SCENARIO_ID}>Deathbowl arena</option>
           <option value={NEGATRAIT_TOPIC}>Negatraits</option>
           <option value={TRAIT_TOPIC}>Traits</option>
           {Object.values(SkillCategory).map((category) => (
@@ -296,7 +303,8 @@ function topicHasRules(topic: string): boolean {
     !!topic &&
     topic !== CORE_TOPIC &&
     topic !== CASE_TOPIC &&
-    topic !== KICKOFF_TOPIC
+    topic !== KICKOFF_TOPIC &&
+    topic !== ARENA_SCENARIO_ID
   );
 }
 

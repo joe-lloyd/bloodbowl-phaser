@@ -6,38 +6,41 @@ export type {
   StadiumMeta,
 } from "../../boundary/stadium";
 
-const LAYERS = ["base", "home", "away"] as const;
+const BASE = { name: "base", tint: 0xffffff } as const;
 
 function key(path: string, part: string): string {
   return `stadium:${path}:${part}`;
 }
 
-export function preloadStadium(scene: Phaser.Scene, path: string) {
+export function preloadStadium(
+  scene: Phaser.Scene,
+  path: string,
+  seatLayers: readonly string[]
+) {
   scene.load.json(key(path, "meta"), `${path}/meta.json`);
-  for (const layer of LAYERS) {
+  for (const layer of [BASE.name, ...seatLayers]) {
     if (!scene.textures.exists(key(path, layer)))
       scene.load.image(key(path, layer), `${path}/${layer}.webp`);
   }
 }
 
-export interface TeamColours {
-  home: number;
-  away: number;
+export interface SeatLayer {
+  readonly name: string;
+  readonly tint: number;
 }
 
 export class Stadium {
   public readonly meta: StadiumMeta;
   private image: Phaser.GameObjects.Image | null = null;
 
-  constructor(scene: Phaser.Scene, path: string, colors: TeamColours) {
+  constructor(scene: Phaser.Scene, path: string, seats: readonly SeatLayer[]) {
     this.meta = parseStadiumMeta(scene.cache.json.get(key(path, "meta")));
-    const layers = LAYERS.filter((layer) =>
-      scene.textures.exists(key(path, layer))
-    ).flatMap((layer) => {
-      const image = scene.textures.get(key(path, layer)).getSourceImage();
-      const tint = layer === "base" ? 0xffffff : colors[layer];
-      return image instanceof HTMLImageElement ? { image, tint } : [];
-    });
+    const layers = [BASE, ...seats]
+      .filter(({ name }) => scene.textures.exists(key(path, name)))
+      .flatMap(({ name, tint }) => {
+        const image = scene.textures.get(key(path, name)).getSourceImage();
+        return image instanceof HTMLImageElement ? { image, tint } : [];
+      });
     const [first, ...rest] = layers;
     if (!first) return;
 

@@ -10,11 +10,20 @@ import {
 } from "../game/presentation/boardState";
 import { applyPitchRepositioning } from "./setupPlacement";
 import { pitchExitFor } from "../game/elements/pitchExits";
+import type { Facing } from "../game/presentation/playerArt";
+import type { Frame } from "../game/rules/frames";
+import { seatOf, seatTeams } from "../game/seating";
+import { activeLayout } from "../game/variants/activeMatch";
 
-const allPlayers = (scene: GameScene) => [
-  ...scene.team1.players,
-  ...scene.team2.players,
-];
+const allPlayers = (scene: GameScene) =>
+  scene.teams.flatMap((team) => team.players);
+
+const HEADING_FACINGS: Readonly<Record<Frame["heading"], Facing>> = {
+  "+x": "e",
+  "-x": "w",
+  "+y": "s",
+  "-y": "n",
+};
 
 function placePlayerSprite(scene: GameScene, player: Player): void {
   const sprites = scene.playerSprites;
@@ -28,13 +37,15 @@ function placePlayerSprite(scene: GameScene, player: Player): void {
     sprite.setPosition(pos.x, pos.y);
     sprite.setVisible(true);
   } else {
-    const isTeam1 = player.teamId === scene.team1.id;
-    const team = isTeam1 ? scene.team1 : scene.team2;
+    const { team, frame } = seatOf(
+      seatTeams(scene.teams, activeLayout()),
+      player.teamId
+    );
 
     const sprite = new PlayerSprite({ scene: scene, x: pos.x, y: pos.y, player: player, look: {
       rosterName: team.rosterName,
       colors: scene.kitOf(team.id),
-      facing: isTeam1 ? "e" : "w",
+      facing: HEADING_FACINGS[frame.heading],
     } });
     sprites.set(player.id, sprite);
   }
@@ -44,10 +55,7 @@ export function placePlayersOnPitch(scene: GameScene): void {
   if (!scene.isSceneLive("placePlayersOnPitch")) return;
   const sprites = scene.playerSprites;
 
-  const onPitch = [
-    ...scene.team1.players.filter((p) => p.gridPosition),
-    ...scene.team2.players.filter((p) => p.gridPosition),
-  ];
+  const onPitch = allPlayers(scene).filter((p) => p.gridPosition);
 
   for (const player of onPitch) placePlayerSprite(scene, player);
 

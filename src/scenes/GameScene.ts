@@ -62,6 +62,10 @@ export class GameScene extends Phaser.Scene {
 
   public team1!: Team;
   public team2!: Team;
+
+  public get teams(): readonly Team[] {
+    return [this.team1, this.team2];
+  }
   public kickingTeam!: Team;
   public receivingTeam!: Team;
 
@@ -130,12 +134,8 @@ export class GameScene extends Phaser.Scene {
     this.raisedSprite = null;
 
     if (clearPlayerPositions) {
-      for (const p of this.team1.players) {
-        delete p.gridPosition;
-      }
-      for (const p of this.team2.players) {
-        delete p.gridPosition;
-      }
+      const players = this.teams.flatMap((team) => team.players);
+      for (const p of players) delete p.gridPosition;
     }
 
     if (clearPlayerPositions && this.ballSprite) {
@@ -202,7 +202,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   protected queueTeamArt(): ReadonlySet<string> {
-    const players = [this.team1, this.team2].flatMap((team) =>
+    const players = this.teams.flatMap((team) =>
       team.players.map((player) => ({
         rosterName: team.rosterName,
         positionName: player.positionName,
@@ -222,10 +222,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.venue = createVenueBackdrop(this, {
-      home: this.kitOf(this.team1.id).primary,
-      away: this.kitOf(this.team2.id).primary,
-    });
+    this.venue = createVenueBackdrop(
+      this,
+      this.teams.map((team) => this.kitOf(team.id).primary)
+    );
     wirePointerInput(this);
 
     const origin = this.venue.origin;
@@ -371,12 +371,10 @@ export class GameScene extends Phaser.Scene {
     if (!this.isSceneLive("createDugouts")) return;
     const toWorld = (gx: number, gy: number) =>
       this.pitch.getPointPosition(gx, gy);
-    const { dugouts, gates } = this.venue;
-    const benches = [
-      [this.team1, dugouts.home, "s", gates.home],
-      [this.team2, dugouts.away, "n", gates.away],
-    ] as const;
-    for (const [team, squares, facing, gateX] of benches) {
+    for (const [index, team] of this.teams.entries()) {
+      const bench = this.venue.benches[index];
+      if (!bench) continue;
+      const { squares, facing, gateX } = bench;
       const dugout = new Dugout({ scene: this, team: team, kit: this.kitOf(team.id), squares: squares, toWorld: toWorld, facing: facing, exit: { rows: GameConfig.PITCH_HEIGHT, ...(gateX !== undefined && { gateX }) } }
       );
       dugout.setDragCallbacks(
@@ -388,6 +386,7 @@ export class GameScene extends Phaser.Scene {
         }
       );
       this.dugouts.set(team.id, dugout);
+      if (!bench.terrace) continue;
       this.staffTerraces.push(
         new SidelineTerrace({ scene: this, team: team, kit: this.kitOf(team.id), squares: squares, project: toWorld, facing: facing, bus: this.eventBus }
         )
@@ -566,7 +565,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   public kitOf(teamId: string): TeamColors {
-    return kitOf([this.team1, this.team2], teamId);
+    return kitOf(this.teams, teamId);
   }
 
   public playerSettled(playerId: string): Promise<void> {

@@ -45,8 +45,8 @@ import type { PlanFinish, PlannedDeclaration } from "./interaction/plan";
 import { PLANNED_MOVE } from "./interaction/plan";
 import { dragRouteTo, routeOwnerAt } from "./interaction/routes";
 import { playerClickTarget } from "./interaction/stepClicks";
-import { opponentsOf, playerAt, type Seating } from "../seating";
-import { sceneSeating } from "./sceneSeating";
+import { opponentsOf, playerAt, type Seating, seatTeams } from "../seating";
+import { activeLayout } from "../variants/activeMatch";
 import {
   clickInPlay,
   clickTouchback,
@@ -625,7 +625,7 @@ export class GameplayInteractionController {
   }
 
   seating(): Seating {
-    return sceneSeating(this.scene);
+    return seatTeams(this.scene.teams, activeLayout());
   }
 
   getOpposingPlayers(myTeamId: string): Player[] {

@@ -51,7 +51,7 @@ async function kickedIntoCharge() {
 function board(game: HeadlessGame) {
   mockPitch.worldToGrid.mockImplementation((x: number, y: number) => ({ x, y }));
   return new GameplayInteractionController({
-    scene: { ...mockScene, team1: game.ctx.teams[0], team2: game.ctx.teams[1] },
+    scene: { ...mockScene, teams: game.ctx.teams, team1: game.ctx.teams[0], team2: game.ctx.teams[1] },
     gameService: game.ctx.gameService,
     eventBus: game.ctx.eventBus,
     pitch: mockPitch,

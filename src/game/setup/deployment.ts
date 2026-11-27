@@ -2,7 +2,6 @@ import {
   type PitchLayout,
   type Square,
   isPlayableSquare,
-  twoTeamFrames,
 } from "../variants/pitchLayouts";
 import {
   type Arm,
@@ -16,7 +15,9 @@ import {
   type DeploymentRole,
   type FormationPosition,
 } from "../../types/SetupTypes";
-import { type Player } from "../../types/Player";
+import { type Player, PlayerStatus } from "../../types/Player";
+import type { Seat, Seating } from "../seating";
+import { playerBoxOf } from "../rules/playerLocation";
 import { SkillType, hasSkill } from "../../types/Skills";
 
 export type DeploymentUse = "kick" | "receive" | "any";
@@ -356,7 +357,7 @@ function roleFit(
   role: DeploymentRole,
   kicking: boolean
 ): number {
-  const contact = role === "line" && noMansLand(twoTeamFrames(activeLayout())[0]) === null;
+  const contact = role === "line" && noMansLand(activeLayout().frames[0]) === null;
   return kicking && !contact
     ? kickingFit(player, role)
     : receivingFit(player, role);
@@ -423,4 +424,49 @@ export function assignPlayers({
     mask &= ~(1 << s);
   }
   return [...placed].reverse();
+}
+
+const ARENA: Deployment = {
+  name: "Arena",
+  use: "any",
+  slots: [
+    line(-1),
+    line(0),
+    line(1),
+    at(1, 0, "support"),
+    at(2, -3, "support"),
+    at(2, 3, "support"),
+    at(4, -1, "deep"),
+    at(4, 1, "support"),
+  ],
+};
+
+export function seatFormation(
+  seat: Seat,
+  layout: PitchLayout
+): FormationPosition[] {
+  return assignPlayers({
+    squares: deploymentSquares({ layout, frame: seat.frame }, ARENA),
+    players: seat.team.players.filter(
+      (player) => playerBoxOf(player) === "reserves"
+    ),
+    kicking: false,
+  });
+}
+
+export function setUpSeats(seating: Seating, layout: PitchLayout): void {
+  for (const seat of seating.seats) {
+    const squares = new Map(
+      seatFormation(seat, layout).map(({ playerId, x, y }) => [
+        playerId,
+        { x, y },
+      ])
+    );
+    for (const player of seat.team.players) {
+      const square = squares.get(player.id);
+      if (!square) continue;
+      player.gridPosition = square;
+      player.status = PlayerStatus.ACTIVE;
+    }
+  }
 }

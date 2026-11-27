@@ -2,7 +2,7 @@ import { kickoffTurnOf } from "../game/kickoff/kickRecord";
 import Phaser from "phaser";
 import { GameScene } from "./GameScene";
 import { GamePhase } from "../types/GameState";
-import { sandboxTeam } from "./sandboxTeam";
+import { arenaTeam, sandboxTeam } from "./sandboxTeam";
 import { RosterName } from "../types/Team";
 import { type Team } from "../types/Team";
 
@@ -18,9 +18,17 @@ import { findScenarioCase } from "../testing/scenarioCase";
 import { GameEventNames, type UIEvents } from "@/types/events";
 import { type Scenario } from "../types/Scenario";
 import {
+  ARENA_SCENARIO_ID,
+  ARENA_TEAMS,
   SANDBOX_DEFAULT_TEAM1_ROSTER,
   SANDBOX_DEFAULT_TEAM2_ROSTER,
 } from "./sandboxDefaultTeams";
+import { type SeatedTeams, seatedTeams } from "../game/seating";
+import { setUpSeats } from "../game/setup/deployment";
+import {
+  activeLayout,
+  DEATHBOWL_FORMAT,
+} from "../game/variants/activeMatch";
 
 interface SandboxScenario {
   scenario: Scenario;
@@ -101,9 +109,68 @@ function scenarioFromUrl(): ScenarioRequest | null {
   };
 }
 
+function showScenarioInUrl(request: ScenarioRequest): URL {
+  const url = new URL(location.href);
+  url.searchParams.set("scenario", request.scenarioId);
+  for (const [param, value] of [
+    ["seed", request.seed],
+    ["outcome", request.outcomeId],
+  ] as const) {
+    if (value === undefined) url.searchParams.delete(param);
+    else url.searchParams.set(param, String(value));
+  }
+  return url;
+}
+
+function defaultSandboxTeams(): { team1: Team; team2: Team } {
+  const team1 = sandboxTeam(
+    SANDBOX_DEFAULT_TEAM1_ROSTER,
+    "Test Humans",
+    0x4169e1
+  );
+  const team2 = sandboxTeam(SANDBOX_DEFAULT_TEAM2_ROSTER, "Test Orcs", 0xdc143c);
+  team1.coaches = 2;
+  team1.cheerleaders = 3;
+  team1.apothecary = true;
+  team1.dedicatedFans = 2;
+  team2.coaches = 1;
+  team2.cheerleaders = 2;
+  team2.dedicatedFans = 1;
+  return { team1, team2 };
+}
+
 export class SandboxScene extends GameScene {
+  private arena: SeatedTeams | null = null;
+
   constructor() {
     super("SandboxScene");
+  }
+
+  override get teams(): readonly Team[] {
+    return this.arena ?? super.teams;
+  }
+
+  private initArena(): void {
+    const teams = seatedTeams(
+      ARENA_TEAMS.map(({ roster, name, colour }) =>
+        arenaTeam(roster, name, colour)
+      )
+    );
+    const initialState = {
+      ...GameService.createInitialState({
+        teams,
+        startingPhase: GamePhase.SANDBOX_IDLE,
+      }),
+      venue: DEATHBOWL_FORMAT.venue,
+    };
+    const { gameService } = ServiceContainer.initialize({
+      eventBus: this.getBrowserEventBus(),
+      teams,
+      initialState,
+    });
+    setUpSeats(gameService.getSeating(), activeLayout());
+    this.arena = teams;
+    super.init({ team1: teams[0], team2: teams[1] });
   }
 
   private getBrowserEventBus(): IEventBus {
@@ -111,30 +178,16 @@ export class SandboxScene extends GameScene {
   }
 
   override init(data: { team1?: Team; team2?: Team }): void {
-    if (data?.team1 && data.team2) {
+    this.arena = null;
+    if (scenarioFromUrl()?.scenarioId === ARENA_SCENARIO_ID) {
+      this.initArena();
+    } else if (data?.team1 && data.team2) {
       const initialState = GameService.createInitialState({ teams: [data.team1, data.team2], startingPhase: GamePhase.SANDBOX_IDLE }
       );
       ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), teams: [data.team1, data.team2], initialState: initialState });
       super.init(data as { team1: Team; team2: Team });
     } else {
-      const team1 = sandboxTeam(
-        SANDBOX_DEFAULT_TEAM1_ROSTER,
-        "Test Humans",
-        0x4169e1
-      );
-      const team2 = sandboxTeam(
-        SANDBOX_DEFAULT_TEAM2_ROSTER,
-        "Test Orcs",
-        0xdc143c
-      );
-
-      team1.coaches = 2;
-      team1.cheerleaders = 3;
-      team1.apothecary = true;
-      team1.dedicatedFans = 2;
-      team2.coaches = 1;
-      team2.cheerleaders = 2;
-      team2.dedicatedFans = 1;
+      const { team1, team2 } = defaultSandboxTeams();
 
       const initialState = GameService.createInitialState({ teams: [team1, team2], startingPhase: GamePhase.SANDBOX_IDLE }
       );
@@ -180,6 +233,7 @@ export class SandboxScene extends GameScene {
     this.eventBus.on(GameEventNames.PlayerMoved, this.playerMovedHandler);
 
     this.boardReady = true;
+    if (this.arena) this.reconcileBoard();
     const request = this.pendingScenario ?? scenarioFromUrl();
     this.pendingScenario = null;
     if (!request) return;
@@ -189,6 +243,12 @@ export class SandboxScene extends GameScene {
   }
 
   private loadRequested(request: ScenarioRequest): void {
+    const wantsArena = request.scenarioId === ARENA_SCENARIO_ID;
+    if (wantsArena !== (this.arena !== null)) {
+      location.assign(showScenarioInUrl(request).href);
+      return;
+    }
+    if (wantsArena) return;
     this.loadScenario(request.scenarioId, request.seed, request.outcomeId);
   }
 

@@ -15,7 +15,10 @@ const css = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
 export function LoadingScreen({ eventBus, teams }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0);
   const [gone, setGone] = useState(false);
-  const kits = teams && matchKits(teams.team1.colors, teams.team2.colors);
+  const [home, away] = teams
+    ? matchKits([teams.team1.colors, teams.team2.colors])
+    : [];
+  const kits = home && away ? { home, away } : undefined;
 
   useEffect(() => {
     const onProgress = ({ progress: p }: { progress: number }) => {

@@ -33,7 +33,7 @@ export interface DraftRules {
   veteran: boolean;
 }
 
-interface SetupRules {
+export interface SetupRules {
   maxOnPitch: number;
   minOnLineOfScrimmage: number;
   maxPerWideZone: number;

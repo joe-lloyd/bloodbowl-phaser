@@ -65,6 +65,7 @@ function board(game: HeadlessGame) {
     },
   });
   const scene = {
+    teams: game.ctx.teams,
     team1: game.ctx.teams[0],
     team2: game.ctx.teams[1],
     events: { on: vi.fn(), off: vi.fn() },

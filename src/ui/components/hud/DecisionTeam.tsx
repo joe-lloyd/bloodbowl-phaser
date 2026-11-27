@@ -1,6 +1,5 @@
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { kitOf } from "../../../game/presentation/kits";
-import { pairSeating, pairTeams } from "../../../game/seating";
 
 export function DecisionTeam({
   teamId,
@@ -20,8 +19,7 @@ export function DecisionTeam({
       : service.getState().activeTeamId);
   const team = id ? service.getTeam(id) : undefined;
   if (!team) return null;
-  const teams = pairTeams(pairSeating(service.getSeating()));
-  const kit = kitOf(teams, team.id);
+  const kit = kitOf(service.getTeams(), team.id);
 
   return (
     <span

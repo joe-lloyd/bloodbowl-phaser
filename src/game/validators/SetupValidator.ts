@@ -1,6 +1,11 @@
-import { activeLayout, activeRules, pairFrame } from "../variants/activeMatch";
+import {
+  activeLayout,
+  activeSetupRules,
+  pairFrame,
+} from "../variants/activeMatch";
 import { obstacleAt } from "../variants/pitchLayouts";
 import {
+  type Frame,
   blockOf,
   inCentreStrip,
   inNoMansLand,
@@ -30,12 +35,17 @@ interface FormationInput {
   limits?: SetupPlayerLimits | undefined;
 }
 
+type FrameFormation = Omit<FormationInput, "isTeam1"> & { frame: Frame };
+
+const onCentreLine = (frame: Frame, square: { x: number; y: number }) =>
+  onScrimmage(frame, square) && inCentreStrip(frame, square);
+
 export class SetupValidator {
   private config: Required<SetupConfig>;
 
   constructor(config?: SetupConfig) {
     const layout = activeLayout();
-    const { maxOnPitch } = activeRules().setup;
+    const { maxOnPitch } = activeSetupRules();
     const resolved = config ?? {
       minPlayers: maxOnPitch,
       maxPlayers: maxOnPitch,
@@ -49,6 +59,10 @@ export class SetupValidator {
   }
 
   isInSetupZone(x: number, y: number, isTeam1: boolean): boolean {
+    return this.inSetupZone(pairFrame(isTeam1), { x, y });
+  }
+
+  private inSetupZone(frame: Frame, { x, y }: { x: number; y: number }) {
     if (
       x < 0 ||
       x >= this.config.pitchWidth ||
@@ -58,7 +72,7 @@ export class SetupValidator {
     ) {
       return false;
     }
-    return inSetupSection(pairFrame(isTeam1), { x, y });
+    return inSetupSection(frame, { x, y });
   }
 
   getSetupZone(isTeam1: boolean): SetupZone {
@@ -78,8 +92,7 @@ export class SetupValidator {
   }
 
   isOnCentreLineOfScrimmage(x: number, y: number, isTeam1: boolean): boolean {
-    const frame = pairFrame(isTeam1);
-    return onScrimmage(frame, { x, y }) && inCentreStrip(frame, { x, y });
+    return onCentreLine(pairFrame(isTeam1), { x, y });
   }
 
   validatePlacement({
@@ -112,7 +125,8 @@ export class SetupValidator {
     const restrictions = full.restrictions.filter((rule) =>
       placementIds.has(rule.id)
     );
-    if (availablePlayerCount < activeRules().setup.minOnLineOfScrimmage) {
+    const { minOnLineOfScrimmage } = activeSetupRules();
+    if (availablePlayerCount < minOnLineOfScrimmage) {
       restrictions.push({
         id: "short-handed-line",
         satisfied: this.isOnCentreLineOfScrimmage(
@@ -121,7 +135,7 @@ export class SetupValidator {
           isTeam1
         ),
         satisfiable: true,
-        message: shortHandedMessage(activeRules().setup.minOnLineOfScrimmage),
+        message: shortHandedMessage(minOnLineOfScrimmage),
       });
     }
     return setupValidation(restrictions);
@@ -136,12 +150,16 @@ export class SetupValidator {
       .valid;
   }
 
-  validateFormation({
+  validateFormation({ isTeam1, ...rest }: FormationInput): ValidationResult {
+    return this.validateFrameFormation({ ...rest, frame: pairFrame(isTeam1) });
+  }
+
+  validateFrameFormation({
     positions,
-    isTeam1,
+    frame,
     availablePlayerCount = this.config.maxPlayers,
     limits,
-  }: FormationInput): ValidationResult {
+  }: FrameFormation): ValidationResult {
     const requiredPlayerCount =
       limits?.minimum ??
       Math.min(this.config.maxPlayers, Math.max(0, availablePlayerCount));
@@ -150,19 +168,17 @@ export class SetupValidator {
       (pos) => `${String(pos.x)},${String(pos.y)}`
     );
     const uniquePositionCount = new Set(positionKeys).size;
-    const frame = pairFrame(isTeam1);
     const wideCounts = { top: 0, bottom: 0 };
     for (const pos of positions) {
       const zone = wideZoneOf(frame, pos);
       if (zone !== null) wideCounts[WIDE_ZONES[zone]]++;
     }
     const onCentreLos = positions.filter((pos) =>
-      this.isOnCentreLineOfScrimmage(pos.x, pos.y, isTeam1)
+      onCentreLine(frame, pos)
     ).length;
     const inNeutralZone = positions.some((pos) => inNoMansLand(frame, pos));
-    const inSetupArea = positions.every((pos) =>
-      this.isInSetupZone(pos.x, pos.y, isTeam1)
-    );
+    const inSetupArea = positions.every((pos) => this.inSetupZone(frame, pos));
+    const rules = activeSetupRules();
     return setupValidation(
       setupRestrictions({
         placedCount: positions.length,
@@ -175,8 +191,8 @@ export class SetupValidator {
         onCentreLos,
         inNeutralZone,
         inSetupArea,
-        minOnLos: activeRules().setup.minOnLineOfScrimmage,
-        maxPerWideZone: activeRules().setup.maxPerWideZone,
+        minOnLos: rules.minOnLineOfScrimmage,
+        maxPerWideZone: rules.maxPerWideZone,
       })
     );
   }
