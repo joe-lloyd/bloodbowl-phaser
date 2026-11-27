@@ -1,5 +1,6 @@
 import type { GameType } from "../game/variants/gameTypes";
 import { newHomeLeague, SEASON_RIVALS } from "../game/rules/homeLeague";
+import { REDRAFT_BASE_BUDGET } from "../game/rules/redraft";
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import type { Difficulty } from "../simulation/ai/difficulty";
 import type { HomeLeague, Team } from "../types/Team";
@@ -21,6 +22,7 @@ import type { CompetitionDoc, LeagueDoc } from "./types";
 type Random = () => number;
 
 export type SeasonPhase =
+  | "redraft"
   | "ready"
   | "playing"
   | "play-offs-due"
@@ -55,6 +57,7 @@ export function seasonPhase(
   regular: CompetitionDoc | null,
   playOffs: CompetitionDoc | null
 ): SeasonPhase {
+  if (league.redraftWins !== undefined) return "redraft";
   if (!league.leagueId) return "ready";
   if (regular?.status !== "complete") return "playing";
   if (!league.playOffsId) return "play-offs-due";
@@ -69,11 +72,17 @@ export function loadClub(
   return { ...team, club: team.club };
 }
 
-function draftRival(taken: Set<string>, rosters: string[], random: Random): Team {
+interface DraftPool {
+  taken: Set<string>;
+  rosters: string[];
+  budget: number;
+}
+
+function draftRival(pool: DraftPool, random: Random): Team {
   const [template] = pickComputerTemplates({
     templates: getComputerTeamTemplates(),
     count: 1,
-    rosters,
+    rosters: pool.rosters,
     picked: [],
     random,
   });
@@ -82,7 +91,8 @@ function draftRival(taken: Set<string>, rosters: string[], random: Random): Team
     advancementMode: "advanced-league",
   });
   rival.club = {};
-  return uniqueTeamName(rival, taken);
+  rival.treasury += Math.max(0, pool.budget - REDRAFT_BASE_BUDGET);
+  return uniqueTeamName(rival, pool.taken);
 }
 
 async function freeRival(rival: Team): Promise<void> {
@@ -106,9 +116,10 @@ async function seasonRivals(
     const team = getTeamById(benched);
     if (team) taken.add(team.name);
   }
+  const budget = league.newcomerBudget ?? REDRAFT_BASE_BUDGET;
   while (rivals.length < SEASON_RIVALS) {
     const rosters = [club, ...rivals].map((team) => team.rosterName);
-    rivals.push(draftRival(taken, rosters, random));
+    rivals.push(draftRival({ taken, rosters, budget }, random));
   }
   for (const rival of rivals) await freeRival(rival);
   return rivals;
@@ -123,6 +134,8 @@ export async function startSeason(
   const league = homeLeagueOf(club);
   if (league.leagueId)
     throw new Error(`Season ${String(league.season)} has already started.`);
+  if (league.redraftWins !== undefined)
+    throw new Error("Finish the redraft before the next season starts.");
   if (!SEASON_GAME_TYPES.includes(setup.gameType))
     throw new Error("A season is played as Sevens, Street Bowl or Beach Bowl.");
   const rivals = await seasonRivals(club, league, random);

@@ -35,6 +35,8 @@ import { errorText } from "../../errorText";
 import { useCompetitionDoc } from "../competition/useCompetitionDoc";
 import { StandingsTable } from "../competition/StandingsTable";
 import { DifficultyPicker } from "../competition/DifficultyPicker";
+import { PostGameSteps } from "./PostGameSteps";
+import { RedraftStep } from "./RedraftStep";
 import {
   EmptyState,
   HudButton,
@@ -102,26 +104,6 @@ function GameTypeChoice({
         </HudButton>
       ))}
     </div>
-  );
-}
-
-function PostGameSteps({ club }: { club: Team }) {
-  const navigate = useNavigate();
-  if (!hasBlockingPendingDevelopment(club)) return null;
-  return (
-    <Notice tone="warn" title="Post-game steps are waiting" className="mb-4">
-      <p>
-        Finish {club.name}&apos;s post-game steps on its team sheet, such as
-        advancements and Expensive Mistakes, before it plays on.
-      </p>
-      <HudButton
-        size="sm"
-        className="mt-3"
-        onClick={() => void navigate(`/clubs/${club.id}`)}
-      >
-        Open the team sheet
-      </HudButton>
-    </Notice>
   );
 }
 
@@ -259,6 +241,7 @@ function SeasonPhaseView({ phase, ...props }: PhaseProps & { phase: SeasonPhase 
   const navigate = useNavigate();
   const { club, regular, playOffs, onFinished, reload } = props;
   switch (phase) {
+    case "redraft":
     case "ready":
       return null;
     case "playing":
@@ -376,6 +359,7 @@ function SeasonBody({ club, reload }: { club: Team; reload: () => void }) {
         subtitle="Your club and seven computer clubs play one league season at a time. Some rivals return each season, some rest, and new clubs join."
       />
       <FinishedNotice record={finished} />
+      {phase === "redraft" && <RedraftStep club={club} onDone={reload} />}
       {phase === "ready" && (
         <>
           <Rivals league={league} />

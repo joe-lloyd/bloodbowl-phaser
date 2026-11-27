@@ -99,6 +99,8 @@ export interface Player {
 
   timesKeptFromDraft?: number;
 
+  seasons?: number;
+
   careerStats?: PlayerCareerStats;
 
   veteran?: true;

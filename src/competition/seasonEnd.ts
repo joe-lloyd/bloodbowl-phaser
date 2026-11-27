@@ -11,6 +11,8 @@ import {
 import { createCompetition } from "./create";
 import { homeLeagueOf, loadClub, seasonProfile } from "./homeLeague";
 import { getCompetition } from "./repository";
+import { runOffSeason } from "./offSeason";
+import { RNGService } from "../services/rng/RNGService";
 import { clearActiveCompetition } from "./resultRecording";
 import type {
   CompetitionDoc,
@@ -139,11 +141,14 @@ async function passTrophy(
   if (previousHolder)
     await changeTeam(previousHolder, (team) => {
       team.rerolls = Math.max(0, team.rerolls - 1);
+      if (team.club) delete team.club.trophy;
     });
   for (const [teamId, finish] of places)
     await changeTeam(teamId, (team) => {
       team.treasury += PLAY_OFF_PRIZES[finish];
-      if (finish === "champion") team.rerolls += 1;
+      if (finish !== "champion") return;
+      team.rerolls += 1;
+      if (team.club) team.club.trophy = true;
     });
   return [...places].find(([, finish]) => finish === "champion")?.[0];
 }
@@ -172,6 +177,10 @@ function seasonRecord(
   };
 }
 
+function seededRng(random: Random): RNGService {
+  return new RNGService(Math.floor(random() * 2 ** 31));
+}
+
 export async function finishSeason(
   clubId: string,
   random: Random = Math.random
@@ -189,6 +198,12 @@ export async function finishSeason(
     champion: champion?.name ?? "Nobody",
     playOff: places.get(clubId),
   });
+  const offSeason = await runOffSeason({
+    regular,
+    playOffs,
+    clubId,
+    rng: seededRng(random),
+  });
   const rotation = rotateRivals(league, random);
   const stored = loadClub(clubId);
   stored.club.league = {
@@ -196,6 +211,8 @@ export async function finishSeason(
     rivalIds: [...rotation.returning, ...rotation.comingBack],
     benchIds: rotation.bench,
     ...(holder !== undefined && { trophyHolderId: holder }),
+    redraftWins: offSeason.clubWins,
+    newcomerBudget: offSeason.newcomerBudget,
     history: [...league.history, record],
   };
   await saveTeam(stored);

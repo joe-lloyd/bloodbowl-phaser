@@ -67,6 +67,7 @@ export interface StoredPlayer {
   injuries: InjuryType[];
   careerStats?: PlayerCareerStats;
   timesKeptFromDraft?: number;
+  seasons?: number;
 
   veteran?: true;
 
@@ -198,6 +199,7 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
       : [],
     ...(raw["careerStats"] !== undefined && { careerStats: raw["careerStats"] as PlayerCareerStats }),
     ...((typeof raw["timesKeptFromDraft"] === "number") && { timesKeptFromDraft: raw["timesKeptFromDraft"] }),
+    ...((typeof raw["seasons"] === "number") && { seasons: raw["seasons"] }),
     ...((raw["veteran"] === true) && { veteran: true }),
     ...((raw["teamCaptain"] === true) && { teamCaptain: true }),
     ...(Boolean(raw["pendingAdvancementRoll"]) && {
@@ -316,6 +318,7 @@ export function hydratePlayer(
     teamValue,
     ...(stored.careerStats !== undefined && { careerStats: stored.careerStats }),
     ...(stored.timesKeptFromDraft && { timesKeptFromDraft: stored.timesKeptFromDraft }),
+    ...(stored.seasons && { seasons: stored.seasons }),
   };
   if (hydrationWarning) player.hydrationWarning = hydrationWarning;
   if (stored.veteran) player.veteran = true;
@@ -343,6 +346,7 @@ export function dehydratePlayer(player: Player): StoredPlayer {
     injuries: player.injuries ?? [],
     ...(player.careerStats && { careerStats: player.careerStats }),
     ...(player.timesKeptFromDraft && { timesKeptFromDraft: player.timesKeptFromDraft }),
+    ...(player.seasons && { seasons: player.seasons }),
     ...(player.veteran && { veteran: true }),
     ...(player.teamCaptain && { teamCaptain: true }),
     ...(player.pendingAdvancementRoll && { pendingAdvancementRoll: player.pendingAdvancementRoll }),

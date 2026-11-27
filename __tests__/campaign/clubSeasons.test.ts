@@ -21,6 +21,9 @@ import {
   startPlayOffs,
 } from "../../src/competition/seasonEnd";
 import { getCompetition } from "../../src/competition/repository";
+import { clubRedraftBudget, confirmRedraft } from "../../src/competition/offSeason";
+import { manageComputerTeam } from "../../src/competition/computerTeams";
+import { CLUB_REDRAFT_CAP, computerRedraftChoice } from "../../src/game/rules/redraft";
 import { simulateFixture } from "../../src/competition/simulateFixture";
 import type { CompetitionDoc, LeagueDoc } from "../../src/competition/types";
 import { getTeamById, saveTeam } from "../../src/game/managers/TeamManager";
@@ -39,6 +42,7 @@ interface SeasonReport {
   record: SeasonRecord;
   rivals: { name: string; roster: string; arrival: "returning" | "back" | "new"; teamValue: number }[];
   club: { teamValue: number; treasury: number; players: number; spp: number };
+  redraft: { budget: number; teamValue: number; treasury: number; players: number; lost: number };
   table: { name: string; points: number; played: number }[];
   playOffs: { name: string; finish: string }[];
 }
@@ -104,6 +108,23 @@ function arrivals(previousRivals: Set<string>, everSeen: Set<string>, rivalIds: 
   });
 }
 
+async function redraftClub(clubId: string): Promise<SeasonReport["redraft"]> {
+  const before = mustLoad(clubId);
+  manageComputerTeam(before, coachRng);
+  await saveTeam(before);
+  const team = mustLoad(clubId);
+  const budget = fixtureValue(clubRedraftBudget(team));
+  await confirmRedraft(clubId, computerRedraftChoice(team, budget));
+  const after = mustLoad(clubId);
+  return {
+    budget,
+    teamValue: calculateTeamValue(after),
+    treasury: after.treasury,
+    players: after.players.length,
+    lost: team.players.length - after.players.length,
+  };
+}
+
 function checkSeasonStart(where: string, league: LeagueDoc, clubId: string): void {
   if (league.entrants.length !== 8) note(where, "entrants", `${String(league.entrants.length)} entrants`);
   const ids = new Set(league.entrants.map((entrant) => entrant.teamId));
@@ -134,6 +155,10 @@ describe.runIf(env["CLUB_SEASONS"] === "1")("club league seasons", () => {
       checkSeasonStart(where, league, club.id);
       const rivalIds = league.entrants.map((entrant) => entrant.teamId).filter((id) => id !== club.id);
       const rivals = arrivals(previousRivals, everSeen, rivalIds);
+      for (const rival of rivals) {
+        if (rival.arrival !== "new" && rival.teamValue > CLUB_REDRAFT_CAP)
+          note(where, "over-cap", `${rival.name} starts at ${String(rival.teamValue)}`);
+      }
       if (season > 1 && rivals.filter((rival) => rival.arrival === "returning").length !== 4)
         note(where, "returning", `${String(rivals.filter((rival) => rival.arrival === "returning").length)} returning rivals`);
       const finished = await playOut(league);
@@ -151,7 +176,9 @@ describe.runIf(env["CLUB_SEASONS"] === "1")("club league seasons", () => {
       checkSeasonEnd(where, finished, club.id);
       checkSeasonEnd(`${where} play-offs`, playOffs, club.id);
       const team = mustLoad(club.id);
+      const redraft = await redraftClub(club.id);
       seasons.push({
+        redraft,
         record,
         rivals,
         club: {

@@ -7,6 +7,12 @@ vi.mock("../../../src/firebase/config", () => ({
 
 import { homeLeagueOf, startSeason } from "../../../src/competition/homeLeague";
 import { finishSeason, startPlayOffs } from "../../../src/competition/seasonEnd";
+import { clubRedraftBudget, confirmRedraft } from "../../../src/competition/offSeason";
+import {
+  CLUB_REDRAFT_CAP,
+  currentLineUp,
+  redraftCost,
+} from "../../../src/game/rules/redraft";
 import { fixtureContext } from "../../../src/competition/fixtureContext";
 import { getCompetition } from "../../../src/competition/repository";
 import { recordCompetitionFixture } from "../../../src/competition/resultRecording";
@@ -21,7 +27,7 @@ import {
   resolveExpensiveMistakes,
 } from "../../../src/game/rules/expensiveMistakes";
 import { RNGService } from "../../../src/services/rng/RNGService";
-import { RosterName, type Team } from "../../../src/types/Team";
+import { RosterName, type Team, calculateTeamValue } from "../../../src/types/Team";
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 
 function seeded(seed: number): () => number {
@@ -161,6 +167,33 @@ describe("a club's league seasons", () => {
     expect(between.playOffsId).toBeUndefined();
     expect(between.rivalIds).toHaveLength(4);
     expect(between.benchIds).toHaveLength(3);
+    expect(between.redraftWins).toBe(9);
+    const stored = fixtureValue(getTeamById(club.id));
+    expect(stored.players.every((player) => player.seasons === 1)).toBe(true);
+    const rivalIds = first.entrants
+      .map((entrant) => entrant.teamId)
+      .filter((id) => id !== club.id);
+    for (const id of rivalIds) {
+      const rival = fixtureValue(getTeamById(id));
+      expect(rival.players.every((player) => (player.seasons ?? 0) <= 1)).toBe(true);
+      expect(rival.players.some((player) => player.seasons === 1)).toBe(true);
+      expect(calculateTeamValue(rival)).toBeLessThanOrEqual(CLUB_REDRAFT_CAP);
+    }
+    expect(between.newcomerBudget).toBeGreaterThanOrEqual(600_000);
+    expect(between.newcomerBudget).toBeLessThanOrEqual(CLUB_REDRAFT_CAP);
+
+    await expect(startSeason(club.id, setup, seeded(5))).rejects.toThrow(
+      "Finish the redraft before the next season starts."
+    );
+    const budget = fixtureValue(clubRedraftBudget(stored));
+    const choice = currentLineUp(stored);
+    await confirmRedraft(club.id, choice);
+    const redrafted = fixtureValue(getTeamById(club.id));
+    expect(redrafted.treasury).toBe(budget - redraftCost(stored, choice));
+    expect(stored.club?.trophy).toBe(true);
+    expect(choice.rerolls).toBe(stored.rerolls - 1);
+    expect(redrafted.rerolls).toBe(stored.rerolls);
+    expect(homeLeagueOf(redrafted).redraftWins).toBeUndefined();
 
     const second = await startSeason(club.id, { ...setup, gameType: "beach-bowl" }, seeded(5));
     expect(second.name).toBe("Club League, season 2");
@@ -170,6 +203,8 @@ describe("a club's league seasons", () => {
     expect(secondIds).toEqual(expect.arrayContaining(between.rivalIds));
     expect(secondIds.filter((id) => !firstIds.has(id))).toHaveLength(3);
     expect(secondIds.filter((id) => between.benchIds.includes(id))).toEqual([]);
+    const newcomers = secondIds.filter((each) => !firstIds.has(each));
+    expect(newcomers.map((id) => fixtureValue(getTeamById(id)).treasury > 0)).toEqual([true, true, true]);
   });
 
   it("refuses a second start while a season is under way", async () => {

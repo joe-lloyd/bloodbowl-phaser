@@ -32,6 +32,9 @@ Lineman's row says so.
 | CL-12 | Four rivals, drawn at random, return the next season. The other three rest on a bench that holds up to nine clubs, dropping the longest-resting first. Each open place has an even chance to bring a benched club back. The places left go to new computer clubs. |
 | CL-13 | After the regular season, the top four play the play-offs: first against fourth and second against third, then a final and a third-place game. A level play-off game goes to extra time and penalties. Play-off games are league games: they pay winnings and roll Expensive Mistakes. |
 | CL-14 | The play-off champion wins 100,000 and an extra team re-roll that it holds until the next champion takes it. The runner-up wins 60,000 and third place 30,000. The prizes go straight to the treasury when the season is finished. |
+| CL-15 | When the season is finished, every club in it rests (R1 in the Sevens rules) and rolls for offers from pro teams, as A6 does after a Sevens game: a D6 for each player with added skills, and an offer on a roll at or under their number of added skills. A club keeps the player by paying their value from the treasury, which raises their value by 15,000, or lets them go. A computer club decides at once; the coach decides on the team sheet. There are no emergency call-ups. |
+| CL-16 | Then every club redrafts. The budget is 600,000 plus the treasury plus 10,000 for each league and play-off win that season, capped at 800,000. Each player costs their value plus 20,000 for every season they have played, and re-rolls and staff cost their usual price. The champion's trophy re-roll is free and stays. A club may keep eleven players plus its Gutter Bowl specialist. Players not bought back leave, and what is left becomes the treasury. The next season cannot start until the coach confirms the club's redraft. |
+| CL-17 | A computer club redrafts on its own: its most skilled players first, keeping one re-roll when it can, then rookies from what is left. A new computer club drafts at 600,000 and gets the average redraft budget of the season's clubs above that as treasury. |
 
 The rules live in `src/game/rules/club.ts`. `prepareClubSquad` takes the
 players and staff who stay home out of the match copy of the team when the
@@ -42,8 +45,8 @@ season N**. The page starts a season, shows its table and finishes it. The
 games themselves are played and simulated on the league page, as in any
 league. The season rules live in `src/game/rules/homeLeague.ts` and
 `src/competition/homeLeague.ts`, and the play-offs in
-`src/competition/seasonEnd.ts`. Scouting offers and the redraft between
-seasons are not built yet.
+`src/competition/seasonEnd.ts`, and scouting and the redraft in
+`src/competition/offSeason.ts` and `src/game/rules/redraft.ts`.
 
 ## Simulating a club career
 

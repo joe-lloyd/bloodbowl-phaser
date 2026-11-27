@@ -23,6 +23,8 @@ const homeLeagueSchema: z.ZodType<HomeLeague> = z.object({
   leagueId: z.string().exactOptional(),
   playOffsId: z.string().exactOptional(),
   trophyHolderId: z.string().exactOptional(),
+  redraftWins: z.number().int().nonnegative().exactOptional(),
+  newcomerBudget: z.number().int().positive().exactOptional(),
   history: seasonRecordSchema.array(),
 });
 
@@ -31,5 +33,6 @@ export const clubStateSchema: z.ZodType<ClubState> = z.object({
   gutterSpecialistId: z.string().exactOptional(),
   gutterSitsOutId: z.string().exactOptional(),
   matchSquad: z.string().array().exactOptional(),
+  trophy: z.literal(true).exactOptional(),
   league: homeLeagueSchema.exactOptional(),
 });
