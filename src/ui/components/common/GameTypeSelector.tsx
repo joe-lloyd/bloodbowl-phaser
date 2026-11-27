@@ -3,7 +3,6 @@ import { Title } from "../componentWarehouse/HudTitle";
 import {
   DEFAULT_GAME_TYPE,
   GAME_TYPES,
-  GAME_TYPE_LABELS,
   GAME_TYPE_SUMMARIES,
   type GameType,
 } from "../../../game/variants/gameTypes";
@@ -13,6 +12,7 @@ import { venueArtPath } from "../../../game/presentation/matchStyle";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
 import { choiceKeys } from "../componentWarehouse/choiceKeys";
 import { VenuePicker } from "./VenuePicker";
+import { GameTypeName } from "./GameTypeBadge";
 
 const GROUNDS: Record<GameType, string> = {
   sevens: "stadium pitch",
@@ -89,7 +89,7 @@ function GameTypeCard({
         selected={selected}
       />
       <Title level="row" as="span" className="block px-3 pt-2.5">
-        {GAME_TYPE_LABELS[gameType]}
+        <GameTypeName gameType={gameType} size={20} />
       </Title>
       <span className="block px-3 pb-3 text-hud-sm text-hud-dim">
         {pitchLine(gameType)}

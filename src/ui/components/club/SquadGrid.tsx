@@ -11,6 +11,7 @@ import {
 import { isLinemanPosition, validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { GAME_TYPE_LABELS, type GameType } from "../../../game/variants/gameTypes";
 import { Chip, HudButton, Section } from "../componentWarehouse/HudKit";
+import { GameTypeName } from "../common/GameTypeBadge";
 
 const SQUAD_TYPES: readonly GameType[] = [
   "sevens",
@@ -31,7 +32,9 @@ function SquadHeading({ team, gameType, onChange }: { team: Team; gameType: Game
   const follows = squadFollowsSevens(team, gameType);
   return (
     <th className="text-center">
-      <span className="block">{GAME_TYPE_LABELS[gameType]}</span>
+      <span className="block">
+        <GameTypeName gameType={gameType} />
+      </span>
       {gameType !== "sevens" && follows && (
         <span className="block font-hud-body text-hud-sm normal-case text-hud-mute">Same as Sevens</span>
       )}

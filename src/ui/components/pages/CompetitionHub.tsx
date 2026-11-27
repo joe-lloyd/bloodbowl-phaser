@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { Title } from "../componentWarehouse/HudTitle";
-import {
-  GAME_TYPE_LABELS,
-  readGameType,
-} from "../../../game/variants/gameTypes";
+import { readGameType } from "../../../game/variants/gameTypes";
+import { GameTypeName } from "../common/GameTypeBadge";
 import { useNavigate } from "react-router-dom";
 import { listCompetitions } from "../../../competition/repository";
 import {
@@ -48,7 +46,7 @@ function CompetitionCard({
       </Title>
       <span className="flex flex-wrap items-center gap-2">
         <Chip tone="info">
-          {GAME_TYPE_LABELS[readGameType(competition.gameType)]}
+          <GameTypeName gameType={readGameType(competition.gameType)} size={14} />
         </Chip>
         <Chip>{competition.entrants.length} teams</Chip>
         <Chip tone={STATUS_TONE[competition.status]}>
