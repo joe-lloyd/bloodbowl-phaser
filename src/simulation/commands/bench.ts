@@ -1,9 +1,8 @@
 import * as fs from "node:fs";
-import * as path from "node:path";
+import path from "node:path";
 import { fork } from "node:child_process";
 import { RosterName } from "../../types/Team";
 import { type Coach } from "../coach";
-import { parseWeights } from "../ai/weights";
 import { standardsShare } from "../tune";
 import { createCoachRng } from "../rng";
 import {
@@ -18,7 +17,7 @@ import {
 } from "../bench";
 import { solveRates } from "../puzzles";
 import { AVERAGE_TOUCHDOWNS } from "../standards";
-import { type CoachName, fail, makeCoach } from "./shared";
+import { type CoachName, fail, makeCoach, readWeights } from "./shared";
 
 export interface BenchOptions {
   coach: CoachName;
@@ -49,11 +48,7 @@ async function loadFrozenPlanner(
   const frozen = (await import(file)) as typeof import("../ai/planner");
   return frozen.createPlannerCoach({
     name: "champion",
-    ...(weightsFile && {
-          weights: parseWeights(
-            JSON.parse(fs.readFileSync(weightsFile, "utf8"))
-          ),
-        }),
+    ...(weightsFile && { weights: readWeights(weightsFile) }),
   });
 }
 
@@ -149,7 +144,8 @@ export async function runBench(options: BenchOptions): Promise<number> {
   const report = benchReport(games);
   const rosters = options.standards ? rosterReport(games) : [];
   const broke = new Map<string, number>();
-  for (const key of games.flatMap((g) => g.findingKeys))
+  const findingKeys = games.flatMap((g) => g.findingKeys);
+  for (const key of findingKeys)
     broke.set(key, (broke.get(key) ?? 0) + 1);
   const puzzles =
     options.puzzleSeeds > 0
@@ -208,18 +204,19 @@ function baselineName(options: BenchOptions): string {
   return options.vs === options.coach ? `${options.vs} (baseline)` : options.vs;
 }
 
+const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+const f = (x: number, digits = 2) => x.toFixed(digits);
+const row = (name: string, s: BenchReport["candidate"]) =>
+  `  ${name.padEnd(12)} ${f(s.touchdownsPerGame).padStart(5)} TD  ` +
+  `${f(s.turnoversPerGame).padStart(5)} turnovers (${pct(s.turnoverRate)} of turns)  ` +
+  `dodges ${f(s.failedDodgesPerGame)} failed of ${f(s.dodgesPerGame)}  ` +
+  `rushes ${f(s.failedRushesPerGame)} failed of ${f(s.rushesPerGame)}  per game`;
+
 function formatBench(
   options: BenchOptions,
   r: BenchReport,
   puzzles: Record<string, { id: string; solved: number; of: number }[]>
 ): string {
-  const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
-  const f = (x: number) => x.toFixed(2);
-  const row = (name: string, s: BenchReport["candidate"]) =>
-    `  ${name.padEnd(12)} ${f(s.touchdownsPerGame).padStart(5)} TD  ` +
-    `${f(s.turnoversPerGame).padStart(5)} turnovers (${pct(s.turnoverRate)} of turns)  ` +
-    `dodges ${f(s.failedDodgesPerGame)} failed of ${f(s.dodgesPerGame)}  ` +
-    `rushes ${f(s.failedRushesPerGame)} failed of ${f(s.rushesPerGame)}  per game`;
   const lines = [
     `${options.coach} vs ${baselineName(options)}: ${String(r.games)} games (${String(r.games / 2)} mirrored seeds from ${String(options.seed)})`,
     `  won ${String(r.wins)}, drew ${String(r.draws)}, lost ${String(r.losses)}: win rate ${pct(r.winRate)} ` +
@@ -241,8 +238,7 @@ function formatBench(
 }
 
 function formatStandards(rows: RosterRow[], games: BenchGame[]): string {
-  const f = (x: number, digits = 2) => x.toFixed(digits);
-  const actions = (side: RosterRow["side"]) =>
+  const actions =(side: RosterRow["side"]) =>
     (["block", "blitz", "pass", "handoff", "foul"] as const)
       .map((a) => `${a} ${f(side.actionsPerGame[a] ?? 0, 1)}`)
       .join(" ");

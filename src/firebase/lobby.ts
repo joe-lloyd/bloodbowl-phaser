@@ -216,7 +216,8 @@ export async function clearActiveMatchCode(uid: string): Promise<void> {
 export async function closeHostedLobby(code: string, uid: string): Promise<void> {
   await runTransaction(getDb(), async (tx) => {
     const current = await activeCodeIn(tx, uid);
-    const seats = readLobbySeats((await tx.get(lobbyRef(code))).data());
+    const lobbySnapshot = await tx.get(lobbyRef(code));
+    const seats = readLobbySeats(lobbySnapshot.data());
     if (seats?.status !== "lobby" || seats.hostUid !== uid) return;
     tx.delete(lobbyRef(code));
     if (current === code) tx.set(userRef(uid), { activeMatchCode: null }, { merge: true });
@@ -315,7 +316,8 @@ async function emptyLobbyLeftBehind(
 ): Promise<string | null> {
   const current = await activeCodeIn(tx, uid);
   if (!current || current === code) return null;
-  const seats = readLobbySeats((await tx.get(lobbyRef(current))).data());
+  const lobbySnapshot = await tx.get(lobbyRef(current));
+  const seats = readLobbySeats(lobbySnapshot.data());
   refuseWhileBusy(seats);
   return seats?.status === "lobby" && seats.hostUid === uid ? current : null;
 }
@@ -326,7 +328,8 @@ export async function leaveGuestSeat(
 ): Promise<LobbyStatus | undefined> {
   return runTransaction(getDb(), async (tx) => {
     const current = await activeCodeIn(tx, uid);
-    const seats = readLobbySeats((await tx.get(lobbyRef(code))).data());
+    const lobbySnapshot = await tx.get(lobbyRef(code));
+    const seats = readLobbySeats(lobbySnapshot.data());
     if (seats?.status !== "lobby" || seats.guestUid !== uid) return seats?.status;
     tx.update(lobbyRef(code), {
       guestUid: null,
@@ -750,9 +753,10 @@ export function subscribeOpenLobbies(
     unlisting.clear();
     unlistAbandoned(latest, unlisting);
   }, OPEN_LOBBY_SWEEP_MS);
+  const gamesCollection = collection(getDb(), "games");
   const stop = onSnapshot(
     query(
-      collection(getDb(), "games"),
+      gamesCollection,
       where("listed", "==", true),
       where("status", "==", "lobby"),
       where("guestUid", "==", null),

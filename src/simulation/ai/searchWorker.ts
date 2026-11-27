@@ -31,7 +31,11 @@ console.log = () => undefined;
 console.info = () => undefined;
 console.debug = () => undefined;
 
-globalThis.onmessage = async ({ data }: MessageEvent<SearchRequest>) => {
+addEventListener("message", ({ data }: MessageEvent<SearchRequest>) => {
+  void answer(data);
+});
+
+async function answer(data: SearchRequest): Promise<void> {
   const scores: (number | null)[] = [];
   for (const { index, seed, plan } of data.jobs) {
     if (data.deadlineAt !== undefined && Date.now() > data.deadlineAt) {
@@ -55,4 +59,4 @@ globalThis.onmessage = async ({ data }: MessageEvent<SearchRequest>) => {
     }
   }
   postMessage({ id: data.id, scores } satisfies SearchReply);
-};
+}

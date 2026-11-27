@@ -109,8 +109,10 @@ function oneSquareSteps(game: HeadlessGame, player: Player): Candidate[] {
   return out;
 }
 
-const isReplacement = ({ commands: [first] }: Candidate) =>
-  first.type === "declare-action" && first.blockReplacement !== undefined;
+const isReplacement = ({ commands }: Candidate) => {
+  const [first] = commands;
+  return first.type === "declare-action" && first.blockReplacement !== undefined;
+};
 
 function endOf(turn: KickoffTurn): Candidate {
   return {

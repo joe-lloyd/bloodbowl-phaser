@@ -212,8 +212,10 @@ export function foulActivations(c: Context, fouler: Player): Activation[] {
     return !occupant || occupant.id === fouler.id;
   };
   let best: Activation | null = null;
-  for (const target of board.theirs.filter((element) => down(element)))
-    for (const at of neighbours(target.gridPosition).filter((element) => free(element))) {
+  for (const target of board.theirs) {
+    if (!down(target)) continue;
+    for (const at of neighbours(target.gridPosition)) {
+      if (!free(at)) continue;
       const foul = foulFrom({
         c: c,
         fouler: fouler,
@@ -223,6 +225,7 @@ export function foulActivations(c: Context, fouler: Player): Activation[] {
       });
       best = betterFoul(best, foul);
     }
+  }
   return best ? [best] : [];
 }
 

@@ -203,11 +203,14 @@ export async function listCompetitions(
   let remote: CompetitionDoc[] = [];
   if (uid && isFirebaseConfigured()) {
     const competitions = collection(getDb(), collectionName(type));
+    const organizedQuery = query(competitions, where("organizerUid", "==", uid));
+    const joinedQuery = query(
+      competitions,
+      where("participantUids", "array-contains", uid)
+    );
     const [organized, joined] = await Promise.all([
-      getDocs(query(competitions, where("organizerUid", "==", uid))),
-      getDocs(
-        query(competitions, where("participantUids", "array-contains", uid))
-      ),
+      getDocs(organizedQuery),
+      getDocs(joinedQuery),
     ]);
     remote = readCompetitions(
       [...organized.docs, ...joined.docs].map((item) => item.data())
@@ -236,9 +239,10 @@ export async function listOpenCompetitions(
   type: CompetitionType
 ): Promise<CompetitionDoc[]> {
   if (!isFirebaseConfigured()) return [];
+  const competitions = collection(getDb(), collectionName(type));
   const snapshot = await getDocs(
     query(
-      collection(getDb(), collectionName(type)),
+      competitions,
       where("status", "==", "draft"),
       where("online.listed", "==", true),
       limit(50)
@@ -262,11 +266,12 @@ export function subscribeCompetition({
   return onSnapshot(
     doc(getDb(), collectionName(type), id),
     (snapshot) => {
-      onChange(
-        snapshot.exists()
-          ? normalizeCompetition(readCompetition(snapshot.data()))
-          : null
-      );
+      if (!snapshot.exists()) {
+        onChange(null);
+        return;
+      }
+      const competition = readCompetition(snapshot.data());
+      onChange(normalizeCompetition(competition));
     },
     (error) => {
       console.warn("[competition] could not follow the competition", error);

@@ -61,6 +61,23 @@ function best(
 const blitzing = (board: Board) =>
   board.gs.getState().activePlayer?.action === "blitz";
 
+function keptFace(
+  pending: PendingOf<"block-dice">,
+  rank: (type: BlockResultType) => number
+): BlockResultType | null {
+  let kept: BlockResultType | null = null;
+  for (const o of pending.options) {
+    if (
+      kept === null ||
+      (pending.choiceStage === "attacker-reroll"
+        ? rank(o.type) < rank(kept)
+        : rank(o.type) > rank(kept))
+    )
+      kept = o.type;
+  }
+  return kept;
+}
+
 function blockDiceChoice(
   board: Board,
   pending: PendingOf<"block-dice">,
@@ -77,16 +94,7 @@ function blockDiceChoice(
   });
   const rank = (type: BlockResultType) => faces[type].rank;
   const weAttack = attacker.teamId === board.us;
-  const kept = pending.options.reduce<BlockResultType | null>(
-    (worst, o) =>
-      worst === null ||
-      (pending.choiceStage === "attacker-reroll"
-        ? rank(o.type) < rank(worst)
-        : rank(o.type) > rank(worst))
-        ? o.type
-        : worst,
-    null
-  );
+  const kept = keptFace(pending, rank);
 
   if (weAttack && kept !== null && faces[kept].attackerDown) {
     const reroll =

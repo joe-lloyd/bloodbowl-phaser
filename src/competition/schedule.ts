@@ -65,11 +65,11 @@ export function overdueEntrantIds(
   return [
     ...new Set(
       competition.fixtures
-        .filter(
-          (fixture) =>
-            fixture.round === window.round && fixture.status !== "complete"
+        .flatMap((fixture) =>
+          fixture.round === window.round && fixture.status !== "complete"
+            ? [fixture.homeEntrantId, fixture.awayEntrantId]
+            : []
         )
-        .flatMap((fixture) => [fixture.homeEntrantId, fixture.awayEntrantId])
         .filter((id): id is string => id !== null && humans.has(id))
     ),
   ];

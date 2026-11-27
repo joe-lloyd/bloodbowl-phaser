@@ -199,7 +199,9 @@ const TRANSFER_ROLES: ReadonlySet<Role> = new Set(["throw", "flank", "deep"]);
 
 function transferSquares(c: Context, carrier: Player): RoleSquare[] {
   const out: RoleSquare[] = [];
-  const add: AddSquare = (square) => out.push(square);
+  const add: AddSquare = (square) => {
+    out.push(square);
+  };
   launchSquares(c, carrier, add);
   flankSquares(c, carrier, add);
   deepSquares(c, carrier, add);

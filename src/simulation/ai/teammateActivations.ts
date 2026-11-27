@@ -276,12 +276,13 @@ interface ComingDownArgs {
   bullseye: boolean;
 }
 
+const cellAt = (cell: number) => ({
+  x: cell % pitchWidth(),
+  y: Math.floor(cell / pitchWidth()),
+});
+
 function comingDown({ aim, from, odds, bullseye }: ComingDownArgs): Descent[] {
   const out = fumbledLandings(from, odds);
-  const cellAt = (cell: number) => ({
-    x: cell % pitchWidth(),
-    y: Math.floor(cell / pitchWidth()),
-  });
   for (const [superb, p] of [
     [true, odds.superb],
     [false, odds.subpar],
@@ -335,12 +336,13 @@ function throwAt({ c, thrower, mate, aim, landing }: ThrowAtArgs): Activation {
   const from = thrower.gridPosition;
   let value = -odds.eaten * (hurt * 5 + dropped(from));
   let good = 0;
-  for (const { at, p, superb } of comingDown({
+  const descents = comingDown({
     aim: aim,
     from: from,
     odds: odds,
     bullseye: hasSkill(thrower.skills, SkillType.BULLSEYE),
-  })) {
+  });
+  for (const { at, p, superb } of descents) {
     const [lands, worth] = at
       ? comesDown(at, superb)
       : [0, -(hurt * 2 + (carrying ? dropped(from) : turnover))];
@@ -389,7 +391,8 @@ function bestThrow(
   const ahead = (aim: Square) =>
     !carrying || toGoal(board, aim) < toGoal(board, mate.gridPosition);
   let best: Activation | null = null;
-  for (const aim of throwTeammateAims(thrower.gridPosition).filter((element) => ahead(element))) {
+  for (const aim of throwTeammateAims(thrower.gridPosition)) {
+    if (!ahead(aim)) continue;
     const plan = throwAt({
       c: c,
       thrower: thrower,

@@ -1,6 +1,6 @@
 import type { GameType } from "../../game/variants/gameTypes";
 import * as fs from "node:fs";
-import * as path from "node:path";
+import path from "node:path";
 import { RosterName } from "../../types/Team";
 import { type Coach } from "../coach";
 import { type JevStats } from "../coaches/jev";
@@ -285,7 +285,8 @@ function printSummary(
       .map(([k, v]) => `${k} ${String(v)}`)
       .join(", ")}`,
   ];
-  for (const stats of summary.jev ?? []) {
+  const jevStats = summary.jev ?? [];
+  for (const stats of jevStats) {
     lines.push(
       `Jev: ${String(stats.calls)} calls, ${String(stats.failures)} failed, ${String(stats.calls ? Math.round(stats.totalMs / stats.calls) : 0)} ms average, ` +
         `${String(stats.inputTokens)} input and ${String(stats.outputTokens)} output tokens.`
@@ -297,9 +298,9 @@ function printSummary(
   );
   for (const g of grouped) {
     lines.push(
-      `  ${g.blocking ? "FAIL" : "warn"} ${g.key}: ${String(g.count)}x in ${String(g.matches)} matches`
+      `  ${g.blocking ? "FAIL" : "warn"} ${g.key}: ${String(g.count)}x in ${String(g.matches)} matches`,
+      `       ${g.example.message}`
     );
-    lines.push(`       ${g.example.message}`);
     if (g.example.file)
       lines.push(
         `       pnpm sim:replay ${g.example.file} --step ${String(g.example.step)}`

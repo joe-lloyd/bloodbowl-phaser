@@ -131,10 +131,12 @@ function routeGrid(): RouteGrid {
 
 function barricadeCrossings(cells: number): Set<number> {
   const crossings = new Set<number>();
-  for (let cell = 0; cell < cells; cell++)
-    for (const next of neighbours(square(cell)))
+  for (let cell = 0; cell < cells; cell++) {
+    const around = neighbours(square(cell));
+    for (const next of around)
       if (barricadeBetween(square(cell), next))
         crossings.add(cell * cells + key(next));
+  }
   return crossings;
 }
 
@@ -235,7 +237,7 @@ function relax({ search, k, cell, p, stepRush, neighbours }: RelaxArgs): void {
   const { bestAt, parentAt, crossings, cells } = routeGrid();
   const leavesZone = board.marks.getUint8(cell) > 0;
   for (const next of neighbours) {
-    if (board.occupant[next]) continue;
+    if (board.occupant[next] !== undefined) continue;
     let chance = stepRush;
     if (crossings.has(cell * cells + next)) chance *= RECKLESS_CHANCE;
     if (leavesZone)

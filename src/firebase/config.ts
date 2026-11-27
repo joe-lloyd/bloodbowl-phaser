@@ -7,54 +7,58 @@ import { getAuth, connectAuthEmulator, type Auth } from "firebase/auth";
 import type { Firestore } from "firebase/firestore";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
-let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
-let db: Firestore | null = null;
-let initialized = false;
+const firebaseState: {
+  app: FirebaseApp | null;
+  auth: Auth | null;
+  db: Firestore | null;
+  initialized: boolean;
+} = { app: null, auth: null, db: null, initialized: false };
 
 function init(): void {
-  if (initialized) return;
-  initialized = true;
+  if (firebaseState.initialized) return;
+  firebaseState.initialized = true;
 
   const config = firebaseAppConfig();
   if (!config) return;
 
-  app = initializeApp(config);
-  auth = getAuth(app);
-  db = getFirestore(app);
+  const app = initializeApp(config);
+  firebaseState.app = app;
+  const auth = getAuth(app);
+  firebaseState.auth = auth;
+  const db = getFirestore(app);
+  firebaseState.db = db;
 
   const env = firebaseEnvironment();
 
-  if (env.VITE_FIREBASE_USE_EMULATORS === "true") {
-    const authPort = environmentValue(
-      env.VITE_FIREBASE_AUTH_EMULATOR_PORT,
-      "9099"
-    );
-    const firestorePort = Number(
-      environmentValue(env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT, "8080")
-    );
-    connectAuthEmulator(auth, `http://127.0.0.1:${authPort}`, {
-      disableWarnings: true,
-    });
-    connectFirestoreEmulator(db, "127.0.0.1", firestorePort);
-  }
+  if (env.VITE_FIREBASE_USE_EMULATORS !== "true") return;
+  const authPort = environmentValue(
+    env.VITE_FIREBASE_AUTH_EMULATOR_PORT,
+    "9099"
+  );
+  const firestorePort = Number(
+    environmentValue(env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT, "8080")
+  );
+  connectAuthEmulator(auth, `http://127.0.0.1:${authPort}`, {
+    disableWarnings: true,
+  });
+  connectFirestoreEmulator(db, "127.0.0.1", firestorePort);
 }
 
 export function isFirebaseConfigured(): boolean {
   init();
-  return app !== null;
+  return firebaseState.app !== null;
 }
 
 export function getFirebaseAuth(): Auth {
   init();
-  if (!auth) throw new Error("firebase-not-configured");
-  return auth;
+  if (!firebaseState.auth) throw new Error("firebase-not-configured");
+  return firebaseState.auth;
 }
 
 export function getDb(): Firestore {
   init();
-  if (!db) throw new Error("firebase-not-configured");
-  return db;
+  if (!firebaseState.db) throw new Error("firebase-not-configured");
+  return firebaseState.db;
 }
 
 function environmentValue(value: string | undefined, fallback: string): string {

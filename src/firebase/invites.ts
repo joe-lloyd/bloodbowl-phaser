@@ -67,7 +67,8 @@ async function chooseFriendlyLobby(uid: string): Promise<string> {
     !lobby.guestUid &&
     !lobby.competitionContext;
   if (reusable) return lobby.code;
-  return (await createLobby(uid, await resolveCoachName(uid))).code;
+  const created = await createLobby(uid, await resolveCoachName(uid));
+  return created.code;
 }
 
 export async function inviteFriendToMatch({
@@ -154,8 +155,9 @@ export function subscribeInvites(
   uid: string,
   onChange: (invites: Invite[]) => void
 ): () => void {
+  const invitesCollection = collection(getDb(), "invites");
   return onSnapshot(
-    query(collection(getDb(), "invites"), where("toUid", "==", uid)),
+    query(invitesCollection, where("toUid", "==", uid)),
     (snapshot) => {
       onChange(
         readEach(snapshot.docs, (document) => readInvite(document.data()))
@@ -174,8 +176,9 @@ export async function dismissCompetitionInvites({
   uid: string;
   competitionId: string;
 }): Promise<void> {
+  const invitesCollection = collection(getDb(), "invites");
   const snapshot = await getDocs(
-    query(collection(getDb(), "invites"), where("toUid", "==", uid))
+    query(invitesCollection, where("toUid", "==", uid))
   );
   const invites = readEach(snapshot.docs, (entry) => readInvite(entry.data()));
   await Promise.all(

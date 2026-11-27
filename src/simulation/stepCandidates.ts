@@ -139,9 +139,10 @@ function jumpSteps(ctx: StepContext): void {
   const canJumpAnything =
     hasSkill(player.skills, SkillType.LEAP) ||
     hasSkill(player.skills, SkillType.POGO);
-  for (const target of jumpTargets(at, others, canJumpAnything, (x, y) =>
+  const jumps = jumpTargets(at, others, canJumpAnything, (x, y) =>
     isStandableSquare({ x, y })
-  )) {
+  );
+  for (const target of jumps) {
     step(
       {
         type: "jump",
@@ -162,9 +163,8 @@ function blockSteps(ctx: StepContext): void {
     (action === "block" ||
       (action === "blitz" && !gs.hasUsedBlitzBlock(player.id)));
   if (!canBlock) return;
-  for (const target of adjacent.filter(
-    (o) => o.status === PlayerStatus.ACTIVE
-  )) {
+  for (const target of adjacent) {
+    if (target.status !== PlayerStatus.ACTIVE) continue;
     step(
       { type: "block", attackerId: player.id, defenderId: target.id },
       `${describePlayer(player)} blocks ${describePlayer(target)}`
@@ -186,7 +186,8 @@ function multipleBlockSteps({
     return;
   const targets = adjacent.filter((p) => p.status === PlayerStatus.ACTIVE);
   for (const [i, first] of targets.entries()) {
-    for (const second of targets.slice(i + 1)) {
+    const later = targets.slice(i + 1);
+    for (const second of later) {
       step(
         {
           type: "multiple-block",
@@ -207,9 +208,8 @@ function gazeSteps({ player, action, adjacent, step }: StepContext): void {
     !hasSkill(player.skills, SkillType.HYPNOTIC_GAZE)
   )
     return;
-  for (const target of adjacent.filter(
-    (p) => p.status === PlayerStatus.ACTIVE
-  )) {
+  for (const target of adjacent) {
+    if (target.status !== PlayerStatus.ACTIVE) continue;
     step(
       {
         type: "special-action",
@@ -289,7 +289,8 @@ function handoffSteps({
   step,
 }: StepContext): void {
   if (action !== "handoff" || !carrying) return;
-  for (const mate of legalHandoffTargets(player, gs.getTeammates(player.id))) {
+  const mates = legalHandoffTargets(player, gs.getTeammates(player.id));
+  for (const mate of mates) {
     step(
       { type: "handoff", playerId: player.id, targetId: mate.id },
       `${describePlayer(player)} hands off to ${describePlayer(mate)}`
@@ -299,9 +300,8 @@ function handoffSteps({
 
 function foulSteps({ player, action, adjacent, step }: StepContext): void {
   if (action !== "foul") return;
-  for (const target of adjacent.filter(
-    (o) => o.status === PlayerStatus.PRONE || o.status === PlayerStatus.STUNNED
-  )) {
+  for (const target of adjacent) {
+    if (target.status !== PlayerStatus.PRONE && target.status !== PlayerStatus.STUNNED) continue;
     step(
       { type: "foul", playerId: player.id, ...target.gridPosition! },
       `${describePlayer(player)} fouls ${describePlayer(target)}`
@@ -400,8 +400,9 @@ export function stepCandidates(
         state.ballPosition.y === at.y,
       replacementPending:
         !!active.blockReplacement && !active.blockReplacementUsed,
-      step: (command, label) =>
-        out.push({ kind: "step", commands: [command], label }),
+      step: (command, label) => {
+        out.push({ kind: "step", commands: [command], label });
+      },
     };
     for (const pass of STEP_PASSES) pass(ctx);
   }

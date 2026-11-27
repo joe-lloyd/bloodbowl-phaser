@@ -49,6 +49,7 @@ import {
   nextTurnReach,
   scoringValue,
 } from "./latePlans";
+import { bestBy } from "../../game/core/order";
 
 export const CORNERS = [
   [-1, -1],
@@ -221,10 +222,8 @@ function carrierMoves({ c, carrier, routes, plain }: CarrierMovesArgs): {
   const here = carrierSquare(c, carrier.gridPosition, carrier);
   let safe: CarrierMove = null;
   let risky: CarrierMove = null;
-  for (const route of carrierMoveRoutes(c, carrier, [
-    ...plain.values(),
-    ...routes.values(),
-  ])) {
+  const candidateRoutes = carrierMoveRoutes(c, carrier, [...plain.values(), ...routes.values()]);
+  for (const route of candidateRoutes) {
     const gain = carrierSquare(c, route.to, carrier) - here;
     const ordinary =
       gamble(c, route.chance, gain) -
@@ -300,9 +299,8 @@ function stallRoute(
   const safety = (at: Square) =>
     Math.min(99, ...board.theirs.map((o) => distance(o.gridPosition, at))) +
     Math.min(2, at.y, pitchHeight() - 1 - at.y);
-  const pick = options.reduce((best, o) =>
-    safety(o.at) > safety(best.at) ? o : best
-  );
+  const pick = bestBy(options, (o) => safety(o.at));
+  if (!pick) throw new Error("No square to move the ball carrier to");
   return pick.route ?? { to: pick.at, path: [], rolls: [], chance: 1 };
 }
 

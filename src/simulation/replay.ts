@@ -64,15 +64,15 @@ export async function replayRecording(
     const response = await game.execute(step.command);
     executed++;
     if (response.ok !== step.ok && divergedAt === null) divergedAt = index;
-    if (response.ok) {
-      for (const violation of monitor.observe(
-        step.command,
-        before,
-        response.snapshot,
-        !!response.pendingDecision
-      )) {
-        violations.push({ ...violation, step: index });
-      }
+    if (!response.ok) continue;
+    const observed = monitor.observe(
+      step.command,
+      before,
+      response.snapshot,
+      !!response.pendingDecision
+    );
+    for (const violation of observed) {
+      violations.push({ ...violation, step: index });
     }
   }
   const complete = executed === recording.steps.length;

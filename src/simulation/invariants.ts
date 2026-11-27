@@ -125,19 +125,19 @@ function ballChecks(
   }
 
   if (
-    after.phase === GamePhase.PLAY &&
-    after.ballPosition &&
-    !decisionPending
-  ) {
-    const holder = occupied.get(
-      `${String(after.ballPosition.x)},${String(after.ballPosition.y)}`
+    after.phase !== GamePhase.PLAY ||
+    !after.ballPosition ||
+    decisionPending
+  )
+    return;
+  const holder = occupied.get(
+    `${String(after.ballPosition.x)},${String(after.ballPosition.y)}`
+  );
+  if (holder && holder.status !== PlayerStatus.ACTIVE) {
+    fail(
+      "downed-player-holds-ball",
+      `${where(holder)} is ${holder.status} with the ball`
     );
-    if (holder && holder.status !== PlayerStatus.ACTIVE) {
-      fail(
-        "downed-player-holds-ball",
-        `${where(holder)} is ${holder.status} with the ball`
-      );
-    }
   }
 }
 
@@ -181,7 +181,9 @@ export function checkInvariants(
   decisionPending: boolean
 ): InvariantViolation[] {
   const out: InvariantViolation[] = [];
-  const fail = (rule: string, message: string) => out.push({ rule, message });
+  const fail = (rule: string, message: string) => {
+    out.push({ rule, message });
+  };
   const players = after.teams.flatMap((t) => t.players);
   const occupied = squareChecks(
     players.filter((p) => p.position),
@@ -253,7 +255,8 @@ function movementChecks(
   after: GameSnapshot,
   fail: Fail
 ): void {
-  for (const player of after.teams.flatMap((t) => t.players)) {
+  const afterPlayers = after.teams.flatMap((t) => t.players);
+  for (const player of afterPlayers) {
     const used = after.turn.movementUsed[player.id] ?? 0;
 
     if (used <= (before.turn.movementUsed[player.id] ?? 0)) continue;
@@ -279,8 +282,9 @@ export function createRuleMonitor(): RuleMonitor {
   return {
     observe(command, before, after, decisionPending) {
       const out = checkInvariants(before, after, decisionPending);
-      const fail = (rule: string, message: string) =>
+      const fail = (rule: string, message: string) => {
         out.push({ rule, message });
+      };
 
       blitzBlockCheck(command, before, blitzBlocks, fail);
 

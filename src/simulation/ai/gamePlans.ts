@@ -1,6 +1,7 @@
 import type { CoachRng } from "../rng";
 import type { Activation } from "./activations";
 import type { Weights } from "./weights";
+import { bestBy } from "../../game/core/order";
 
 type Lean =
   | Exclude<Activation["intent"]["kind"], "reposition">
@@ -92,11 +93,10 @@ export function choosePlan<T extends { activation: Activation }>({
   const scored = options
     .filter((o) => !safe || o.activation.tier !== "risky")
     .map((o) => ({ o, score: o.activation.value + lean(plan, o.activation) }));
-  const topEntry = scored.reduce((best, entry) =>
-    entry.score > best.score ? entry : best
-  );
-  const top = topEntry.score;
+  const topEntry = bestBy(scored, (entry) => entry.score);
+  if (!topEntry) throw new Error("No activation to choose from");
   if (variety.margin <= 0) return topEntry.o;
+  const top = topEntry.score;
   const floor = top - variety.margin;
   const close = scored.filter((s) => s.score > floor);
   const total = close.reduce((sum, s) => sum + (s.score - floor), 0);

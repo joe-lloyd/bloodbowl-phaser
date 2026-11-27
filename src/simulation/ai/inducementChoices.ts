@@ -28,10 +28,11 @@ function most(
   candidates: readonly Player[],
   score: (player: Player) => number
 ): Player | undefined {
-  return candidates.reduce<Player | undefined>(
-    (best, player) => (!best || score(player) > score(best) ? player : best),
-    undefined
-  );
+  let best: Player | undefined;
+  for (const player of candidates) {
+    if (!best || score(player) > score(best)) best = player;
+  }
+  return best;
 }
 
 const pick = (player: Player | undefined): Pick | null =>

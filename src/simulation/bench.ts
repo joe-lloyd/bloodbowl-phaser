@@ -117,12 +117,14 @@ function side(games: readonly BenchGame[], index: 0 | 1): SideReport {
     games.reduce((sum, g) => sum + pick(g.stats[index]), 0);
   const turns = total((s) => s.turns);
   const actionsPerGame: Partial<Record<ActionType, number>> = {};
-  for (const game of games)
-    for (const [action, count] of Object.entries(game.stats[index].actions) as [
+  for (const game of games) {
+    const actionEntries = Object.entries(game.stats[index].actions) as [
       ActionType,
       number,
-    ][])
+    ][];
+    for (const [action, count] of actionEntries)
       actionsPerGame[action] = (actionsPerGame[action] ?? 0) + count / n;
+  }
   return {
     touchdownsPerGame: games.reduce((sum, g) => sum + g.score[index], 0) / n,
     turnoversPerGame: total((s) => s.turnovers) / n,

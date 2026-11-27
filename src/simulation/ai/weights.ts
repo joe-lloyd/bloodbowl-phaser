@@ -108,7 +108,8 @@ function object(raw: unknown, where: string): Record<string, unknown> {
 
 function overrides(raw: unknown, where: string): Partial<Weights> {
   const out: Record<string, number> = {};
-  for (const [name, value] of Object.entries(object(raw, where))) {
+  const entries = Object.entries(object(raw, where));
+  for (const [name, value] of entries) {
     if (!(name in DEFAULT_WEIGHTS)) throw new Error(`unknown weight "${name}"`);
     if (typeof value !== "number" || !Number.isFinite(value))
       throw new TypeError(`weight "${name}" must be a finite number`);

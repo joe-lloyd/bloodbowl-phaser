@@ -235,12 +235,13 @@ function bestBlitz({
 }: BestBlitzArgs): Blitz | null {
   const { w } = c;
   let best: Blitz | null = null;
-  for (const route of blitzSquares({
+  const squares = blitzSquares({
     player: player,
     target: target,
     routes: routes,
     moves: normal + rushes,
-  })) {
+  });
+  for (const route of squares) {
     const from = route?.to ?? player.gridPosition;
     const odds = blockFrom({
       c: c,
@@ -308,9 +309,8 @@ function bestHitOn(hits: Activation[], carrier: Player): Activation | null {
   let hit: Activation | null = null;
   for (const a of hits) {
     const aimed =
-      a.intent.kind === "block" || a.intent.kind === "blitz"
-        ? a.intent.target.id === carrier.id
-        : false;
+      (a.intent.kind === "block" || a.intent.kind === "blitz") &&
+      a.intent.target.id === carrier.id;
     if (aimed && (!hit || a.value > hit.value)) hit = a;
   }
   return hit;

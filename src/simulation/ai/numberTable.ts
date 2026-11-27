@@ -1,4 +1,5 @@
-const LITTLE_ENDIAN = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+const probe = new Uint16Array([1]);
+const LITTLE_ENDIAN = new Uint8Array(probe.buffer, probe.byteOffset, probe.byteLength)[0] === 1;
 
 export class NumberTable {
   private readonly values: Float64Array;

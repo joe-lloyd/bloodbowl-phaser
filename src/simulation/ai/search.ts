@@ -40,11 +40,12 @@ function shortlist(context: CoachContext, w: Weights, size: number): Option[] {
   const board = readBoard(game, point.teamId);
   const out: Option[] = [];
   const seen = new Set<string>();
-  for (const activation of activations({
+  const found = activations({
     board: board,
     w: w,
     available: availableActions(point.candidates),
-  })) {
+  });
+  for (const activation of found) {
     const id = planIdentity(activation);
     if (seen.has(id)) continue;
     seen.add(id);

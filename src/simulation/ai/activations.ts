@@ -1,6 +1,7 @@
 import { type FieldPlayer as Player } from "./board";
 
 import { type ActionType } from "../../types/events";
+import { byCodeUnit } from "../../game/core/order";
 import { type Board, type Square, carrierOf, distance } from "./board";
 import { hasTackleZone } from "../../types/Player";
 import { type RollTarget, sequenceChance } from "./chance";
@@ -104,7 +105,7 @@ export function planIdentity(plan: Activation): string {
   if ("targets" in intent)
     return `${prefix}/${intent.targets
       .map((player) => player.id)
-      .sort()
+      .sort(byCodeUnit)
       .join(",")}`;
   if ("route" in intent)
     return `${prefix}/${String(intent.route.to.x)},${String(intent.route.to.y)}`;
@@ -139,8 +140,7 @@ function fieldOptions(
   player: Player,
   actions: ReadonlySet<ActionType>
 ): Activation[] {
-  const out: Activation[] = [];
-  out.push(...pickupOptions(c, player, actions));
+  const out: Activation[] = [...pickupOptions(c, player, actions)];
   if (actions.has("block")) out.push(...blockActivations(c, player));
   out.push(...skillOptions(c, player, actions));
   if (actions.has("blitz")) out.push(...blitzActivations(c, player));
@@ -189,8 +189,7 @@ export function activations({
   const carrier = carrierOf(board);
   if (carrier?.teamId === board.us && scoreChanceOf(c, carrier) < w.safeScore)
     out.push(...deepReceiverActivations(c, carrier));
-  out.push(...assistActivations(c, out));
-  out.push(...feedingSupportActivations(c));
+  out.push(...assistActivations(c, out), ...feedingSupportActivations(c));
   return sortActivations(hitMarkersFirst(c, gatePriced(c, out)));
 }
 
@@ -198,8 +197,8 @@ function markerHit(
   plan: Activation,
   markers: readonly Player[]
 ): MarkerHit | null {
-  const intent = plan.intent;
   if (plan.tier !== "sure-block" && plan.tier !== "blitz") return null;
+  const intent = plan.intent;
   if (intent.kind !== "block" && intent.kind !== "blitz") return null;
   if (markers.every((m) => m.id !== intent.target.id)) return null;
   return {

@@ -53,6 +53,7 @@ import {
   choosePlan,
 } from "./gamePlans";
 import type { CoachRng } from "../rng";
+import { bestBy } from "../../game/core/order";
 
 const END_ACTIVATION = "end-activation";
 
@@ -328,8 +329,8 @@ function retainedStep({
   available,
   skillPlans,
 }: RetainedStepArgs): CoachChoice | null {
-  const intent = plan.intent;
   if (actor.id !== plan.player.id) return null;
+  const intent = plan.intent;
   if (!isTravelIntent(intent)) {
     return resumeAction({
       board,
@@ -459,7 +460,8 @@ function kickChoice(
     const depth = board.dir === 1 ? pitchWidth() - 1 - kick.x : kick.x;
     return -Math.abs(depth - w.kickDepth) * 10 + kickWidth(kick.y, wide, crowd);
   };
-  const best = kicks.reduce((a, b) => (score(b) > score(a) ? b : a));
+  const best = bestBy(kicks, score);
+  if (!best) throw new Error("No kick to choose from");
   return { index: best.index };
 }
 

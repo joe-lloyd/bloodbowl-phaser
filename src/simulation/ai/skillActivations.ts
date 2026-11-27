@@ -153,8 +153,9 @@ function multipleBlockActivations(c: Context, player: Player): Activation[] {
   };
   const noReroll = { ...c, teamReroll: false };
   const out: Activation[] = [];
-  for (const [i, firstTarget] of targets.entries())
-    for (const secondTarget of targets.slice(i + 1)) {
+  for (const [i, firstTarget] of targets.entries()) {
+    const laterTargets = targets.slice(i + 1);
+    for (const secondTarget of laterTargets) {
       const first = blockFrom({
         c: noReroll,
         attacker: reduced,
@@ -190,6 +191,7 @@ function multipleBlockActivations(c: Context, player: Player): Activation[] {
         rolls: [],
       });
     }
+  }
   return out;
 }
 

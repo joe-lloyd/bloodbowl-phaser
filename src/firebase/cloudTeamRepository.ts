@@ -203,7 +203,8 @@ export class CloudTeamRepository implements TeamRepository {
       ])
     );
     this.writing = written;
-    const failed = (await written).find(({ status }) => status === "rejected");
+    const settled = await written;
+    const failed = settled.find(({ status }) => status === "rejected");
     if (failed?.status === "rejected") throw failed.reason;
   }
 }
