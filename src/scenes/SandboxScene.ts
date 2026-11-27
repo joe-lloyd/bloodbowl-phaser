@@ -15,7 +15,7 @@ import { findRuleConfig } from "../data/ruleScenarios";
 import { findKickoffConfig, KICKOFF_TOPIC } from "../data/kickoffScenarios";
 import { SCENARIO_CASES } from "../testing/cases";
 import { findScenarioCase } from "../testing/scenarioCase";
-import { GameEventNames } from "@/types/events";
+import { GameEventNames, type UIEvents } from "@/types/events";
 import { type Scenario } from "../types/Scenario";
 import {
   SANDBOX_DEFAULT_TEAM1_ROSTER,
@@ -86,6 +86,21 @@ function scenarioFromConfig(
   };
 }
 
+type ScenarioRequest = UIEvents[typeof GameEventNames.UI_LoadScenario];
+
+function scenarioFromUrl(): ScenarioRequest | null {
+  const urlParams = new URLSearchParams(location.search);
+  const scenarioId = urlParams.get("scenario");
+  if (!scenarioId) return null;
+  const seed = Number(urlParams.get("seed") ?? NaN);
+  const outcomeId = urlParams.get("outcome");
+  return {
+    scenarioId,
+    ...(Number.isFinite(seed) && { seed }),
+    ...(outcomeId !== null && { outcomeId }),
+  };
+}
+
 export class SandboxScene extends GameScene {
   constructor() {
     super("SandboxScene");
@@ -128,27 +143,30 @@ export class SandboxScene extends GameScene {
       super.init({ team1, team2 });
     }
 
+    this.listenForScenarios();
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupSandbox, this);
     this.events.on(Phaser.Scenes.Events.DESTROY, this.cleanupSandbox, this);
   }
 
-  private loadScenarioHandler: ((data: { scenarioId: string }) => void) | null =
+  private listenForScenarios(): void {
+    this.boardReady = false;
+    this.pendingScenario = null;
+    this.loadScenarioHandler = (request: ScenarioRequest) => {
+      if (this.boardReady) this.loadRequested(request);
+      else this.pendingScenario = request;
+    };
+    this.eventBus.on(GameEventNames.UI_LoadScenario, this.loadScenarioHandler);
+  }
+
+  private loadScenarioHandler: ((request: ScenarioRequest) => void) | null =
     null;
+  private boardReady = false;
+  private pendingScenario: ScenarioRequest | null = null;
   private refreshBoardHandler: (() => void) | null = null;
   private playerMovedHandler: (() => void) | null = null;
 
   override create(): void {
     super.create();
-
-    this.loadScenarioHandler = (data: {
-      scenarioId: string;
-      seed?: number;
-      outcomeId?: string;
-    }) => {
-      this.loadScenario(data.scenarioId, data.seed, data.outcomeId);
-    };
-
-    this.eventBus.on(GameEventNames.UI_LoadScenario, this.loadScenarioHandler);
 
     this.refreshBoardHandler = () => {
       this.refreshDugouts();
@@ -161,19 +179,17 @@ export class SandboxScene extends GameScene {
     };
     this.eventBus.on(GameEventNames.PlayerMoved, this.playerMovedHandler);
 
-    const urlParams = new URLSearchParams(location.search);
-    const scenarioId = urlParams.get("scenario");
-    if (!scenarioId) return;
-    const seedParam = urlParams.get("seed");
-    const seed =
-      seedParam !== null && Number.isFinite(Number(seedParam))
-        ? Number(seedParam)
-        : undefined;
-    const outcomeId = urlParams.get("outcome") ?? undefined;
-
+    this.boardReady = true;
+    const request = this.pendingScenario ?? scenarioFromUrl();
+    this.pendingScenario = null;
+    if (!request) return;
     this.time.delayedCall(100, () => {
-      this.loadScenario(scenarioId, seed, outcomeId);
+      this.loadRequested(request);
     });
+  }
+
+  private loadRequested(request: ScenarioRequest): void {
+    this.loadScenario(request.scenarioId, request.seed, request.outcomeId);
   }
 
   private loadScenario(
@@ -324,6 +340,8 @@ export class SandboxScene extends GameScene {
       );
       this.loadScenarioHandler = null;
     }
+    this.boardReady = false;
+    this.pendingScenario = null;
     if (this.refreshBoardHandler) {
       this.eventBus.off(GameEventNames.RefreshBoard, this.refreshBoardHandler);
       this.refreshBoardHandler = null;
