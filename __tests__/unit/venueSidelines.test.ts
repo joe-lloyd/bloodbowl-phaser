@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import meta from "../../public/stadium/bloodbowl/meta.json";
 import beachMeta from "../../public/venues/beach/meta.json";
+import arenaMeta from "../../public/venues/deathbowl/meta.json";
 import gutterSewerMeta from "../../public/venues/gutter-sewer/meta.json";
 import gutterStreetMeta from "../../public/venues/gutter-street/meta.json";
 import streetMeta from "../../public/venues/street/meta.json";
@@ -127,6 +128,16 @@ describe("Deathbowl arena", () => {
         isInsideLayout(arena, { x: Math.floor(x), y: Math.floor(y) })
       )
     ).toEqual([]);
+  });
+
+  it("draws the arena's dugouts where the game puts them, with a tint layer per seat", () => {
+    expect([arenaMeta.layout, arenaMeta.cols, arenaMeta.rows]).toEqual([
+      "deathbowl",
+      21,
+      21,
+    ]);
+    expect(arenaMeta.dugouts).toEqual(dugouts);
+    expect(Object.keys(arenaMeta.masks)).toEqual([...ARENA_SEATS]);
   });
 });
 
