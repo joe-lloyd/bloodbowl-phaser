@@ -43,10 +43,17 @@ vi.mock("firebase/firestore", () => ({
   doc: vi.fn(() => ({})),
   runTransaction: vi.fn(
     (_db: unknown, run: (transaction: unknown) => Promise<void>) =>
-      run({ get: () => Promise.resolve({ exists: () => false }), set: setDoc })
+      run({
+        get: () =>
+          Promise.resolve({
+            exists: () => true,
+            data: () => dehydrateTeam(humans("Cloud Humans", 4)),
+          }),
+        set: setDoc,
+      })
   ),
   setDoc,
-  getDocs: vi.fn(
+  getDocsFromServer: vi.fn(
     () =>
       new Promise((resolve, reject) => {
         fetches.push({ resolve, reject });

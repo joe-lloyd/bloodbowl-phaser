@@ -2,45 +2,10 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { RosterName, type Team } from "../../src/types/Team";
 
-const cloudDocuments = vi.hoisted(() => new Map<string, unknown>());
-
-vi.mock("firebase/firestore", () => ({
-  collection: vi.fn((_db: unknown, ...path: string[]) => ({
-    path: path.join("/"),
-  })),
-  doc: vi.fn((col: { path: string }, id: string) => ({
-    path: `${col.path}/${id}`,
-  })),
-  setDoc: vi.fn((ref: { path: string }, data: unknown) => {
-    cloudDocuments.set(ref.path, data);
-    return Promise.resolve();
-  }),
-  runTransaction: vi.fn(
-    async (
-      _db: unknown,
-      run: (transaction: {
-        get: (ref: {
-          path: string;
-        }) => Promise<{ exists: () => boolean; data: () => unknown }>;
-        set: (ref: { path: string }, data: unknown) => void;
-        delete: (ref: { path: string }) => void;
-      }) => Promise<void>
-    ) =>
-      run({
-        get: async (ref) => ({
-          exists: () => cloudDocuments.has(ref.path),
-          data: () => cloudDocuments.get(ref.path),
-        }),
-        set: (ref, data) => {
-          cloudDocuments.set(ref.path, data);
-        },
-        delete: (ref) => {
-          cloudDocuments.delete(ref.path);
-        },
-      })
-  ),
-  getDocs: vi.fn(() => Promise.resolve({ docs: [] })),
-}));
+vi.mock("firebase/firestore", async () => {
+  const fake = await import("../utils/fakeTeamCloud");
+  return fake.firestoreFake;
+});
 
 vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(() => ({})),
@@ -48,7 +13,10 @@ vi.mock("../../src/firebase/config", () => ({
 }));
 
 import { FirebaseError } from "firebase/app";
-import { runTransaction, setDoc } from "firebase/firestore";
+import { runTransaction } from "firebase/firestore";
+import { cloudDocuments, cloudWrites, network, resetTeamCloud } from "./../utils/fakeTeamCloud";
+import { cloudDocument } from "../../src/firebase/teamLibrarySync";
+import { readTeamMirror } from "../../src/boundary/teamMirror";
 import {
   saveTeams,
   loadTeams,
@@ -61,7 +29,10 @@ import {
   migrateLocalTeams,
 } from "../../src/firebase/cloudTeamRepository";
 
-const setDocMock = vi.mocked(setDoc);
+function primed(teams: Team[]): CloudTeamRepository {
+  for (const team of teams) cloudDocuments.set(`users/user-a/teams/${team.id}`, cloudDocument(team));
+  return new CloudTeamRepository("user-a", structuredClone(teams));
+}
 
 function makeTeam(id: string, name = id): Team {
   const team = createComputerTeam({ rosterName: RosterName.ORC, name, primaryColour: 0x224488, advancementMode: "advanced-league" });
@@ -74,7 +45,7 @@ beforeEach(() => {
   localStorage.clear();
   setTeamRepository(null);
   vi.clearAllMocks();
-  cloudDocuments.clear();
+  resetTeamCloud();
 });
 
 describe("signed-out persistence", () => {
@@ -101,15 +72,15 @@ describe("signed-out persistence", () => {
     expect(stored).toHaveLength(1);
     expect(stored[0].name).toBe("Locals");
     expect(fixtureValue(loadTeams()[0]).id).toBe("t1");
-    expect(setDocMock).not.toHaveBeenCalled();
+    expect(cloudWrites).toEqual([]);
   });
 });
 
 describe("signed-in cloud repository", () => {
   it("refuses deletion when another repository entered the computer team", async () => {
     const team = createComputerTeam({ rosterName: RosterName.ORC, name: "Nuln Hammers", primaryColour: 0x224488, advancementMode: "advanced-league" });
-    const staleTab = new CloudTeamRepository("user-a", [structuredClone(team)]);
-    const otherTab = new CloudTeamRepository("user-a", [structuredClone(team)]);
+    const staleTab = primed([structuredClone(team)]);
+    const otherTab = primed([structuredClone(team)]);
     otherTab.saveTeams([{ ...team, activeCompetitionId: "league-1" }]);
     await flush();
     setTeamRepository(staleTab);
@@ -129,8 +100,8 @@ describe("signed-in cloud repository", () => {
   it("deletes a free team without overwriting another tab's changes to other teams", async () => {
     const team = createComputerTeam({ rosterName: RosterName.ORC, name: "Free team", primaryColour: 0x224488, advancementMode: "advanced-league" });
     const keep = createComputerTeam({ rosterName: RosterName.HUMAN, name: "Keep me", primaryColour: 0x224488, advancementMode: "advanced-league" });
-    const staleTab = new CloudTeamRepository("user-a", [team, keep]);
-    const otherTab = new CloudTeamRepository("user-a", [
+    const staleTab = primed([team, keep]);
+    const otherTab = primed([
       structuredClone(team),
       structuredClone(keep),
     ]);
@@ -147,7 +118,7 @@ describe("signed-in cloud repository", () => {
     expect(loadTeams().map((saved) => saved.id)).toEqual([keep.id]);
   });
   it("reads from the primed cache and writes through to own library only", async () => {
-    setTeamRepository(new CloudTeamRepository("user-a", [makeTeam("cloud1")]));
+    setTeamRepository(primed([makeTeam("cloud1")]));
 
     expect(loadTeams().map((t) => t.id)).toEqual(["cloud1"]);
 
@@ -167,7 +138,7 @@ describe("signed-in cloud repository", () => {
 
   it("deletes removed teams from the cloud", async () => {
     setTeamRepository(
-      new CloudTeamRepository("user-a", [makeTeam("keep"), makeTeam("drop")])
+      primed([makeTeam("keep"), makeTeam("drop")])
     );
 
     const drop = { ...makeTeam("drop"), treasury: 1 };
@@ -183,7 +154,7 @@ describe("signed-in cloud repository", () => {
 
 async function startedElsewhere() {
   const draft = makeTeam("club");
-  const stale = new CloudTeamRepository("user-a", [structuredClone(draft)]);
+  const stale = primed([structuredClone(draft)]);
   const other = new CloudTeamRepository("user-a", [structuredClone(draft)]);
   await other.saveTeams([
     { ...structuredClone(draft), firstMatchPlayedAt: 1, wins: 1 },
@@ -193,11 +164,19 @@ async function startedElsewhere() {
 const stored = () => cloudDocuments.get("users/user-a/teams/club");
 
 describe("a stale draft in the cloud library", () => {
-
-  it("keeps the re-rolls and fans of a team that played its first match on another device", async () => {
+  it("asks before replacing a team that played its first match on another device", async () => {
     const { draft, stale } = await startedElsewhere();
     setTeamRepository(stale);
 
+    await saveTeams([{ ...structuredClone(draft), name: "Renamed" }]);
+
+    expect(stored()).toMatchObject({ name: draft.name, firstMatchPlayedAt: 1, wins: 1 });
+    expect(Object.keys(fixtureValue(readTeamMirror("user-a")).conflicts)).toEqual(["club"]);
+  });
+
+  it("keeps the re-rolls and fans of the played team when the coach keeps the draft", async () => {
+    const { draft, stale } = await startedElsewhere();
+    setTeamRepository(stale);
     await saveTeams([
       {
         ...structuredClone(draft),
@@ -206,6 +185,8 @@ describe("a stale draft in the cloud library", () => {
         dedicatedFans: draft.dedicatedFans + 1,
       },
     ]);
+
+    await stale.keepLocal("club");
 
     expect(stored()).toMatchObject({
       name: "Renamed",
@@ -220,38 +201,37 @@ describe("a stale draft in the cloud library", () => {
   });
 
   it("never lands after a later save of the same team", async () => {
-    const { draft, stale } = await startedElsewhere();
-    cloudDocuments.clear();
-    const first = stale.saveTeams([structuredClone(draft)]);
-    const second = stale.saveTeams([
+    const draft = makeTeam("club");
+    const repository = primed([structuredClone(draft)]);
+    const first = repository.saveTeams([{ ...structuredClone(draft), name: "Draft" }]);
+    const second = repository.saveTeams([
       { ...structuredClone(draft), firstMatchPlayedAt: 2, wins: 1 },
     ]);
     await Promise.all([first, second]);
     expect(stored()).toMatchObject({ firstMatchPlayedAt: 2, wins: 1 });
   });
 
-  it("waits for the server and still keeps the lock", async () => {
-    const { draft, stale } = await startedElsewhere();
-    vi.useFakeTimers();
-    vi.mocked(runTransaction).mockRejectedValueOnce(
-      new FirebaseError("unavailable", "offline")
-    );
-    const saved = stale.saveTeams([
-      { ...structuredClone(draft), rerolls: draft.rerolls + 1 },
-    ]);
-    await vi.advanceTimersByTimeAsync(5000);
-    await saved;
-    vi.useRealTimers();
-    expect(stored()).toMatchObject({
-      firstMatchPlayedAt: 1,
-      rerolls: draft.rerolls,
-    });
+  it("keeps an offline save waiting and still applies the lock when it uploads", async () => {
+    const draft = makeTeam("club");
+    const repository = primed([structuredClone(draft)]);
+    network.up = false;
+    await repository.saveTeams([{ ...structuredClone(draft), rerolls: draft.rerolls + 1 }]);
+    expect(stored()).toMatchObject({ rerolls: draft.rerolls });
+    vi.mocked(runTransaction).mockRejectedValueOnce(new FirebaseError("unavailable", "offline"));
+    network.up = true;
+
+    await repository.resync();
+    expect(fixtureValue(readTeamMirror("user-a")).pending).toEqual(["club"]);
+    await repository.resync();
+
+    expect(stored()).toMatchObject({ rerolls: draft.rerolls + 1 });
+    expect(fixtureValue(readTeamMirror("user-a")).pending).toEqual([]);
   });
 
   it("finishes a batch before the next save when one team is refused", async () => {
     const draft = makeTeam("club");
-    const repository = new CloudTeamRepository("user-a", []);
-    setDocMock.mockRejectedValueOnce(new Error("refused"));
+    const repository = primed([]);
+    vi.mocked(runTransaction).mockRejectedValueOnce(new Error("refused"));
     const first = repository.saveTeams([
       { ...makeTeam("started"), firstMatchPlayedAt: 1 },
       { ...draft, name: "Old" },
@@ -296,7 +276,7 @@ describe("local→cloud migration", () => {
     const uploaded = await migrateLocalTeams("user-b", [], () => false);
 
     expect(uploaded).toEqual([]);
-    expect(setDocMock).not.toHaveBeenCalled();
+    expect(cloudWrites).toEqual([]);
     expect(JSON.parse(fixtureValue(localStorage.getItem("bloodbowl_teams")))).toHaveLength(
       1
     );

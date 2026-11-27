@@ -86,7 +86,7 @@ export class TeamLibraryUnavailableError extends Error {
   }
 }
 
-function notifyLibraryListeners(): void {
+export function notifyLibraryListeners(): void {
   for (const listener of repositoryListeners) listener();
 }
 
