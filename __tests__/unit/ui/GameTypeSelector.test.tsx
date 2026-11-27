@@ -54,6 +54,25 @@ describe("GameTypeSelector", () => {
     );
   });
 
+  it("marks each card with its game type badge, hidden from screen readers", () => {
+    act(() => {
+      root.render(<GameTypeSelector value="sevens" onChange={vi.fn()} />);
+    });
+
+    const badges = cards().map((button) =>
+      button.querySelector("svg[data-game-type-badge]")
+    );
+    expect(
+      badges.map((badge) => badge?.getAttribute("data-game-type-badge"))
+    ).toEqual(["sevens", "gutter-bowl", "street-bowl", "beach-bowl"]);
+    expect(badges.map((badge) => badge?.getAttribute("aria-hidden"))).toEqual([
+      "true",
+      "true",
+      "true",
+      "true",
+    ]);
+  });
+
   it("picks a game type when its card is clicked", () => {
     const onChange = vi.fn();
     act(() => {

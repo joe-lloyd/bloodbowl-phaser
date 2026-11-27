@@ -24,10 +24,7 @@ import { thousands } from "../../../game/rules/club";
 import type { CompetitionDoc, LeagueDoc } from "../../../competition/types";
 import { SEASON_RIVALS } from "../../../game/rules/homeLeague";
 import { getTeamById } from "../../../game/managers/TeamManager";
-import {
-  GAME_TYPE_LABELS,
-  type GameType,
-} from "../../../game/variants/gameTypes";
+import type { GameType } from "../../../game/variants/gameTypes";
 import type { Difficulty } from "../../../simulation/ai/difficulty";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { useAuth } from "../../hooks/useAuth";
@@ -45,6 +42,7 @@ import {
   PageShell,
   Section,
 } from "../componentWarehouse/HudKit";
+import { GameTypeName } from "../common/GameTypeBadge";
 
 function placing(position: number): string {
   const teen = position % 100 >= 11 && position % 100 <= 13;
@@ -100,7 +98,7 @@ function GameTypeChoice({
             onChange(gameType);
           }}
         >
-          {GAME_TYPE_LABELS[gameType]}
+          <GameTypeName gameType={gameType} size={18} />
         </HudButton>
       ))}
     </div>
@@ -305,7 +303,9 @@ function History({ history }: { history: SeasonRecord[] }) {
           {[...history].reverse().map((record) => (
             <tr key={record.season} data-testid={`season-${String(record.season)}`}>
               <td>{record.season}</td>
-              <td>{GAME_TYPE_LABELS[record.gameType]}</td>
+              <td>
+                <GameTypeName gameType={record.gameType} />
+              </td>
               <td>{placing(record.position)}</td>
               <td>
                 {record.wins}-{record.draws}-{record.losses}

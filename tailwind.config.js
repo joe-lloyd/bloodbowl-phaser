@@ -40,6 +40,10 @@ export default {
           // The lit edge of a gold or blood button.
           "gold-hi": "#ffe08a",
           "blood-edge": "#ff5a5a",
+          "game-sevens": "#4fb35c",
+          "game-street": "#d0643a",
+          "game-beach": "#e3b448",
+          "game-gutter": "#4f9a86",
         },
       },
       fontFamily: {

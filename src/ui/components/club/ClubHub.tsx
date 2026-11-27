@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Title } from "../componentWarehouse/HudTitle";
 import type { Team } from "../../../types/Team";
-import { GAME_TYPE_LABELS } from "../../../game/variants/gameTypes";
 import { clubEntries } from "../../../game/rules/clubEntries";
 import { inTournament } from "../../../game/rules/club";
 import { homeLeagueOf } from "../../../competition/homeLeague";
@@ -16,6 +15,7 @@ import {
   PageShell,
 } from "../componentWarehouse/HudKit";
 import { GutterProgress } from "./GutterProgress";
+import { GameTypeName } from "../common/GameTypeBadge";
 
 function competitionChip(team: Team) {
   if (!team.activeCompetitionId) return null;
@@ -46,7 +46,7 @@ function ClubCard({ team, onOpen }: { team: Team; onOpen: () => void }) {
         <Chip tone="info">{team.rosterName}</Chip>
         {playable.map((entry) => (
           <Chip key={entry.gameType} tone="good">
-            {GAME_TYPE_LABELS[entry.gameType]}
+            <GameTypeName gameType={entry.gameType} size={14} />
           </Chip>
         ))}
         {competitionChip(team)}
