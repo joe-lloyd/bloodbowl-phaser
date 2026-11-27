@@ -1,24 +1,20 @@
 import { readCloudTeam } from "../boundary/firebaseTeam";
 import { readEach } from "../boundary/readEach";
-import { firebaseDocument } from "../boundary/firebaseJson";
+import { readTeamMirror, writeTeamMirror } from "../boundary/teamMirror";
 import {
   collection,
   collectionGroup,
   doc,
   getDoc,
   getDocs,
+  getDocsFromServer,
   runTransaction,
-  setDoc,
 } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
-import { isActiveTeam, withStartLock } from "../game/rules/teamLifecycle";
+import { withStartLock } from "../game/rules/teamLifecycle";
 import { getDb } from "./config";
 import { isAuthResolved, subscribeToAuth } from "./auth";
 import { type Team } from "../types/Team";
-import {
-  dehydrateTeam,
-  readStoredTeam,
-} from "../data/persistence/teamPersistence";
 import {
   type TeamRepository,
   setTeamRepository,
@@ -26,31 +22,49 @@ import {
   setTeamLibraryStatus,
   getTeamLibraryStatus,
   getLocalRepository,
+  notifyLibraryListeners,
 } from "../game/managers/TeamManager";
+import {
+  type LibraryState,
+  cloudDocument,
+  isUnsynced,
+  keepLocalVersion,
+  libraryFromMirror,
+  markConflict,
+  mergeCloud,
+  mirrorFromLibrary,
+  putTeam,
+  settleTeam,
+  syncedLibrary,
+  takeCloudVersion,
+  teamText,
+  withTeams,
+} from "./teamLibrarySync";
+import { publishTeamSyncStatus } from "./teamSyncStatus";
 
 const MIGRATION_FLAG_PREFIX = "bloodbowl_migration_offered_";
+const SAVE_WAIT_MS = 4000;
+const NETWORK_CODES = new Set(["unavailable", "deadline-exceeded"]);
+const BUSY_COMPUTER_TEAM =
+  "This computer team is still playing in a competition. Delete it once the competition is over.";
 
 function teamsCollection(uid: string) {
   return collection(getDb(), "users", uid, "teams");
 }
 
-function toPlainDoc(team: Team): Record<string, unknown> {
-  return firebaseDocument(dehydrateTeam(team));
-}
-
-function documentText(team: Team): string {
-  return JSON.stringify(toPlainDoc(team));
-}
-
-async function fetchCloudTeams(uid: string): Promise<Team[]> {
-  const snapshot = await getDocs(teamsCollection(uid));
-  return readEach(snapshot.docs, (d) => {
+function readTeams(documents: readonly { data: () => unknown }[]): Team[] {
+  return readEach(documents, (d) => {
     const { team, warnings } = readCloudTeam(d.data());
     for (const warning of warnings) {
       console.warn(`[cloudTeamRepository] ${warning}`);
     }
     return team;
   });
+}
+
+async function fetchCloudTeams(uid: string): Promise<Team[]> {
+  const snapshot = await getDocsFromServer(teamsCollection(uid));
+  return readTeams(snapshot.docs);
 }
 
 export interface OwnedTeam {
@@ -77,136 +91,225 @@ export async function fetchCoachTeam({
   return snapshot.exists() ? readCloudTeam(snapshot.data()).team : null;
 }
 
-const RETRY_MS = 5000;
+function isNetworkFailure(cause: unknown): boolean {
+  return cause instanceof FirebaseError && NETWORK_CODES.has(cause.code);
+}
 
-async function writeCloudTeam(uid: string, team: Team): Promise<Team> {
-  const reference = doc(teamsCollection(uid), team.id);
-  if (isActiveTeam(team)) {
-    await setDoc(reference, toPlainDoc(team));
-    return team;
-  }
-  try {
-    return await runTransaction(getDb(), async (transaction) => {
-      const snapshot = await transaction.get(reference);
-      const stored = snapshot.exists()
-        ? readCloudTeam(snapshot.data()).team
-        : undefined;
-      const locked = withStartLock(team, stored);
-      transaction.set(reference, toPlainDoc(locked));
-      return locked;
-    });
-  } catch (cause) {
-    if (!(cause instanceof FirebaseError) || cause.code !== "unavailable")
-      throw cause;
-    await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
-    return writeCloudTeam(uid, team);
+type PushOutcome =
+  | { readonly kind: "written"; readonly team: Team }
+  | { readonly kind: "deleted" }
+  | { readonly kind: "conflict"; readonly cloud: Team | null };
+
+interface Push {
+  readonly id: string;
+  readonly local: Team | undefined;
+  readonly base: string | undefined;
+}
+
+function refuseBusyDelete(stored: Team | undefined): void {
+  if (stored?.computerCoached && stored.activeCompetitionId) {
+    throw new Error(BUSY_COMPUTER_TEAM);
   }
 }
 
-async function deleteCloudTeam(uid: string, teamId: string): Promise<void> {
-  const reference = doc(teamsCollection(uid), teamId);
-  await runTransaction(getDb(), async (transaction) => {
+function pushTeam(uid: string, { id, local, base }: Push): Promise<PushOutcome> {
+  const reference = doc(teamsCollection(uid), id);
+  return runTransaction(getDb(), async (transaction): Promise<PushOutcome> => {
     const snapshot = await transaction.get(reference);
-    if (!snapshot.exists()) return;
-    const { team } = readStoredTeam(snapshot.data());
-    if (team.computerCoached && team.activeCompetitionId) {
-      throw new Error(
-        "This computer team is still playing in a competition. Delete it once the competition is over."
-      );
+    const stored = snapshot.exists() ? readCloudTeam(snapshot.data()).team : undefined;
+    if (!local) refuseBusyDelete(stored);
+    if ((stored && teamText(stored)) !== base) {
+      return { kind: "conflict", cloud: stored ?? null };
     }
-    transaction.delete(reference);
+    if (!local) {
+      if (stored) transaction.delete(reference);
+      return { kind: "deleted" };
+    }
+    const locked = withStartLock(local, stored);
+    transaction.set(reference, cloudDocument(locked));
+    return { kind: "written", team: locked };
   });
 }
 
-export class CloudTeamRepository implements TeamRepository {
-  private cache: Team[];
-  private writing: Promise<unknown> = Promise.resolve();
-  private readonly lastWritten = new Map<string, string>();
+function settleSoon(upload: Promise<void>): Promise<void> {
+  upload.catch((error: unknown) => {
+    console.error("Failed to upload teams:", error);
+  });
+  if (!navigator.onLine) return Promise.resolve();
+  return Promise.race([
+    upload,
+    new Promise<void>((resolve) => setTimeout(resolve, SAVE_WAIT_MS)),
+  ]);
+}
 
+const library: { active: CloudTeamRepository | null } = { active: null };
+
+export class CloudTeamRepository implements TeamRepository {
+  private state: LibraryState;
+  private queue: Promise<unknown> = Promise.resolve();
+  private syncing = 0;
+  private offline = false;
   private readonly uid: string;
-  constructor(uid: string, initialTeams: Team[]) {
+
+  constructor(uid: string, teams: readonly Team[], restored?: LibraryState) {
     this.uid = uid;
-    this.cache = [...initialTeams];
-    for (const team of initialTeams) {
-      this.lastWritten.set(team.id, documentText(team));
-    }
+    this.state = restored ?? syncedLibrary(teams, Date.now());
   }
 
   loadTeams(): Team[] {
-    return [...this.cache];
+    return [...this.state.teams];
   }
 
   async deleteTeam(teamId: string): Promise<void> {
-    await deleteCloudTeam(this.uid, teamId);
-    this.lastWritten.delete(teamId);
-    this.cache = this.cache.filter((team) => team.id !== teamId);
+    refuseBusyDelete(this.state.teams.find(({ id }) => id === teamId));
+    await this.saveTeams(this.state.teams.filter(({ id }) => id !== teamId));
   }
 
-  private replace(cached: Team | undefined, team: Team | undefined): void {
-    if (!team || team === cached) return;
-    this.cache = this.cache.map((entry) => (entry === cached ? team : entry));
+  saveTeams(teams: Team[]): Promise<void> {
+    const before = this.state.teams;
+    this.update(withTeams(this.state, teams), false);
+    return settleSoon(this.enqueue(() => this.uploadPending(before).then(() => undefined)));
   }
 
-  private async write(
-    copy: Team,
-    cached: Team | undefined,
-    before: Team[]
-  ): Promise<void> {
-    const claimed = documentText(copy);
+  resync(): Promise<void> {
+    return this.enqueue(async () => {
+      this.setSyncing(1);
+      try {
+        this.update(mergeCloud(this.state, await fetchCloudTeams(this.uid)));
+        this.offline = false;
+        if (await this.uploadPending(undefined)) this.update({ ...this.state, syncedAt: Date.now() });
+      } catch (cause) {
+        this.noteFailure(cause);
+      } finally {
+        this.setSyncing(-1);
+      }
+    });
+  }
+
+  keepLocal(teamId: string): Promise<void> {
+    this.update(keepLocalVersion(this.state, teamId));
+    return settleSoon(this.enqueue(() => this.uploadPending(undefined).then(() => undefined)));
+  }
+
+  takeCloud(teamId: string): void {
+    this.update(takeCloudVersion(this.state, teamId));
+  }
+
+  persist(): void {
+    writeTeamMirror(this.uid, mirrorFromLibrary(this.state));
+  }
+
+  publish(): void {
+    if (library.active !== this) return;
+    const { pending, conflicts, syncedAt, teams } = this.state;
+    publishTeamSyncStatus({
+      waiting: [...pending].filter((id) => !conflicts.has(id)).length,
+      conflicts: [...conflicts].map(([id, cloud]) => ({
+        id,
+        name: teams.find((team) => team.id === id)?.name ?? cloud?.name ?? id,
+        deletedElsewhere: cloud === null,
+      })),
+      syncing: this.syncing > 0,
+      offline: this.offline,
+      syncedAt,
+    });
+  }
+
+  private update(state: LibraryState, announce = true): void {
+    const before = this.state.teams;
+    const teamsChanged =
+      before.length !== state.teams.length || state.teams.some((team, index) => team !== before[index]);
+    this.state = state;
+    this.persist();
+    this.publish();
+    if (announce && teamsChanged && library.active === this) notifyLibraryListeners();
+  }
+
+  private setSyncing(step: number): void {
+    this.syncing += step;
+    this.publish();
+  }
+
+  private noteFailure(cause: unknown): void {
+    if (!isNetworkFailure(cause)) {
+      console.error("Failed to sync the team library:", cause);
+      return;
+    }
+    this.offline = true;
+    this.publish();
+  }
+
+  private enqueue(work: () => Promise<void>): Promise<void> {
+    const run = this.queue.then(work);
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async uploadPending(before: readonly Team[] | undefined): Promise<boolean> {
+    const ids = [...this.state.pending].filter((id) => !this.state.conflicts.has(id));
+    const settled = await Promise.allSettled(ids.map((id) => this.upload(id, before)));
+    const refused = settled.find(({ status }) => status === "rejected");
+    if (refused?.status === "rejected") throw refused.reason;
+    return settled.every((result) => result.status === "fulfilled" && result.value);
+  }
+
+  private async upload(id: string, before: readonly Team[] | undefined): Promise<boolean> {
+    const local = this.state.teams.find((team) => team.id === id);
     try {
-      const written = await writeCloudTeam(this.uid, copy);
-      this.settleWrite(copy.id, claimed, documentText(written));
-      if (written !== copy) this.replace(cached, written);
+      const outcome = await pushTeam(this.uid, { id, local, base: this.state.synced.get(id) });
+      this.offline = false;
+      this.record(id, local, outcome);
+      return true;
     } catch (cause) {
-      this.settleWrite(copy.id, claimed, undefined);
-      this.replace(
-        cached,
-        before.find(({ id }) => id === copy.id)
-      );
+      if (isNetworkFailure(cause)) {
+        this.noteFailure(cause);
+        return false;
+      }
+      if (before) this.revert(id, before);
       throw cause;
     }
   }
 
-  private settleWrite(
-    id: string,
-    claimed: string,
-    written: string | undefined
-  ): void {
-    if (this.lastWritten.get(id) !== claimed) return;
-    if (written === undefined) this.lastWritten.delete(id);
-    else this.lastWritten.set(id, written);
+  private record(id: string, local: Team | undefined, outcome: PushOutcome): void {
+    if (outcome.kind === "conflict") {
+      this.update(markConflict(this.state, id, outcome.cloud));
+      return;
+    }
+    const written = outcome.kind === "written" ? outcome.team : null;
+    const current = this.state.teams.find((team) => team.id === id);
+    const settled = settleTeam(this.state, id, written);
+    if (current === local) {
+      this.update(settled);
+      return;
+    }
+    this.update(withTeams({ ...settled, teams: this.state.teams }, this.state.teams));
   }
 
-  private claimWrite(team: Team): boolean {
-    const text = documentText(team);
-    if (this.lastWritten.get(team.id) === text) return false;
-    this.lastWritten.set(team.id, text);
-    return true;
+  private revert(id: string, before: readonly Team[]): void {
+    const reverted = { ...this.state, teams: putTeam(this.state.teams, id, before.find((team) => team.id === id)) };
+    const pending = new Set(this.state.pending);
+    if (!isUnsynced(reverted, id)) pending.delete(id);
+    this.update({ ...reverted, pending });
   }
+}
 
-  async saveTeams(teams: Team[]): Promise<void> {
-    const previousIds = new Set(this.cache.map((t) => t.id));
-    const nextIds = new Set(teams.map((t) => t.id));
-    const before = this.cache;
-    this.cache = [...teams];
+export function syncTeamsNow(): Promise<void> {
+  return library.active?.resync() ?? Promise.resolve();
+}
 
-    const changed = teams.filter((team) => this.claimWrite(team));
-    const copies = structuredClone(changed);
-    const removed = [...previousIds].filter((id) => !nextIds.has(id));
-    for (const id of removed) this.lastWritten.delete(id);
-    const written = this.writing.then(() =>
-      Promise.allSettled([
-        ...copies.map((team, index) =>
-          this.write(team, changed[index], before)
-        ),
-        ...removed.map((id) => deleteCloudTeam(this.uid, id)),
-      ])
-    );
-    this.writing = written;
-    const settled = await written;
-    const failed = settled.find(({ status }) => status === "rejected");
-    if (failed?.status === "rejected") throw failed.reason;
-  }
+export function keepThisDeviceTeam(teamId: string): Promise<void> {
+  return library.active?.keepLocal(teamId) ?? Promise.resolve();
+}
+
+export function takeOtherDeviceTeam(teamId: string): void {
+  library.active?.takeCloud(teamId);
+}
+
+function install(repository: CloudTeamRepository | null): void {
+  library.active = repository;
+  setTeamRepository(repository);
+  if (repository) repository.publish();
+  else publishTeamSyncStatus(null);
 }
 
 export async function migrateLocalTeams(
@@ -230,16 +333,21 @@ export async function migrateLocalTeams(
   if (candidates.length === 0) return [];
   if (!confirmMigration(candidates.length)) return [];
 
-  await Promise.all(candidates.map((team) => writeCloudTeam(uid, team)));
-  return candidates;
+  const outcomes = await Promise.all(
+    candidates.map((team) => pushTeam(uid, { id: team.id, local: team, base: undefined }))
+  );
+  return outcomes.flatMap((outcome) => (outcome.kind === "written" ? [outcome.team] : []));
+}
+
+function askToMigrate(count: number): boolean {
+  return confirm(
+    `You have ${String(count)} locally saved team${count === 1 ? "" : "s"}. ` +
+      `Upload ${count === 1 ? "it" : "them"} to your cloud team library?`
+  );
 }
 
 export function connectTeamPersistenceToAuth(
-  confirmMigration: (count: number) => boolean = (count) =>
-    confirm(
-      `You have ${String(count)} locally saved team${count === 1 ? "" : "s"}. ` +
-        `Upload ${count === 1 ? "it" : "them"} to your cloud team library?`
-    )
+  confirmMigration: (count: number) => boolean = askToMigrate
 ): void {
   let latestLoad = 0;
   let signedInUid: string | null = null;
@@ -247,20 +355,23 @@ export function connectTeamPersistenceToAuth(
   const loadCloudLibrary = (uid: string): void => {
     const load = ++latestLoad;
     const isCurrent = () => load === latestLoad;
+    const mirror = readTeamMirror(uid);
+    if (mirror) {
+      const repository = new CloudTeamRepository(uid, [], libraryFromMirror(mirror));
+      install(repository);
+      void repository.resync();
+      return;
+    }
     setTeamLibraryStatus("loading");
     void (async () => {
       try {
         const cloudTeams = await fetchCloudTeams(uid);
         if (!isCurrent()) return;
-        const migrated = await migrateLocalTeams(
-          uid,
-          cloudTeams,
-          confirmMigration
-        );
+        const migrated = await migrateLocalTeams(uid, cloudTeams, confirmMigration);
         if (!isCurrent()) return;
-        setTeamRepository(
-          new CloudTeamRepository(uid, [...cloudTeams, ...migrated])
-        );
+        const repository = new CloudTeamRepository(uid, [...cloudTeams, ...migrated]);
+        repository.persist();
+        install(repository);
       } catch (error) {
         console.error("Failed to load cloud team library:", error);
 
@@ -273,6 +384,10 @@ export function connectTeamPersistenceToAuth(
     if (signedInUid) loadCloudLibrary(signedInUid);
   });
 
+  addEventListener("online", () => {
+    void syncTeamsNow();
+  });
+
   subscribeToAuth((user) => {
     if (user?.uid === signedInUid) return;
     if (!user) {
@@ -282,7 +397,7 @@ export function connectTeamPersistenceToAuth(
 
       if (!isAuthResolved()) setTeamLibraryStatus("loading");
       else if (wasSignedIn || getTeamLibraryStatus() !== "loaded") {
-        setTeamRepository(null);
+        install(null);
       }
       return;
     }

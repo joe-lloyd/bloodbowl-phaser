@@ -34,6 +34,7 @@ import {
 import { ComputerTeamBrowser } from "../TeamManagement/ComputerTeamBrowser";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
+import { TeamSyncPanel } from "../TeamManagement/TeamSyncPanel";
 import {
   numToHex,
   TeamStatsOverview,
@@ -162,6 +163,8 @@ export function TeamManagement() {
           </>
         }
       />
+
+      <TeamSyncPanel />
 
       <div role="tablist" aria-label="Team library" className="mb-6 flex gap-2">
         {(

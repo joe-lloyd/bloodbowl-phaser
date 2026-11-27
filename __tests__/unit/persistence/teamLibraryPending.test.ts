@@ -1,5 +1,6 @@
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { FirebaseError } from "firebase/app";
 import { dehydrateTeam } from "../../../src/data/persistence/teamPersistence";
 import { type Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
@@ -40,7 +41,7 @@ vi.mock("firebase/firestore", () => ({
   doc: vi.fn(),
   runTransaction: vi.fn(),
   setDoc: vi.fn(),
-  getDocs: vi.fn(
+  getDocsFromServer: vi.fn(
     () =>
       new Promise((resolve, reject) => {
         fetches.push({ resolve, reject });
@@ -247,5 +248,26 @@ describe("team library pending", () => {
 
     expect(isTeamLibraryPending()).toBe(false);
     expect(loadTeams()).toEqual([]);
+  });
+
+  it("opens the teams kept on this device when the account cannot be reached", async () => {
+    connectTeamPersistenceToAuth(() => false);
+    signIn("coach-1");
+    fixtureValue(fetches[0]).resolve(snapshotOf(cloudTeam("cloud-team")));
+    await vi.waitFor(() => {
+      expect(getTeamLibraryStatus()).toBe("loaded");
+    });
+    signOut();
+    expect(loadTeams()).toEqual([]);
+
+    signIn("coach-1");
+
+    expect(getTeamLibraryStatus()).toBe("loaded");
+    expect(loadTeams().map((t) => t.id)).toEqual(["cloud-team"]);
+    await settle();
+    fixtureValue(fetches[1]).reject(new FirebaseError("unavailable", "offline"));
+    await settle();
+    expect(getTeamLibraryStatus()).toBe("loaded");
+    expect(loadTeams().map((t) => t.id)).toEqual(["cloud-team"]);
   });
 });

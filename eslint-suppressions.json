@@ -365,9 +365,6 @@
     "@typescript-eslint/no-unsafe-member-access": {
       "count": 1
     },
-    "@typescript-eslint/require-await": {
-      "count": 1
-    },
     "no-restricted-syntax": {
       "count": 2
     }
@@ -1320,11 +1317,6 @@
     },
     "@typescript-eslint/require-await": {
       "count": 2
-    }
-  },
-  "__tests__/unit/persistence/cloudTeamSaves.test.ts": {
-    "@typescript-eslint/consistent-type-imports": {
-      "count": 1
     }
   },
   "__tests__/unit/persistence/teamLibraryGuards.test.ts": {

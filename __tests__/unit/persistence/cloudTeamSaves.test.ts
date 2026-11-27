@@ -1,160 +1,213 @@
 import { fixtureValue } from "../../../src/testing/fixtureValue";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { runTransaction, setDoc } from "firebase/firestore";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FirebaseError } from "firebase/app";
+import { runTransaction } from "firebase/firestore";
 import { CloudTeamRepository } from "../../../src/firebase/cloudTeamRepository";
+import { cloudDocument, libraryFromMirror } from "../../../src/firebase/teamLibrarySync";
+import { readTeamMirror } from "../../../src/boundary/teamMirror";
+import { getComputerTeamTemplates, createComputerTeamFromTemplate } from "../../../src/competition/computerTeamTemplates";
+import { type Team } from "../../../src/types/Team";
 import { TeamBuilder } from "../../utils/test-builders";
+import { cloudDocuments, cloudWrites, network, resetTeamCloud } from "../../utils/fakeTeamCloud";
 
-vi.mock("firebase/firestore", async () => ({
-  ...(await vi.importActual<typeof import("firebase/firestore")>(
-    "firebase/firestore"
-  )),
-  doc: vi.fn(() => ({})),
-  collection: vi.fn(() => ({})),
-  setDoc: vi.fn(),
-  runTransaction: vi.fn(),
-}));
+vi.mock("firebase/firestore", async () => {
+  const fake = await import("../../utils/fakeTeamCloud");
+  return fake.firestoreFake;
+});
 vi.mock("../../../src/firebase/config", () => ({
-  isFirebaseConfigured: () => false,
+  isFirebaseConfigured: () => true,
   getDb: vi.fn(),
 }));
 
-afterEach(() => {
-  vi.clearAllMocks();
-});
+const UID = "coach";
+const path = (id: string) => `users/${UID}/teams/${id}`;
 
-describe("cloud team save acknowledgement", () => {
-  it("keeps the save pending after updating the cache until Firestore accepts it", async () => {
-    let acknowledge!: () => void;
-    const written = new Promise<void>((resolve) => {
-      acknowledge = resolve;
-    });
-    vi.mocked(setDoc).mockReturnValueOnce(written);
-    const team = new TeamBuilder()
-      .withId("saved-team")
-      .withTreasury(30_000)
-      .build();
-    team.firstMatchPlayedAt = 1;
-    const repository = new CloudTeamRepository("coach", []);
-    let acknowledged = false;
-    const saved = repository.saveTeams([team]).then(() => {
-      acknowledged = true;
-    });
-    await Promise.resolve();
-    expect(fixtureValue(repository.loadTeams()[0]).treasury).toBe(30_000);
-    expect(acknowledged).toBe(false);
-    acknowledge();
-    await saved;
-    expect(acknowledged).toBe(true);
-    expect(setDoc).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ id: "saved-team", treasury: 30_000 })
-    );
-  });
-
-  it("reports a rejected Firestore write to its caller", async () => {
-    vi.mocked(setDoc).mockRejectedValueOnce(new Error("Cloud offline"));
-    const team = new TeamBuilder()
-      .withId("saved-team")
-      .withTreasury(140_000)
-      .build();
-    team.firstMatchPlayedAt = 1;
-    const repository = new CloudTeamRepository("coach", []);
-    await expect(repository.saveTeams([team])).rejects.toThrow("Cloud offline");
-    expect(fixtureValue(repository.loadTeams()[0]).treasury).toBe(140_000);
-  });
-
-  it("goes back to the accepted team when Firestore refuses a change", async () => {
-    const accepted = new TeamBuilder().withTreasury(140_000).build();
-    accepted.firstMatchPlayedAt = 1;
-    vi.mocked(setDoc).mockRejectedValueOnce(new Error("Cloud offline"));
-    const repository = new CloudTeamRepository("coach", [accepted]);
-    await expect(
-      repository.saveTeams([{ ...accepted, treasury: 20_000 }])
-    ).rejects.toThrow("Cloud offline");
-    expect(repository.loadTeams()).toEqual([accepted]);
-  });
-});
-
-function activeTeam(id: string, treasury: number) {
-  const team = new TeamBuilder().withId(id).withTreasury(treasury).build();
+function activeTeam(id: string, treasury: number): Team {
+  const team = new TeamBuilder().withId(id).withName(id).withTreasury(treasury).build();
   team.firstMatchPlayedAt = 1;
   return team;
 }
 
+function primed(teams: Team[]): CloudTeamRepository {
+  for (const team of teams) cloudDocuments.set(path(team.id), cloudDocument(team));
+  return new CloudTeamRepository(UID, structuredClone(teams));
+}
+
+function storedTreasury(id: string): unknown {
+  const stored = cloudDocuments.get(path(id));
+  return typeof stored === "object" && stored !== null && "treasury" in stored ? stored.treasury : undefined;
+}
+
+function mirror() {
+  return fixtureValue(readTeamMirror(UID));
+}
+
+beforeEach(() => {
+  resetTeamCloud();
+  localStorage.clear();
+  vi.clearAllMocks();
+});
+
 describe("cloud team writes", () => {
   it("writes only the team that changed when the library is saved", async () => {
-    const library = [
-      activeTeam("first", 10_000),
-      activeTeam("second", 20_000),
-      activeTeam("third", 30_000),
-    ];
-    const repository = new CloudTeamRepository("coach", library);
+    const library = [activeTeam("first", 10_000), activeTeam("second", 20_000), activeTeam("third", 30_000)];
+    const repository = primed(library);
     const edited = structuredClone(library);
     edited[1] = { ...activeTeam("second", 20_000), treasury: 5000 };
 
     await repository.saveTeams(edited);
 
-    expect(setDoc).toHaveBeenCalledTimes(1);
-    expect(setDoc).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ id: "second", treasury: 5000 })
-    );
+    expect(cloudWrites).toEqual([path("second")]);
+    expect(storedTreasury("second")).toBe(5000);
   });
 
   it("writes nothing when no team changed", async () => {
     const library = [activeTeam("first", 10_000), activeTeam("second", 20_000)];
-    const repository = new CloudTeamRepository("coach", library);
+    const repository = primed(library);
 
     await repository.saveTeams(structuredClone(library));
 
-    expect(setDoc).not.toHaveBeenCalled();
+    expect(cloudWrites).toEqual([]);
   });
 
-  it("writes a team again after its last write was refused", async () => {
-    const repository = new CloudTeamRepository("coach", [
-      activeTeam("first", 10_000),
-    ]);
-    const changed = [activeTeam("first", 2000)];
-    vi.mocked(setDoc).mockRejectedValueOnce(new Error("Cloud offline"));
-    await expect(repository.saveTeams(changed)).rejects.toThrow(
-      "Cloud offline"
-    );
+  it("uploads saves in order, so the latest one lands last", async () => {
+    const repository = primed([activeTeam("first", 10_000)]);
+    const saves = [20_000, 30_000, 40_000].map((treasury) => repository.saveTeams([activeTeam("first", treasury)]));
+    await Promise.all(saves);
 
-    await repository.saveTeams(structuredClone(changed));
-
-    expect(setDoc).toHaveBeenCalledTimes(2);
-  });
-
-  it("writes the latest save when an earlier write finishes after a newer one was queued", async () => {
-    const repository = new CloudTeamRepository("coach", [
-      activeTeam("first", 10_000),
-    ]);
-    let finishFirst!: () => void;
-    vi.mocked(setDoc).mockReturnValueOnce(
-      new Promise<void>((resolve) => {
-        finishFirst = resolve;
-      })
-    );
-    const saveB = repository.saveTeams([activeTeam("first", 20_000)]);
-    const saveC = repository.saveTeams([activeTeam("first", 30_000)]);
-    finishFirst();
-    await saveB;
-    const saveBAgain = repository.saveTeams([activeTeam("first", 20_000)]);
-    await Promise.all([saveC, saveBAgain]);
-
-    expect(vi.mocked(setDoc).mock.lastCall?.[1]).toEqual(
-      expect.objectContaining({ treasury: 20_000 })
-    );
+    expect(storedTreasury("first")).toBe(40_000);
+    expect(mirror().pending).toEqual([]);
   });
 
   it("writes a deleted team again when it is saved back unchanged", async () => {
-    vi.mocked(runTransaction).mockResolvedValueOnce(undefined);
     const team = activeTeam("first", 10_000);
-    const repository = new CloudTeamRepository("coach", [team]);
+    const repository = primed([team]);
     await repository.deleteTeam("first");
+    expect(cloudDocuments.has(path("first"))).toBe(false);
 
     await repository.saveTeams([structuredClone(team)]);
 
-    expect(setDoc).toHaveBeenCalledTimes(1);
+    expect(storedTreasury("first")).toBe(10_000);
+  });
+
+  it("goes back to the accepted team when Firestore refuses a change", async () => {
+    const accepted = activeTeam("first", 140_000);
+    const repository = primed([accepted]);
+    vi.mocked(runTransaction).mockRejectedValueOnce(new FirebaseError("permission-denied", "Refused"));
+
+    await expect(repository.saveTeams([{ ...accepted, treasury: 20_000 }])).rejects.toThrow("Refused");
+
+    expect(fixtureValue(repository.loadTeams()[0]).treasury).toBe(140_000);
+    expect(mirror().pending).toEqual([]);
+  });
+
+  it("saves and uploads a new team of every roster without reporting a change on another device", async () => {
+    const teams = getComputerTeamTemplates().map((template) => createComputerTeamFromTemplate(template.id, { advancementMode: "advanced-league" }));
+    const repository = new CloudTeamRepository(UID, []);
+    await repository.saveTeams(teams);
+    await repository.saveTeams(teams.map((team) => ({ ...team, treasury: team.treasury + 10_000 })));
+    await repository.resync();
+
+    expect(mirror().conflicts).toEqual({});
+    expect(mirror().pending).toEqual([]);
+    expect(cloudWrites).toHaveLength(teams.length * 2);
+  });
+});
+
+describe("offline saves", () => {
+  it("keeps a save on this device while offline and uploads it on the next sync", async () => {
+    const repository = primed([activeTeam("first", 10_000)]);
+    network.up = false;
+
+    await repository.saveTeams([activeTeam("first", 55_000)]);
+
+    expect(storedTreasury("first")).toBe(10_000);
+    expect(mirror().pending).toEqual(["first"]);
+    network.up = true;
+    await repository.resync();
+    expect(storedTreasury("first")).toBe(55_000);
+    expect(mirror().pending).toEqual([]);
+  });
+
+  it("restores waiting changes after a reload", async () => {
+    const repository = primed([activeTeam("first", 10_000)]);
+    network.up = false;
+    await repository.saveTeams([activeTeam("first", 55_000), activeTeam("new", 1000)]);
+
+    const reloaded = new CloudTeamRepository(UID, [], libraryFromMirror(mirror()));
+    expect(reloaded.loadTeams().map(({ id, treasury }) => [id, treasury])).toEqual([
+      ["first", 55_000],
+      ["new", 1000],
+    ]);
+    network.up = true;
+    await reloaded.resync();
+    expect(storedTreasury("first")).toBe(55_000);
+    expect(storedTreasury("new")).toBe(1000);
+  });
+
+  it("takes changes made on another device when this one changed nothing", async () => {
+    const here = primed([activeTeam("first", 10_000)]);
+    const elsewhere = new CloudTeamRepository(UID, [activeTeam("first", 10_000)]);
+    await elsewhere.saveTeams([activeTeam("first", 77_000), activeTeam("second", 5000)]);
+
+    await here.resync();
+
+    expect(here.loadTeams().map(({ id, treasury }) => [id, treasury])).toEqual([
+      ["first", 77_000],
+      ["second", 5000],
+    ]);
+  });
+});
+
+async function conflicted() {
+  const here = primed([activeTeam("first", 10_000)]);
+  network.up = false;
+  await here.saveTeams([activeTeam("first", 11_000)]);
+  network.up = true;
+  const elsewhere = new CloudTeamRepository(UID, [activeTeam("first", 10_000)]);
+  await elsewhere.saveTeams([activeTeam("first", 99_000)]);
+  await here.resync();
+  return here;
+}
+
+describe("a team changed on two devices", () => {
+  it("uploads neither version until the coach picks one", async () => {
+    await conflicted();
+
+    expect(Object.keys(mirror().conflicts)).toEqual(["first"]);
+    expect(storedTreasury("first")).toBe(99_000);
+  });
+
+  it("uploads this device's version when the coach keeps it", async () => {
+    const here = await conflicted();
+
+    await here.keepLocal("first");
+
+    expect(storedTreasury("first")).toBe(11_000);
+    expect(mirror().conflicts).toEqual({});
+    expect(mirror().pending).toEqual([]);
+  });
+
+  it("replaces this device's version when the coach takes the other one", async () => {
+    const here = await conflicted();
+
+    here.takeCloud("first");
+
+    expect(fixtureValue(here.loadTeams()[0]).treasury).toBe(99_000);
+    expect(mirror().pending).toEqual([]);
+    await here.resync();
+    expect(cloudWrites.filter((write) => write === path("first"))).toHaveLength(1);
+  });
+
+  it("reports a team deleted on another device while this one changed it", async () => {
+    const here = primed([activeTeam("first", 10_000)]);
+    network.up = false;
+    await here.saveTeams([activeTeam("first", 11_000)]);
+    network.up = true;
+    cloudDocuments.delete(path("first"));
+
+    await here.resync();
+
+    expect(mirror().conflicts).toEqual({ first: null });
   });
 });
