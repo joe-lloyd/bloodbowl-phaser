@@ -76,7 +76,7 @@ export function startKickoff(parts: GameParts): void {
   if (kicking?.players.every((p) => !p.gridPosition)) {
     parts.flowManager.add(
       new AutomaticTouchbackOperation(() =>
-        parts.ballManager.automaticTouchback(kicking.id === parts.team1.id)
+        parts.ballManager.automaticTouchback(kicking.id)
       )
     );
   }

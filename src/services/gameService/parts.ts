@@ -249,8 +249,7 @@ function makeBallManager(
     game,
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     diceController,
     weatherService,
     flowManager,
@@ -258,8 +257,7 @@ function makeBallManager(
   return new BallManager(
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     weatherService,
     diceController,
     {

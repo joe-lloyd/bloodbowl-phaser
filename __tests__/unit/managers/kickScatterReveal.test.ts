@@ -1,3 +1,5 @@
+import { seatTeams } from "../../../src/game/seating";
+import { activeLayout } from "../../../src/game/variants/activeMatch";
 import { newKick } from "../../../src/game/kickoff/kickRecord";
 import { describe, expect, it } from "vitest";
 import { DiceController } from "../../../src/game/controllers/DiceController";
@@ -36,8 +38,7 @@ function scatteredKick(from: { x: number; y: number }, seed: number) {
   const manager = new BallManager(
     bus,
     state,
-    team1,
-    team2,
+    seatTeams([team1, team2], activeLayout()),
     new WeatherManager(bus, state, dice),
     dice,
     {
