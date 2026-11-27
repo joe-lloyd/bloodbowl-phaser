@@ -119,6 +119,8 @@ export interface LeaguePoints {
 export interface CompetitionBase {
   ruleset?: SevensRuleset;
   gameType?: GameType;
+
+  gameTypePool?: GameType[];
   id: string;
   name: string;
   organizerUid: string | null;

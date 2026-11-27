@@ -76,12 +76,15 @@ function submitReport({ competition, fixture, draft, knockout, onRecorded, onErr
     knockout && scores[0] === scores[1]
       ? { home: Number(draft.penaltiesHome), away: Number(draft.penaltiesAway) }
       : undefined;
-  recordCompetitionFixture({
-    context: fixtureContext({ competition, fixtureId: fixture.id, playedVia: "reported" }),
-    homeScore: scores[0],
-    awayScore: scores[1],
-    ...(penalties && { penalties }),
-  })
+  Promise.resolve()
+    .then(() =>
+      recordCompetitionFixture({
+        context: fixtureContext({ competition, fixtureId: fixture.id, playedVia: "reported" }),
+        homeScore: scores[0],
+        awayScore: scores[1],
+        ...(penalties && { penalties }),
+      })
+    )
     .then((updated) => {
       onRecorded(updated);
       onError(null);

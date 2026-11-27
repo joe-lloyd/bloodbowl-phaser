@@ -23,7 +23,7 @@ import { recordCompetitionFixture } from "../../../src/competition/resultRecordi
 import type { CompetitionDoc, CompetitionType } from "../../../src/competition/types";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { getTeamById, saveTeam } from "../../../src/game/managers/TeamManager";
-import { foundClub } from "../../../src/game/rules/club";
+import { clubWorth, foundClub } from "../../../src/game/rules/club";
 import { hirePlayer } from "../../../src/game/rules/teamPricing";
 import { chooseFirstLinemanAsVeteran } from "../../../src/game/rules/veteran";
 import {
@@ -62,12 +62,21 @@ async function saveTeamSheet(clubId: string): Promise<void> {
   await saveTeam(club);
 }
 
-async function playOut(type: CompetitionType, id: string, clubId: string): Promise<CompetitionDoc> {
+interface Plays {
+  clubId: string;
+  draws?: { rollDie: (sides: number) => number };
+}
+
+async function playOut(
+  type: CompetitionType,
+  id: string,
+  { clubId, draws }: Plays
+): Promise<CompetitionDoc> {
   for (let guard = 0; guard < 60; guard++) {
     const league = fixtureValue(await getCompetition(type, id));
-    const fixture = league.fixtures.find(
-      (candidate) => candidate.status === "ready"
-    );
+    const [fixture] = league.fixtures
+      .filter((candidate) => candidate.status === "ready")
+      .sort((a, b) => a.round - b.round);
     if (!fixture) return league;
     const homeTeam = league.entrants.find(
       (entrant) => entrant.id === fixture.homeEntrantId
@@ -82,6 +91,7 @@ async function playOut(type: CompetitionType, id: string, clubId: string): Promi
       context: fixtureContext({ competition: league, fixtureId: fixture.id, playedVia: "reported" }),
       homeScore: score.home,
       awayScore: score.away,
+      ...(draws && { options: { rng: draws } }),
     });
     if (score.home === 2 || score.away === 2) await saveTeamSheet(clubId);
   }
@@ -134,7 +144,7 @@ describe("a club's league seasons", () => {
   it("records the finish, frees every club and rotates the rivals into season 2", async () => {
     const club = await foundHumanClub();
     const first = await startSeason(club.id, setup, seeded(3));
-    await playOut("league", first.id, club.id);
+    await playOut("league", first.id, { clubId: club.id });
     await expect(finishSeason(club.id)).rejects.toThrow(
       "Season 1's play-offs have not started."
     );
@@ -144,7 +154,7 @@ describe("a club's league seasons", () => {
     expect(playOffs.entrants.map((entrant) => entrant.teamId)[0]).toBe(club.id);
     expect(playOffs.fixtures.some((fixture) => fixture.thirdPlace)).toBe(true);
     expect(playOffs.playOffs).toBe(true);
-    const played = await playOut("tournament", playOffs.id, club.id);
+    const played = await playOut("tournament", playOffs.id, { clubId: club.id });
     expect(
       played.fixtures.map((fixture) => fixture.result?.winnings !== undefined)
     ).toEqual([true, true, true, true]);
@@ -261,33 +271,46 @@ describe("a season of mixed game types", () => {
       fixtureContext({ competition: league, fixtureId: roundTwo.id, playedVia: "reported" }).gameType
     ).toBe("street-bowl");
 
-    await playOut("league", league.id, club.id);
+    await playOut("league", league.id, { clubId: club.id });
     const playOffs = await startPlayOffs(club.id, null, seeded(9));
     expect(playOffs.gameType).toBeUndefined();
     expect(roundTypes(playOffs)).toEqual([["sevens"], ["street-bowl"]]);
 
-    await playOut("tournament", playOffs.id, club.id);
+    await playOut("tournament", playOffs.id, { clubId: club.id });
     const record = await finishSeason(club.id, seeded(10));
     expect(record.gameType).toBe("sevens");
     expect(record.gameTypes).toEqual(["sevens", "street-bowl", "beach-bowl"]);
   });
 
-  it("draws every round from the picked game types, one game type a round", async () => {
+  it("draws each random round only when the round before it is over", async () => {
     const club = await foundHumanClub();
     const league = await startSeason(
       club.id,
       { ...setup, format: { kind: "random", gameTypes: ["street-bowl", "beach-bowl"] } },
-      seeded(11)
+      () => 0.9
     );
 
-    const rounds = roundTypes(league);
-    expect(rounds).toHaveLength(7);
-    expect(rounds.every((types) => types.length === 1)).toBe(true);
-    expect(new Set(rounds.flat())).toEqual(new Set(["street-bowl", "beach-bowl"]));
-    expect(league.gameType ?? "sevens").toBe(fixtureValue(rounds[0])[0]);
+    expect(league.gameType).toBe("beach-bowl");
+    expect(league.gameTypePool).toEqual(["street-bowl", "beach-bowl"]);
+    expect(roundTypes(league)).toEqual([
+      ["beach-bowl"], [undefined], [undefined], [undefined], [undefined], [undefined], [undefined],
+    ]);
+    const roundThree = fixtureValue(league.fixtures.find((fixture) => fixture.round === 3));
+    expect(() =>
+      fixtureContext({ competition: league, fixtureId: roundThree.id, playedVia: "reported" })
+    ).toThrow("Round 3's game type is drawn when round 2 is over.");
+
+    const played = await playOut("league", league.id, {
+      clubId: club.id,
+      draws: { rollDie: () => 1 },
+    });
+    expect(roundTypes(played)).toEqual([
+      ["beach-bowl"], ["street-bowl"], ["street-bowl"], ["street-bowl"],
+      ["street-bowl"], ["street-bowl"], ["street-bowl"],
+    ]);
   });
 
-  it("keeps Gutter Bowl rounds out until the club reaches 750k, then lets every club play them", async () => {
+  it("keeps Gutter Bowl out until the club reaches 750k and raises every computer club to 750k", async () => {
     const club = await foundHumanClub();
     const format = { kind: "order", gameTypes: ["sevens", "gutter-bowl"] } as const;
     await expect(
@@ -305,6 +328,11 @@ describe("a season of mixed game types", () => {
     expect(roundTypes(league).flat()).toEqual([
       "sevens", "gutter-bowl", "sevens", "gutter-bowl", "sevens", "gutter-bowl", "sevens",
     ]);
+    const rivals = league.entrants
+      .filter((entrant) => entrant.teamId !== club.id)
+      .map((entrant) => fixtureValue(getTeamById(entrant.teamId)));
+    expect(rivals.map((rival) => clubWorth(rival) >= 750_000)).toEqual(rivals.map(() => true));
+    expect(rivals.map((rival) => rival.club?.gutterUnlocked)).toEqual(rivals.map(() => true));
   });
 
   it("records a game type drawn only for the play-offs and keeps the format for next season", async () => {
@@ -315,12 +343,19 @@ describe("a season of mixed game types", () => {
       { ...setup, format: { ...format, gameTypes: [...format.gameTypes] } },
       () => 0.1
     );
-    expect(roundTypes(league).flat()).toEqual(Array.from({ length: 7 }, () => "sevens"));
 
-    await playOut("league", league.id, club.id);
+    const played = await playOut("league", league.id, {
+      clubId: club.id,
+      draws: { rollDie: () => 1 },
+    });
+    expect(roundTypes(played).flat()).toEqual(Array.from({ length: 7 }, () => "sevens"));
     const playOffs = await startPlayOffs(club.id, null, () => 0.9);
-    expect(roundTypes(playOffs)).toEqual([["beach-bowl"], ["beach-bowl"]]);
-    await playOut("tournament", playOffs.id, club.id);
+    expect(roundTypes(playOffs)).toEqual([["beach-bowl"], [undefined]]);
+    const finished = await playOut("tournament", playOffs.id, {
+      clubId: club.id,
+      draws: { rollDie: (sides) => sides },
+    });
+    expect(roundTypes(finished)).toEqual([["beach-bowl"], ["beach-bowl"]]);
 
     const record = await finishSeason(club.id, seeded(14));
     expect(record.gameTypes).toEqual(["sevens", "beach-bowl"]);

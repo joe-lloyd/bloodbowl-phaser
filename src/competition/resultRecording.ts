@@ -32,6 +32,7 @@ import { manageComputerTeams } from "./computerTeams";
 import { carriesInjuries } from "../game/rules/injuryRules";
 import { restoreClubHome } from "../game/rules/club";
 import { assertFixtureInOpenRound } from "./schedule";
+import { revealNextRound } from "./roundPlan";
 
 interface TeamRecordUpdate {
   entrant: CompetitionEntrant;
@@ -383,7 +384,13 @@ export async function recordCompetitionFixture(
         reported,
         fixture && homeTeamIdOf(latest, fixture)
       );
-      return recordFixtureTransaction(latest, request, uid);
+      const next = recordFixtureTransaction(latest, request, uid);
+      return (
+        next &&
+        revealNextRound(next, (sides) =>
+          (reported.options?.rng ?? new RNGService(Date.now())).rollDie(sides)
+        )
+      );
     }
   );
   const { progressedTeams } = request;

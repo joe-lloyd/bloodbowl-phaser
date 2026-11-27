@@ -5,14 +5,18 @@ import {
 import {
   GAME_TYPE_LABELS,
   GAME_TYPE_SUMMARIES,
+  type GameType,
 } from "../../../game/variants/gameTypes";
 import { type CompetitionDoc } from "../../../competition/types";
 import { competitionGameTypes } from "../../../competition/fixtureContext";
 
 type RulesLineCompetition = Pick<
   CompetitionDoc,
-  "gameType" | "ruleset" | "online" | "fixtures"
+  "gameType" | "ruleset" | "online" | "fixtures" | "gameTypePool"
 >;
+
+const labels = (gameTypes: readonly GameType[]) =>
+  gameTypes.map((gameType) => GAME_TYPE_LABELS[gameType]).join(", ");
 
 function onlineNote({ online }: RulesLineCompetition): string {
   if (!online) return "";
@@ -25,12 +29,21 @@ export function CompetitionRulesLine({
 }: {
   competition: RulesLineCompetition;
 }) {
+  if (competition.gameTypePool) {
+    return (
+      <p className="mb-6 font-hud-body text-hud-sm text-hud-dim">
+        Random game types: each round is drawn from {labels(competition.gameTypePool)} when
+        it comes up.
+        {onlineNote(competition)}
+      </p>
+    );
+  }
   const gameTypes = competitionGameTypes(competition);
   if (gameTypes.length > 1) {
     return (
       <p className="mb-6 font-hud-body text-hud-sm text-hud-dim">
-        Mixed game types: {gameTypes.map((gameType) => GAME_TYPE_LABELS[gameType]).join(", ")}.
-        Each round shows the game type it is played in.
+        Mixed game types: {labels(gameTypes)}. Each round shows the game type it
+        is played in.
         {onlineNote(competition)}
       </p>
     );

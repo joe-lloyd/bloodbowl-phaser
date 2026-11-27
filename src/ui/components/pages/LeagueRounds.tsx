@@ -27,13 +27,17 @@ type Kits = (entrant?: CompetitionEntrant) => TeamColors | undefined;
 function RoundGameType({
   fixtures,
   round,
+  drawnLater = false,
 }: {
   fixtures: readonly CompetitionFixture[];
   round: number;
+  drawnLater?: boolean;
 }) {
   const gameType = roundGameType(fixtures, round);
-  return gameType ? (
-    <GameTypeName gameType={gameType} className="hud-label text-hud-dim" />
+  if (gameType)
+    return <GameTypeName gameType={gameType} className="hud-label text-hud-dim" />;
+  return drawnLater ? (
+    <span className="hud-label text-hud-mute">Game type drawn when the round comes up</span>
   ) : null;
 }
 
@@ -89,7 +93,11 @@ export function LeagueRounds({
               <div key={round}>
                 <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <Title level="row" as="h3">Round {round}</Title>
-                  <RoundGameType fixtures={competition.fixtures} round={round} />
+                  <RoundGameType
+                    fixtures={competition.fixtures}
+                    round={round}
+                    drawnLater={competition.gameTypePool !== undefined}
+                  />
                 </div>
                 <div className="space-y-3">
                   {roundFixtures(competition.fixtures, round).map(

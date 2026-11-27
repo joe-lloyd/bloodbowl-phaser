@@ -38,6 +38,7 @@ export function fixtureInOpenRound(
   competition: CompetitionDoc,
   fixture: CompetitionFixture
 ): boolean {
+  if (competition.gameTypePool && !fixture.gameType) return false;
   return !competition.online || openRound(competition)?.round === fixture.round;
 }
 

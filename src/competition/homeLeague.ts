@@ -1,5 +1,5 @@
 import { newHomeLeague, SEASON_RIVALS } from "../game/rules/homeLeague";
-import { gutterLockReason } from "../game/rules/club";
+import { gutterLockReason, raiseToGutterFloor } from "../game/rules/club";
 import {
   formatGameTypes,
   roundGameTypes,
@@ -49,11 +49,13 @@ export function seasonRoundRules(
   format: SeasonFormat,
   rounds: { first: number; count: number },
   random: Random
-): Pick<CompetitionRules, "gameType" | "roundGameTypes"> {
-  const gameTypes = roundGameTypes(format, rounds, random);
+): Pick<CompetitionRules, "gameType" | "roundGameTypes" | "gameTypePool"> {
+  const drawn = format.kind === "random" ? { ...rounds, count: 1 } : rounds;
+  const gameTypes = roundGameTypes(format, drawn, random);
   return {
     gameType: gameTypes[0] ?? "sevens",
     ...(format.kind !== "single" && { roundGameTypes: gameTypes }),
+    ...(format.kind === "random" && { gameTypePool: format.gameTypes }),
   };
 }
 
@@ -163,6 +165,8 @@ export async function startSeason(
     throw new Error("Finish the redraft before the next season starts.");
   assertFormatPlayable(club, setup.format);
   const rivals = await seasonRivals(club, league, random);
+  if (formatGameTypes(setup.format).includes("gutter-bowl"))
+    for (const rival of rivals) raiseToGutterFloor(rival);
   const competition = await createCompetition({
     type: "league",
     name: `Club League, season ${String(league.season)}`,
