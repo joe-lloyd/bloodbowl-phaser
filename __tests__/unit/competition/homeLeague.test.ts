@@ -128,7 +128,11 @@ describe("a club's league seasons", () => {
     expect(playOffs.name).toBe("Club League, season 1 play-offs");
     expect(playOffs.entrants.map((entrant) => entrant.teamId)[0]).toBe(club.id);
     expect(playOffs.fixtures.some((fixture) => fixture.thirdPlace)).toBe(true);
-    await playOut("tournament", playOffs.id, club.id);
+    expect(playOffs.playOffs).toBe(true);
+    const played = await playOut("tournament", playOffs.id, club.id);
+    expect(
+      played.fixtures.map((fixture) => fixture.result?.winnings !== undefined)
+    ).toEqual([true, true, true, true]);
     const before = fixtureValue(getTeamById(club.id));
 
     const record = await finishSeason(club.id, seeded(4));

@@ -9,5 +9,6 @@ export const tournamentDocSchema: z.ZodType<TournamentDoc> = z.intersection(
     type: z.literal("tournament"),
     format: tournamentFormatSchema,
     championEntrantId: z.string().exactOptional(),
+    playOffs: z.literal(true).exactOptional(),
   })
 );

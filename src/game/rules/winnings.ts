@@ -1,10 +1,17 @@
 import { type Team, isLeagueMode } from "../../types/Team";
-import type { CompetitionType } from "../../competition/types";
+import type {
+  CompetitionContext,
+  CompetitionDoc,
+} from "../../competition/types";
 
 export function fixturePaysWinnings(
-  type: CompetitionType | undefined
+  context: Pick<CompetitionContext, "competitionType" | "playOffs"> | undefined
 ): boolean {
-  return type === "league";
+  return context?.competitionType === "league" || context?.playOffs === true;
+}
+
+export function competitionPaysWinnings(competition: CompetitionDoc): boolean {
+  return competition.type === "league" || competition.playOffs === true;
 }
 
 const WINNINGS_MULTIPLIER = 10_000;
