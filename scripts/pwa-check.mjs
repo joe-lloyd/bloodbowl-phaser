@@ -1,11 +1,12 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { chromium } from "@playwright/test";
 
 const DIST = process.argv[2] ?? "dist";
 const PORT = Number(process.argv[3] ?? 5399);
-const ORIGIN = `http://localhost:${PORT}`;
+const ORIGIN = `http://127.0.0.1:${PORT}`;
+const ROOT = resolve(DIST);
 const TYPES = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -36,7 +37,9 @@ async function deployedFile(file) {
     const code = await readFile(join(DIST, "assets", BUNDLES.one), "utf8");
     return `document.documentElement.dataset.bundle="${deploy}";${code}`;
   }
-  return readFile(join(DIST, file));
+  const full = resolve(ROOT, file);
+  if (!full.startsWith(ROOT + sep)) throw new Error(`${file} is outside ${DIST}`);
+  return readFile(full);
 }
 
 const server = createServer(async (request, response) => {
@@ -54,7 +57,7 @@ const server = createServer(async (request, response) => {
   } catch {
     await send("index.html");
   }
-}).listen(PORT);
+}).listen(PORT, "127.0.0.1");
 
 const failures = [];
 const check = (name, passed, detail = "") => {

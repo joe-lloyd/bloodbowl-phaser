@@ -1,3 +1,5 @@
+import { startOfflineArt } from "./offlineArt";
+
 const INSTALLED_QUERY = "(display-mode: fullscreen), (display-mode: standalone)";
 
 interface InstallPromptEvent extends Event {
@@ -67,14 +69,9 @@ export function startPwa(): void {
 async function startWorker(): Promise<void> {
   try {
     await navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" });
-    await keepOfflineFiles();
+    startOfflineArt();
+    if (runsInstalled) await navigator.storage.persist();
   } catch (error: unknown) {
     console.warn("[PWA] service worker did not register", error);
   }
-}
-
-async function keepOfflineFiles(): Promise<void> {
-  const registration = await navigator.serviceWorker.ready;
-  registration.active?.postMessage({ type: "keep", models: [] });
-  if (runsInstalled) await navigator.storage.persist();
 }

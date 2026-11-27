@@ -5,10 +5,11 @@ const MANIFEST = "/offline-manifest.json";
 const HASH_HEADER = "x-bb-hash";
 const MODEL_FILE = /^\/sprites\/bloodbowl\/(?!sideline_)([^/]+)\/(.+)$/;
 const PARALLEL = 6;
+const PROGRESS_STEP = 25;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    refresh([])
+    refresh([], () => undefined)
       .catch((error) => console.warn("[sw] offline files not stored", error))
       .then(() => self.skipWaiting())
   );
@@ -20,8 +21,10 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("message", (event) => {
   if (event.data?.type !== "keep") return;
-  const models = Array.isArray(event.data.models) ? event.data.models : [];
-  event.waitUntil(keep(models, event.source));
+  const models = Array.isArray(event.data.models)
+    ? event.data.models.filter((model) => typeof model === "string")
+    : [];
+  event.waitUntil(keep(event.data.id, models, event.source));
 });
 
 self.addEventListener("fetch", (event) => {
@@ -56,10 +59,10 @@ async function freshManifest() {
 
 async function latestManifest() {
   try {
-    return await freshManifest();
+    return { manifest: await freshManifest(), online: true };
   } catch (error) {
     const saved = await caches.match(MANIFEST, { cacheName: FILES });
-    if (saved) return saved.json();
+    if (saved) return { manifest: await saved.json(), online: false };
     throw error;
   }
 }
@@ -91,30 +94,46 @@ async function sweep(manifest) {
   }
 }
 
-async function refresh(models) {
-  const manifest = await latestManifest();
+async function refresh(models, report) {
+  const { manifest, online } = await latestManifest();
   await sweep(manifest);
-  const files = [coreFiles(manifest), ...models.map((model) => modelFiles(manifest, model))];
-  return storeFiles(files.flat());
+  const files = [
+    ...coreFiles(manifest).map((file) => [...file, ""]),
+    ...models.flatMap((model) => modelFiles(manifest, model).map((file) => [...file, model])),
+  ];
+  const failed = await storeFiles(files, report);
+  const ready = models.filter((model) => model in manifest.models && !failed.has(model));
+  return { ready, bytes: manifest.bytes ?? {}, online };
 }
 
-async function keep(models, client) {
-  const missing = await refresh(models);
-  client?.postMessage({ type: "kept", models, missing });
+async function keep(id, models, client) {
+  const report = (done, total) => {
+    if (done % PROGRESS_STEP === 0 || done === total)
+      client?.postMessage({ type: "progress", id, done, total });
+  };
+  const kept = await refresh(models, report).catch((error) => {
+    console.warn("[sw] offline files not kept", error);
+    return { ready: [], bytes: {}, online: false };
+  });
+  client?.postMessage({ type: "kept", id, ...kept });
 }
 
-async function storeFiles(files) {
+async function storeFiles(files, report) {
   const cache = await caches.open(FILES);
   const queue = [...files];
-  let missing = 0;
+  const failed = new Set();
+  let done = 0;
   const worker = async () => {
     for (let next = queue.shift(); next; next = queue.shift()) {
-      const stored = await storeFile(cache, ...next).catch(() => false);
-      if (!stored) missing += 1;
+      const [path, hash, group] = next;
+      const stored = await storeFile(cache, path, hash).catch(() => false);
+      if (!stored) failed.add(group);
+      done += 1;
+      report(done, files.length);
     }
   };
   await Promise.all(Array.from({ length: PARALLEL }, worker));
-  return missing;
+  return failed;
 }
 
 async function storeFile(cache, path, hash) {

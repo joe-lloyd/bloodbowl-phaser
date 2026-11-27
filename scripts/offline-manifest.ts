@@ -12,6 +12,12 @@ type FileHashes = Record<string, string>;
 interface OfflineManifest {
   core: FileHashes;
   models: Record<string, FileHashes>;
+  bytes: Record<string, number>;
+}
+
+interface FileFacts {
+  hash: string;
+  size: number;
 }
 
 async function filesUnder(root: string): Promise<string[]> {
@@ -23,12 +29,12 @@ async function filesUnder(root: string): Promise<string[]> {
     .sort((a, b) => a.localeCompare(b));
 }
 
-async function hashOf(file: string): Promise<string> {
+async function factsOf(file: string): Promise<FileFacts> {
   const bytes = await readFile(file);
-  return createHash("sha256").update(bytes).digest("hex").slice(0, 12);
+  return { hash: createHash("sha256").update(bytes).digest("hex").slice(0, 12), size: bytes.length };
 }
 
-function place(manifest: OfflineManifest, file: string, hash: string): void {
+function place(manifest: OfflineManifest, file: string, { hash, size }: FileFacts): void {
   const [, model, rest] = MODEL_FILE.exec(file) ?? [];
   if (model === undefined || rest === undefined) {
     manifest.core[`/${file}`] = hash;
@@ -37,12 +43,13 @@ function place(manifest: OfflineManifest, file: string, hash: string): void {
   const files = manifest.models[model] ?? {};
   files[rest] = hash;
   manifest.models[model] = files;
+  manifest.bytes[model] = (manifest.bytes[model] ?? 0) + size;
 }
 
 async function writeOfflineManifest(root: string): Promise<void> {
-  const manifest: OfflineManifest = { core: {}, models: {} };
+  const manifest: OfflineManifest = { core: {}, models: {}, bytes: {} };
   const files = await filesUnder(root);
-  for (const file of files) place(manifest, file, await hashOf(path.join(root, file)));
+  for (const file of files) place(manifest, file, await factsOf(path.join(root, file)));
   await writeFile(path.join(root, MANIFEST_FILE), JSON.stringify(manifest));
 }
 
