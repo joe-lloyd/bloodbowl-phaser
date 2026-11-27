@@ -3817,7 +3817,7 @@
       "count": 1
     },
     "typescript/no-unnecessary-condition": {
-      "count": 3
+      "count": 1
     },
     "typescript/prefer-nullish-coalescing": {
       "count": 6

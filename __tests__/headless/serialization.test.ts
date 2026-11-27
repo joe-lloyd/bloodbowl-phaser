@@ -134,6 +134,20 @@ describe("game state serialization", () => {
     });
   });
 
+  it("carries a turn that ends after the activation through a save", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 15 });
+    const state = game.gameService.getState();
+    state.turn.endsAfterActivation = true;
+
+    const snapshot = parseJson(
+      JSON.stringify(serializeGameState(state, [game.teams[0], game.teams[1]])),
+      gameSnapshotSchema
+    );
+
+    expect(snapshot.turn.endsAfterActivation).toBe(true);
+    expect(deserializeGameState(snapshot).turn.endsAfterActivation).toBe(true);
+  });
+
   it("loads an old save's flags as spent against the other team", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 15 });
     const state = game.gameService.getState();

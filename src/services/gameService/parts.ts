@@ -2,12 +2,7 @@ import {
   activateStateFormat,
   activeLayout,
 } from "@/game/variants/activeMatch";
-import {
-  everyone,
-  pairSeating,
-  type Seating,
-  seatTeams,
-} from "@/game/seating";
+import { everyone, type Seating, seatTeams } from "@/game/seating";
 import type { GameService } from "../GameService";
 import { type IEventBus } from "../EventBus.js";
 import { type IRNGService } from "../rng/RNGService.js";
@@ -18,7 +13,6 @@ import { type Team } from "@/types/Team";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { SetupManager } from "@/game/managers/SetupManager";
 import { TurnManager } from "@/game/managers/TurnManager";
-import { penaltyShootout } from "@/game/rules/extraTime";
 import { BallManager } from "@/game/managers/BallManager";
 import { MovementManager } from "@/game/managers/MovementManager";
 import { BlockManager } from "@/game/managers/BlockManager";
@@ -42,6 +36,7 @@ import { bindPotionHooks } from "./potionWiring";
 import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
 import { InducementSession } from "@/game/inducements/InducementSession";
 import { createInitialState } from "./matchStart";
+import { flowFor, type MatchFlow } from "./matchFlow";
 import {
   announceFullTime,
   rollFanFactors,
@@ -86,6 +81,7 @@ export interface GameParts {
   movementManager: MovementManager;
   blockManager: BlockManager;
   marks: ActivationMarks;
+  readonly flow: MatchFlow;
 
   inducementSession: InducementSession | null;
 }
@@ -112,6 +108,7 @@ export function createGameParts(options: PartOptions): GameParts {
   const kickoffManagers = makeKickoffManagers(core, options.delay, turnManager);
   bindPartEvents(core, () => parts);
   bindPotionHooks(core.eventBus, () => parts);
+  let flow: MatchFlow | undefined;
   const parts: GameParts = {
     ...core,
     setupManager,
@@ -120,6 +117,10 @@ export function createGameParts(options: PartOptions): GameParts {
     ballManager,
     ...makeActionControllers(core, ballManager, options.blockResolutionService),
     inducementSession: null,
+    get flow() {
+      flow ??= flowFor(parts);
+      return flow;
+    },
   };
   return parts;
 }
@@ -206,7 +207,7 @@ function makeTurnManager(
   delay: DelayProvider,
   getParts: () => GameParts
 ): TurnManager {
-  const { game, eventBus, state, seating, diceController } = core;
+  const { eventBus, state, seating } = core;
   return new TurnManager(
     eventBus,
     state,
@@ -218,10 +219,9 @@ function makeTurnManager(
           ...(subPhase !== undefined && { subPhase }),
         });
       },
-      onHalfEnded: (next) => {
-        game.endDrive("halftime", next);
+      halfOver: () => {
+        getParts().flow.halfOver();
       },
-      shootout: () => penaltyShootout(diceController, pairSeating(seating)),
       onTurnEnding: (endingTeamId) => {
         handleTurnEnding(getParts(), endingTeamId);
       },
@@ -379,8 +379,8 @@ function makeActionControllers(
       onActivationFinished: (playerId: string) => {
         game.finishActivation(playerId);
       },
-      onTouchdown: (teamId: string, scorerId: string) => {
-        game.addTouchdown(teamId, scorerId);
+      onTouchdown: (_teamId: string, scorerId: string) => {
+        game.addTouchdown(scorerId);
       },
     }
   );

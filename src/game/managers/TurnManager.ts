@@ -13,7 +13,6 @@ import { type Team } from "@/types/Team";
 import { PlayerStatus } from "@/types/Player";
 import { ActivationValidator } from "../validators/ActivationValidator";
 import { type AllEvents, GameEventNames } from "../../types/events";
-import { replenishTeamRerolls } from "../teamRerolls";
 import { kickoffTurnOf } from "../kickoff/kickRecord";
 import {
   closedKickoffTurn,
@@ -23,12 +22,12 @@ import {
   unspentTurn,
 } from "../kickoff/kickoffTurn";
 import type { KickoffEvent } from "../kickoff/kickoffEvents";
-import { undecided } from "../rules/extraTime";
 import {
   everyone,
   pairSeating,
   pairTeams,
   playOrderAfter,
+  type Rotation,
   type Seating,
   seatOf,
   teamsOf,
@@ -41,9 +40,8 @@ export interface TurnManagerState {
   turnoverInProgress: boolean;
 
   stunnedAtTurnStart?: string[];
+  rotation?: Rotation;
 }
-
-export type NextHalf = { kickingTeamId: string } | { rollOff: true };
 
 export function possessive(name: string): string {
   return /s$/i.test(name) ? `${name}'` : `${name}'s`;
@@ -52,9 +50,7 @@ export function possessive(name: string): string {
 interface TurnCallbacks {
   onPhaseChanged: (phase: GamePhase, subPhase?: SubPhase) => void;
 
-  onHalfEnded?: (next: NextHalf) => void;
-
-  shootout?: () => Record<string, number>;
+  halfOver: () => void;
 
   onTurnEnding?: (endingTeamId: string) => void;
 
@@ -82,6 +78,7 @@ export class TurnManager {
   private driveKickingTeamId: string | null = null;
   private firstHalfKickingTeamId: string | null = null;
   private turnoverInProgress = false;
+  private rotation: Rotation = 1;
 
   private stunnedAtTurnStart: string[] = [];
   private activationValidator: ActivationValidator = new ActivationValidator();
@@ -118,6 +115,7 @@ export class TurnManager {
       firstHalfKickingTeamId: this.firstHalfKickingTeamId,
       turnoverInProgress: this.turnoverInProgress,
       stunnedAtTurnStart: [...this.stunnedAtTurnStart],
+      ...(this.rotation !== 1 && { rotation: this.rotation }),
     };
   }
 
@@ -129,6 +127,7 @@ export class TurnManager {
     this.firstHalfKickingTeamId = snapshot.firstHalfKickingTeamId;
     this.turnoverInProgress = snapshot.turnoverInProgress;
     this.stunnedAtTurnStart = [...(snapshot.stunnedAtTurnStart ?? [])];
+    this.rotation = snapshot.rotation ?? 1;
   }
 
   public startGame(kickingTeamId: string): void {
@@ -147,6 +146,11 @@ export class TurnManager {
 
     this.startTurn(receivingTeamId);
     this.callbacks.onPhaseChanged(GamePhase.PLAY, this.state.subPhase);
+  }
+
+  public beginHalf(first: string, rotation: Rotation): void {
+    this.rotation = rotation;
+    this.startTurn(first);
   }
 
   public startTurn(teamId: string): void {
@@ -277,11 +281,13 @@ export class TurnManager {
   }
 
   private beginNextTurn(currentTeamId: string): void {
-    const next = playOrderAfter(this.seating, currentTeamId, 1).find(
-      (team) => (this.turnCounts[team.id] ?? 0) < this.maxTurns
-    );
+    const next = playOrderAfter(
+      this.seating,
+      currentTeamId,
+      this.rotation
+    ).find((team) => (this.turnCounts[team.id] ?? 0) < this.maxTurns);
     if (!next) {
-      this.endHalf();
+      this.callbacks.halfOver();
       return;
     }
 
@@ -301,68 +307,16 @@ export class TurnManager {
     );
   }
 
-  public beginNextHalf(): NextHalf | null {
-    const undecidedGame =
-      !this.state.result && undecided(this.state, pairSeating(this.seating));
-    if (this.state.turn.isHalf2 && undecidedGame && !this.state.turn.extraTime)
-      return this.beginExtraTime();
-    if (this.state.turn.isHalf2) {
-      this.state.phase = GamePhase.GAME_OVER;
-      this.state.activeTeamId = null;
-      this.state.result ??= {
-        reason: "completed",
-        ...(undecidedGame && this.callbacks.shootout && { penalties: this.callbacks.shootout() }),
-      };
-      this.callbacks.onPhaseChanged(GamePhase.GAME_OVER);
-      return null;
-    }
-
-    this.state.turn.isHalf2 = true;
-    replenishTeamRerolls(this.state);
-    this.seedTurnCounts(0);
-    this.announceBreak("Halftime");
-
-    return {
-      kickingTeamId: this.pairRivalOf(this.firstHalfKickingTeamId).id,
-    };
-  }
-
-  private beginExtraTime(): NextHalf {
-    this.state.turn.extraTime = true;
-    this.seedTurnCounts(0);
-    this.announceBreak("Extra Time");
-    return { rollOff: true };
-  }
-
-  private announceBreak(headline: string): void {
-    this.state.phase = GamePhase.HALFTIME;
-    this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
-    const [home, away] = pairTeams(pairSeating(this.seating));
-    const score = `${home.name} ${String(this.state.score?.[home.id] ?? 0)} : ${String(this.state.score?.[away.id] ?? 0)} ${away.name}`;
-    this.eventBus.emit(GameEventNames.UI_LogEntry, {
-      category: "drive",
-      headline,
-      detail: score,
-    });
-    this.eventBus.emit(GameEventNames.UI_Announce, {
-      kind: "halftime",
-      headline,
-      subtitle: score,
-    });
-  }
-
-  public endHalf(): void {
-    const next = this.beginNextHalf();
-
-    if (next) this.callbacks.onHalfEnded?.(next);
-  }
-
   public finishActivation(playerId: string): void {
     if (!isTurnRunning(this.state)) return;
 
     if (!this.state.turn.activatedPlayerIds.has(playerId)) {
       this.state.turn.activatedPlayerIds.add(playerId);
       this.eventBus.emit(GameEventNames.PlayerActivated, playerId);
+    }
+    if (this.state.turn.endsAfterActivation) {
+      this.endTurn();
+      return;
     }
 
     const activeTeam = this.activeTeam();
@@ -466,6 +420,10 @@ export class TurnManager {
 
   public hasGameStarted(): boolean {
     return this.firstHalfKickingTeamId !== null;
+  }
+
+  public firstHalfKicker(): string | null {
+    return this.firstHalfKickingTeamId;
   }
 
   public getDriveKickingTeamId(): string | null {

@@ -8,4 +8,5 @@ export const turnManagerStateSchema: z.ZodType<TurnManagerState> =
     firstHalfKickingTeamId: z.union([z.null(), z.string()]),
     turnoverInProgress: z.boolean(),
     stunnedAtTurnStart: z.string().array().exactOptional(),
+  rotation: z.union([z.literal(1), z.literal(-1)]).exactOptional(),
   });
