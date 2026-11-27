@@ -47,8 +47,8 @@ async function settleInducements(
   const offer = game.ctx.gameService.getInducementOffer();
   const steps: RecordedStep[] = [];
   for (const [team, teamId] of [
-    game.ctx.team1.id,
-    game.ctx.team2.id,
+    game.ctx.teams[0].id,
+    game.ctx.teams[1].id,
   ].entries()) {
     const side = team === 0 ? 0 : 1;
     const basket = shopping ? computerInducementPurchases(offer, teamId) : [];
@@ -112,8 +112,7 @@ export async function playStudyGame(
   const team2 = side(1);
   const game = new HeadlessGame({
     seed: job.seed,
-    team1,
-    team2,
+    teams: [team1, team2],
     startingPhase: GamePhase.SETUP,
     progressionEnabled: job.persistentInjuries ?? false,
     ...(job.format && { format: job.format }),

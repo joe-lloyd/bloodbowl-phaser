@@ -18,8 +18,8 @@ const scrimmage = fixtureValue(
 describe("Sevens inducements + Apothecary — full pregame-to-final-state flow", () => {
   it("selects, confirms, plays through a KO, and reaches a final patched-up state", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 5 });
-    const team1 = game.ctx.team1;
-    const team2 = game.ctx.team2;
+    const team1 = game.ctx.teams[0];
+    const team2 = game.ctx.teams[1];
     team1.apothecary = true;
     team2.rerolls = 6;
 
@@ -87,7 +87,7 @@ describe("Sevens inducements + Apothecary — full pregame-to-final-state flow",
 
     const resumed = new HeadlessGame({ matchSave: save });
     const resumedPlayer = fixtureValue(
-      resumed.ctx.team1.players.find((p) => p.id === fixtureValue(player).id)
+      resumed.ctx.teams[0].players.find((p) => p.id === fixtureValue(player).id)
     );
     expect(resumedPlayer.status).toBe(PlayerStatus.STUNNED);
     expect(

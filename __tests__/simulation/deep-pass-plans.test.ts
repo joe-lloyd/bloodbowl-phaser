@@ -85,7 +85,7 @@ async function setupTurn(
       },
     },
   });
-  const [thrower] = subject.ctx.team1.players;
+  const [thrower] = subject.ctx.teams[0].players;
   await subject.execute({
     type: "declare-action",
     playerId: fixtureValue(thrower).id,
@@ -150,7 +150,7 @@ const catcher = (playerIndex: number, y: number): PlayerPlacement => ({
 describe("two-step pass", () => {
   it("sends the catcher deep on the setup turn, in range of a pass and a run in", async () => {
     const subject = await setupTurn();
-    const [thrower, catcher] = subject.ctx.team1.players;
+    const [thrower, catcher] = subject.ctx.teams[0].players;
 
     const { declared } = await playTurn(subject);
 
@@ -168,7 +168,7 @@ describe("two-step pass", () => {
 
   it("sends one receiver deep when several could go", async () => {
     const subject = await setupTurn({}, [catcher(2, 3), catcher(3, 7)]);
-    const [, first, second, third] = subject.ctx.team1.players;
+    const [, first, second, third] = subject.ctx.teams[0].players;
 
     const { declared } = await playTurn(subject);
 
@@ -191,7 +191,7 @@ describe("two-step pass", () => {
       skills: [SkillType.CATCH],
     };
     const subject = await setupTurn({}, [slow]);
-    const [, catcher, surer] = subject.ctx.team1.players;
+    const [, catcher, surer] = subject.ctx.teams[0].players;
 
     const { declared } = await playTurn(subject);
 
@@ -249,7 +249,7 @@ describe("two-step pass", () => {
         },
       },
     });
-    const players = subject.ctx.team1.players;
+    const players = subject.ctx.teams[0].players;
     const starters = [0, 3, 4, 5, 6].map((i) => players[i]);
     for (const p of starters) {
       await subject.execute({
@@ -288,7 +288,7 @@ describe("two-step pass", () => {
 
   it("throws to the deep catcher next turn, who runs the ball in", async () => {
     const subject = await setupTurn();
-    const [thrower, catcher] = subject.ctx.team1.players;
+    const [thrower, catcher] = subject.ctx.teams[0].players;
     await playTurn(subject);
 
     expect(subject.snapshot().activeTeamId).toBe("team2");
@@ -315,7 +315,7 @@ describe("two-step pass", () => {
 
   it("gets the ball out of a press to the deep catcher, who runs it in", async () => {
     const subject = pressedTurn();
-    const [thrower, catcher] = subject.ctx.team1.players;
+    const [thrower, catcher] = subject.ctx.teams[0].players;
 
     const { declared } = await playTurn(subject);
 

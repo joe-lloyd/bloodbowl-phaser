@@ -36,7 +36,7 @@ describe("a Foul's Dirty Player across the armour-broken wait", () => {
         },
       },
     });
-    const fouler = game.ctx.team1.players[0];
+    const fouler = game.ctx.teams[0].players[0];
     vi.spyOn(game.ctx.rng, "rollDie").mockReturnValue(1);
 
     forceDice(game.ctx.rng, [5, 6, 3, 4]);

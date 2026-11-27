@@ -38,9 +38,9 @@ describe("online dialogs", () => {
   beforeEach(() => {
     const game = new HeadlessGame({ seed: 1 });
     eventBus = new EventBus();
-    ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
-    team1Ids = game.ctx.team1.players.map((p) => p.id);
-    team2Ids = game.ctx.team2.players.map((p) => p.id);
+    ServiceContainer.initialize({ eventBus: eventBus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
+    team1Ids = game.ctx.teams[0].players.map((p) => p.id);
+    team2Ids = game.ctx.teams[1].players.map((p) => p.id);
     setActiveOnlineMatch({
       mayAct: () => mayAct,
       pendingDecision: () => pending,

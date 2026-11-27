@@ -33,9 +33,9 @@ const LONER_PASSES_SEED = 5;
 
 async function blockThenTeamReroll(seed: number) {
   const game = new HeadlessGame({ scenario, seed });
-  game.ctx.team1.rerolls = 3;
-  const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
-  const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
+  game.ctx.teams[0].rerolls = 3;
+  const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+  const defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: attackerId,

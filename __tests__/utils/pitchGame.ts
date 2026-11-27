@@ -60,8 +60,8 @@ export async function blockAndPush(
   game: HeadlessGame,
   push: { x: number; y: number }
 ) {
-  const attacker = fixtureValue(game.ctx.team1.players[0]);
-  const defender = fixtureValue(game.ctx.team2.players[0]);
+  const attacker = fixtureValue(game.ctx.teams[0].players[0]);
+  const defender = fixtureValue(game.ctx.teams[1].players[0]);
   await game.execute({
     type: "declare-action",
     playerId: attacker.id,

@@ -53,7 +53,7 @@ function groupOf(roster: string, p: Player): string {
 
 async function foulsOfTrace(file: string) {
   const { recording, game } = openTrace(file);
-  const teams = [game.ctx.team1, game.ctx.team2] as const;
+  const teams = [game.ctx.teams[0], game.ctx.teams[1]] as const;
   const byGroup: [Record<string, Tally>, Record<string, Tally>] = [{}, {}];
   let open: Foul | null = null;
 

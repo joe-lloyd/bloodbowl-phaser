@@ -22,7 +22,7 @@ const followUpOntoBall: Scenario = {
 describe("follow-up onto a loose ball", () => {
   it("rolls to pick up when following up onto the ball's square", async () => {
     const game = new HeadlessGame({ scenario: followUpOntoBall, seed: 7 });
-    const attacker = game.ctx.team1.players[0];
+    const attacker = game.ctx.teams[0].players[0];
 
     const pickups: unknown[] = [];
     game.ctx.eventBus.on(GameEventNames.BallPickup, (data) => {
@@ -43,7 +43,7 @@ describe("follow-up onto a loose ball", () => {
       setup: { ...followUpOntoBall.setup, ballPosition: { x: 1, y: 1 } },
     };
     const game = new HeadlessGame({ scenario: noBall, seed: 7 });
-    const attacker = game.ctx.team1.players[0];
+    const attacker = game.ctx.teams[0].players[0];
 
     const pickups: unknown[] = [];
     game.ctx.eventBus.on(GameEventNames.BallPickup, (data) => {

@@ -34,7 +34,7 @@ function noting(seen: Seen[]): Coach {
         turn !== lastTurn
       ) {
         lastTurn = turn;
-        const [home, away] = [game.ctx.team1.id, game.ctx.team2.id];
+        const [home, away] = [game.ctx.teams[0].id, game.ctx.teams[1].id];
         seen.push({
           home: point.teamId === home,
           homeLead: (state.score[home] ?? 0) - (state.score[away] ?? 0),

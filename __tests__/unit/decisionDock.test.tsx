@@ -30,10 +30,10 @@ describe("decision dock", () => {
     online.waiting = false;
     const game = new HeadlessGame({ seed: 1 });
     eventBus = new EventBus();
-    ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
-    playerId = fixtureValue(game.ctx.team1.players[0]).id;
-    defenderId = fixtureValue(game.ctx.team2.players[0]).id;
-    teamId = game.ctx.team1.id;
+    ServiceContainer.initialize({ eventBus: eventBus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
+    playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
+    teamId = game.ctx.teams[0].id;
     const service = ServiceContainer.getInstance().gameService;
     service.getState().turn.teamId = teamId;
     fixtureValue(service.getTeam(teamId)).rerolls = 2;

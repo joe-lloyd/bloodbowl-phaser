@@ -42,7 +42,7 @@ describe("bombardier: throw bomb protocol round-trip", () => {
       },
     };
     const game = new HeadlessGame({ scenario: withBystander, seed });
-    const bomberId = fixtureValue(game.ctx.team1.players[BOMBER_INDEX]).id;
+    const bomberId = fixtureValue(game.ctx.teams[0].players[BOMBER_INDEX]).id;
 
     await game.execute({
       type: "declare-action",
@@ -72,7 +72,7 @@ describe("bombardier: throw bomb protocol round-trip", () => {
       },
     };
     const game = new HeadlessGame({ scenario: noTrait, seed: 1 });
-    const bomberId = fixtureValue(game.ctx.team1.players[NON_BOMBER_INDEX]).id;
+    const bomberId = fixtureValue(game.ctx.teams[0].players[NON_BOMBER_INDEX]).id;
 
     const res = await game.execute({
       type: "declare-action",
@@ -84,7 +84,7 @@ describe("bombardier: throw bomb protocol round-trip", () => {
 
   it("gives a thrower hurt by their own bomb one Regeneration roll", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const bomber = fixtureValue(game.ctx.team1.players[BOMBER_INDEX]);
+    const bomber = fixtureValue(game.ctx.teams[0].players[BOMBER_INDEX]);
     bomber.skills = [...bomber.skills, getSkill(SkillType.REGENERATION)];
     const rolls: string[] = [];
     game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ rollType }) => {

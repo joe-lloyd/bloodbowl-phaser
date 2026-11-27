@@ -34,7 +34,7 @@ describe("policy review controls", () => {
       },
       { opponentTurnsPlayed: 6 }
     );
-    const [carrier, receiver] = game.ctx.team1.players;
+    const [carrier, receiver] = game.ctx.teams[0].players;
     const c = context({
       board: readBoard(game, fieldPlayer(carrier).teamId),
       w: DEFAULT_WEIGHTS,
@@ -86,7 +86,7 @@ describe("policy review controls", () => {
         { playerIndex: 1, x: 19, y: 5 },
       ],
     });
-    const [carrier, receiver] = game.ctx.team1.players;
+    const [carrier, receiver] = game.ctx.teams[0].players;
     await game.execute({
       type: "declare-action",
       playerId: fieldPlayer(carrier).id,
@@ -124,7 +124,7 @@ describe("policy review controls", () => {
         team2Placements: [{ playerIndex: 0, x: 15, y: 5 }],
         ballPosition: { x: 19, y: 5 },
       });
-      const player = game.ctx.team1.players[0];
+      const player = game.ctx.teams[0].players[0];
       if (spent)
         game.ctx.gameService
           .getRerollArbiter()
@@ -164,7 +164,7 @@ describe("policy review controls", () => {
         { playerIndex: 1, x: 8, y: 6 },
       ],
     });
-    const player = game.ctx.team1.players[0];
+    const player = game.ctx.teams[0].players[0];
     const rolls = [{ kind: "dodge" as const, target: 2 }];
     const route: Route = {
       to: { x: 9, y: 5 },

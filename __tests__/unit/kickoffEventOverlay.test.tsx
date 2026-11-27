@@ -140,7 +140,7 @@ describe("the kick-off turn in the HUD", () => {
     expect(blitz()).not.toBeNull();
     gs.getState().turn.spend = spend(freshSpend(), {
       kind: "blitz",
-      against: game.ctx.team2.id,
+      against: game.ctx.teams[1].id,
     });
     await render();
     expect(blitz()).toBeNull();

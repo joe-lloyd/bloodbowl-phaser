@@ -32,12 +32,12 @@ function setup() {
     subscribe: game.ctx.eventBus.on.bind(game.ctx.eventBus),
     cameraController: camera,
     gameService: service,
-    team1: game.ctx.team1,
-    team2: game.ctx.team2,
+    team1: game.ctx.teams[0],
+    team2: game.ctx.teams[1],
     isSetupActive: false,
   };
   followMatchWithCamera(scene as unknown as GameScene);
-  const player = game.ctx.team1.players[0];
+  const player = game.ctx.teams[0].players[0];
   game.ctx.gameService.declareAction({ playerId: fixtureValue(player).id, action: "move" });
   return { game, service, camera, player, acknowledge };
 }
@@ -74,7 +74,7 @@ describe("queued End activation camera intent", () => {
       playerId: fixtureValue(player).id,
     });
     game.ctx.eventBus.emit(GameEventNames.PlayerSelected, {
-      player: fixtureValue(game.ctx.team1.players[1]),
+      player: fixtureValue(game.ctx.teams[0].players[1]),
     });
     acknowledge();
     await vi.waitFor(() => {

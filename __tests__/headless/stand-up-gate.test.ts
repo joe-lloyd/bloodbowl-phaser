@@ -36,7 +36,7 @@ async function standUpUntilDistracted(skill: SkillType) {
       scenario: proneWith(skill, `stand-${skill}-${String(seed)}`),
       seed,
     });
-    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     const response = await game.execute({ type: "stand-up", playerId });
     const player = fixtureValue(response.snapshot.teams[0]).players[0];
     const distracted = fixtureValue(player).conditions.some(
@@ -66,7 +66,7 @@ describe("standing up rolls the activation gate", () => {
         scenario: proneWith(SkillType.BONE_HEAD, `stand-pass-${String(seed)}`),
         seed,
       });
-      const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+      const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
       const response = await game.execute({ type: "stand-up", playerId });
       if (
         fixtureValue(fixtureValue(response.snapshot.teams[0]).players[0])
@@ -91,7 +91,7 @@ describe("standing up rolls the activation gate", () => {
         ),
         seed,
       });
-      const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+      const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
       const response = await game.execute({ type: "stand-up", playerId });
       if (response.pendingDecision?.type !== "reaction") continue;
       expect(response.pendingDecision).toMatchObject({
@@ -146,7 +146,7 @@ describe("standing up rolls the activation gate", () => {
         },
         seed,
       });
-      const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+      const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
       const response = await game.execute({ type: "stand-up", playerId });
       if (response.pendingDecision) continue;
       const carrier = fixtureValue(response.snapshot.teams[0]).players[1];

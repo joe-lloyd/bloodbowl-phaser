@@ -31,7 +31,7 @@ const scenario: Scenario = {
 };
 
 async function failGaze(game: HeadlessGame) {
-  const gazer = game.ctx.team1.players[0];
+  const gazer = game.ctx.teams[0].players[0];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(gazer).id,
@@ -41,19 +41,19 @@ async function failGaze(game: HeadlessGame) {
     type: "special-action",
     action: "gaze",
     attackerId: fixtureValue(gazer).id,
-    defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+    defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
   });
 }
 
 describe("Leader Re-roll", () => {
   it("survives the Leader being Knocked Out and returning", async () => {
     const game = new HeadlessGame({ scenario, seed: GAZE_FAILS_SEED });
-    game.ctx.team1.rerolls = 0;
-    const leader = game.ctx.team1.players[1];
+    game.ctx.teams[0].rerolls = 0;
+    const leader = game.ctx.teams[0].players[1];
     const arbiter = game.ctx.gameService.getRerollArbiter();
 
     movePlayerToBox(fixtureValue(leader), { box: "ko" });
-    expect(arbiter.teamRerollAvailable(game.ctx.team1.id)).toBe(false);
+    expect(arbiter.teamRerollAvailable(game.ctx.teams[0].id)).toBe(false);
 
     fixtureValue(leader).gridPosition = { x: 5, y: 5 };
     fixtureValue(leader).status = PlayerStatus.ACTIVE;
@@ -67,8 +67,8 @@ describe("Leader Re-roll", () => {
 
   it("is lost once the only Leader is a Casualty", async () => {
     const game = new HeadlessGame({ scenario, seed: GAZE_FAILS_SEED });
-    game.ctx.team1.rerolls = 0;
-    movePlayerToBox(fixtureValue(game.ctx.team1.players[1]), {
+    game.ctx.teams[0].rerolls = 0;
+    movePlayerToBox(fixtureValue(game.ctx.teams[0].players[1]), {
       box: "casualty",
     });
 
@@ -79,14 +79,14 @@ describe("Leader Re-roll", () => {
 
   it("stays spent across a save and restore", async () => {
     const game = new HeadlessGame({ scenario, seed: GAZE_FAILS_SEED });
-    game.ctx.team1.rerolls = 0;
+    game.ctx.teams[0].rerolls = 0;
     await failGaze(game);
     await game.execute({ type: "use-reroll", accept: true, source: "team" });
 
     const restored = deserializeGameState(
       serializeGameState(game.ctx.gameService.getState(), [
-        game.ctx.team1,
-        game.ctx.team2,
+        game.ctx.teams[0],
+        game.ctx.teams[1],
       ])
     );
 

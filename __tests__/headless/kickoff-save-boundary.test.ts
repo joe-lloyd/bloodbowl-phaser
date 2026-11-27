@@ -72,7 +72,7 @@ describe("saving across the kick-off", () => {
     const rolled = presentation(game, GameEventNames.KickoffTableRolled);
     const kicking = game.execute({
       type: "kick-ball",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -109,7 +109,7 @@ describe("saving across the kick-off", () => {
     const ready = presentation(game, GameEventNames.KickoffTableReady);
     void game.execute({
       type: "kick-ball",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });

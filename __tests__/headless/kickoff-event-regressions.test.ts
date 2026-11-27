@@ -32,10 +32,10 @@ describe("Kickoff table resolves exactly once per drive (regression: reroll afte
 
     const save = createMatchSave({
       state,
-      teams: [game.ctx.team1, game.ctx.team2],
+      teams: [game.ctx.teams[0], game.ctx.teams[1]],
       drive: {
-        kickingTeamId: game.ctx.team1.id,
-        receivingTeamId: game.ctx.team2.id,
+        kickingTeamId: game.ctx.teams[0].id,
+        receivingTeamId: game.ctx.teams[1].id,
       },
       rng: game.ctx.rng.captureState(),
       matchStats: game.ctx.matchStats.captureState(),
@@ -78,10 +78,10 @@ describe("Kickoff table resolves exactly once per drive (regression: reroll afte
 
     const save = createMatchSave({
       state: game.ctx.gameService.getState(),
-      teams: [game.ctx.team1, game.ctx.team2],
+      teams: [game.ctx.teams[0], game.ctx.teams[1]],
       drive: {
-        kickingTeamId: game.ctx.team1.id,
-        receivingTeamId: game.ctx.team2.id,
+        kickingTeamId: game.ctx.teams[0].id,
+        receivingTeamId: game.ctx.teams[1].id,
       },
       rng: game.ctx.rng.captureState(),
       matchStats: game.ctx.matchStats.captureState(),
@@ -173,7 +173,7 @@ describe("Dodgy Snack MA modifier applies before Rushes (regression)", () => {
 
   it("an afflicted MA 6 player reaches 7 squares as 5 + 2 Rushes", async () => {
     const game = new HeadlessGame({ scenario: maRushScenario, seed: 2 });
-    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     getDriveEffects(game.ctx.gameService.getState()).playerModifiers[playerId] =
       { maModifier: -1 };
 
@@ -188,7 +188,7 @@ describe("Dodgy Snack MA modifier applies before Rushes (regression)", () => {
     ).toBe(false);
 
     expect(rushRolls(response)).toHaveLength(2);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 10,
       y: 7,
     });
@@ -196,7 +196,7 @@ describe("Dodgy Snack MA modifier applies before Rushes (regression)", () => {
 
   it("a Sprint variant reaches 8 squares as 5 + 3 Rushes", async () => {
     const game = new HeadlessGame({ scenario: sprintScenario, seed: 2 });
-    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     getDriveEffects(game.ctx.gameService.getState()).playerModifiers[playerId] =
       { maModifier: -1 };
 
@@ -210,7 +210,7 @@ describe("Dodgy Snack MA modifier applies before Rushes (regression)", () => {
       )
     ).toBe(false);
     expect(rushRolls(response)).toHaveLength(3);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 11,
       y: 7,
     });

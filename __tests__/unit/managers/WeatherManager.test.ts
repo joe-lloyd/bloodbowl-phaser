@@ -14,8 +14,7 @@ describe("WeatherManager", () => {
   beforeEach(() => {
     mockEventBus = busWith();
     mockState = createInitialState({
-      team1: teamWith({ id: "team1" }),
-      team2: teamWith({ id: "team2" }),
+      teams: [teamWith({ id: "team1" }), teamWith({ id: "team2" })],
       startingPhase: GamePhase.SETUP,
     });
     mockDiceController = diceWith();

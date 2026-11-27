@@ -32,7 +32,7 @@ const scenario: Scenario = {
 
 async function rollsAfterPickup(seed: number): Promise<string[]> {
   const game = new HeadlessGame({ scenario, seed });
-  const moverId = fixtureValue(game.ctx.team1.players[0]).id;
+  const moverId = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: moverId,
@@ -93,7 +93,7 @@ describe("catching a bounced ball", () => {
     const catches: string[] = [];
     for (let seed = 1; seed <= 700 && catches.length < 3; seed++) {
       const game = new HeadlessGame({ scenario: sideline, seed });
-      const moverId = fixtureValue(game.ctx.team1.players[0]).id;
+      const moverId = fixtureValue(game.ctx.teams[0].players[0]).id;
       await game.execute({
         type: "declare-action",
         playerId: moverId,
@@ -127,7 +127,7 @@ describe("catching a bounced ball", () => {
 
   it("takes no -1 from a pass", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const catcher = game.ctx.team1.players[1];
+    const catcher = game.ctx.teams[0].players[1];
     game.ctx.gameService.setBallPosition(9, 4);
     const rolls: string[] = [];
     game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) => {

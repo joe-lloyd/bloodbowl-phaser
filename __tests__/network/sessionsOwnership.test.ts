@@ -28,7 +28,7 @@ describe("networked sessions", () => {
       kickingTeamId: match.guestTeamId,
     });
 
-    const hostPlayer = match.game.ctx.team1.players[0];
+    const hostPlayer = match.game.ctx.teams[0].players[0];
     const response = await match.guest.sendCommand({
       type: "place-player",
       playerId: fixtureValue(hostPlayer).id,
@@ -58,8 +58,8 @@ describe("networked sessions", () => {
       },
     };
     const match = createMatch({ scenario: forgedScenario, seed: 9 });
-    const hostAttacker = match.game.ctx.team1.players[0];
-    const guestTarget = match.game.ctx.team2.players[0];
+    const hostAttacker = match.game.ctx.teams[0].players[0];
+    const guestTarget = match.game.ctx.teams[1].players[0];
     const before = JSON.stringify(match.game.snapshot());
 
     const response = await match.guest.sendCommand({
@@ -81,7 +81,7 @@ describe("networked sessions", () => {
       kickingTeamId: match.hostTeamId,
     });
 
-    const guestPlayer = match.game.ctx.team2.players[0];
+    const guestPlayer = match.game.ctx.teams[1].players[0];
     const response = await match.guest.sendCommand({
       type: "place-player",
       playerId: fixtureValue(guestPlayer).id,
@@ -99,7 +99,7 @@ describe("networked sessions", () => {
       type: "start-setup",
       kickingTeamId: match.guestTeamId,
     });
-    const [first, second] = match.game.ctx.team2.players;
+    const [first, second] = match.game.ctx.teams[1].players;
 
     const firstPlacement = await match.guest.sendCommand({
       type: "place-player",
@@ -197,8 +197,8 @@ describe("networked sessions", () => {
 
   it("uphill block dice: only the defender may choose", async () => {
     const match = createMatch({ scenario: uphillScenario, seed: 11 });
-    const attacker = match.game.ctx.team1.players[0];
-    const defender = match.game.ctx.team2.players[0];
+    const attacker = match.game.ctx.teams[0].players[0];
+    const defender = match.game.ctx.teams[1].players[0];
 
     await match.host.executeLocal({
       type: "declare-action",
@@ -247,9 +247,9 @@ describe("networked sessions", () => {
 
     for (let seed = 1; seed <= 100; seed++) {
       const match = createMatch({ scenario: guestPickup, seed });
-      match.game.ctx.team2.rerolls = 3;
-      match.guestGame.ctx.team2.rerolls = 3;
-      const mover = match.game.ctx.team2.players[0];
+      match.game.ctx.teams[1].rerolls = 3;
+      match.guestGame.ctx.teams[1].rerolls = 3;
+      const mover = match.game.ctx.teams[1].players[0];
 
       await match.guest.sendCommand({
         type: "declare-action",
@@ -303,8 +303,8 @@ describe("networked sessions", () => {
 
     for (let seed = 1; seed <= 60; seed++) {
       const match = createMatch({ scenario: standFirmScenario, seed });
-      const attacker = match.game.ctx.team1.players[0];
-      const defender = match.game.ctx.team2.players[0];
+      const attacker = match.game.ctx.teams[0].players[0];
+      const defender = match.game.ctx.teams[1].players[0];
       fixtureValue(defender).skills.push({
         type: SkillType.STAND_FIRM,
         category: SkillCategory.GENERAL,

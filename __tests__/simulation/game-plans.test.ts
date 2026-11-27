@@ -12,7 +12,7 @@ import type { Activation } from "../../src/simulation/ai/activations";
 const plan = (name: string) =>
   fixtureValue(GAME_PLANS.find((p) => p.name === name));
 
-const [us, them] = new HeadlessGame({ seed: 1 }).ctx.team1.players;
+const [us, them] = new HeadlessGame({ seed: 1 }).ctx.teams[0].players;
 
 function option({
   id,
@@ -183,7 +183,7 @@ describe("game plans", () => {
         });
         await game.execute(fixtureValue(point.candidates[index]).commands[0]);
       }
-      const carrier = fixtureValue(game.ctx.team1.players[0]).gridPosition;
+      const carrier = fixtureValue(game.ctx.teams[0].players[0]).gridPosition;
       openings.add(`${String(carrier?.x)},${String(carrier?.y)}`);
     }
 

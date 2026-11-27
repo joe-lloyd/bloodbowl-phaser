@@ -27,8 +27,8 @@ async function failedMoveOrder(
   movementUsed: (ma: number) => number
 ): Promise<string[]> {
   const game = new HeadlessGame({ scenario: scenario(opponentAt), seed: 1 });
-  const mover = game.ctx.team1.players[0];
-  game.ctx.team1.rerolls = 0;
+  const mover = game.ctx.teams[0].players[0];
+  game.ctx.teams[0].rerolls = 0;
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(mover).id,

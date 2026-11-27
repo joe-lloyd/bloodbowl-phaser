@@ -107,7 +107,7 @@ export const INTERCEPTION_SCENARIO: RuleConfig = {
         assert(d !== undefined, "an interception is raised");
 
         assert(
-          d.chooserTeamId === r.game.ctx.team2.id,
+          d.chooserTeamId === r.game.ctx.teams[1].id,
           "the defending team chooses the interceptor"
         );
         assert(
@@ -116,7 +116,7 @@ export const INTERCEPTION_SCENARIO: RuleConfig = {
         );
         assert(
           fixtureValue(d.candidates[0]).playerId ===
-            fixtureValue(r.game.ctx.team2.players[0]).id,
+            fixtureValue(r.game.ctx.teams[1].players[0]).id,
           "the eligible interceptor is the defender on the pass line"
         );
         assert(
@@ -142,7 +142,7 @@ export const INTERCEPTION_SCENARIO: RuleConfig = {
           })
           .parse(ev.data);
         assert(
-          data.interceptorId === fixtureValue(r.game.ctx.team2.players[0]).id,
+          data.interceptorId === fixtureValue(r.game.ctx.teams[1].players[0]).id,
           "the on-ruler defender is the interceptor"
         );
         assert(turnoverHappened(r), "an interception causes a turnover");
@@ -170,7 +170,7 @@ function interceptionOffered(expectedModifier: number, candidateCount: number) {
       assert(d !== undefined, "an interception is raised");
 
       assert(
-        d.chooserTeamId === r.game.ctx.team2.id,
+        d.chooserTeamId === r.game.ctx.teams[1].id,
         "the defending team chooses the interceptor"
       );
       assert(
@@ -245,8 +245,8 @@ const INTERCEPTION_MULTI_SCENARIO: RuleConfig = {
 
         const ids = new Set(d.candidates.map((c) => c.playerId));
         assert(
-          ids.has(fixtureValue(r.game.ctx.team2.players[0]).id) &&
-            ids.has(fixtureValue(r.game.ctx.team2.players[1]).id),
+          ids.has(fixtureValue(r.game.ctx.teams[1].players[0]).id) &&
+            ids.has(fixtureValue(r.game.ctx.teams[1].players[1]).id),
           "both defenders on the pass line are offered"
         );
       },
@@ -956,7 +956,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               turnoverHappened(r) &&
               !skillTriggered(r, SkillType.GIVE_AND_GO) &&
-              r.snapshot.activeTeamId === r.game.ctx.team2.id,
+              r.snapshot.activeTeamId === r.game.ctx.teams[1].id,
             verify: (r) => {
               assert(turnoverHappened(r), "the incomplete Pass is a Turnover");
               assert(
@@ -964,7 +964,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "Give and Go must not trigger after a Turnover"
               );
               assert(
-                r.snapshot.activeTeamId === r.game.ctx.team2.id,
+                r.snapshot.activeTeamId === r.game.ctx.teams[1].id,
                 "the Turnover must end the passing team's turn"
               );
             },
@@ -1001,7 +1001,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               turnoverHappened(r) &&
               !skillTriggered(r, SkillType.GIVE_AND_GO) &&
-              r.snapshot.activeTeamId === r.game.ctx.team2.id,
+              r.snapshot.activeTeamId === r.game.ctx.teams[1].id,
             verify: (r) => {
               assert(turnoverHappened(r), "the dropped Hand-off is a Turnover");
               assert(
@@ -1009,7 +1009,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "Give and Go must not trigger after a Turnover"
               );
               assert(
-                r.snapshot.activeTeamId === r.game.ctx.team2.id,
+                r.snapshot.activeTeamId === r.game.ctx.teams[1].id,
                 "the Turnover must end the hander-off's team's turn"
               );
             },
@@ -1330,7 +1330,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   z
                     .object({ playerId: z.string().exactOptional() })
                     .parse(e.data).playerId ===
-                    fixtureValue(r.game.ctx.team2.players[1]).id
+                    fixtureValue(r.game.ctx.teams[1].players[1]).id
               ).length === 3,
             verify: (r) => {
               const moves = r.events
@@ -1341,7 +1341,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                     z
                       .object({ playerId: z.string().exactOptional() })
                       .parse(event.data).playerId ===
-                      fixtureValue(r.game.ctx.team2.players[1]).id
+                      fixtureValue(r.game.ctx.teams[1].players[1]).id
                 );
               const passRoll = r.events.findIndex(
                 (event) =>
@@ -1413,7 +1413,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   z
                     .object({ playerId: z.string().exactOptional() })
                     .parse(event.data).playerId ===
-                    fixtureValue(r.game.ctx.team2.players[1]).id
+                    fixtureValue(r.game.ctx.teams[1].players[1]).id
               );
               const eventIndex = r.events.findIndex(
                 (event) =>

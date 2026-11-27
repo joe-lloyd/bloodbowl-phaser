@@ -42,8 +42,8 @@ function wrestleBoard(
       },
     ],
   });
-  const attacker = fieldPlayer(subject.ctx.team1.players[0]);
-  const defender = fieldPlayer(subject.ctx.team2.players[0]);
+  const attacker = fieldPlayer(subject.ctx.teams[0].players[0]);
+  const defender = fieldPlayer(subject.ctx.teams[1].players[0]);
   subject.ctx.gameService.getState().activePlayer = {
     id: attacker.id,
     action: "block",
@@ -311,8 +311,8 @@ describe("Titchy", () => {
       ],
     });
     const route = routesFor({
-      board: readBoard(subject, subject.ctx.team1.id),
-      player: fieldPlayer(subject.ctx.team1.players[0]),
+      board: readBoard(subject, subject.ctx.teams[0].id),
+      player: fieldPlayer(subject.ctx.teams[0].players[0]),
     }).get(key({ x: 7, y: 5 }));
     expect(route?.chance).toBeCloseTo(5 / 6, 6);
   });
@@ -327,8 +327,8 @@ describe("Titchy", () => {
       ],
     });
     const route = routesFor({
-      board: readBoard(subject, subject.ctx.team1.id),
-      player: fieldPlayer(subject.ctx.team1.players[0]),
+      board: readBoard(subject, subject.ctx.teams[0].id),
+      player: fieldPlayer(subject.ctx.teams[0].players[0]),
     }).get(key({ x: 10, y: 4 }));
     expect(route?.chance).toBeCloseTo(4 / 6, 6);
   });

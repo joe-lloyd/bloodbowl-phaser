@@ -41,7 +41,7 @@ function match(mates: Placements, opponents: Placements, seed = 7) {
       },
     },
   });
-  const wrangler = fixtureValue(game.ctx.team1.players[1]);
+  const wrangler = fixtureValue(game.ctx.teams[0].players[1]);
   const rolls: string[] = [];
   game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ rollType }) => {
     rolls.push(rollType);
@@ -69,9 +69,9 @@ async function ragedHopper() {
     ],
     [{ ...OPPONENT, x: 24 }]
   );
-  const hopper = fixtureValue(game.ctx.team1.players[0]);
-  const receiver = fixtureValue(game.ctx.team1.players[5]);
-  game.ctx.team1.rerolls = 0;
+  const hopper = fixtureValue(game.ctx.teams[0].players[0]);
+  const receiver = fixtureValue(game.ctx.teams[0].players[5]);
+  game.ctx.teams[0].rerolls = 0;
   const gs = game.ctx.gameService;
   gs.getState().ballPosition = { ...fixtureValue(hopper.gridPosition) };
   let response = await game.execute({
@@ -104,7 +104,7 @@ describe("Squig Rage", () => {
     expect(response.pendingDecision).toMatchObject({
       type: "block-dice",
       attackerId: wrangler.id,
-      defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+      defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
     });
     const resolved = await game.execute({
       type: "choose-block-result",
@@ -145,7 +145,7 @@ describe("Squig Rage", () => {
         { playerIndex: 1, x: 11, y: 5 },
       ]
     );
-    const [left, right] = game.ctx.team2.players.map((player) => player.id);
+    const [left, right] = game.ctx.teams[1].players.map((player) => player.id);
     const response = await declare();
     const pending = fixtureValue(response.pendingDecision);
     expect(pending).toMatchObject({
@@ -193,7 +193,7 @@ describe("Squig Rage", () => {
       [{ playerIndex: 4, x: 10, y: 4 }],
       [{ ...OPPONENT, x: 13 }]
     );
-    const target = fixtureValue(game.ctx.team1.players[4]);
+    const target = fixtureValue(game.ctx.teams[0].players[4]);
     const failed = await declare();
     expect(failed.pendingDecision).toMatchObject({
       type: "bite-target",
@@ -253,7 +253,7 @@ describe("Squig Rage", () => {
 
     it("ends the Hopper's activation when another player is declared", async () => {
       const { game, gs, hopper, declare } = await ragedHopper();
-      const other = fixtureValue(game.ctx.team1.players[3]);
+      const other = fixtureValue(game.ctx.teams[0].players[3]);
       const otherDeclared = await declare("move", other.id);
       expect(otherDeclared.ok).toBe(true);
       expect(gs.hasPlayerActed(hopper.id)).toBe(true);
@@ -262,7 +262,7 @@ describe("Squig Rage", () => {
 
     it("keeps the Hopper's activation when another player's declaration is refused", async () => {
       const { game, gs, hopper, declare } = await ragedHopper();
-      const other = fixtureValue(game.ctx.team1.players[3]);
+      const other = fixtureValue(game.ctx.teams[0].players[3]);
       const refuse = () =>
         game.execute({
           type: "declare-action",
@@ -370,7 +370,7 @@ describe("Squig Rage", () => {
     const { game, wrangler, rolls, declare } = match([], [
       { ...OPPONENT, x: 13 },
     ]);
-    game.ctx.team1.rerolls = 1;
+    game.ctx.teams[0].rerolls = 1;
     const rerollDeclared = await declare();
     expect(rerollDeclared.pendingDecision?.type).toBe("reroll");
     void game.ctx.gameService.ballAndChain(wrangler.id, 1, 0);
@@ -385,9 +385,9 @@ describe("Squig Rage", () => {
       [{ playerIndex: 4, x: 9, y: 5 }],
       [{ ...OPPONENT, x: 18 }]
     );
-    const carrier = fixtureValue(game.ctx.team1.players[4]);
+    const carrier = fixtureValue(game.ctx.teams[0].players[4]);
     game.ctx.gameService.getState().ballPosition = { x: 9, y: 5 };
-    game.ctx.team1.rerolls = 1;
+    game.ctx.teams[0].rerolls = 1;
     const turnovers: string[] = [];
     game.ctx.eventBus.on(GameEventNames.Turnover, ({ teamId }) => {
       turnovers.push(teamId);
@@ -404,7 +404,7 @@ describe("Squig Rage", () => {
     }
     expect(response.ok).toBe(true);
     expect(carrier.status).not.toBe(PlayerStatus.ACTIVE);
-    expect(turnovers).toEqual([game.ctx.team1.id]);
+    expect(turnovers).toEqual([game.ctx.teams[0].id]);
     expect(wrangler.gridPosition).toEqual({ x: 10, y: 5 });
     expect(rolls).not.toContain("Ball & Chain Deviation");
   });
@@ -414,10 +414,10 @@ describe("Squig Rage", () => {
       [{ playerIndex: 0, x: 15, y: 8 }],
       [{ ...OPPONENT, x: 16, y: 8 }]
     );
-    const hopper = fixtureValue(game.ctx.team1.players[0]);
-    const target = fixtureValue(game.ctx.team2.players[0]);
+    const hopper = fixtureValue(game.ctx.teams[0].players[0]);
+    const target = fixtureValue(game.ctx.teams[1].players[0]);
     hopper.skills.push(getSkill(SkillType.MONSTROUS_MOUTH));
-    game.ctx.team1.rerolls = 1;
+    game.ctx.teams[0].rerolls = 1;
     forceDice(game.ctx.rng, [1]);
     const declared = await game.execute({
       type: "declare-action",
@@ -447,11 +447,11 @@ describe("Squig Rage", () => {
       [{ playerIndex: 0, x: 15, y: 8 }],
       [{ ...OPPONENT, x: 16, y: 8 }]
     );
-    const hopper = fixtureValue(game.ctx.team1.players[0]);
-    const target = fixtureValue(game.ctx.team2.players[0]);
+    const hopper = fixtureValue(game.ctx.teams[0].players[0]);
+    const target = fixtureValue(game.ctx.teams[1].players[0]);
     const gs = game.ctx.gameService;
     hopper.skills.push(getSkill(SkillType.MONSTROUS_MOUTH));
-    game.ctx.team1.rerolls = 1;
+    game.ctx.teams[0].rerolls = 1;
     forceDice(game.ctx.rng, [1]);
     await game.execute({
       type: "declare-action",
@@ -473,12 +473,12 @@ describe("Squig Rage", () => {
       ],
       [{ ...OPPONENT, x: 24 }]
     );
-    const hopper = fixtureValue(game.ctx.team1.players[0]);
-    const mate = fixtureValue(game.ctx.team1.players[5]);
+    const hopper = fixtureValue(game.ctx.teams[0].players[0]);
+    const mate = fixtureValue(game.ctx.teams[0].players[5]);
     const gs = game.ctx.gameService;
     hopper.skills.push(getSkill(SkillType.PUNT));
     gs.getState().ballPosition = { x: 15, y: 8 };
-    game.ctx.team1.rerolls = 1;
+    game.ctx.teams[0].rerolls = 1;
     forceDice(game.ctx.rng, [1]);
     const declare = () =>
       game.execute({
@@ -500,14 +500,14 @@ describe("Squig Rage", () => {
       [{ playerIndex: 5, x: 15, y: 8 }],
       [{ ...OPPONENT, x: 16, y: 8 }]
     );
-    const gazer = fixtureValue(game.ctx.team1.players[5]);
-    const target = fixtureValue(game.ctx.team2.players[0]);
+    const gazer = fixtureValue(game.ctx.teams[0].players[5]);
+    const target = fixtureValue(game.ctx.teams[1].players[0]);
     const gs = game.ctx.gameService;
     gazer.skills.push(
       getSkill(SkillType.HYPNOTIC_GAZE),
       { ...getSkill(SkillType.BLOODLUST), parameter: "3+" }
     );
-    game.ctx.team1.rerolls = 1;
+    game.ctx.teams[0].rerolls = 1;
     forceDice(game.ctx.rng, [1]);
     const declared = await game.execute({
       type: "declare-action",
@@ -529,10 +529,10 @@ describe("Squig Rage", () => {
       [{ playerIndex: 4, x: 9, y: 5, skills: [SkillType.STEADY_FOOTING] }],
       [{ ...OPPONENT, x: 18 }]
     );
-    const carrier = fixtureValue(game.ctx.team1.players[4]);
+    const carrier = fixtureValue(game.ctx.teams[0].players[4]);
     const { gameService } = game.ctx;
     gameService.getState().ballPosition = { x: 9, y: 5 };
-    game.ctx.team1.rerolls = 0;
+    game.ctx.teams[0].rerolls = 0;
     forceDice(game.ctx.rng, [1, 6]);
     const turnovers: string[] = [];
     game.ctx.eventBus.on(GameEventNames.Turnover, ({ teamId }) => {

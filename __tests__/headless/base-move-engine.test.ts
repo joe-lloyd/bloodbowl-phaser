@@ -31,7 +31,7 @@ function gameWith(placement: Partial<PlayerPlacement> = {}) {
     },
   };
   const game = new HeadlessGame({ scenario, seed: 4 });
-  const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+  const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
   return { game, playerId };
 }
 
@@ -59,7 +59,7 @@ describe("one movement phase in the engine", () => {
 
   it("jumps after the block of a Blitz while movement remains", async () => {
     const { game, playerId } = gameWith();
-    const defenderId = fixtureValue(game.ctx.team2.players[1]).id;
+    const defenderId = fixtureValue(game.ctx.teams[1].players[1]).id;
     await game.execute({ type: "declare-action", playerId, action: "blitz" });
     forceDice(game.ctx.rng, [3, 3, 3, 6, 6, 6]);
     await game.execute({ type: "block", attackerId: playerId, defenderId });

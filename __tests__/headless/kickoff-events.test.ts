@@ -73,10 +73,10 @@ describe("Sevens kickoff events (seeded headless)", () => {
       )
       .map((eventRecord) => String(eventRecord.data));
     expect(
-      cheeringLogs.some((line) => line.includes(cheering.game.ctx.team1.name))
+      cheeringLogs.some((line) => line.includes(cheering.game.ctx.teams[0].name))
     ).toBe(true);
     expect(
-      cheeringLogs.some((line) => line.includes(cheering.game.ctx.team2.name))
+      cheeringLogs.some((line) => line.includes(cheering.game.ctx.teams[1].name))
     ).toBe(true);
     expect(cheeringLogs.every((line) => line.includes("D6"))).toBe(true);
 
@@ -100,7 +100,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(Object.keys(snackModifiers).length).toBeGreaterThan(0);
     for (const [playerId, modifier] of Object.entries(snackModifiers)) {
       const player = fixtureValue(
-        [...snack.game.ctx.team1.players, ...snack.game.ctx.team2.players].find(
+        [...snack.game.ctx.teams[0].players, ...snack.game.ctx.teams[1].players].find(
           (candidate) => candidate.id === playerId
         )
       );
@@ -183,7 +183,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
 
   it("clears unused drive effects and restores effective MA/AV", () => {
     const game = new HeadlessGame({ scenario: kickoffScenario, seed: 1 });
-    const player = game.ctx.team1.players[0];
+    const player = game.ctx.teams[0].players[0];
     const baseMA = fixtureValue(player).stats.MA;
     const baseAV = fixtureValue(player).stats.AV;
     const effects = getDriveEffects(game.ctx.gameService.getState());
@@ -194,13 +194,13 @@ describe("Sevens kickoff events (seeded headless)", () => {
       avModifier: -1,
     };
     effects.freeRerolls["team2"] = 1;
-    game.ctx.team2.rerolls = 0;
+    game.ctx.teams[1].rerolls = 0;
     expect(
       game.ctx.gameService.getRerollArbiter().teamRerollAvailable("team2")
     ).toBe(true);
     game.ctx.gameService.getRerollArbiter().consumeTeamReroll("team2");
     expect(effects.freeRerolls["team2"]).toBeUndefined();
-    expect(game.ctx.team2.rerolls).toBe(0);
+    expect(game.ctx.teams[1].rerolls).toBe(0);
 
     game.ctx.gameService.seedTurnCounts(2);
     effects.owedAssists["team2"] = { turn: 2, used: false };
@@ -313,7 +313,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
     if (highPending?.type !== "kickoff-event") return;
     const landing = fixtureValue(highPending.landingSquare);
     const receiver = fixtureValue(
-      high.game.ctx.team2.players.find(
+      high.game.ctx.teams[1].players.find(
         (player) =>
           player.gridPosition &&
           (player.gridPosition.x !== landing.x ||
@@ -340,11 +340,11 @@ describe("Sevens kickoff events (seeded headless)", () => {
     const found = await findEveryEvent();
     const { game } = fixtureValue(found.get(KickoffEvent.CHARGE));
     const gs = game.ctx.gameService;
-    const [charger, waiting] = game.ctx.team1.players.slice(1, 3);
-    const receiver = game.ctx.team2.players[1];
+    const [charger, waiting] = game.ctx.teams[0].players.slice(1, 3);
+    const receiver = game.ctx.teams[1].players[1];
 
     const turn = gs.getState().turn;
-    turn.teamId = game.ctx.team1.id;
+    turn.teamId = game.ctx.teams[0].id;
     turn.activatedPlayerIds.add(fixtureValue(charger).id);
     turn.movementUsed.set(
       fixtureValue(charger).id,
@@ -386,7 +386,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
 
     expect(gs.getKickoffEventStep()).toBeNull();
     expect(gs.getPhase()).toBe(GamePhase.PLAY);
-    expect(gs.getState().turn.teamId).toBe(game.ctx.team2.id);
+    expect(gs.getState().turn.teamId).toBe(game.ctx.teams[1].id);
     expect(gs.canActivate(fixtureValue(receiver).id)).toBe(true);
     expect(gs.canActivate(fixtureValue(charger).id)).toBe(false);
   });
@@ -398,9 +398,9 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(beforeSelect?.selectedPlayerIds).toEqual([]);
 
     const owningTeam =
-      fixtureValue(beforeSelect).teamId === game.ctx.team1.id
-        ? game.ctx.team1
-        : game.ctx.team2;
+      fixtureValue(beforeSelect).teamId === game.ctx.teams[0].id
+        ? game.ctx.teams[0]
+        : game.ctx.teams[1];
     const player = fixtureValue(
       owningTeam.players.find(
         (candidate) =>
@@ -432,8 +432,8 @@ describe("Sevens kickoff events (seeded headless)", () => {
     for (let seed = 1; seed < 400; seed++) {
       const { game, result } = await kick(seed);
       if (result.event !== KickoffEvent.CHARGE) continue;
-      const attacker = game.ctx.team1.players[0];
-      const defender = game.ctx.team2.players[0];
+      const attacker = game.ctx.teams[0].players[0];
+      const defender = game.ctx.teams[1].players[0];
       fixtureValue(attacker).skills = [
         ...fixtureValue(attacker).skills,
         getSkill(SkillType.FRENZY),

@@ -36,9 +36,9 @@ function sideSession(
     transport: end,
     game,
     selfId: `${side}-uid`,
-    myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
-    peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
-    hostTeamId: game.ctx.team1.id,
+    myTeamId: side === "host" ? game.ctx.teams[0].id : game.ctx.teams[1].id,
+    peerTeamId: side === "host" ? game.ctx.teams[1].id : game.ctx.teams[0].id,
+    hostTeamId: game.ctx.teams[0].id,
     ...(onDesync !== undefined && { onDesync: onDesync }),
   });
 }
@@ -100,7 +100,7 @@ describe.each([
 
     const diverge = (game: typeof hostGame) => {
       const { score } = game.ctx.gameService.getState();
-      score[game.ctx.team1.id] = (score[game.ctx.team1.id] ?? 0) + 7;
+      score[game.ctx.teams[0].id] = (score[game.ctx.teams[0].id] ?? 0) + 7;
     };
     const honest = stateChecksum(hostGame);
     for (const [game, side] of [
@@ -146,7 +146,7 @@ describe("a full resync while a pre-match inducement choice is open", () => {
       await settle(host, guest);
 
       const owner =
-        pending.chooserTeamId === hostGame.ctx.team1.id ? host : guest;
+        pending.chooserTeamId === hostGame.ctx.teams[0].id ? host : guest;
       const answered = await owner.run({ type: "choose-inducement" });
       await settle(host, guest);
       expect(answered.reason).toBeUndefined();
@@ -183,14 +183,14 @@ describe("a full resync onto a page with nothing paused", () => {
     guest.close();
     const freshGame = await build();
     const { score } = freshGame.ctx.gameService.getState();
-    score[freshGame.ctx.team1.id] = 7;
+    score[freshGame.ctx.teams[0].id] = 7;
     const fresh = sideSession(freshGame, guestEnd, "guest");
     await fresh.sendHello();
     await settle(host, fresh);
     expect(stateChecksum(freshGame)).toBe(stateChecksum(hostGame));
     expect(freshGame.pendingDecision()?.type).toBe("reroll");
 
-    const answerer = owner === hostGame.ctx.team1.id ? host : fresh;
+    const answerer = owner === hostGame.ctx.teams[0].id ? host : fresh;
     const answered = await answerer.run(fixtureValue(steps[stop + 1]).command);
     await settle(host, fresh);
     expect(answered.reason).toBeUndefined();
@@ -209,9 +209,9 @@ describe("a hello from a page on another protocol version", () => {
       transport: mine,
       game,
       selfId: "host-uid",
-      myTeamId: game.ctx.team1.id,
-      peerTeamId: game.ctx.team2.id,
-      hostTeamId: game.ctx.team1.id,
+      myTeamId: game.ctx.teams[0].id,
+      peerTeamId: game.ctx.teams[1].id,
+      hostTeamId: game.ctx.teams[0].id,
       onHello: (payload) => { heard.push(String(payload.protocolVersion)); },
     });
     theirs.subscribe((envelope) => { answers.push(envelope.kind); });

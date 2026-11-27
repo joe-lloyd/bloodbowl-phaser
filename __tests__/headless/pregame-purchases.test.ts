@@ -7,7 +7,7 @@ import { SubPhase } from "../../src/types/GameState";
 import { Inducement } from "../../src/types/Inducements";
 
 async function ready(game: HeadlessGame) {
-  for (const team of [game.ctx.team2, game.ctx.team1]) {
+  for (const team of [game.ctx.teams[1], game.ctx.teams[0]]) {
     const readied = await game.execute({
       type: "ready-weather",
       teamId: team.id,
@@ -77,8 +77,7 @@ describe("graphical match pregame through the protocol", () => {
     await original.execute(buyTraining);
     const snapshot = original.snapshot();
     const game = new HeadlessGame({
-      team1: structuredClone(original.ctx.team1),
-      team2: structuredClone(original.ctx.team2),
+      teams: [structuredClone(original.ctx.teams[0]), structuredClone(original.ctx.teams[1])],
       initialState: deserializeGameState(snapshot),
       seed: 23,
     });
@@ -129,14 +128,14 @@ describe("graphical match pregame through the protocol", () => {
 
   it("lets the coaches answer a vacant captaincy in an older save nobody can buy in", async () => {
     const original = pregameGame();
-    original.ctx.team2.rerolls = original.ctx.team1.rerolls;
+    original.ctx.teams[1].rerolls = original.ctx.teams[0].rerolls;
     await ready(original);
     const snapshot = original.snapshot();
     const pregame = fixtureValue(snapshot.pregameInducements);
     pregame.complete = false;
     fixtureValue(pregame.offer).confirmed = { team1: false, team2: false };
     delete snapshot.inducements;
-    const [team1, team2] = [original.ctx.team1, original.ctx.team2].map(
+    const [team1, team2] = [original.ctx.teams[0], original.ctx.teams[1]].map(
       (team) => {
         const stored = structuredClone(team);
         stored.firstMatchPlayedAt = 1;
@@ -147,8 +146,7 @@ describe("graphical match pregame through the protocol", () => {
       }
     );
     const game = new HeadlessGame({
-      team1: fixtureValue(team1),
-      team2: fixtureValue(team2),
+      teams: [fixtureValue(team1), fixtureValue(team2)],
       initialState: { ...deserializeGameState(snapshot), paysWinnings: true },
       seed: 23,
     });
@@ -176,7 +174,7 @@ describe("graphical match pregame through the protocol", () => {
     "finishes the purchases of a %s match nobody can afford to buy in",
     async (gameType) => {
       const game = pregameGame(false, gameType);
-      game.ctx.team2.rerolls = game.ctx.team1.rerolls;
+      game.ctx.teams[1].rerolls = game.ctx.teams[0].rerolls;
       await ready(game);
       expect(game.snapshot().pregameInducements?.complete).toBe(true);
       if (gameType === "street-bowl")

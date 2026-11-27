@@ -55,7 +55,7 @@ test("a coach resumes Swarming and places an eighth player through the canvas", 
 }) => {
   const home = createReadyMadeTeam(RosterName.SNOTLING, "GW Swarm", 0xaa2222);
   const away = createReadyMadeTeam(RosterName.HUMAN, "Visitors", 0x2222aa);
-  const game = new HeadlessGame({ seed: 17, team1: home, team2: away });
+  const game = new HeadlessGame({ seed: 17, teams: [home, away] });
   await game.execute({ type: "start-setup", kickingTeamId: home.id });
   for (const [team, side] of [
     [home, true],

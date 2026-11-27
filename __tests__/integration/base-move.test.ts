@@ -108,7 +108,7 @@ describe("a plan with a jump in it", () => {
       expect(rolled).toHaveLength(1);
     });
     expect(blitzer.gridPosition?.x).toBe(13);
-    expect(rolled[0]?.defenderId).toBe(fixtureValue(set.game.ctx.team2.players[1]).id);
+    expect(rolled[0]?.defenderId).toBe(fixtureValue(set.game.ctx.teams[1].players[1]).id);
   });
 
   it("jumps and then throws the pass", async () => {
@@ -123,7 +123,7 @@ describe("a plan with a jump in it", () => {
       expect(set.game.ctx.gameService.getState().ballPosition).toEqual({ x: 15, y: 5 });
     });
     expect(set.seen.dice[0]).toContain("Jump");
-    expect(set.game.ctx.gameService.hasPlayerActed(fixtureValue(set.game.ctx.team1.players[0]).id)).toBe(true);
+    expect(set.game.ctx.gameService.hasPlayerActed(fixtureValue(set.game.ctx.teams[0].players[0]).id)).toBe(true);
   });
 
   it("jumps and then makes the Hand-off", async () => {
@@ -197,7 +197,7 @@ const LAST: Spent[] = [
 describe("the last movement leaves the rest of the action", () => {
   it.each(LAST)("$action after a jump", async ({ action, step, target, team1, team2 = [FAR], needle }) => {
     const set = board(team1, [DOWNED, ...team2]);
-    const actor = fixtureValue(set.game.ctx.team1.players[0]);
+    const actor = fixtureValue(set.game.ctx.teams[0].players[0]);
     forceDice(set.game.ctx.rng, [6, 6, 6, 6, 5, 6, 5]);
     set.act(0, action);
     set.game.ctx.gameService.getState().turn.movementUsed.set(actor.id, actor.stats.MA);
@@ -212,7 +212,7 @@ describe("the last movement leaves the rest of the action", () => {
 
   it.each(LAST)("$action after a walk of Rushes", async ({ action, step, target, team1, team2 = [FAR], needle }) => {
     const set = board(team1, [{ ...FAR, playerIndex: 2, y: 1 }, ...team2]);
-    const actor = fixtureValue(set.game.ctx.team1.players[0]);
+    const actor = fixtureValue(set.game.ctx.teams[0].players[0]);
     forceDice(set.game.ctx.rng, [6, 6, 6, 6, 5, 6, 5]);
     set.act(0, action);
     set.game.ctx.gameService.getState().turn.movementUsed.set(actor.id, actor.stats.MA);
@@ -227,7 +227,7 @@ describe("the last movement leaves the rest of the action", () => {
 
   it("a Foul after standing up", async () => {
     const set = board([PRONE, { playerIndex: 1, x: 2, y: 9 }], [DOWNED, FAR]);
-    const actor = fixtureValue(set.game.ctx.team1.players[0]);
+    const actor = fixtureValue(set.game.ctx.teams[0].players[0]);
     forceDice(set.game.ctx.rng, [5, 6, 5, 6]);
     set.act(0, "foul");
     const { gameService } = set.game.ctx;
@@ -242,7 +242,7 @@ describe("the last movement leaves the rest of the action", () => {
 
   it("ends a Pass that Sticky Sludge forbids", async () => {
     const set = board([CARRIER, { playerIndex: 1, x: 15, y: 5 }], [{ ...FAR, playerIndex: 2, y: 1 }]);
-    const actor = fixtureValue(set.game.ctx.team1.players[0]);
+    const actor = fixtureValue(set.game.ctx.teams[0].players[0]);
     const state = set.game.ctx.gameService.getState();
     addDriveCondition(state, "sticky-sludge");
     forceDice(set.game.ctx.rng, [6, 6, 6]);
@@ -257,7 +257,7 @@ describe("the last movement leaves the rest of the action", () => {
 
   it("still ends an action with nothing left to do", async () => {
     const set = board([CARRIER, { playerIndex: 1, x: 2, y: 9 }], [DOWNED, FAR]);
-    const actor = fixtureValue(set.game.ctx.team1.players[0]);
+    const actor = fixtureValue(set.game.ctx.teams[0].players[0]);
     forceDice(set.game.ctx.rng, [6, 6, 6]);
     set.act(0, "handoff");
     set.game.ctx.gameService.getState().turn.movementUsed.set(actor.id, actor.stats.MA);
@@ -272,7 +272,7 @@ describe("the last movement leaves the rest of the action", () => {
 describe("the second half of Move", () => {
   it("stands a prone player up as a declared Move, without moving", async () => {
     const set = board([PRONE], [FAR]);
-    const player = fixtureValue(set.game.ctx.team1.players[0]);
+    const player = fixtureValue(set.game.ctx.teams[0].players[0]);
     set.controller.handlePlayerClick(player.id);
     set.game.ctx.eventBus.emit(GameEventNames.UI_ActionSelected, {
       playerId: player.id,
@@ -291,7 +291,7 @@ describe("the second half of Move", () => {
 
   it("starts a Move on its jump targets", async () => {
     const set = board([CARRIER], [DOWNED, FAR]);
-    const player = fixtureValue(set.game.ctx.team1.players[0]);
+    const player = fixtureValue(set.game.ctx.teams[0].players[0]);
     set.controller.handlePlayerClick(player.id);
     set.game.ctx.eventBus.emit(GameEventNames.UI_ActionSelected, {
       playerId: player.id,
@@ -372,7 +372,8 @@ describe("reach through a jump", () => {
         { playerIndex: 3, x: 4, y: 1 },
       ]
     );
-    const { gameService: gs, team1, team2 } = game.ctx;
+    const { gameService: gs } = game.ctx;
+    const [team1, team2] = game.ctx.teams;
     const player = fixtureValue(team1.players[0]);
     expect(gs.getAvailableMovements(player.id)).toEqual([]);
     const reachable = gs.getAvailableMovements(player.id, "jump");

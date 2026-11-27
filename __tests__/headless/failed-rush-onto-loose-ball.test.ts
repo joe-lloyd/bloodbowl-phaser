@@ -26,7 +26,7 @@ describe("a failed Rush onto the loose ball", () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
 
     forceDice(game.ctx.rng, [1, 5, 1, 1]);
-    const mover = game.ctx.team1.players[0];
+    const mover = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(mover).id,

@@ -39,8 +39,8 @@ function board(weather: Weather, skills: SkillType[]) {
   });
   const controller = new GameplayInteractionController({
     scene: {
-      team1: game.ctx.team1,
-      team2: game.ctx.team2,
+      team1: game.ctx.teams[0],
+      team2: game.ctx.teams[1],
       events: { on: vi.fn(), off: vi.fn() },
       highlightPlayer: vi.fn(),
       unhighlightPlayer: vi.fn(),
@@ -80,7 +80,8 @@ describe("Secure the Ball on the board", () => {
         SkillType.SURE_HANDS,
         ...skills,
       ]);
-      const { gameService, eventBus, team1 } = game.ctx;
+      const { gameService, eventBus } = game.ctx;
+      const [team1] = game.ctx.teams;
       const player = team1.players[0];
       let prompt:
         | AllEvents[typeof GameEventNames.UI_RequestConfirmation]

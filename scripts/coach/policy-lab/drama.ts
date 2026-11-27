@@ -34,8 +34,8 @@ export interface Drama {
 async function dramaOfTrace(file: string, id: string, side: number) {
   const { recording, game } = openTrace(file);
   const sides = new Map([
-    [game.ctx.team1.id, 0 as const],
-    [game.ctx.team2.id, 1 as const],
+    [game.ctx.teams[0].id, 0 as const],
+    [game.ctx.teams[1].id, 1 as const],
   ]);
   const scores: Score[] = [];
   let casualties = 0;
@@ -60,7 +60,7 @@ async function dramaOfTrace(file: string, id: string, side: number) {
   }
   return {
     game: id,
-    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName],
+    rosters: [game.ctx.teams[0].rosterName, game.ctx.teams[1].rosterName],
     candidateSide: side,
     scores,
     casualties,

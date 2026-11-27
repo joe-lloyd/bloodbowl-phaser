@@ -25,7 +25,7 @@ const menu = () =>
 beforeEach(() => {
   game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
+  ServiceContainer.initialize({ eventBus: bus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -41,8 +41,8 @@ afterEach(async () => {
 });
 
 it("closes the action panel when a turnover happens", async () => {
-  const teamId = game.ctx.team1.id;
-  const player = fixtureValue(game.ctx.team1.players[0]);
+  const teamId = game.ctx.teams[0].id;
+  const player = fixtureValue(game.ctx.teams[0].players[0]);
   player.gridPosition = { x: 5, y: 5 };
   await act(async () => {
     root.render(
@@ -70,8 +70,8 @@ it("closes the action panel when a turnover happens", async () => {
 });
 
 it("hides the action panel while an online match cannot take commands", async () => {
-  const teamId = game.ctx.team1.id;
-  const player = fixtureValue(game.ctx.team1.players[0]);
+  const teamId = game.ctx.teams[0].id;
+  const player = fixtureValue(game.ctx.teams[0].players[0]);
   player.gridPosition = { x: 5, y: 5 };
   let mayAct = false;
   setActiveOnlineMatch({ mayAct: () => mayAct } as unknown as OnlineMatch);

@@ -43,8 +43,8 @@ function blockGame(
     return game.execute(command);
   };
   const [attackerId, defenderId] = [
-    fixtureValue(game.ctx.team1.players[0]).id,
-    fixtureValue(game.ctx.team2.players[0]).id,
+    fixtureValue(game.ctx.teams[0].players[0]).id,
+    fixtureValue(game.ctx.teams[1].players[0]).id,
   ];
   return { game, tallies, run, attackerId, defenderId };
 }
@@ -70,7 +70,7 @@ describe("policy-lab defence", () => {
 
   it("counts a block once when a Team Re-roll rolls its dice again", async () => {
     const { game, tallies, run, attackerId, defenderId } = blockGame({}, {});
-    game.ctx.team1.rerolls = 3;
+    game.ctx.teams[0].rerolls = 3;
     await run({
       type: "declare-action",
       playerId: attackerId,

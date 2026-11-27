@@ -34,7 +34,7 @@ describe("a failed Rush", () => {
     });
 
     forceDice(game.ctx.rng, [1, 1, 1]);
-    const mover = game.ctx.team1.players[0];
+    const mover = game.ctx.teams[0].players[0];
     fixtureValue(mover).playerName = "Human Lineman";
     await game.execute({
       type: "declare-action",

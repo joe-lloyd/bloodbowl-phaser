@@ -14,8 +14,8 @@ async function playFullMatch(seed: number): Promise<{
 }> {
   const game = new HeadlessGame({ seed, startingPhase: GamePhase.SETUP });
 
-  game.ctx.team1.rerolls = 3;
-  game.ctx.team2.rerolls = 3;
+  game.ctx.teams[0].rerolls = 3;
+  game.ctx.teams[1].rerolls = 3;
   const gs = game.ctx.gameService;
   let commandCount = 0;
   let sawHalftime = false;

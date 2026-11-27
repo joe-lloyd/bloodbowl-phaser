@@ -85,8 +85,7 @@ function freshGame(
   }
   const initialState = {
     ...GameService.createInitialState({
-      team1,
-      team2,
+      teams: [team1, team2],
       startingPhase: GamePhase.KICKOFF,
       startingSubPhase: SubPhase.ROLL_KICKOFF,
     }),
@@ -94,8 +93,7 @@ function freshGame(
     activeTeamId: "team2",
   };
   return new HeadlessGame({
-    team1,
-    team2,
+    teams: [team1, team2],
     initialState,
     seed,
     kickingTeamId: "team1",
@@ -259,7 +257,7 @@ async function nextCommand(
 function nextDrive(game: HeadlessGame): void {
   const gs = game.ctx.gameService;
   gs.resetDriveState();
-  for (const [index, team] of [game.ctx.team1, game.ctx.team2].entries()) {
+  for (const [index, team] of [game.ctx.teams[0], game.ctx.teams[1]].entries()) {
     const fit = team.players.filter(
       ({ status }) =>
         status === PlayerStatus.ACTIVE ||

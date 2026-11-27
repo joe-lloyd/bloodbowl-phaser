@@ -53,8 +53,8 @@ async function throwMate(
   swoopFacing?: "north" | "east" | "south" | "west"
 ) {
   const game = new HeadlessGame({ scenario: scenario(where), seed });
-  const throwerId = fixtureValue(game.ctx.team1.players[0]).id;
-  const teammateId = fixtureValue(game.ctx.team1.players[1]).id;
+  const throwerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+  const teammateId = fixtureValue(game.ctx.teams[0].players[1]).id;
   await game.execute({
     type: "declare-action",
     playerId: throwerId,

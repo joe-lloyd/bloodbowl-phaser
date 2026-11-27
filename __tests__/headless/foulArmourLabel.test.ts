@@ -25,8 +25,8 @@ it("labels a foul's armour roll as the foul's armour roll", async () => {
       },
     },
   });
-  const fouler = game.ctx.team1.players[0];
-  const target = game.ctx.team2.players[0];
+  const fouler = game.ctx.teams[0].players[0];
+  const target = game.ctx.teams[1].players[0];
   const rolls: string[] = [];
   game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ rollType }) => {
     rolls.push(rollType);
@@ -68,8 +68,8 @@ it("names a foul's armour and injury rolls after the fouled player, in one forma
       },
     },
   });
-  const fouler = game.ctx.team1.players[0];
-  const target = game.ctx.team2.players[0];
+  const fouler = game.ctx.teams[0].players[0];
+  const target = game.ctx.teams[1].players[0];
 
   forceDice(game.ctx.rng, [6, 5, 3, 4]);
   const rolls: { rollType: string; description: string; teamId?: string }[] =

@@ -30,7 +30,7 @@ describe("Kick Team-mate fumble", () => {
         },
       },
     });
-    const [kicker, mate] = game.ctx.team1.players;
+    const [kicker, mate] = game.ctx.teams[0].players;
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(kicker).id,

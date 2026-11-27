@@ -70,7 +70,7 @@ describe("roster-authentic block-replacement scenario catalog", () => {
           expect(fixture.setup.team1Roster).toBe(provenance.roster);
 
           const playerIndex = Number(provenance.playerRef.split(":", 2)[1]);
-          const player = game.ctx.team1.players[playerIndex];
+          const player = game.ctx.teams[0].players[playerIndex];
           expect(fixtureValue(player).positionName).toBe(
             provenance.positionName
           );
@@ -124,9 +124,9 @@ describe("roster-authentic block-replacement scenario catalog", () => {
       },
       seed: 1,
     });
-    const firstAssassin = game.ctx.team1.players[0];
-    const secondAssassin = game.ctx.team1.players[1];
-    const firstTarget = game.ctx.team2.players[0];
+    const firstAssassin = game.ctx.teams[0].players[0];
+    const secondAssassin = game.ctx.teams[0].players[1];
+    const firstTarget = game.ctx.teams[1].players[0];
     const snapshot = game.snapshot();
 
     expect(

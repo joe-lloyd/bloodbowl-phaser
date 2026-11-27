@@ -40,7 +40,7 @@ const PRO_SEED = 1;
 describe("a Team Re-roll on block dice", () => {
   it("sends the re-rolled dice as a new roll and names both rolls' faces", async () => {
     const game = new HeadlessGame({ scenario, seed: SEED });
-    game.ctx.team1.rerolls = 3;
+    game.ctx.teams[0].rerolls = 3;
     const rolls: BlockRollData[] = [];
     const rerolls: unknown[] = [];
     game.ctx.eventBus.on(GameEventNames.BlockDiceRolled, (d) => {
@@ -49,8 +49,8 @@ describe("a Team Re-roll on block dice", () => {
     game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => {
       rerolls.push(d);
     });
-    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
+    const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -85,8 +85,8 @@ describe("a Team Re-roll on block dice", () => {
     game.ctx.eventBus.on(GameEventNames.BlockDiceRolled, (d) => {
       rolls.push(d);
     });
-    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
+    const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -108,8 +108,8 @@ describe("a Team Re-roll on block dice", () => {
     game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => {
       rerolls.push(d);
     });
-    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
+    const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
 
     await game.execute({
       type: "declare-action",

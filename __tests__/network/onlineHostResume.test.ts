@@ -85,7 +85,7 @@ describe("online host resume", () => {
       },
     };
     const before = new HeadlessGame({ scenario, seed: 1 });
-    const { team1, team2 } = before.ctx;
+    const [team1, team2] = before.ctx.teams;
     const originalTeams = structuredClone([team1, team2]);
     before.ctx.gameService.flowManager.add(
       new CasualtyOperation(
@@ -159,7 +159,7 @@ describe("online host resume", () => {
   });
   it("a reloaded coach carries on with the saved dice, match stats and turn counts", () => {
     const before = new HeadlessGame({ scenario: midMatch, seed: 11 });
-    const { team1, team2 } = before.ctx;
+    const [team1, team2] = before.ctx.teams;
     before.ctx.rng.rollMultipleDice(5, 6);
     before.ctx.matchStats.assignAwardedTouchdown(
       fixtureValue(team1.players[0]).id
@@ -229,7 +229,7 @@ describe("online host resume", () => {
 
   it("the coach who ends their turn saves the match, so a reload loses at most one turn", async () => {
     const game = new HeadlessGame({ scenario: midMatch, seed: 5 });
-    const { team1, team2 } = game.ctx;
+    const [team1, team2] = game.ctx.teams;
     const lobby: LobbyDoc = {
       code: "TURNS",
       hostUid: "host-uid",
@@ -288,7 +288,7 @@ describe("online host resume", () => {
       },
     };
     const game = new HeadlessGame({ scenario, seed: 5 });
-    const { team1, team2 } = game.ctx;
+    const [team1, team2] = game.ctx.teams;
     const [hostEnd] = createInMemoryTransportPair();
     const options = {
       lobby: {

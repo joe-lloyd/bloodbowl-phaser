@@ -164,7 +164,7 @@ describe("league winnings in the Treasury", () => {
 
     const eventBus = new EventBus();
     const dice = fixedDice(4, 6, 1, 6);
-    const engine = new GameService({ eventBus: eventBus, team1: structuredClone(home), team2: structuredClone(away), rngService: dice as never, blockResolutionService: {} as never }
+    const engine = new GameService({ eventBus: eventBus, teams: [structuredClone(home), structuredClone(away)], rngService: dice as never, blockResolutionService: {} as never }
     );
     const state = engine.getState();
 
@@ -318,7 +318,7 @@ describe("games that pay nothing", () => {
 
     const eventBus = new EventBus();
     const dice = fixedDice(2, 1);
-    const engine = new GameService({ eventBus: eventBus, team1: fixtureValue(structuredClone(teams[0])), team2: fixtureValue(structuredClone(teams[1])), rngService: dice as never, blockResolutionService: {} as never }
+    const engine = new GameService({ eventBus: eventBus, teams: [fixtureValue(structuredClone(teams[0])), fixtureValue(structuredClone(teams[1]))], rngService: dice as never, blockResolutionService: {} as never }
     );
     const state = engine.getState();
     state.knockout = true;
@@ -401,7 +401,7 @@ describe("games that pay nothing", () => {
     const away = libraryTeam("friendly-b", 0, 50_000, "matched-play");
     const eventBus = new EventBus();
     const dice = fixedDice();
-    const engine = new GameService({ eventBus: eventBus, team1: home, team2: away, rngService: dice as never, blockResolutionService: {} as never }
+    const engine = new GameService({ eventBus: eventBus, teams: [home, away], rngService: dice as never, blockResolutionService: {} as never }
     );
     eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
 
@@ -414,7 +414,7 @@ describe("games that pay nothing", () => {
     saveTeams([stored]);
     const eventBus = new EventBus();
     const dice = fixedDice(6, 6, 6, 6);
-    const engine = new GameService({ eventBus: eventBus, team1: structuredClone(stored), team2: libraryTeam("visitor", 1, 0), rngService: dice as never, blockResolutionService: {} as never }
+    const engine = new GameService({ eventBus: eventBus, teams: [structuredClone(stored), libraryTeam("visitor", 1, 0)], rngService: dice as never, blockResolutionService: {} as never }
     );
     eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
 

@@ -56,7 +56,7 @@ function induce(
     {},
     lines.map(([inducement, quantity]) => ({
       inducement,
-      ownerTeamId: game.ctx.team1.id,
+      ownerTeamId: game.ctx.teams[0].id,
       quantity,
       remainingUses: quantity,
       price: 0,
@@ -66,7 +66,7 @@ function induce(
 }
 
 const player = (game: HeadlessGame, index: number) =>
-  fixtureValue(game.ctx.team1.players[index]);
+  fixtureValue(game.ctx.teams[0].players[index]);
 
 async function carry(roll: number) {
   const game = new HeadlessGame({
@@ -204,7 +204,7 @@ describe("Gutter Bowl inducements (GB-I1 to GB-I5)", () => {
     await settle(game);
     await game.execute({ type: "choose-inducement" });
     expect(lines).toContain(
-      `${game.ctx.team1.name} keeps its Superior Magic Potion for later`
+      `${game.ctx.teams[0].name} keeps its Superior Magic Potion for later`
     );
   });
 
@@ -247,7 +247,7 @@ describe("Gutter Bowl inducements (GB-I1 to GB-I5)", () => {
   it("Sawbones keeps a Lasting Injury from the second Casualty roll (GB-I3)", async () => {
     const game = gutterGame();
     game.ctx.gameService.getState().competition = true;
-    game.ctx.team1.advancementMode = "advanced-league";
+    game.ctx.teams[0].advancementMode = "advanced-league";
     induce(game, [[Inducement.SAWBONES, 1]]);
     await settle(game);
     const victim = player(game, 3);
@@ -297,7 +297,7 @@ describe("Gutter Bowl inducements (GB-I1 to GB-I5)", () => {
     const game = new HeadlessGame({ scenario: midfield, seed: 1 });
     induce(game, [[Inducement.NOVICE_WIZARD, 1]]);
     await settle(game);
-    const target = fixtureValue(game.ctx.team2.players[0]);
+    const target = fixtureValue(game.ctx.teams[1].players[0]);
     game.ctx.gameService.flowManager.add(
       new CastNoviceWizardOperation("team1"),
       true

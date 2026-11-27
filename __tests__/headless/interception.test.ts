@@ -33,8 +33,8 @@ describe("interception protocol round-trip", () => {
   it("surfaces the interception as a pendingDecision the defending coach replies to", async () => {
     const { seed } = await findSeed(INTERCEPTION_SCENARIO, "offered");
     const game = new HeadlessGame({ scenario, seed });
-    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const interceptorId = fixtureValue(game.ctx.team2.players[0]).id;
+    const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const interceptorId = fixtureValue(game.ctx.teams[1].players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -52,7 +52,7 @@ describe("interception protocol round-trip", () => {
     const pending = res.pendingDecision;
     if (pending?.type !== "interception")
       throw new Error("Expected interception");
-    expect(pending.chooserTeamId).toBe(game.ctx.team2.id);
+    expect(pending.chooserTeamId).toBe(game.ctx.teams[1].id);
     expect(pending.candidates).toHaveLength(1);
     expect(fixtureValue(pending.candidates[0]).playerId).toBe(interceptorId);
 
@@ -70,7 +70,7 @@ describe("interception protocol round-trip", () => {
   it("accepts a bare decline reply", async () => {
     const { seed } = await findSeed(INTERCEPTION_SCENARIO, "offered");
     const game = new HeadlessGame({ scenario, seed });
-    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     await game.execute({
       type: "declare-action",

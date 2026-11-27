@@ -32,7 +32,7 @@ function scenario(weather: Weather): Scenario {
 
 async function scoreTouchdown(weather: Weather) {
   const game = new HeadlessGame({ scenario: scenario(weather), seed: 7 });
-  const carrier = fixtureValue(game.ctx.team1.players[0]).id;
+  const carrier = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: carrier,

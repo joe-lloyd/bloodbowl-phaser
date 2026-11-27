@@ -60,8 +60,8 @@ function session(scenario: Scenario, seed: number) {
     game,
     run,
     dice,
-    attacker: game.ctx.team1.players[0],
-    defender: game.ctx.team2.players[0],
+    attacker: game.ctx.teams[0].players[0],
+    defender: game.ctx.teams[1].players[0],
   };
 }
 
@@ -587,7 +587,7 @@ describe("Multiple Block after a push that scores", () => {
         },
         seed,
       });
-      const attacker = game.ctx.team1.players[0];
+      const attacker = game.ctx.teams[0].players[0];
       await game.execute({
         type: "declare-action",
         playerId: fixtureValue(attacker).id,
@@ -596,8 +596,8 @@ describe("Multiple Block after a push that scores", () => {
       const rolled = await game.execute({
         type: "multiple-block",
         attackerId: fixtureValue(attacker).id,
-        defender1Id: fixtureValue(game.ctx.team2.players[0]).id,
-        defender2Id: fixtureValue(game.ctx.team2.players[1]).id,
+        defender1Id: fixtureValue(game.ctx.teams[1].players[0]).id,
+        defender2Id: fixtureValue(game.ctx.teams[1].players[1]).id,
       });
       if (rolled.pendingDecision?.type !== "block-dice") continue;
       const push = rolled.pendingDecision.options.findIndex(

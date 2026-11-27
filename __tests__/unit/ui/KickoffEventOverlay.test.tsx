@@ -26,7 +26,7 @@ function setup() {
     .withPlayers(2)
     .build();
   const eventBus = new EventBus();
-  const services = ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2 });
+  const services = ServiceContainer.initialize({ eventBus: eventBus, teams: [team1, team2] });
 
   const step: KickoffEventStepState = {
     event: KickoffEvent.ALERT_DEFENCE,

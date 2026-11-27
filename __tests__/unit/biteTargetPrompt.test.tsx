@@ -24,12 +24,12 @@ describe("the Bloodlust bite prompt", () => {
   beforeEach(async () => {
     const game = new HeadlessGame({ seed: 1 });
     eventBus = new EventBus();
-    ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
-    const ids = game.ctx.team1.players.map((p) => p.id);
+    ServiceContainer.initialize({ eventBus: eventBus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
+    const ids = game.ctx.teams[0].players.map((p) => p.id);
     request = {
       type: "bite-target",
       playerId: fixtureValue(ids[0]),
-      chooserTeamId: game.ctx.team1.id,
+      chooserTeamId: game.ctx.teams[0].id,
       targetIds: [fixtureValue(ids[1]), fixtureValue(ids[2])],
     };
     pending = request;

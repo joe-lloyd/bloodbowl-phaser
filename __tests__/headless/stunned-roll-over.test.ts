@@ -28,10 +28,10 @@ const scenario: Scenario = {
 describe("a Stunned player", () => {
   it("stays Stunned through their team's turn and rolls over at its end", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const stunned = game.ctx.team2.players[0];
+    const stunned = game.ctx.teams[1].players[0];
 
     const team2Turn = await game.execute({ type: "end-turn" });
-    expect(team2Turn.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+    expect(team2Turn.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
     expect(fixtureValue(stunned).status).toBe(PlayerStatus.STUNNED);
     const declined = await game.execute({
       type: "declare-action",
@@ -41,7 +41,7 @@ describe("a Stunned player", () => {
     expect(declined.ok).toBe(false);
 
     const team1Turn = await game.execute({ type: "end-turn" });
-    expect(team1Turn.snapshot.activeTeamId).toBe(game.ctx.team1.id);
+    expect(team1Turn.snapshot.activeTeamId).toBe(game.ctx.teams[0].id);
     expect(fixtureValue(stunned).status).toBe(PlayerStatus.PRONE);
   });
 
@@ -49,12 +49,12 @@ describe("a Stunned player", () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
     await game.execute({ type: "end-turn" });
 
-    const latecomer = game.ctx.team2.players[1];
+    const latecomer = game.ctx.teams[1].players[1];
     fixtureValue(latecomer).status = PlayerStatus.STUNNED;
 
     await game.execute({ type: "end-turn" });
     expect(fixtureValue(latecomer).status).toBe(PlayerStatus.STUNNED);
-    expect(fixtureValue(game.ctx.team2.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[1].players[0]).status).toBe(
       PlayerStatus.PRONE
     );
 
@@ -68,7 +68,7 @@ describe("a Stunned player", () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
     await game.execute({ type: "end-turn" });
 
-    const victim = game.ctx.team1.players[0];
+    const victim = game.ctx.teams[0].players[0];
     fixtureValue(victim).status = PlayerStatus.STUNNED;
 
     await game.execute({ type: "end-turn" });

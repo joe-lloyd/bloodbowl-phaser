@@ -48,8 +48,8 @@ describe.each([RosterName.DWARF, RosterName.OLD_WORLD_ALLIANCE])(
         scenario: scenario(roster),
         seed: SKULL_SEED,
       });
-      const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
-      const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
+      const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+      const defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
       await game.execute({
         type: "declare-action",
         playerId: attackerId,

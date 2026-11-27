@@ -41,10 +41,10 @@ describe("the match style", () => {
     const game = createHeadlessGame({ scenario, seed: 5 });
     const save = createMatchSave({
       state: game.gameService.getState(),
-      teams: [game.team1, game.team2],
+      teams: [game.teams[0], game.teams[1]],
       drive: {
-        kickingTeamId: game.team2.id,
-        receivingTeamId: game.team1.id,
+        kickingTeamId: game.teams[1].id,
+        receivingTeamId: game.teams[0].id,
       },
       rng: game.rng.captureState(),
       matchStats: game.matchStats.captureState(),
@@ -55,13 +55,13 @@ describe("the match style", () => {
       { ...save, presentation: { pitchThemeId: "neon" } }
     ) as MatchSave;
     const start = resolveMatchStart(
-      { team1: game.team1, team2: game.team2, resumeSave: legacy },
+      { team1: game.teams[0], team2: game.teams[1], resumeSave: legacy },
       "GameScene"
     );
 
     expect(start.resumed).toBe(true);
-    expect(start.team1.id).toBe(game.team1.id);
-    expect(start.kickingTeam.id).toBe(game.team2.id);
+    expect(start.team1.id).toBe(game.teams[0].id);
+    expect(start.kickingTeam.id).toBe(game.teams[1].id);
     expect(start).not.toHaveProperty("pitchThemeId");
   });
 });

@@ -21,7 +21,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
+  ServiceContainer.initialize({ eventBus: bus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
   ServiceContainer.getInstance().gameService.getState().phase = GamePhase.PLAY;
   container = document.createElement("div");
   document.body.append(container);
@@ -89,7 +89,7 @@ it("shows the waiting line once both coaches are connected", async () => {
 it("disables End Turn while input is held", async () => {
   let mayAct = true;
   setActiveOnlineMatch({
-    myTeamId: game.ctx.team1.id,
+    myTeamId: game.ctx.teams[0].id,
     mayAct: () => mayAct,
   } as unknown as OnlineMatch);
   await act(async () => {
@@ -97,7 +97,7 @@ it("disables End Turn while input is held", async () => {
       <EndTurnButton
         onClick={() => {}}
         phase={GamePhase.PLAY}
-        activeTeamId={game.ctx.team1.id}
+        activeTeamId={game.ctx.teams[0].id}
       />
     );
   });

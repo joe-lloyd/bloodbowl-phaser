@@ -37,7 +37,7 @@ async function kickedIntoCharge() {
     vi.spyOn(dice, "rollD3").mockReturnValue(3);
     const kicked = await game.execute({
       type: "kick-ball",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -51,7 +51,7 @@ async function kickedIntoCharge() {
 function board(game: HeadlessGame) {
   mockPitch.worldToGrid.mockImplementation((x: number, y: number) => ({ x, y }));
   return new GameplayInteractionController({
-    scene: { ...mockScene, team1: game.ctx.team1, team2: game.ctx.team2 },
+    scene: { ...mockScene, team1: game.ctx.teams[0], team2: game.ctx.teams[1] },
     gameService: game.ctx.gameService,
     eventBus: game.ctx.eventBus,
     pitch: mockPitch,
@@ -67,7 +67,8 @@ describe("Charge! played on the board", () => {
   it("lets the coach play all four picked players in an order of their own", async () => {
     const game = await kickedIntoCharge();
     const gs = game.ctx.gameService;
-    const { eventBus, team1 } = game.ctx;
+    const { eventBus } = game.ctx;
+    const [team1] = game.ctx.teams;
     const controller = board(game);
     const picked = [1, 2, 3, 4].map((i) => fixtureValue(team1.players[i]));
 

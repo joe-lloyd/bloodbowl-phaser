@@ -58,13 +58,13 @@ describe("movement through a Prone player", () => {
   it("routes the pathfinder around the Prone player", async () => {
     const { game, moverId } = await moverReady();
     const player = fixtureValue(
-      game.ctx.team1.players.find((p) => p.id === moverId)
+      game.ctx.teams[0].players.find((p) => p.id === moverId)
     );
     const result = new MovementValidator().findPath({
       player: player,
       targetX: 12,
       targetY: 5,
-      opponents: game.ctx.team2.players.filter((p) => p.gridPosition),
+      opponents: game.ctx.teams[1].players.filter((p) => p.gridPosition),
       teammates: [],
     });
 
@@ -78,7 +78,7 @@ describe("movement through a Prone player", () => {
     const validator = new MovementValidator();
     const game = new HeadlessGame({ scenario, seed: 1 });
     const mover = {
-      ...fixtureValue(game.ctx.team1.players[0]),
+      ...fixtureValue(game.ctx.teams[0].players[0]),
       gridPosition: { x: 0, y: 0 },
     };
 
@@ -87,7 +87,7 @@ describe("movement through a Prone player", () => {
       { x: 1, y: 1 },
       { x: 0, y: 1 },
     ].map((pos, i) => ({
-      ...fixtureValue(game.ctx.team2.players[i % 2]),
+      ...fixtureValue(game.ctx.teams[1].players[i % 2]),
       id: `wall-${String(i)}`,
       gridPosition: pos,
       status: PlayerStatus.PRONE,

@@ -47,7 +47,7 @@ export async function kick(seed: number) {
   game.ctx.gameService.seedTurnCounts(2);
   const response = await game.execute({
     type: "kick-ball",
-    playerId: fixtureValue(game.ctx.team1.players[0]).id,
+    playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
     x: 14,
     y: 5,
   });

@@ -35,15 +35,15 @@ export function tacticalGame(
     },
   });
   const state = game.ctx.gameService.getState();
-  if (options.league) game.ctx.team1.advancementMode = "advanced-league";
+  if (options.league) game.ctx.teams[0].advancementMode = "advanced-league";
   if (options.half2) state.turn.isHalf2 = true;
   if (options.score) {
-    state.score[game.ctx.team1.id] = options.score[0];
-    state.score[game.ctx.team2.id] = options.score[1];
+    state.score[game.ctx.teams[0].id] = options.score[0];
+    state.score[game.ctx.teams[1].id] = options.score[1];
   }
   if (options.opponentTurnsPlayed !== undefined) {
     const turns = game.ctx.gameService.captureTurnManagerState();
-    turns.turnCounts[game.ctx.team2.id] = options.opponentTurnsPlayed;
+    turns.turnCounts[game.ctx.teams[1].id] = options.opponentTurnsPlayed;
     game.ctx.gameService.restoreTurnManagerState(turns);
   }
   return game;

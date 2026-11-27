@@ -46,7 +46,7 @@ function knockOutAllBut(
   game: HeadlessGame,
   teamIndex: 0 | 1,
 ): string[] {
-  const team = teamIndex === 0 ? game.ctx.team1 : game.ctx.team2;
+  const team = teamIndex === 0 ? game.ctx.teams[0] : game.ctx.teams[1];
   const knockedOut: string[] = [];
   for (const player of team.players.slice(3)) {
     player.status = PlayerStatus.KO;
@@ -133,7 +133,7 @@ describe("drive transition: touchdown -> KO recovery -> short-handed setup -> ki
     expect(entries[0]).toContain("1 : 0");
     expect(entries[0]).toContain("Turns left in the half");
     expect(entries[0]).toContain(
-      fixtureValue(game.ctx.team1.players[0]).playerName
+      fixtureValue(game.ctx.teams[0].players[0]).playerName
     );
   });
 
@@ -188,8 +188,8 @@ describe("drive transition: touchdown -> KO recovery -> short-handed setup -> ki
 
     expect(
       findPlayerLocationViolations([
-        ...game.ctx.team1.players,
-        ...game.ctx.team2.players,
+        ...game.ctx.teams[0].players,
+        ...game.ctx.teams[1].players,
       ])
     ).toEqual([]);
 
@@ -249,7 +249,7 @@ describe("drive transition: touchdown -> KO recovery -> short-handed setup -> ki
     expect(snap.phase).toBe(GamePhase.PLAY);
     expect(snap.turn.isHalf2).toBe(false);
 
-    const carrier = game.ctx.team1.players[0];
+    const carrier = game.ctx.teams[0].players[0];
     fixtureValue(carrier).gridPosition = { x: 17, y: 5 };
     game.ctx.gameService.setBallPosition(17, 5);
     game.ctx.gameService.getState().activeTeamId = fixtureValue(team1Id);
@@ -299,7 +299,7 @@ describe("drive transition: touchdown -> KO recovery -> short-handed setup -> ki
       expect(knockedOut).toContain(playerId);
       expect(player.status).toBe(PlayerStatus.RESERVE);
       expect(player.gridPosition).toBeUndefined();
-      const everyone = [...game.ctx.team1.players, ...game.ctx.team2.players];
+      const everyone = [...game.ctx.teams[0].players, ...game.ctx.teams[1].players];
       expect(everyone.filter((p) => p.id === playerId)).toHaveLength(1);
       expect(findPlayerLocationViolations(everyone)).toEqual([]);
 

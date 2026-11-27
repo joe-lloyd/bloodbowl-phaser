@@ -25,8 +25,8 @@ const scenario: Scenario = {
 describe("Trickster and Chomped", () => {
   it("removes the Chomped condition when the victim slips away", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const chomper = game.ctx.team1.players[0];
-    const victim = game.ctx.team2.players[0];
+    const chomper = game.ctx.teams[0].players[0];
+    const victim = game.ctx.teams[1].players[0];
     addCondition(
       fixtureValue(victim),
       PlayerCondition.CHOMPED,

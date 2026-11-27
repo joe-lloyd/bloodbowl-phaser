@@ -39,14 +39,14 @@ async function razzleGame(scenario = apart) {
 
   forceDice(game.ctx.rng, [2]);
   await commit(game, [
-    bought(game.ctx.team1.id, Inducement.DESPERATE_MEASURES, 1),
+    bought(game.ctx.teams[0].id, Inducement.DESPERATE_MEASURES, 1),
   ]);
   return game;
 }
 
 function measure(game: HeadlessGame) {
   return game.ctx.gameService.getState().matchInducements?.measures[
-    game.ctx.team1.id
+    game.ctx.teams[0].id
   ];
 }
 
@@ -61,7 +61,7 @@ async function pushEast(
   attackerId: string,
   followUp = false
 ) {
-  const defender = game.ctx.team2.players[0];
+  const defender = game.ctx.teams[1].players[0];
   forceDice(game.ctx.rng, [3]);
   const rolled = await game.execute({
     type: "block",
@@ -83,7 +83,7 @@ async function pushEast(
 describe("Razzle-Dazzle", () => {
   it("a Move then a Block: the activation stays open after the Move, and the second Action may not contain a Move", async () => {
     const game = await razzleGame();
-    const player = game.ctx.team1.players[0];
+    const player = game.ctx.teams[0].players[0];
     const state = game.ctx.gameService.getState();
 
     const declared = await game.execute({
@@ -138,7 +138,7 @@ describe("Razzle-Dazzle", () => {
     expect(block.ok).toBe(true);
     await pushEast(game, fixtureValue(player).id);
 
-    expect(fixtureValue(game.ctx.team2.players[0]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[1].players[0]).gridPosition).toEqual({
       x: 11,
       y: 5,
     });
@@ -150,7 +150,7 @@ describe("Razzle-Dazzle", () => {
 
   it("a Block then a Move, and never the same Action twice", async () => {
     const game = await razzleGame(adjacent);
-    const player = game.ctx.team1.players[0];
+    const player = game.ctx.teams[0].players[0];
     const state = game.ctx.gameService.getState();
 
     await game.execute({
@@ -199,8 +199,8 @@ describe("Razzle-Dazzle", () => {
 
   it("refuses a pitch shortcut that reuses the completed first Block", async () => {
     const game = await razzleGame(adjacent);
-    const player = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const player = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     const gs = game.ctx.gameService;
     await game.execute({
       type: "declare-action",
@@ -260,7 +260,7 @@ describe("Razzle-Dazzle", () => {
       },
     };
     const game = await razzleGame(scenario);
-    const [vampire, thrall] = game.ctx.team1.players;
+    const [vampire, thrall] = game.ctx.teams[0].players;
     const state = game.ctx.gameService.getState();
     forceDice(game.ctx.rng, [1]);
     const declaredBlock = await game.execute({
@@ -326,7 +326,7 @@ describe("Razzle-Dazzle", () => {
     expect(
       fixtureValue(vampire).conditions?.map((c) => c.type) ?? []
     ).not.toContain(PlayerCondition.DISTRACTED);
-    expect(state.activeTeamId).toBe(game.ctx.team1.id);
+    expect(state.activeTeamId).toBe(game.ctx.teams[0].id);
     expect(state.activePlayer).toBeNull();
     expect(state.turn.activatedPlayerIds.has(fixtureValue(vampire).id)).toBe(
       true
@@ -335,7 +335,7 @@ describe("Razzle-Dazzle", () => {
 
   it("keeps the team's one Blitz a turn: a Blitz already spent cannot be the second Action", async () => {
     const game = await razzleGame(adjacent);
-    const [player, blitzer] = game.ctx.team1.players;
+    const [player, blitzer] = game.ctx.teams[0].players;
 
     await game.execute({
       type: "declare-action",
@@ -372,7 +372,7 @@ describe("Razzle-Dazzle", () => {
 
   it("a Turnover in the first Action ends the activation and the turn", async () => {
     const game = await razzleGame(adjacent);
-    const player = game.ctx.team1.players[0];
+    const player = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(player).id,
@@ -384,7 +384,7 @@ describe("Razzle-Dazzle", () => {
     await game.execute({
       type: "block",
       attackerId: fixtureValue(player).id,
-      defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+      defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
     });
     await game.execute({ type: "choose-block-result", index: 0 });
     for (let i = 0; i < 10 && game.pendingDecision(); i++) {
@@ -394,7 +394,7 @@ describe("Razzle-Dazzle", () => {
     await settle();
 
     const state = game.ctx.gameService.getState();
-    expect(state.activeTeamId).toBe(game.ctx.team2.id);
+    expect(state.activeTeamId).toBe(game.ctx.teams[1].id);
     expect(measure(game)).toEqual([
       { measure: DesperateMeasure.RAZZLE_DAZZLE, used: true },
     ]);
@@ -402,7 +402,7 @@ describe("Razzle-Dazzle", () => {
 
   it("is only spent once the first Action commits, and needs the measure", async () => {
     const game = await razzleGame();
-    const player = game.ctx.team1.players[0];
+    const player = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(player).id,
@@ -420,7 +420,7 @@ describe("Razzle-Dazzle", () => {
     const plain = new HeadlessGame({ scenario: apart, seed: 1 });
     const refused = await plain.execute({
       type: "declare-action",
-      playerId: fixtureValue(plain.ctx.team1.players[0]).id,
+      playerId: fixtureValue(plain.ctx.teams[0].players[0]).id,
       action: "move",
       razzleDazzle: true,
     });
@@ -434,7 +434,7 @@ describe("the Razzle-Dazzle sandbox scenario", () => {
       SCENARIOS.find((s) => s.id === "razzle-dazzle-two-actions")
     );
     const game = new HeadlessGame({ scenario });
-    const player = game.ctx.team1.players[0];
+    const player = game.ctx.teams[0].players[0];
     expect(measure(game)).toEqual([
       { measure: DesperateMeasure.RAZZLE_DAZZLE, used: false },
     ]);

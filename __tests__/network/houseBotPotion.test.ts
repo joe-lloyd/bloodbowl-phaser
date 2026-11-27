@@ -41,12 +41,10 @@ function streetBowlGame() {
   );
   team2.rerolls += 3;
   return new HeadlessGame({
-    team1,
-    team2,
+    teams: [team1, team2],
     seed: 23,
     initialState: GameService.createMatchState({
-      team1,
-      team2,
+      teams: [team1, team2],
       startingPhase: GamePhase.SETUP,
       startingSubPhase: SubPhase.INTRO,
       fixture: { pregameInducements: true },

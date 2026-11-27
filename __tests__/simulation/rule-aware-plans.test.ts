@@ -56,7 +56,7 @@ async function chaseNotes() {
       { playerIndex: 1, x: 17, y: 9 },
     ],
   });
-  const chaser = fieldPlayer(subject.ctx.team1.players[1]);
+  const chaser = fieldPlayer(subject.ctx.teams[0].players[1]);
   const coach = createPlannerCoach({
     weights: { ...DEFAULT_WEIGHTS, safeMove: 0.82 },
   });
@@ -124,7 +124,7 @@ async function plans(helperSkills: SkillType[]) {
     w: DEFAULT_WEIGHTS,
     available: availableActions(point.candidates),
   });
-  const big = fieldPlayer(subject.ctx.team1.players[0]);
+  const big = fieldPlayer(subject.ctx.teams[0].players[0]);
   const steady =
     all.find(
       (a) => a.intent.kind === "reposition" && a.intent.role === "steady"
@@ -149,7 +149,7 @@ describe("a No Ball player beside a loose ball, a team-mate three squares away",
 
   it("leaves the pick-up to a team-mate", async () => {
     const s = noBallSubject();
-    const picker = fieldPlayer(s.ctx.team1.players[1]);
+    const picker = fieldPlayer(s.ctx.teams[0].players[1]);
     const { command, note } = await step(s, createPlannerCoach());
     expect({ command, note }).toEqual({
       command: {
@@ -180,7 +180,7 @@ describe("an Unchannelled Fury player beside a loose ball, a team-mate two squar
       ],
       team2Placements: [{ playerIndex: 0, x: 15, y: 1 }],
     });
-    const mate = fieldPlayer(subject.ctx.team1.players[1]);
+    const mate = fieldPlayer(subject.ctx.teams[0].players[1]);
     const { command } = await step(subject, createPlannerCoach());
     expect(command).toEqual({
       type: "declare-action",
@@ -294,7 +294,7 @@ describe("a carrier one step from scoring beside a Distracted opponent", () => {
         },
       ],
     });
-    const carrier = fieldPlayer(subject.ctx.team1.players[0]);
+    const carrier = fieldPlayer(subject.ctx.teams[0].players[0]);
     const { command } = await step(subject, createPlannerCoach());
     expect(command).toMatchObject({
       type: "declare-action",
@@ -320,7 +320,7 @@ describe("a carrier with one marker and no team-mates", () => {
       ],
       team2Placements: [{ playerIndex: 0, x: 9, y: 5, stats: { ST: 2 } }],
     });
-    const carrier = fieldPlayer(subject.ctx.team1.players[0]);
+    const carrier = fieldPlayer(subject.ctx.teams[0].players[0]);
     const plans = activations({
       board: readBoard(subject, carrier.teamId),
       w: DEFAULT_WEIGHTS,
@@ -355,8 +355,8 @@ describe("a carrier one Dodge from scoring beside a marker a team-mate can hit",
         { playerIndex: 0, x: 17, y: 5, skills: [SkillType.BLOCK] },
       ],
     });
-    const carrier = fieldPlayer(subject.ctx.team1.players[0]);
-    const mate = fieldPlayer(subject.ctx.team1.players[1]);
+    const carrier = fieldPlayer(subject.ctx.teams[0].players[0]);
+    const mate = fieldPlayer(subject.ctx.teams[0].players[1]);
     const plans = activations({
       board: readBoard(subject, "team1"),
       w: DEFAULT_WEIGHTS,

@@ -23,8 +23,8 @@ describe("On the Ball beside the touchline, the squares towards the pass taken",
       ],
       ballPosition: { x: 6, y: 5 },
     });
-    const passer = fixtureValue(game.ctx.team1.players[0]);
-    const reactor = fixtureValue(game.ctx.team2.players[0]);
+    const passer = fixtureValue(game.ctx.teams[0].players[0]);
+    const reactor = fixtureValue(game.ctx.teams[1].players[0]);
     const steps: { x: number; y: number }[] = [];
     game.ctx.eventBus.on(GameEventNames.PlayerMoved, ({ playerId, to }) => {
       if (playerId === reactor.id) steps.push(to);

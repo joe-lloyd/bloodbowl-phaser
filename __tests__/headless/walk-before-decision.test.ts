@@ -42,8 +42,8 @@ function walksIn(events: { name: string; data?: unknown }[]) {
 describe("the walk before a re-roll choice", () => {
   it("is shown up to the ball before a failed pickup's re-roll choice", async () => {
     const game = new HeadlessGame({ scenario, seed: 4 });
-    game.ctx.team1.rerolls = 2;
-    const mover = game.ctx.team1.players[0];
+    game.ctx.teams[0].rerolls = 2;
+    const mover = game.ctx.teams[0].players[0];
     forceDice(game.ctx.rng, [1]);
     await game.execute({
       type: "declare-action",
@@ -67,8 +67,8 @@ describe("the walk before a re-roll choice", () => {
 
   it("is shown up to the dodge square before a failed dodge's re-roll choice", async () => {
     const game = new HeadlessGame({ scenario, seed: 4 });
-    game.ctx.team1.rerolls = 2;
-    const runner = game.ctx.team1.players[1];
+    game.ctx.teams[0].rerolls = 2;
+    const runner = game.ctx.teams[0].players[1];
 
     forceDice(game.ctx.rng, [1]);
     await game.execute({
@@ -94,8 +94,8 @@ describe("the walk before a re-roll choice", () => {
 
   it("throws a fall's armour and injury dice for the fallen player's team", async () => {
     const game = new HeadlessGame({ scenario, seed: 4 });
-    game.ctx.team1.rerolls = 0;
-    const runner = game.ctx.team1.players[1];
+    game.ctx.teams[0].rerolls = 0;
+    const runner = game.ctx.teams[0].players[1];
 
     forceDice(game.ctx.rng, [1, 6, 6, 2, 2]);
     const teams: Record<string, string | undefined> = {};
@@ -133,7 +133,7 @@ describe("the walk before a re-roll choice", () => {
       },
     };
     const game = new HeadlessGame({ scenario: marked, seed: 4 });
-    const mover = game.ctx.team1.players[0];
+    const mover = game.ctx.teams[0].players[0];
     const ag = fixtureValue(mover).stats.AG;
     await game.execute({
       type: "declare-action",
@@ -159,7 +159,7 @@ describe("the walk before a re-roll choice", () => {
 
   it("still arrives as one walk when no roll is needed", async () => {
     const game = new HeadlessGame({ scenario, seed: 4 });
-    const runner = game.ctx.team1.players[0];
+    const runner = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(runner).id,

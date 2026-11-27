@@ -44,7 +44,7 @@ describe("GameService", () => {
       allowsFollowUp: vi.fn().mockReturnValue(true),
     } as any;
 
-    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: mockRngService, blockResolutionService: mockBlockResolutionService }
+    gameService = new GameService({ eventBus: eventBus, teams: [team1, team2], rngService: mockRngService, blockResolutionService: mockBlockResolutionService }
     );
 
     gameService.startSetup();

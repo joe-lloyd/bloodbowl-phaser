@@ -80,8 +80,8 @@ describe("defer-action-commitment", () => {
       scenario: scenario("declare-only"),
       seed: 1,
     });
-    const blitzerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const otherId = fixtureValue(game.ctx.team1.players[1]).id;
+    const blitzerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const otherId = fixtureValue(game.ctx.teams[0].players[1]).id;
 
     await game.execute({
       type: "declare-action",
@@ -107,8 +107,8 @@ describe("defer-action-commitment", () => {
       scenario: scenario("commit-on-move"),
       seed: 1,
     });
-    const blitzerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const otherId = fixtureValue(game.ctx.team1.players[1]).id;
+    const blitzerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const otherId = fixtureValue(game.ctx.teams[0].players[1]).id;
 
     await game.execute({
       type: "declare-action",
@@ -138,7 +138,7 @@ describe("defer-action-commitment", () => {
       scenario: bloodlustScenario("gate-blocks-any-redeclare"),
       seed: 1,
     });
-    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     const response = await game.execute({
       type: "declare-action",
@@ -175,7 +175,7 @@ describe("defer-action-commitment", () => {
       scenario: scenario("move-then-block-refused"),
       seed: 1,
     });
-    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     await game.execute({ type: "declare-action", playerId, action: "move" });
     await game.execute({
@@ -204,7 +204,7 @@ describe("defer-action-commitment", () => {
         scenario: boneHeadScenario(`bone-head-${String(seed)}`),
         seed,
       });
-      const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+      const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
       await game.execute({
         type: "declare-action",
         playerId,
@@ -235,7 +235,7 @@ describe("defer-action-commitment", () => {
       scenario: scenario("resume-mid-declaration"),
       seed: 1,
     });
-    const blitzerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const blitzerId = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -246,8 +246,8 @@ describe("defer-action-commitment", () => {
     const state = game.ctx.gameService.getState();
     expect(state.turn.spend.blitzed).toHaveLength(0);
     const snapshot = serializeGameState(state, [
-      game.ctx.team1,
-      game.ctx.team2,
+      game.ctx.teams[0],
+      game.ctx.teams[1],
     ]);
     const roundTripped = parseJson(
       JSON.stringify(snapshot),
@@ -255,15 +255,14 @@ describe("defer-action-commitment", () => {
     );
 
     const restoredState = deserializeGameState(roundTripped);
-    applySnapshotToTeams(roundTripped, [game.ctx.team1, game.ctx.team2]);
+    applySnapshotToTeams(roundTripped, [game.ctx.teams[0], game.ctx.teams[1]]);
 
     expect(restoredState.turn.spend.blitzed).toHaveLength(0);
     expect(restoredState.activePlayer?.id).toBe(blitzerId);
     expect(restoredState.activePlayer?.committed).toBeFalsy();
 
     const resumed = createHeadlessGame({
-      team1: game.ctx.team1,
-      team2: game.ctx.team2,
+      teams: [game.ctx.teams[0], game.ctx.teams[1]],
       initialState: restoredState,
     });
     expect(resumed.gameService.cancelAction(blitzerId)).toBe(true);
@@ -283,7 +282,7 @@ describe("defer-action-commitment", () => {
       pendingDecision: () => null,
     });
 
-    const playerId = fixtureValue(local.team1.players[0]).id;
+    const playerId = fixtureValue(local.teams[0].players[0]).id;
     const released = networked.cancelAction(playerId);
 
     expect(released).toBe(true);
@@ -298,7 +297,7 @@ describe("defer-action-commitment", () => {
       scenario: scenario("network-rejection-reconcile"),
       seed: 1,
     });
-    const playerId = fixtureValue(local.team1.players[0]).id;
+    const playerId = fixtureValue(local.teams[0].players[0]).id;
 
     const dispatch = vi
       .fn()

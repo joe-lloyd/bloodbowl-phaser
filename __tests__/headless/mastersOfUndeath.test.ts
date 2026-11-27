@@ -67,10 +67,10 @@ async function injure(game: HeadlessGame, playerId: string, total = 12) {
 describe("Masters of Undeath in Sevens", () => {
   it("raises a Skeleton in Reserves even when the death has no killer", async () => {
     const game = newGame();
-    const size = game.ctx.team1.players.length;
-    await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
-    expect(game.ctx.team1.players).toHaveLength(size + 1);
-    const raised = fixtureValue(game.ctx.team1.players.at(-1));
+    const size = game.ctx.teams[0].players.length;
+    await injure(game, fixtureValue(game.ctx.teams[1].players[0]).id);
+    expect(game.ctx.teams[0].players).toHaveLength(size + 1);
+    const raised = fixtureValue(game.ctx.teams[0].players.at(-1));
     expect(raised.positionName).toBe("Skeleton Lineman");
     expect(raised.status).toBe(PlayerStatus.RESERVE);
     expect(raised.gridPosition).toBeUndefined();
@@ -81,9 +81,9 @@ describe("Masters of Undeath in Sevens", () => {
     "does not raise anyone for injury total %i",
     async (total) => {
       const game = newGame();
-      const size = game.ctx.team1.players.length;
-      await injure(game, fixtureValue(game.ctx.team2.players[0]).id, total);
-      expect(game.ctx.team1.players).toHaveLength(size);
+      const size = game.ctx.teams[0].players.length;
+      await injure(game, fixtureValue(game.ctx.teams[1].players[0]).id, total);
+      expect(game.ctx.teams[0].players).toHaveLength(size);
     }
   );
 
@@ -95,46 +95,46 @@ describe("Masters of Undeath in Sevens", () => {
       );
       const victim =
         reason === "own team"
-          ? game.ctx.team1.players[0]
-          : game.ctx.team2.players[0];
+          ? game.ctx.teams[0].players[0]
+          : game.ctx.teams[1].players[0];
       if (reason === "strength") fixtureValue(victim).stats.ST = 5;
       else if (reason === "stunty")
         fixtureValue(victim).skills.push(getSkill(SkillType.STUNTY));
       else if (reason === "own team") fixtureValue(victim).skills = [];
-      const size = game.ctx.team1.players.length;
+      const size = game.ctx.teams[0].players.length;
       await injure(game, fixtureValue(victim).id);
-      expect(game.ctx.team1.players).toHaveLength(size);
+      expect(game.ctx.teams[0].players).toHaveLength(size);
     }
   );
 
   it("preserves the once-per-game limit through a saved match", async () => {
     const game = newGame();
-    const size = game.ctx.team1.players.length;
-    await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
+    const size = game.ctx.teams[0].players.length;
+    await injure(game, fixtureValue(game.ctx.teams[1].players[0]).id);
     const save = createMatchSave({
       state: game.ctx.gameService.getState(),
-      teams: [game.ctx.team1, game.ctx.team2],
+      teams: [game.ctx.teams[0], game.ctx.teams[1]],
       drive: {
-        kickingTeamId: game.ctx.team1.id,
-        receivingTeamId: game.ctx.team2.id,
+        kickingTeamId: game.ctx.teams[0].id,
+        receivingTeamId: game.ctx.teams[1].id,
       },
       rng: game.ctx.rng.captureState(),
       matchStats: game.ctx.matchStats.captureState(),
     });
     const resumed = new HeadlessGame({ matchSave: save });
-    await injure(resumed, fixtureValue(resumed.ctx.team2.players[1]).id);
-    expect(resumed.ctx.team1.players).toHaveLength(size + 1);
+    await injure(resumed, fixtureValue(resumed.ctx.teams[1].players[1]).id);
+    expect(resumed.ctx.teams[0].players).toHaveLength(size + 1);
   });
 
   it.each([true, false])(
     "waits for the Apothecary, saved = %s",
     async (saved) => {
       const game = newGame();
-      const size = game.ctx.team1.players.length;
-      game.ctx.team2.apothecary = true;
-      await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
+      const size = game.ctx.teams[0].players.length;
+      game.ctx.teams[1].apothecary = true;
+      await injure(game, fixtureValue(game.ctx.teams[1].players[0]).id);
       expect(game.pendingDecision()?.type).toBe("apothecary");
-      expect(game.ctx.team1.players).toHaveLength(size);
+      expect(game.ctx.teams[0].players).toHaveLength(size);
       vi.spyOn(
         game.ctx.gameService.getDiceController(),
         "rollD6"
@@ -144,14 +144,14 @@ describe("Masters of Undeath in Sevens", () => {
         accept: true,
       });
       expect(response.ok).toBe(true);
-      expect(game.ctx.team1.players).toHaveLength(size + (saved ? 0 : 1));
+      expect(game.ctx.teams[0].players).toHaveLength(size + (saved ? 0 : 1));
     }
   );
 
   it("does not raise a player saved by Regeneration", async () => {
     const game = newGame();
-    const size = game.ctx.team1.players.length;
-    const victim = game.ctx.team2.players[0];
+    const size = game.ctx.teams[0].players.length;
+    const victim = game.ctx.teams[1].players[0];
     fixtureValue(victim).skills.push(getSkill(SkillType.REGENERATION));
     vi.spyOn(
       game.ctx.gameService.getDiceController(),
@@ -159,15 +159,15 @@ describe("Masters of Undeath in Sevens", () => {
     ).mockReturnValue(4);
     await injure(game, fixtureValue(victim).id);
     expect(fixtureValue(victim).injuries).not.toContain(InjuryType.DEAD);
-    expect(game.ctx.team1.players).toHaveLength(size);
+    expect(game.ctx.teams[0].players).toHaveLength(size);
   });
 
   it("records a raised player's subsequent participation and touchdown", async () => {
     const game = newGame();
-    const size = game.ctx.team1.players.length;
-    await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
-    expect(game.ctx.team1.players).toHaveLength(size + 1);
-    const raised = fixtureValue(game.ctx.team1.players.at(-1));
+    const size = game.ctx.teams[0].players.length;
+    await injure(game, fixtureValue(game.ctx.teams[1].players[0]).id);
+    expect(game.ctx.teams[0].players).toHaveLength(size + 1);
+    const raised = fixtureValue(game.ctx.teams[0].players.at(-1));
     game.ctx.eventBus.emit(GameEventNames.PlayerPlaced, {
       playerId: raised.id,
       x: 3,
@@ -191,8 +191,8 @@ describe("Masters of Undeath in Sevens", () => {
 
   it("allows an ST 4 victim whose Regeneration fails", async () => {
     const game = newGame();
-    const size = game.ctx.team1.players.length;
-    const victim = game.ctx.team2.players[0];
+    const size = game.ctx.teams[0].players.length;
+    const victim = game.ctx.teams[1].players[0];
     fixtureValue(victim).stats.ST = 4;
     fixtureValue(victim).skills.push(getSkill(SkillType.REGENERATION));
     vi.spyOn(
@@ -200,24 +200,24 @@ describe("Masters of Undeath in Sevens", () => {
       "rollD6"
     ).mockReturnValue(3);
     await injure(game, fixtureValue(victim).id);
-    expect(game.ctx.team1.players).toHaveLength(size + 1);
+    expect(game.ctx.teams[0].players).toHaveLength(size + 1);
   });
 
   it("temporarily raises a Lineman even above the Sevens roster limit", async () => {
     const game = newGame();
-    const size = game.ctx.team1.players.length;
-    game.ctx.team1.maxRosterSize = size;
-    await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
-    expect(game.ctx.team1.players).toHaveLength(size + 1);
+    const size = game.ctx.teams[0].players.length;
+    game.ctx.teams[0].maxRosterSize = size;
+    await injure(game, fixtureValue(game.ctx.teams[1].players[0]).id);
+    expect(game.ctx.teams[0].players).toHaveLength(size + 1);
   });
 
   it("restores a missing raised player when an online guest resynchronises", async () => {
     const host = newGame();
     const guest = newGame();
-    const original = guest.ctx.team1.players[0];
-    const originalRoster = guest.ctx.team1.players;
-    await injure(host, fixtureValue(host.ctx.team2.players[0]).id);
-    const raised = fixtureValue(host.ctx.team1.players.at(-1));
+    const original = guest.ctx.teams[0].players[0];
+    const originalRoster = guest.ctx.teams[0].players;
+    await injure(host, fixtureValue(host.ctx.teams[1].players[0]).id);
+    const raised = fixtureValue(host.ctx.teams[0].players.at(-1));
     const [hostEnd, guestEnd] = createInMemoryTransportPair();
     let restored: () => void = noop;
     const done = new Promise<void>((resolve) => {
@@ -227,28 +227,28 @@ describe("Masters of Undeath in Sevens", () => {
       transport: hostEnd,
       game: host,
       selfId: "host",
-      myTeamId: host.ctx.team1.id,
-      peerTeamId: host.ctx.team2.id,
-      hostTeamId: host.ctx.team1.id,
+      myTeamId: host.ctx.teams[0].id,
+      peerTeamId: host.ctx.teams[1].id,
+      hostTeamId: host.ctx.teams[0].id,
     });
     const guestSession = new LockstepSession({
       transport: guestEnd,
       game: guest,
       selfId: "guest",
-      myTeamId: guest.ctx.team2.id,
-      peerTeamId: guest.ctx.team1.id,
-      hostTeamId: guest.ctx.team1.id,
+      myTeamId: guest.ctx.teams[1].id,
+      peerTeamId: guest.ctx.teams[0].id,
+      hostTeamId: guest.ctx.teams[0].id,
       onResynced: restored,
     });
     try {
       await guestSession.requestResync();
       await done;
-      expect(guest.ctx.team1.players.find((p) => p.id === raised.id)).toEqual({
+      expect(guest.ctx.teams[0].players.find((p) => p.id === raised.id)).toEqual({
         ...raised,
         conditions: [],
       });
-      expect(guest.ctx.team1.players[0]).toBe(original);
-      expect(guest.ctx.team1.players).toBe(originalRoster);
+      expect(guest.ctx.teams[0].players[0]).toBe(original);
+      expect(guest.ctx.teams[0].players).toBe(originalRoster);
       expect(stateChecksum(guest)).toBe(stateChecksum(host));
     } finally {
       hostSession.close();
@@ -259,9 +259,9 @@ describe("Masters of Undeath in Sevens", () => {
 
 async function offer() {
   const game = newGame();
-  const team = game.ctx.team1;
+  const team = game.ctx.teams[0];
   team.advancementMode = "advanced-league";
-  await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
+  await injure(game, fixtureValue(game.ctx.teams[1].players[0]).id);
   const raised = fixtureValue(team.players.at(-1));
   expect(raised.positionName).toBe("Skeleton Lineman");
   offerRaisedDeadRecruit(team, raised.id);
@@ -401,8 +401,7 @@ describe("Raised Lineman post-match recruitment", () => {
   it("refuses to field an unhired recruit in a subsequent local match", async () => {
     const { team, raised } = await offer();
     const game = new HeadlessGame({
-      team1: team,
-      team2: newGame().ctx.team2,
+      teams: [team, newGame().ctx.teams[1]],
       seed: 1,
     });
     expect(
@@ -428,8 +427,7 @@ describe("Raised Lineman post-match recruitment", () => {
     const { team } = await offer();
     team.players.shift();
     const game = new HeadlessGame({
-      team1: team,
-      team2: newGame().ctx.team2,
+      teams: [team, newGame().ctx.teams[1]],
       seed: 1,
 
       paysWinnings: true,
@@ -439,7 +437,7 @@ describe("Raised Lineman post-match recruitment", () => {
       kickingTeamId: team.id,
     });
     expect(
-      game.ctx.team1.players.filter((p) => p.playerKind === "journeyman")
+      game.ctx.teams[0].players.filter((p) => p.playerKind === "journeyman")
     ).toHaveLength(1);
     expect(
       game.ctx.gameService.getSetupStatus(team.id)?.availablePlayerCount

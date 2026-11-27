@@ -20,7 +20,7 @@ const increment = (tally: Record<string, number>, key: string) => {
   tally[key] = (tally[key] ?? 0) + 1;
 };
 const sideOf = (game: HeadlessGame, id: string | undefined) =>
-  id === game.ctx.team2.id ? 1 : 0;
+  id === game.ctx.teams[1].id ? 1 : 0;
 const THIRDS = ["left-third", "middle-third", "right-third"] as const;
 const third = (at: { x: number } | null) =>
   at
@@ -44,7 +44,7 @@ function commandContext(game: HeadlessGame, command: HeadlessCommand) {
       : "attackerId" in command
         ? command.attackerId
         : active?.id;
-  const players = [...game.ctx.team1.players, ...game.ctx.team2.players].map(
+  const players = [...game.ctx.teams[0].players, ...game.ctx.teams[1].players].map(
     (p) => ({
       id: p.id,
       teamId: p.teamId,
@@ -117,7 +117,7 @@ function observeSkill(
     adjacentHelpers: adjacent.filter((p) => p.helper).length,
     scoreDifference:
       (context.score[player.teamId] ?? 0) -
-      (context.score[side === 0 ? game.ctx.team2.id : game.ctx.team1.id] ?? 0),
+      (context.score[side === 0 ? game.ctx.teams[1].id : game.ctx.teams[0].id] ?? 0),
     count: 1,
     firstStep: step,
   };
@@ -158,7 +158,7 @@ function observeRoll(
   tally.attempts++;
   if (data["resultState"] === "failure" || data["resultState"] === "fumble")
     tally.failures++;
-  if (turnover.has(side === 0 ? game.ctx.team1.id : game.ctx.team2.id))
+  if (turnover.has(side === 0 ? game.ctx.teams[0].id : game.ctx.teams[1].id))
     tally.turnoversInCommand++;
   rolls.set(key, tally);
 }

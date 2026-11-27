@@ -19,7 +19,7 @@ async function findKickoffSeed(event: KickoffEvent): Promise<number> {
     });
     const response = await probe.execute({
       type: "kick-ball",
-      playerId: fixtureValue(probe.ctx.team1.players[0]).id,
+      playerId: fixtureValue(probe.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -48,7 +48,7 @@ describe("networked sessions", () => {
       });
       const response = await probe.execute({
         type: "kick-ball",
-        playerId: fixtureValue(probe.ctx.team1.players[0]).id,
+        playerId: fixtureValue(probe.ctx.teams[0].players[0]).id,
         x: 14,
         y: 5,
       });
@@ -72,7 +72,7 @@ describe("networked sessions", () => {
     });
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
-      playerId: fixtureValue(match.game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(match.game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -82,7 +82,7 @@ describe("networked sessions", () => {
       chooserTeamId: match.guestTeamId,
     });
 
-    const receiver = match.game.ctx.team2.players[0];
+    const receiver = match.game.ctx.teams[1].players[0];
     const selected = await match.guest.sendCommand({
       type: "kickoff-select-player",
       playerId: fixtureValue(receiver).id,
@@ -122,8 +122,8 @@ describe("networked sessions", () => {
 
   it("proxies a guest Hand-off by target id and both boards agree", async () => {
     const match = createMatch({ scenario: handoffScenario, seed: 7 });
-    const hander = match.game.ctx.team2.players[0];
-    const receiver = match.game.ctx.team2.players[1];
+    const hander = match.game.ctx.teams[1].players[0];
+    const receiver = match.game.ctx.teams[1].players[1];
 
     const declared = await match.guest.sendCommand({
       type: "declare-action",
@@ -164,7 +164,7 @@ describe("networked sessions", () => {
       forceDice(engine.ctx.rng, [5, 2, 2, 2, 3]);
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
-      playerId: fixtureValue(match.game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(match.game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -179,7 +179,7 @@ describe("networked sessions", () => {
         : undefined;
     expect(landing).toBeDefined();
 
-    const receiver = fixtureValue(match.game.ctx.team2.players.find(
+    const receiver = fixtureValue(match.game.ctx.teams[1].players.find(
       (player) =>
         player.gridPosition &&
         (player.gridPosition.x !== fixtureValue(landing).x ||
@@ -214,7 +214,7 @@ describe("networked sessions", () => {
     const match = createMatch({ scenario: kickoffInteractionScenario, seed });
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
-      playerId: fixtureValue(match.game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(match.game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -224,7 +224,7 @@ describe("networked sessions", () => {
       chooserTeamId: match.hostTeamId,
     });
 
-    const kicker = match.game.ctx.team1.players[0];
+    const kicker = match.game.ctx.teams[0].players[0];
     expect(fixtureValue(kicker).gridPosition).toEqual({ x: 5, y: 2 });
 
     const denied = await match.guest.sendCommand({
@@ -257,7 +257,7 @@ describe("networked sessions", () => {
     const match = createMatch({ scenario: kickoffInteractionScenario, seed });
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
-      playerId: fixtureValue(match.game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(match.game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -267,7 +267,7 @@ describe("networked sessions", () => {
       chooserTeamId: match.hostTeamId,
     });
 
-    const chargers = match.game.ctx.team1.players.slice(0, 2);
+    const chargers = match.game.ctx.teams[0].players.slice(0, 2);
     for (const player of chargers) {
       const selected = await match.host.executeLocal({
         type: "kickoff-select-player",

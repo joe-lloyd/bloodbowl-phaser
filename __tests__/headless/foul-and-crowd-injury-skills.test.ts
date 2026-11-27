@@ -67,8 +67,8 @@ function diceOf(
 
 async function foul(scenario: Scenario, seed: number) {
   const game = new HeadlessGame({ scenario, seed });
-  const fouler = game.ctx.team1.players[0];
-  const target = game.ctx.team2.players[0];
+  const fouler = game.ctx.teams[0].players[0];
+  const target = game.ctx.teams[1].players[0];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(fouler).id,
@@ -161,8 +161,8 @@ describe("Injury by the Crowd", () => {
       scenario: scenario,
       seed: STUNTY_CROWD_SEED,
     });
-    const attacker = game.ctx.team1.players[0];
-    const defender = game.ctx.team2.players[0];
+    const attacker = game.ctx.teams[0].players[0];
+    const defender = game.ctx.teams[1].players[0];
     const events: EmittedEvent[] = [];
     const run = async (command: unknown): Promise<CommandResponse> => {
       const response = await game.execute(command);

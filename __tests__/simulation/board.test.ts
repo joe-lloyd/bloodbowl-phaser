@@ -22,7 +22,7 @@ describe("the coach's view of the board", () => {
       },
       seed: 1,
     });
-    const team = game.ctx.team1;
+    const team = game.ctx.teams[0];
     team.rerolls = 2;
     const left = () => readBoard(game, team.id).rerolls;
     expect(left()).toBe(2);

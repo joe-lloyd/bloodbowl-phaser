@@ -45,7 +45,7 @@ const crowdRolls = (events: { name: string; data?: unknown }[]): string[] =>
     .filter((d) => d.startsWith("Crowd Takes Action"));
 
 async function declareAndEnd(game: HeadlessGame, action: ActionType) {
-  const id = fixtureValue(game.ctx.team1.players[0]).id;
+  const id = fixtureValue(game.ctx.teams[0].players[0]).id;
   const declared = await game.execute({
     type: "declare-action",
     playerId: id,
@@ -72,7 +72,7 @@ describe("Stalling: the Crowd Takes Action", () => {
           carrier: { playerIndex: slot.playerIndex },
         }),
       });
-      const carrier = game.ctx.team1.players[slot.playerIndex];
+      const carrier = game.ctx.teams[0].players[slot.playerIndex];
 
       if (saved) forceDice(game.ctx.rng, [4, 6]);
       await game.execute({
@@ -97,11 +97,11 @@ describe("Stalling: the Crowd Takes Action", () => {
       );
       if (!saved) {
         expect(fixtureValue(carrier).status).not.toBe(PlayerStatus.ACTIVE);
-        expect(response.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+        expect(response.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
         return;
       }
       expect(fixtureValue(carrier).status).toBe(PlayerStatus.ACTIVE);
-      expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
+      expect(response.snapshot.activeTeamId).toBe(game.ctx.teams[0].id);
       expect(response.snapshot.ballPosition).toEqual({ x: 15, y: 5 });
       expect(
         response.events.some(
@@ -116,12 +116,12 @@ describe("Stalling: the Crowd Takes Action", () => {
 
   it("on Turn 1 the crowd always hits: Knocked Down and a Turnover", async () => {
     const game = new HeadlessGame({ scenario: scenario({}), seed: 1 });
-    const carrier = game.ctx.team1.players[0];
+    const carrier = game.ctx.teams[0].players[0];
     const response = await declareAndEnd(game, "move");
 
     expect(crowdRolls(response.events)).toHaveLength(1);
     expect(fixtureValue(carrier).status).not.toBe(PlayerStatus.ACTIVE);
-    expect(response.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+    expect(response.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
     expect(response.snapshot.stallingPlayerIds).toEqual([
       fixtureValue(carrier).id,
     ]);
@@ -132,7 +132,7 @@ describe("Stalling: the Crowd Takes Action", () => {
     let hit = 0;
     for (let seed = 1; seed <= 40 && (missed < 2 || hit < 1); seed++) {
       const game = new HeadlessGame({ scenario: scenario({ turn: 6 }), seed });
-      const carrier = game.ctx.team1.players[0];
+      const carrier = game.ctx.teams[0].players[0];
       const response = await declareAndEnd(game, "move");
       const [roll] = crowdRolls(response.events);
       expect(roll, `seed ${String(seed)}`).toMatch(
@@ -144,7 +144,7 @@ describe("Stalling: the Crowd Takes Action", () => {
       if (fixtureValue(roll).endsWith(": 6")) {
         hit++;
         expect(fixtureValue(carrier).status).toBe(PlayerStatus.PRONE);
-        expect(response.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+        expect(response.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
       } else {
         missed++;
         expect(fixtureValue(carrier).status).toBe(PlayerStatus.ACTIVE);
@@ -152,7 +152,7 @@ describe("Stalling: the Crowd Takes Action", () => {
           x: 15,
           y: 5,
         });
-        expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
+        expect(response.snapshot.activeTeamId).toBe(game.ctx.teams[0].id);
       }
     }
     expect(missed).toBeGreaterThanOrEqual(2);
@@ -161,7 +161,7 @@ describe("Stalling: the Crowd Takes Action", () => {
 
   it("rolls when the player Forgoes their activation", async () => {
     const game = new HeadlessGame({ scenario: scenario({}), seed: 1 });
-    const carrier = game.ctx.team1.players[0];
+    const carrier = game.ctx.teams[0].players[0];
     const response = await game.execute({
       type: "end-activation",
       playerId: fixtureValue(carrier).id,
@@ -209,7 +209,7 @@ describe("Stalling: the Crowd Takes Action", () => {
       }),
       seed: 1,
     });
-    const troll = game.ctx.team1.players[0];
+    const troll = game.ctx.teams[0].players[0];
     const response = await game.execute({
       type: "end-activation",
       playerId: fixtureValue(troll).id,
@@ -219,7 +219,7 @@ describe("Stalling: the Crowd Takes Action", () => {
 
   it("is not Stalling after a Hand-off gets rid of the ball", async () => {
     const game = new HeadlessGame({ scenario: scenario({}), seed: 1 });
-    const [carrier, mate] = game.ctx.team1.players;
+    const [carrier, mate] = game.ctx.teams[0].players;
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(carrier).id,
@@ -245,7 +245,7 @@ describe("Stalling: the Crowd Takes Action", () => {
       scenario: scenario({ team1Roster: RosterName.ELVEN_UNION }),
       seed: 1,
     });
-    const carrier = game.ctx.team1.players[0];
+    const carrier = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(carrier).id,
@@ -275,7 +275,7 @@ describe("Stalling: the Crowd Takes Action", () => {
 
   it("is not Stalling once the player scores", async () => {
     const game = new HeadlessGame({ scenario: scenario({}), seed: 1 });
-    const carrier = game.ctx.team1.players[0];
+    const carrier = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(carrier).id,
@@ -286,13 +286,13 @@ describe("Stalling: the Crowd Takes Action", () => {
       playerId: fixtureValue(carrier).id,
       path: [16, 17, 18, 19].map((x) => ({ x, y: 5 })),
     });
-    expect(response.snapshot.score[game.ctx.team1.id]).toBe(1);
+    expect(response.snapshot.score[game.ctx.teams[0].id]).toBe(1);
     expect(crowdRolls(response.events)).toEqual([]);
   });
 
   it("rolls when a stalling player's turn is ended mid-activation", async () => {
     const game = new HeadlessGame({ scenario: scenario({}), seed: 1 });
-    const carrier = game.ctx.team1.players[0];
+    const carrier = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(carrier).id,

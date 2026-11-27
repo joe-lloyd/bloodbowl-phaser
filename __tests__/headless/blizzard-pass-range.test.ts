@@ -31,7 +31,7 @@ function scenario(weather: Weather): Scenario {
 
 async function passTo(weather: Weather, x: number) {
   const game = new HeadlessGame({ scenario: scenario(weather), seed: 5 });
-  const passer = fixtureValue(game.ctx.team1.players[0]).id;
+  const passer = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: passer,
@@ -70,7 +70,7 @@ describe("passing in a Blizzard", () => {
 
   it("offers the computer no pass the Blizzard refuses", async () => {
     const game = new HeadlessGame({ scenario: scenario("Blizzard"), seed: 5 });
-    const passer = fixtureValue(game.ctx.team1.players[0]).id;
+    const passer = fixtureValue(game.ctx.teams[0].players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passer,

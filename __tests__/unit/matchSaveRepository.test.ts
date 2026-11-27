@@ -54,10 +54,10 @@ function matchSave(savedAt: number) {
   const game = createHeadlessGame({ scenario: scrimmage, seed: 5 });
   return createMatchSave({
     state: game.gameService.getState(),
-    teams: [game.team1, game.team2],
+    teams: [game.teams[0], game.teams[1]],
     drive: {
-      kickingTeamId: game.team1.id,
-      receivingTeamId: game.team2.id,
+      kickingTeamId: game.teams[0].id,
+      receivingTeamId: game.teams[1].id,
     },
     rng: game.rng.captureState(),
     matchStats: game.matchStats.captureState(),
@@ -137,18 +137,18 @@ describe("match save repository", () => {
   it("round-trips the match termination reason through a save/resume cycle", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 6 });
     const state = game.gameService.getState();
-    state.result = { reason: "concession", concedingTeamId: game.team1.id };
-    state.score[game.team1.id] = 0;
-    state.score[game.team2.id] = 0;
+    state.result = { reason: "concession", concedingTeamId: game.teams[0].id };
+    state.score[game.teams[0].id] = 0;
+    state.score[game.teams[1].id] = 0;
 
     const storage = new MemoryStorage();
     const repository = new LocalStorageMatchSaveRepository(storage);
     const save = createMatchSave({
       state,
-      teams: [game.team1, game.team2],
+      teams: [game.teams[0], game.teams[1]],
       drive: {
-        kickingTeamId: game.team1.id,
-        receivingTeamId: game.team2.id,
+        kickingTeamId: game.teams[0].id,
+        receivingTeamId: game.teams[1].id,
       },
       rng: game.rng.captureState(),
       matchStats: game.matchStats.captureState(),
@@ -159,21 +159,21 @@ describe("match save repository", () => {
     const resumed = fixtureValue(repository.read());
     expect(resumed.snapshot.result).toEqual({
       reason: "concession",
-      concedingTeamId: game.team1.id,
+      concedingTeamId: game.teams[0].id,
     });
 
     const restoredState = deserializeGameState(resumed.snapshot);
     expect(restoredState.result).toEqual({
       reason: "concession",
-      concedingTeamId: game.team1.id,
+      concedingTeamId: game.teams[0].id,
     });
   });
 
   it("serializeGameState/deserializeGameState round-trip an undefined result unchanged", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 7 });
     const snapshot = serializeGameState(game.gameService.getState(), [
-      game.team1,
-      game.team2,
+      game.teams[0],
+      game.teams[1],
     ]);
     expect(snapshot.result).toBeUndefined();
     expect(deserializeGameState(snapshot).result).toBeUndefined();

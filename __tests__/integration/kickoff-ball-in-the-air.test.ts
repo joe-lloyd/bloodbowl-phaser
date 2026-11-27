@@ -38,7 +38,7 @@ async function kickedIntoCharge() {
     const game = new HeadlessGame({ scenario, seed });
     const kicked = await game.execute({
       type: "kick-ball",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -65,8 +65,8 @@ function board(game: HeadlessGame) {
     },
   });
   const scene = {
-    team1: game.ctx.team1,
-    team2: game.ctx.team2,
+    team1: game.ctx.teams[0],
+    team2: game.ctx.teams[1],
     events: { on: vi.fn(), off: vi.fn() },
     highlightPlayer: vi.fn(),
     unhighlightPlayer: vi.fn(),
@@ -149,7 +149,7 @@ describe("Moving under a kicked ball that is still in the air", () => {
   it("offers no Pick up and picks nothing up during Charge!", async () => {
     const game = await kickedIntoCharge();
     const gs = game.ctx.gameService;
-    const { team1 } = game.ctx;
+    const [team1] = game.ctx.teams;
     const seen = watch(game);
     const controller = board(game);
     const charger = team1.players[1];
@@ -171,7 +171,8 @@ describe("Moving under a kicked ball that is still in the air", () => {
   it("has the kicking-team charger Catch it when it lands, on AG and weather", async () => {
     const game = await kickedIntoCharge();
     const gs = game.ctx.gameService;
-    const { eventBus, team1 } = game.ctx;
+    const { eventBus } = game.ctx;
+    const [team1] = game.ctx.teams;
     const seen = watch(game);
     const controller = board(game);
     const charger = team1.players[1];
@@ -195,7 +196,8 @@ describe("Moving under a kicked ball that is still in the air", () => {
   it("counts each opposition player Marking the catcher", async () => {
     const game = await kickedIntoCharge();
     const gs = game.ctx.gameService;
-    const { eventBus, team1, team2 } = game.ctx;
+    const { eventBus } = game.ctx;
+    const [team1, team2] = game.ctx.teams;
     const seen = watch(game);
     const controller = board(game);
     const charger = team1.players[1];
@@ -225,7 +227,7 @@ describe("Moving under a kicked ball that is still in the air", () => {
     async (status) => {
       const game = await kickedIntoCharge();
       const gs = game.ctx.gameService;
-      const { team2 } = game.ctx;
+      const [, team2] = game.ctx.teams;
       const seen = watch(game);
       const down = team2.players[1];
       fixtureValue(down).gridPosition = { ...LANDING };

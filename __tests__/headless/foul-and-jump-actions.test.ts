@@ -119,7 +119,7 @@ describe("Jump offers every adjacent jumpable player", () => {
 
     const probe = new HeadlessGame({ scenario, seed: 3 });
     const jumper = fixtureValue(probe.snapshot().teams[0]).players[0];
-    const others = probe.ctx.team2.players;
+    const others = probe.ctx.teams[1].players;
     const all = jumpTargets({ x: 10, y: 5 }, others, false, inBounds);
     expect(all.some((t) => t.dest.x === 12 && t.dest.y === 5)).toBe(true);
     expect(all.some((t) => t.dest.x === 10 && t.dest.y === 3)).toBe(true);

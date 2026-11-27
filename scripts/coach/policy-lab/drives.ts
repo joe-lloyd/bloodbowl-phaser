@@ -55,7 +55,7 @@ async function drivesOfTrace(file: string) {
   await replaySteps({ game, recording });
   watch.finish();
   return {
-    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName] as const,
+    rosters: [game.ctx.teams[0].rosterName, game.ctx.teams[1].rosterName] as const,
     tallies,
   };
 }
@@ -70,7 +70,7 @@ export function watchDrives(
   game: HeadlessGame,
   tallies: [DriveTally, DriveTally]
 ) {
-  const teams = [game.ctx.team1, game.ctx.team2] as const;
+  const teams = [game.ctx.teams[0], game.ctx.teams[1]] as const;
   const sideOf = new Map(teams.map((t, i) => [t.id, i as 0 | 1]));
   const state = () => game.ctx.gameService.getState();
 

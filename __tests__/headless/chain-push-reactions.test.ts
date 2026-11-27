@@ -47,9 +47,9 @@ async function chainInto(chained: SkillType, seed: number) {
     events.push(...response.events);
     return response;
   };
-  const attacker = game.ctx.team1.players[0];
-  const defender = game.ctx.team2.players[0];
-  const chainedPlayer = game.ctx.team2.players[2];
+  const attacker = game.ctx.teams[0].players[0];
+  const defender = game.ctx.teams[1].players[0];
+  const chainedPlayer = game.ctx.teams[1].players[2];
   await run({
     type: "declare-action",
     playerId: fixtureValue(attacker).id,

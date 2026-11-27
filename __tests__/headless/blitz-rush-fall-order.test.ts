@@ -24,8 +24,8 @@ const scenario: Scenario = {
 
 async function blitzOutOfMovement(stab: boolean) {
   const game = new HeadlessGame({ scenario, seed: 4 });
-  game.ctx.team1.rerolls = 0;
-  const attacker = game.ctx.team1.players[0];
+  game.ctx.teams[0].rerolls = 0;
+  const attacker = game.ctx.teams[0].players[0];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(attacker).id,
@@ -43,7 +43,7 @@ async function blitzOutOfMovement(stab: boolean) {
   return {
     game,
     attackerId: fixtureValue(attacker).id,
-    targetId: fixtureValue(game.ctx.team2.players[0]).id,
+    targetId: fixtureValue(game.ctx.teams[1].players[0]).id,
   };
 }
 
@@ -136,8 +136,8 @@ describe("the Rush for a Blitz's attack", () => {
           },
         },
       });
-      game.ctx.team1.rerolls = 0;
-      const attacker = fixtureValue(game.ctx.team1.players[0]);
+      game.ctx.teams[0].rerolls = 0;
+      const attacker = fixtureValue(game.ctx.teams[0].players[0]);
       await game.execute({
         type: "declare-action",
         playerId: attacker.id,
@@ -150,7 +150,7 @@ describe("the Rush for a Blitz's attack", () => {
       const names = await eventNamesUntilSettled(game, () =>
         game.ctx.gameService.rollBlockDice({
           attackerId: attacker.id,
-          defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+          defenderId: fixtureValue(game.ctx.teams[1].players[0]).id,
           numDice: 1,
           isAttackerChoice: true,
         })

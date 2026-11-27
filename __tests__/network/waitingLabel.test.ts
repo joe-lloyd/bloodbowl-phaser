@@ -46,7 +46,7 @@ const hostPlaying: Scenario = {
 
 const hostMatch = (scenario: Scenario) => {
   const game = new HeadlessGame({ scenario, seed: 2 });
-  const { team1, team2 } = game.ctx;
+  const [team1, team2] = game.ctx.teams;
   const lobby: LobbyDoc = {
     code: "HOLD",
     hostUid: "host-uid",
@@ -136,7 +136,7 @@ describe("online waiting label at the kick-off", () => {
 describe("online waiting label", () => {
   it("says the other coach is setting up during setup", () => {
     const game = new HeadlessGame({ scenario: guestSettingUp, seed: 2 });
-    const { team1, team2 } = game.ctx;
+    const [team1, team2] = game.ctx.teams;
     const lobby: LobbyDoc = {
       code: "SETUP",
       hostUid: "host-uid",

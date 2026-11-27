@@ -20,7 +20,7 @@ async function injure(
       y: 2,
     },
   });
-  const [victim] = game.ctx.team2.players;
+  const [victim] = game.ctx.teams[1].players;
   if (frog)
     turnIntoFrog(game.ctx.gameService.getState(), fixtureValue(victim));
   const reported: unknown[] = [];
@@ -67,7 +67,7 @@ describe("InjuryRolled", () => {
         y: 2,
       },
     });
-    const [victim] = game.ctx.team2.players;
+    const [victim] = game.ctx.teams[1].players;
     turnIntoFrog(game.ctx.gameService.getState(), fixtureValue(victim));
     const reported: unknown[] = [];
     game.ctx.eventBus.on(GameEventNames.InjuryRolled, (data) => {

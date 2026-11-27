@@ -21,8 +21,8 @@ describe("RerollDialog team button", () => {
   beforeEach(() => {
     const game = new HeadlessGame({ seed: 1 });
     eventBus = new EventBus();
-    ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
-    teamId = game.ctx.team1.id;
+    ServiceContainer.initialize({ eventBus: eventBus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
+    teamId = game.ctx.teams[0].id;
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);

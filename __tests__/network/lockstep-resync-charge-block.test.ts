@@ -42,12 +42,12 @@ describe("a resync while a Charge's uphill Block waits for its coach", () => {
         onDesync: (detail) => { desyncs.push(detail); },
       });
     const host = session(game, "host");
-    const attacker = fixtureValue(game.ctx.team1.players[1]);
-    const defender = fixtureValue(game.ctx.team2.players[1]);
+    const attacker = fixtureValue(game.ctx.teams[0].players[1]);
+    const defender = fixtureValue(game.ctx.teams[1].players[1]);
     const playerId = attacker.id;
     await host.run({
       type: "kick-ball",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });

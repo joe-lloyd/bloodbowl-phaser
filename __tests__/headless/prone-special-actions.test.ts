@@ -38,7 +38,7 @@ function scenario(
 async function legalFor(game: HeadlessGame) {
   const legal = await game.execute({ type: "legal-actions" });
   return legal.legalActions?.players.find(
-    (p) => p.playerId === fixtureValue(game.ctx.team1.players[0]).id
+    (p) => p.playerId === fixtureValue(game.ctx.teams[0].players[0]).id
   )?.actions;
 }
 
@@ -48,8 +48,8 @@ describe("a Prone player with Hypnotic Gaze", () => {
       scenario: scenario(SkillType.HYPNOTIC_GAZE, {}),
       seed: 2,
     });
-    const gazerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const targetId = fixtureValue(game.ctx.team2.players[0]).id;
+    const gazerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const targetId = fixtureValue(game.ctx.teams[1].players[0]).id;
     expect(await legalFor(game)).toContain("gaze");
 
     const declared = await game.execute({
@@ -63,7 +63,7 @@ describe("a Prone player with Hypnotic Gaze", () => {
       playerId: gazerId,
       path: [{ x: 11, y: 5 }],
     });
-    expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[0]).status).toBe(
       PlayerStatus.ACTIVE
     );
 
@@ -77,7 +77,7 @@ describe("a Prone player with Hypnotic Gaze", () => {
     });
     expect(gazed.ok).toBe(true);
     expect(
-      fixtureValue(game.ctx.team2.players[0]).conditions?.map((c) => c.type)
+      fixtureValue(game.ctx.teams[1].players[0]).conditions?.map((c) => c.type)
     ).toEqual([PlayerCondition.DISTRACTED]);
   });
 });
@@ -92,7 +92,7 @@ describe("a Prone player with Punt", () => {
 
     const declared = await game.execute({
       type: "declare-action",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       action: "punt",
     });
     expect(declared.ok).toBe(true);
@@ -115,7 +115,7 @@ describe("a Prone player with Stab", () => {
 
     const declared = await game.execute({
       type: "declare-action",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       action: "stab",
     });
     expect(declared.ok).toBe(false);

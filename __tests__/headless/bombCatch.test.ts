@@ -36,7 +36,7 @@ async function bombOn(
       },
     },
   });
-  const bomberId = fixtureValue(game.ctx.team1.players[BOMBER]).id;
+  const bomberId = fixtureValue(game.ctx.teams[0].players[BOMBER]).id;
   await game.execute({
     type: "declare-action",
     playerId: bomberId,

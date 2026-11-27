@@ -31,7 +31,7 @@ function ChangeWhileRendering({ change }: { change: () => void }) {
 }
 
 function cloudTeam(): Team {
-  return { ...new HeadlessGame({ seed: 1 }).ctx.team1, name: "Cloud Team" };
+  return { ...new HeadlessGame({ seed: 1 }).ctx.teams[0], name: "Cloud Team" };
 }
 
 describe("useTeamLibrary", () => {
@@ -60,7 +60,7 @@ describe("useTeamLibrary", () => {
     expect(container.textContent).toBe("");
 
     const team: Team = {
-      ...new HeadlessGame({ seed: 1 }).ctx.team1,
+      ...new HeadlessGame({ seed: 1 }).ctx.teams[0],
       name: "Cloud Team",
     };
     await act(async () => {

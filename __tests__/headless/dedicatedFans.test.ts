@@ -14,7 +14,8 @@ interface Side {
 
 function fullTime(home: Side, away: Side, dice: number[]) {
   const game = new HeadlessGame({ seed: 1 });
-  const { team1, team2, gameService, eventBus, rng } = game.ctx;
+  const { gameService, eventBus, rng } = game.ctx;
+  const [team1, team2] = game.ctx.teams;
   team1.advancementMode = home.mode ?? "sevens-skill-selection";
   team2.advancementMode = away.mode ?? "sevens-skill-selection";
   team1.dedicatedFans = home.fans;
@@ -67,7 +68,8 @@ function leagueTeamsAtFullTime(
   dice: number[]
 ) {
   const game = new HeadlessGame({ seed: 1, ...fixture });
-  const { team1, team2, gameService, eventBus, rng } = game.ctx;
+  const { gameService, eventBus, rng } = game.ctx;
+  const [team1, team2] = game.ctx.teams;
   team1.advancementMode = "sevens-skill-selection";
   team2.advancementMode = "advanced-league";
   team1.dedicatedFans = 2;

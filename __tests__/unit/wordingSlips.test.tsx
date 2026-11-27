@@ -74,18 +74,18 @@ it("says one second, not one seconds", () => {
 
 it("keeps RE-ROLL whole on the re-roll button", async () => {
   const game = new HeadlessGame({ seed: 1 });
-  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
-  game.ctx.team1.rerolls = 2;
+  ServiceContainer.initialize({ eventBus: bus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
+  game.ctx.teams[0].rerolls = 2;
   ServiceContainer.getInstance().gameService.getState().turn.teamId =
-    game.ctx.team1.id;
+    game.ctx.teams[0].id;
   await act(async () => {
     root.render(<RerollDialog eventBus={bus} />);
   });
   await act(async () => {
     bus.emit(GameEventNames.DecisionRequested, {
       type: "reroll",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
-      chooserTeamId: game.ctx.team1.id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
+      chooserTeamId: game.ctx.teams[0].id,
       rollKind: "dodge",
       sources: ["team"],
       roll: 1,

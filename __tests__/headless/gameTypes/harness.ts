@@ -67,8 +67,8 @@ export function inLeague<T extends { game: HeadlessGame }>(
   if (!league) return s;
   const { ctx } = s.game;
   if (league.competition) ctx.gameService.getState().competition = true;
-  ctx.team1.advancementMode = league.mode;
-  ctx.team2.advancementMode = league.mode;
+  ctx.teams[0].advancementMode = league.mode;
+  ctx.teams[1].advancementMode = league.mode;
   return s;
 }
 
@@ -110,7 +110,7 @@ export function session(gameType: GameType, scenario: Scenario, dice: number[]) 
       ),
     player: (team: 1 | 2, index = 0) =>
       fixtureValue(
-        (team === 1 ? game.ctx.team1 : game.ctx.team2).players[index]
+        (team === 1 ? game.ctx.teams[0] : game.ctx.teams[1]).players[index]
       ),
   };
 }

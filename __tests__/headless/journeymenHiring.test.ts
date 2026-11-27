@@ -48,8 +48,7 @@ function team(id: string, size: number, treasury = 0): Team {
 
 function kickOff(home: Team, leagueFixture = true): HeadlessGame {
   return new HeadlessGame({
-    team1: home,
-    team2: team("away", 7),
+    teams: [home, team("away", 7)],
     seed: 1,
     startingPhase: GamePhase.SETUP,
     paysWinnings: leagueFixture,
@@ -80,7 +79,7 @@ describe("a league team short of players", () => {
   it("takes the field with Journeymen at no cost, then hires one for good", () => {
     const home = team("home", 5, 120_000);
     const game = kickOff(home);
-    const inMatch = game.ctx.team1;
+    const inMatch = game.ctx.teams[0];
     const [first, second] = journeymen(inMatch);
     expect(journeymen(inMatch)).toHaveLength(2);
 
@@ -129,7 +128,7 @@ describe("a league team short of players", () => {
   });
 
   it("pays the Value Increase of a Journeyman who gained an advancement", () => {
-    const inMatch = kickOff(team("home", 6, 200_000)).ctx.team1;
+    const inMatch = kickOff(team("home", 6, 200_000)).ctx.teams[0];
     const [journeyman] = journeymen(inMatch);
     fixtureValue(journeyman).teamValue = 20_000;
     recordPendingDevelopment(inMatch, "m1", undefined, {
@@ -143,7 +142,7 @@ describe("a league team short of players", () => {
   });
 
   it("lets a Journeyman who did not play, or died, leave at once", () => {
-    const inMatch = kickOff(team("home", 5)).ctx.team1;
+    const inMatch = kickOff(team("home", 5)).ctx.teams[0];
     const [benched, dead] = journeymen(inMatch);
     fixtureValue(dead).injuries.push(InjuryType.DEAD);
     recordPendingDevelopment(inMatch, "m1", undefined, {
@@ -158,7 +157,7 @@ describe("a league team short of players", () => {
   });
 
   it("refuses the hire without the gold or without room under 11", () => {
-    const poor = kickOff(team("home", 6, 40_000)).ctx.team1;
+    const poor = kickOff(team("home", 6, 40_000)).ctx.teams[0];
     const [journeyman] = journeymen(poor);
     recordPendingDevelopment(poor, "m1", undefined, {
       leagueFixture: true,
@@ -189,7 +188,7 @@ describe("Journeyman identity and roster slot", () => {
     const hiredBefore = home.players[0];
     fixtureValue(hiredBefore).id = `${home.id}-journeyman-6`;
     fixtureValue(hiredBefore).spp = 6;
-    const inMatch = kickOff(home).ctx.team1;
+    const inMatch = kickOff(home).ctx.teams[0];
     const ids = inMatch.players.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
 
@@ -205,7 +204,7 @@ describe("Journeyman identity and roster slot", () => {
   });
 
   it("moves a hired Journeyman wearing a number above 11 into a free slot", () => {
-    const inMatch = kickOff(team("home", 6, 200_000)).ctx.team1;
+    const inMatch = kickOff(team("home", 6, 200_000)).ctx.teams[0];
     const [journeyman] = journeymen(inMatch);
     fixtureValue(journeyman).number = 12;
     recordPendingDevelopment(inMatch, "m1", undefined, {
@@ -220,7 +219,7 @@ describe("Journeyman identity and roster slot", () => {
 describe("outside a league fixture", () => {
   it("a friendly or tournament game takes on no Journeymen and offers none", () => {
     const home = team("home", 5, 120_000);
-    const inMatch = kickOff(home, false).ctx.team1;
+    const inMatch = kickOff(home, false).ctx.teams[0];
     expect(journeymen(inMatch)).toEqual([]);
     recordPendingDevelopment(inMatch, "m1", undefined, {
       leagueFixture: false,
@@ -230,7 +229,7 @@ describe("outside a league fixture", () => {
   });
 
   it("lets a Journeyman go without an offer after a game that is not a league fixture", () => {
-    const inMatch = kickOff(team("home", 6)).ctx.team1;
+    const inMatch = kickOff(team("home", 6)).ctx.teams[0];
     const [journeyman] = journeymen(inMatch);
     recordPendingDevelopment(inMatch, "m1", undefined, {
       leagueFixture: false,

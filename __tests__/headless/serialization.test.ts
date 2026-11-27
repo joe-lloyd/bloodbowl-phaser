@@ -23,8 +23,8 @@ const play = (restoreViaSnapshot: boolean): boolean[] => {
     const snapshot = parseJson(
       JSON.stringify(
         serializeGameState(original.gameService.getState(), [
-          original.team1,
-          original.team2,
+          original.teams[0],
+          original.teams[1],
         ])
       ),
       gameSnapshotSchema
@@ -35,12 +35,12 @@ const play = (restoreViaSnapshot: boolean): boolean[] => {
       seed: 77,
       initialState: restoredState,
     });
-    applySnapshotToTeams(snapshot, [game.team1, game.team2]);
+    applySnapshotToTeams(snapshot, [game.teams[0], game.teams[1]]);
   }
 
   const results: boolean[] = [];
   for (let i = 0; i < 5; i++) {
-    const player = game.team1.players[0];
+    const player = game.teams[0].players[0];
     const ball = fixtureValue(game.gameService.getState().ballPosition);
     results.push(
       game.gameService.attemptPickup(fixtureValue(player), ball)
@@ -55,11 +55,11 @@ describe("game state serialization", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 11 });
     const state = game.gameService.getState();
 
-    state.turn.activatedPlayerIds.add(fixtureValue(game.team1.players[0]).id);
-    state.turn.activatedPlayerIds.add(fixtureValue(game.team1.players[1]).id);
-    state.turn.movementUsed.set(fixtureValue(game.team1.players[0]).id, 3);
+    state.turn.activatedPlayerIds.add(fixtureValue(game.teams[0].players[0]).id);
+    state.turn.activatedPlayerIds.add(fixtureValue(game.teams[0].players[1]).id);
+    state.turn.movementUsed.set(fixtureValue(game.teams[0].players[0]).id, 3);
 
-    const snapshot = serializeGameState(state, [game.team1, game.team2]);
+    const snapshot = serializeGameState(state, [game.teams[0], game.teams[1]]);
     const roundTripped = parseJson(
       JSON.stringify(snapshot),
       gameSnapshotSchema
@@ -69,24 +69,24 @@ describe("game state serialization", () => {
 
     expect(roundTripped.turn.activatedPlayerIds).toHaveLength(2);
     expect(
-      roundTripped.turn.movementUsed[fixtureValue(game.team1.players[0]).id]
+      roundTripped.turn.movementUsed[fixtureValue(game.teams[0].players[0]).id]
     ).toBe(3);
   });
 
   it("fully represents turn data", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 12 });
     const state = game.gameService.getState();
-    const [p1, p2] = game.team1.players;
+    const [p1, p2] = game.teams[0].players;
 
     state.turn.activatedPlayerIds.add(fixtureValue(p1).id);
     state.turn.activatedPlayerIds.add(fixtureValue(p2).id);
     state.turn.movementUsed.set(fixtureValue(p1).id, 3);
     state.turn.spend = spend(state.turn.spend, {
       kind: "blitz",
-      against: game.team2.id,
+      against: game.teams[1].id,
     });
 
-    const snapshot = serializeGameState(state, [game.team1, game.team2]);
+    const snapshot = serializeGameState(state, [game.teams[0], game.teams[1]]);
 
     expect(snapshot.turn.activatedPlayerIds).toContain(fixtureValue(p1).id);
     expect(snapshot.turn.activatedPlayerIds).toContain(fixtureValue(p2).id);
@@ -95,7 +95,7 @@ describe("game state serialization", () => {
 
     const p1Snap = fixtureValue(
       fixtureValue(
-        snapshot.teams.find((t) => t.id === game.team1.id)
+        snapshot.teams.find((t) => t.id === game.teams[0].id)
       ).players.find((p) => p.id === fixtureValue(p1).id)
     );
     expect(p1Snap.movementUsed).toBe(3);
@@ -105,12 +105,12 @@ describe("game state serialization", () => {
   it("writes a two-team turn's spend as the four flags alone", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 14 });
     const state = game.gameService.getState();
-    const rival = game.team2.id;
+    const rival = game.teams[1].id;
     state.turn.spend = spend(spend(state.turn.spend, { kind: "foul", against: rival }), {
       kind: "pass",
     });
 
-    const turn = serializeGameState(state, [game.team1, game.team2]).turn;
+    const turn = serializeGameState(state, [game.teams[0], game.teams[1]]).turn;
 
     expect(Object.keys(turn)).toEqual([
       "teamId",
@@ -137,10 +137,10 @@ describe("game state serialization", () => {
   it("loads an old save's flags as spent against the other team", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 15 });
     const state = game.gameService.getState();
-    const snapshot = serializeGameState(state, [game.team1, game.team2]);
+    const snapshot = serializeGameState(state, [game.teams[0], game.teams[1]]);
     const old = {
       ...snapshot,
-      turn: { ...snapshot.turn, teamId: game.team1.id, hasBlitzed: true, hasHandedOff: true },
+      turn: { ...snapshot.turn, teamId: game.teams[0].id, hasBlitzed: true, hasHandedOff: true },
     };
 
     const restored = deserializeGameState(
@@ -148,7 +148,7 @@ describe("game state serialization", () => {
     );
 
     expect(restored.turn.spend).toEqual({
-      blitzed: [game.team2.id],
+      blitzed: [game.teams[1].id],
       fouled: [],
       passes: 0,
       handOffs: 1,
@@ -158,10 +158,10 @@ describe("game state serialization", () => {
   it("deserializes back to an equivalent in-memory state", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 13 });
     const state = game.gameService.getState();
-    state.turn.activatedPlayerIds.add(fixtureValue(game.team1.players[0]).id);
-    state.turn.movementUsed.set(fixtureValue(game.team1.players[0]).id, 5);
+    state.turn.activatedPlayerIds.add(fixtureValue(game.teams[0].players[0]).id);
+    state.turn.movementUsed.set(fixtureValue(game.teams[0].players[0]).id, 5);
 
-    const snapshot = serializeGameState(state, [game.team1, game.team2]);
+    const snapshot = serializeGameState(state, [game.teams[0], game.teams[1]]);
     const restored = deserializeGameState(
       parseJson(JSON.stringify(snapshot), gameSnapshotSchema)
     );
@@ -171,11 +171,11 @@ describe("game state serialization", () => {
     expect(restored.turn.movementUsed).toBeInstanceOf(Map);
     expect(
       restored.turn.activatedPlayerIds.has(
-        fixtureValue(game.team1.players[0]).id
+        fixtureValue(game.teams[0].players[0]).id
       )
     ).toBe(true);
     expect(
-      restored.turn.movementUsed.get(fixtureValue(game.team1.players[0]).id)
+      restored.turn.movementUsed.get(fixtureValue(game.teams[0].players[0]).id)
     ).toBe(5);
     expect(restored.ballPosition).toEqual(state.ballPosition);
   });
@@ -188,8 +188,8 @@ describe("game state serialization", () => {
   it("exposes stable documented field names", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 14 });
     const snapshot = serializeGameState(game.gameService.getState(), [
-      game.team1,
-      game.team2,
+      game.teams[0],
+      game.teams[1],
     ]);
 
     expect(snapshot.ballPosition).toEqual({ x: 5, y: 5 });

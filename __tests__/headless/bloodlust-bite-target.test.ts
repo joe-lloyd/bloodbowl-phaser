@@ -52,7 +52,7 @@ async function failBloodlust(ball?: { x: number; y: number }) {
     scenario: scenario(ball),
     seed: BLOODLUST_FAILS_SEED,
   });
-  const [vampire, first, second] = game.ctx.team1.players;
+  const [vampire, first, second] = game.ctx.teams[0].players;
   let turnovers = 0;
   game.ctx.eventBus.on(GameEventNames.Turnover, () => turnovers++);
   await game.execute({
@@ -116,7 +116,7 @@ describe("Bloodlust with two or more Thrall Linemen in reach", () => {
       type: "end-activation",
       playerId: fixtureValue(r.vampire).id,
     });
-    const bystander = r.game.ctx.team1.players[3];
+    const bystander = r.game.ctx.teams[0].players[3];
 
     const refused = await r.game.execute({
       type: "choose-bite-target",
@@ -149,7 +149,7 @@ describe("Bloodlust with two or more Thrall Linemen in reach", () => {
 
   it("End Turn with the bite owed asks the same choice and bites the pick", async () => {
     const r = await failBloodlust();
-    const team2 = r.game.ctx.team2.id;
+    const team2 = r.game.ctx.teams[1].id;
 
     const ended = await r.game.execute({ type: "end-turn" });
     expect(ended.pendingDecision).toMatchObject({

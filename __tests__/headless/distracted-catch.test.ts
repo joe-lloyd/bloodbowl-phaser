@@ -34,7 +34,7 @@ const ACCURATE_SEED = 2;
 describe("a Distracted pass target", () => {
   it("cannot catch: the ball bounces with no Catch roll", async () => {
     const game = new HeadlessGame({ scenario, seed: ACCURATE_SEED });
-    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passerId,

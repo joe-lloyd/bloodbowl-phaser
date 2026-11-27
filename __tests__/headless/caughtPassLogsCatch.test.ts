@@ -13,7 +13,7 @@ describe("a caught pass", () => {
       scenario,
       ...(scenario.seed !== undefined && { seed: scenario.seed }),
     });
-    const thrower = game.ctx.team1.players[0];
+    const thrower = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(thrower).id,

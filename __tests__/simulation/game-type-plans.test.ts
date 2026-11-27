@@ -114,10 +114,10 @@ describe("game type rules in the planner's prices", () => {
 
   it("adds the cobbles to a knockdown's casualty odds", () => {
     const game = new HeadlessGame({ seed: 1 });
-    const attacker = { ...fixtureValue(game.ctx.team1.players[0]), skills: [] };
+    const attacker = { ...fixtureValue(game.ctx.teams[0].players[0]), skills: [] };
     const defender = {
-      ...fixtureValue(game.ctx.team2.players[0]),
-      stats: { ...fixtureValue(game.ctx.team2.players[0]).stats, AV: 9 },
+      ...fixtureValue(game.ctx.teams[1].players[0]),
+      stats: { ...fixtureValue(game.ctx.teams[1].players[0]).stats, AV: 9 },
       skills: [],
     };
     const odds = (format: MatchFormat) =>
@@ -188,14 +188,14 @@ function pendingFor(
     type: "inducement-choice",
     kind,
     chooserTeamId: "team1",
-    playerIds: game.ctx.team1.players.map((p) => p.id),
+    playerIds: game.ctx.teams[0].players.map((p) => p.id),
     optional: true,
     ...extra,
   };
 }
 function streetSquad() {
   const game = variantGame({ format: STREET, setup: STREET_SETUP });
-  const players = game.ctx.team1.players;
+  const players = game.ctx.teams[0].players;
   const lineman = players[0];
   const blitzer = players[3];
   fixtureValue(blitzer).cost = 85_000;
@@ -220,13 +220,13 @@ describe("computer inducement choices", () => {
 
   it("casts the Novice Wizard's Transmutation only at the opposing ball carrier", () => {
     const { game } = streetSquad();
-    const targets = { playerIds: game.ctx.team2.players.map((p) => p.id) };
+    const targets = { playerIds: game.ctx.teams[1].players.map((p) => p.id) };
     const wizard = pendingFor(game, "novice-wizard", {
       ...targets,
       skills: ["Firebolt", "Transmutation"],
     });
     const noCarrier = choose(game, wizard);
-    const carrier = fixtureValue(game.ctx.team2.players[0]);
+    const carrier = fixtureValue(game.ctx.teams[1].players[0]);
     game.ctx.gameService.getState().ballPosition = {
       ...fixtureValue(carrier.gridPosition),
     };
@@ -299,10 +299,10 @@ function pushKnockdown(
   }
 ): number {
   const game = pinGame(format, attacker, defender);
-  const placed = fixtureValue(game.ctx.team1.players[0]);
+  const placed = fixtureValue(game.ctx.teams[0].players[0]);
   return blockFaces(readBoard(game, "team1"), {
     attacker: attacker.to ? { ...placed, gridPosition: attacker.to } : placed,
-    defender: fixtureValue(game.ctx.team2.players[0]),
+    defender: fixtureValue(game.ctx.teams[1].players[0]),
     blitz: attacker.blitz ?? false,
   }).push.knockdown;
 }
@@ -341,8 +341,8 @@ describe("block dice against a Sidestep defender on the sideline", () => {
       { x: 0, y: 0, skills: [SkillType.SIDESTEP] }
     );
     const faces = blockFaces(readBoard(game, "team1"), {
-      attacker: fixtureValue(game.ctx.team1.players[0]),
-      defender: fixtureValue(game.ctx.team2.players[0]),
+      attacker: fixtureValue(game.ctx.teams[0].players[0]),
+      defender: fixtureValue(game.ctx.teams[1].players[0]),
     });
     expect({
       push: faces.push.knockdown,
@@ -409,8 +409,8 @@ describe("block dice against a Sidestep defender on the sideline", () => {
 describe("push choices on a walled pitch", () => {
   it("pushes into the crowd past the end line before the sideline wall", () => {
     const game = pinGame(STREET, { x: 0, y: 1 }, { x: 0, y: 0 });
-    const attacker = fixtureValue(game.ctx.team1.players[0]);
-    const defender = fixtureValue(game.ctx.team2.players[0]);
+    const attacker = fixtureValue(game.ctx.teams[0].players[0]);
+    const defender = fixtureValue(game.ctx.teams[1].players[0]);
     const options = [
       { x: 0, y: -1 },
       { x: -1, y: -1 },
@@ -473,7 +473,7 @@ async function stationaryBlitzValues(movementUsed: (ma: number) => number) {
       },
     },
   });
-  const carrier = fixtureValue(subject.ctx.team1.players[0]);
+  const carrier = fixtureValue(subject.ctx.teams[0].players[0]);
   subject.ctx.gameService
     .getState()
     .turn.movementUsed.set(carrier.id, movementUsed(carrier.stats.MA));

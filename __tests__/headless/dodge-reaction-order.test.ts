@@ -26,9 +26,9 @@ const scenario: Scenario = {
 
 async function dodgeAway(dice: number[]) {
   const game = new HeadlessGame({ scenario, seed: 1 });
-  game.ctx.team1.rerolls = 0;
-  const dodger = game.ctx.team1.players[0];
-  const [shadower, diver] = game.ctx.team2.players;
+  game.ctx.teams[0].rerolls = 0;
+  const dodger = game.ctx.teams[0].players[0];
+  const [shadower, diver] = game.ctx.teams[1].players;
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(dodger).id,

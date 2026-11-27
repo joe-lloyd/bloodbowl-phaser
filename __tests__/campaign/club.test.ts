@@ -119,7 +119,7 @@ function foundClubs(): string[] {
 
 function checkSquad(where: string, gameType: GameType, game: HeadlessGame): void {
   const draft = draftRulesFor(gameType);
-  for (const team of [game.ctx.team1, game.ctx.team2]) {
+  for (const team of [game.ctx.teams[0], game.ctx.teams[1]]) {
     const squad = new Set(squadIds(mustLoad(team.id), gameType));
     for (const player of team.players) {
       if (player.playerKind !== "journeyman" && !squad.has(player.id))

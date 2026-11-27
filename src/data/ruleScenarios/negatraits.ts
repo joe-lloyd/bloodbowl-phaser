@@ -1543,10 +1543,10 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "A Lineman joins the Reserves after a Dead casualty",
             matches: (r) =>
               skillTriggered(r, SkillType.PLAGUE_RIDDEN) &&
-              r.game.ctx.team1.players.length > 7,
+              r.game.ctx.teams[0].players.length > 7,
             verify: (r) => {
-              const team1 = r.game.ctx.team1;
-              const team2 = r.game.ctx.team2;
+              const team1 = r.game.ctx.teams[0];
+              const team2 = r.game.ctx.teams[1];
               assert(
                 team1.players.length === 8,
                 "exactly one reinforcement is added to the killer's team"

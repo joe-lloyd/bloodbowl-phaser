@@ -11,7 +11,7 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 it("executes a recorded Stand Up declaration and its stand-up", async () => {
   const scenario = fixtureValue(SCENARIOS.find(({ id }) => id === "base-move"));
   const game = new HeadlessGame({ scenario, seed: 1 });
-  const playerId = fixtureValue(game.ctx.team1.players[1]).id;
+  const playerId = fixtureValue(game.ctx.teams[0].players[1]).id;
   const declared = await game.execute({
     type: "declare-action",
     playerId,

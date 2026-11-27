@@ -26,10 +26,10 @@ const BONE_HEAD_FAILS_SEED = 7;
 describe("re-roll for an activation roll", () => {
   it("names the Bone Head roll", async () => {
     const game = new HeadlessGame({ scenario, seed: BONE_HEAD_FAILS_SEED });
-    game.ctx.team1.rerolls = 1;
+    game.ctx.teams[0].rerolls = 1;
     const response = await game.execute({
       type: "declare-action",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       action: "move",
     });
     expect(response.pendingDecision).toMatchObject({

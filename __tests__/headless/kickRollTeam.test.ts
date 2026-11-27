@@ -10,7 +10,7 @@ describe("kick-off dice", () => {
       SCENARIOS.find((s) => s.id === "kickoff-test")
     );
     const game = new HeadlessGame({ scenario, seed: 5 });
-    const kicker = game.ctx.team1.players[0];
+    const kicker = game.ctx.teams[0].players[0];
     const response = await game.execute({
       type: "kick-ball",
       playerId: fixtureValue(kicker).id,
@@ -27,9 +27,9 @@ describe("kick-off dice", () => {
       .filter((roll) => /^Kickoff (Deviate|Event)/.test(roll.rollType))
       .map((roll) => [roll.rollType, roll.teamId]);
     expect(kickRolls).toEqual([
-      ["Kickoff Deviate Direction", game.ctx.team1.id],
-      ["Kickoff Deviate Distance", game.ctx.team1.id],
-      ["Kickoff Event", game.ctx.team1.id],
+      ["Kickoff Deviate Direction", game.ctx.teams[0].id],
+      ["Kickoff Deviate Distance", game.ctx.teams[0].id],
+      ["Kickoff Event", game.ctx.teams[0].id],
     ]);
   });
 });

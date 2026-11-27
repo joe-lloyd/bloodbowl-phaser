@@ -35,7 +35,7 @@ async function passOverDefender(skills: SkillType[]) {
     scenario: scenario(skills),
     seed: ACCURATE_PASS_SEED,
   });
-  const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+  const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: passerId,

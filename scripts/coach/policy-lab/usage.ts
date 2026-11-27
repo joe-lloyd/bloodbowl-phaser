@@ -81,12 +81,12 @@ interface Pending {
 export async function usageOfTrace(file: string, id: string) {
   const { recording, game } = openTrace(file);
   const rosters = [
-    game.ctx.team1.rosterName,
-    game.ctx.team2.rosterName,
+    game.ctx.teams[0].rosterName,
+    game.ctx.teams[1].rosterName,
   ] as const;
   const sides = new Map([
-    [game.ctx.team1.id, 0 as const],
-    [game.ctx.team2.id, 1 as const],
+    [game.ctx.teams[0].id, 0 as const],
+    [game.ctx.teams[1].id, 1 as const],
   ]);
   const byPlay: [Record<string, Tally>, Record<string, Tally>] = [{}, {}];
   const moments: Moment[] = [];

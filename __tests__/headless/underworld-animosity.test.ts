@@ -51,8 +51,8 @@ function scenario(position: string): Scenario {
 describe.each(SKAVEN)("Underworld %s", (position) => {
   it("rolls Animosity before handing off to a Goblin", async () => {
     const game = new HeadlessGame({ scenario: scenario(position), seed: SEED });
-    const passer = game.ctx.team1.players[1];
-    const target = game.ctx.team1.players[2];
+    const passer = game.ctx.teams[0].players[1];
+    const target = game.ctx.teams[0].players[2];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(passer).id,

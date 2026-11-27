@@ -17,8 +17,8 @@ import {
 } from "../../src/game/presentation/boardState";
 
 const allPlayers = (game: HeadlessGame) => [
-  ...game.ctx.team1.players,
-  ...game.ctx.team2.players,
+  ...game.ctx.teams[0].players,
+  ...game.ctx.teams[1].players,
 ];
 
 const boardOf = (game: HeadlessGame) => ({
@@ -57,7 +57,7 @@ const MID_ROUTE_PATH = [
 
 async function runMidRoutePickup(seed: number) {
   const game = new HeadlessGame({ scenario: midRoutePickupScenario(), seed });
-  const runner = game.ctx.team1.players[0];
+  const runner = game.ctx.teams[0].players[0];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(runner).id,
@@ -162,7 +162,7 @@ function koScenario(): Scenario {
 
 async function knockOut(seed: number) {
   const game = new HeadlessGame({ scenario: koScenario(), seed });
-  const victim = game.ctx.team2.players[0];
+  const victim = game.ctx.teams[1].players[0];
   const square = { ...fixtureValue(fixtureValue(victim).gridPosition) };
 
   const { InjuryOperation } =
@@ -196,7 +196,7 @@ describe("knocked-out players leave the pitch immediately", () => {
 
     expect(game.ctx.gameService.getPlayerAt(square.x, square.y)).toBeFalsy();
 
-    const attacker = game.ctx.team1.players[0];
+    const attacker = game.ctx.teams[0].players[0];
     const legal = await game.execute({
       type: "legal-actions",
       playerId: fixtureValue(attacker).id,
@@ -216,7 +216,7 @@ describe("knocked-out players leave the pitch immediately", () => {
 
   it("announces the status change so the board can move the sprite", async () => {
     const game = new HeadlessGame({ scenario: koScenario(), seed: 1 });
-    const victim = game.ctx.team2.players[0];
+    const victim = game.ctx.teams[1].players[0];
     const announced: string[] = [];
     game.ctx.eventBus.on(GameEventNames.PlayerStatusChanged, (player) => {
       if (
@@ -264,7 +264,7 @@ describe("restored activation state is visibly reconciled", () => {
 
   it("carries activated and available players through a save/resume", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
-    const [used, spare] = game.ctx.team1.players;
+    const [used, spare] = game.ctx.teams[0].players;
 
     await game.execute({
       type: "declare-action",
@@ -283,10 +283,10 @@ describe("restored activation state is visibly reconciled", () => {
 
     const save = createMatchSave({
       state: game.ctx.gameService.getState(),
-      teams: [game.ctx.team1, game.ctx.team2],
+      teams: [game.ctx.teams[0], game.ctx.teams[1]],
       drive: {
-        kickingTeamId: game.ctx.team2.id,
-        receivingTeamId: game.ctx.team1.id,
+        kickingTeamId: game.ctx.teams[1].id,
+        receivingTeamId: game.ctx.teams[0].id,
       },
       rng: game.ctx.rng.captureState(),
       matchStats: game.ctx.matchStats.captureState(),
@@ -329,7 +329,7 @@ describe("Punt declares a kick presentation event", () => {
 
   async function punt() {
     const game = new HeadlessGame({ scenario: puntScenario, seed: 11 });
-    const punter = game.ctx.team1.players[0];
+    const punter = game.ctx.teams[0].players[0];
     await game.execute({
       type: "declare-action",
       playerId: fixtureValue(punter).id,
@@ -434,10 +434,10 @@ describe("Punt declares a kick presentation event", () => {
     await game.ctx.gameService.getFlowContext().flowManager.whenIdle();
     const save = createMatchSave({
       state: game.ctx.gameService.getState(),
-      teams: [game.ctx.team1, game.ctx.team2],
+      teams: [game.ctx.teams[0], game.ctx.teams[1]],
       drive: {
-        kickingTeamId: game.ctx.team2.id,
-        receivingTeamId: game.ctx.team1.id,
+        kickingTeamId: game.ctx.teams[1].id,
+        receivingTeamId: game.ctx.teams[0].id,
       },
       rng: game.ctx.rng.captureState(),
       matchStats: game.ctx.matchStats.captureState(),

@@ -36,7 +36,7 @@ async function kickedIntoCharge(activeTeam: "team1" | "team2") {
     const game = new HeadlessGame({ scenario: scenario(activeTeam), seed });
     const kicked = await game.execute({
       type: "kick-ball",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -59,8 +59,8 @@ function board(game: HeadlessGame) {
     },
   });
   const scene = {
-    team1: game.ctx.team1,
-    team2: game.ctx.team2,
+    team1: game.ctx.teams[0],
+    team2: game.ctx.teams[1],
     events: { on: vi.fn(), off: vi.fn() },
     highlightPlayer: vi.fn(),
     unhighlightPlayer: vi.fn(),
@@ -115,7 +115,8 @@ describe("Charge! click-to-move on the board", () => {
     async ({ activeTeam, prepare }) => {
       const game = await kickedIntoCharge(activeTeam);
       const gs = game.ctx.gameService;
-      const { eventBus, team1, team2 } = game.ctx;
+      const { eventBus } = game.ctx;
+      const [team1, team2] = game.ctx.teams;
       const controller = board(game);
       const chargers = [
         fixtureValue(team1.players[1]).id,
@@ -169,7 +170,7 @@ describe("Charge! click-to-move on the board", () => {
   it("refuses a click-to-move for anyone who was not picked", async () => {
     const game = await kickedIntoCharge("team2");
     const gs = game.ctx.gameService;
-    const { team1, team2 } = game.ctx;
+    const [team1, team2] = game.ctx.teams;
     const controller = board(game);
     const charger = fixtureValue(team1.players[1]).id;
     controller.handlePlayerClick(charger);
@@ -188,7 +189,8 @@ describe("Charge! Blitz block from the block dialog", () => {
   it("rolls the dice and applies the picked result during KICKOFF", async () => {
     const game = await kickedIntoCharge("team2");
     const gs = game.ctx.gameService;
-    const { eventBus, team1, team2 } = game.ctx;
+    const { eventBus } = game.ctx;
+    const [team1, team2] = game.ctx.teams;
     const attacker = team1.players[1];
     const defender = team2.players[1];
     await game.execute({

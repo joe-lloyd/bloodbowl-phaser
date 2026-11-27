@@ -16,7 +16,7 @@ async function touchbackWaiting() {
     const game = new HeadlessGame({ scenario: kickoffScenario, seed });
     let response = await game.execute({
       type: "kick-ball",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       x: 19,
       y: 0,
     });
@@ -34,7 +34,7 @@ describe("a resync around a touchback", () => {
     peer.adoptPending(game.pendingDecision());
     const taken = await peer.execute({
       type: "touchback",
-      playerId: fixtureValue(peer.ctx.team2.players[1]).id,
+      playerId: fixtureValue(peer.ctx.teams[1].players[1]).id,
     });
     expect(taken.ok).toBe(true);
   });
@@ -54,7 +54,7 @@ describe("a resync around a touchback", () => {
     state.activeTeamId = "team2";
     const kicked = await peer.execute({
       type: "kick-ball",
-      playerId: fixtureValue(peer.ctx.team1.players[0]).id,
+      playerId: fixtureValue(peer.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -68,7 +68,7 @@ describe("an online reload during a later drive's Charge", () => {
     const gs = game.ctx.gameService;
     gs.startGame("team1");
     gs.resetDriveState();
-    for (const [team, x] of [[game.ctx.team1, 5], [game.ctx.team2, 14]] as const)
+    for (const [team, x] of [[game.ctx.teams[0], 5], [game.ctx.teams[1], 14]] as const)
       for (const [index, player] of team.players.slice(0, 7).entries()) {
         player.gridPosition = { x, y: index + 2 };
         player.status = "Active";
@@ -84,15 +84,14 @@ describe("an online reload during a later drive's Charge", () => {
       selectionLimit: 1,
     });
     await settle();
-    await game.execute({ type: "kickoff-select-player", playerId: fixtureValue(game.ctx.team2.players[1]).id });
+    await game.execute({ type: "kickoff-select-player", playerId: fixtureValue(game.ctx.teams[1].players[1]).id });
     await game.execute({ type: "kickoff-confirm" });
 
     const snapshot = gameSnapshotSchema.parse(structuredClone(game.snapshot()));
-    const teams = [structuredClone(game.ctx.team1), structuredClone(game.ctx.team2)] as const;
+    const teams = [structuredClone(game.ctx.teams[0]), structuredClone(game.ctx.teams[1])] as const;
     applySnapshotToTeams(snapshot, [...teams]);
     const restored = new HeadlessGame({
-      team1: teams[0],
-      team2: teams[1],
+      teams: [teams[0], teams[1]],
       initialState: deserializeGameState(snapshot),
       ...(snapshot.turnManager && { turnManagerState: snapshot.turnManager }),
       kickingTeamId: snapshot.turnManager?.driveKickingTeamId ?? null,

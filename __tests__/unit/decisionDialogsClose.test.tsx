@@ -23,9 +23,9 @@ describe("decision dialogs close once the decision is settled", () => {
   beforeEach(() => {
     const game = new HeadlessGame({ seed: 1 });
     eventBus = new EventBus();
-    ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
-    playerId = fixtureValue(game.ctx.team1.players[0]).id;
-    teamId = game.ctx.team1.id;
+    ServiceContainer.initialize({ eventBus: eventBus, teams: [game.ctx.teams[0], game.ctx.teams[1]] });
+    playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    teamId = game.ctx.teams[0].id;
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);

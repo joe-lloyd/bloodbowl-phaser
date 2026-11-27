@@ -37,7 +37,7 @@ describe("ball & chain protocol round-trip", () => {
       },
     };
     const game = new HeadlessGame({ scenario: openGround, seed: 1 });
-    const fanaticId = fixtureValue(game.ctx.team1.players[FANATIC_INDEX]).id;
+    const fanaticId = fixtureValue(game.ctx.teams[0].players[FANATIC_INDEX]).id;
 
     await game.execute({
       type: "declare-action",
@@ -54,7 +54,7 @@ describe("ball & chain protocol round-trip", () => {
     expect(res.ok).toBe(true);
     expect(game.ctx.gameService.getMovementUsed(fanaticId)).toBe(1);
     expect(
-      fixtureValue(game.ctx.team1.players[FANATIC_INDEX]).gridPosition?.x
+      fixtureValue(game.ctx.teams[0].players[FANATIC_INDEX]).gridPosition?.x
     ).toBe(6);
     expect(game.ctx.gameService.hasPlayerActed(fanaticId)).toBe(false);
 
@@ -64,7 +64,7 @@ describe("ball & chain protocol round-trip", () => {
 
   it("refuses a Standing Fanatic any action other than Ball & Chain", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const fanaticId = fixtureValue(game.ctx.team1.players[FANATIC_INDEX]).id;
+    const fanaticId = fixtureValue(game.ctx.teams[0].players[FANATIC_INDEX]).id;
 
     const move = await game.execute({
       type: "declare-action",

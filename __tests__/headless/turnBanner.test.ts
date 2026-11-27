@@ -30,7 +30,7 @@ describe("turn change banner", () => {
     expect(banners).toEqual([
       {
         kind: "turn-started",
-        headline: `${possessive(game.ctx.team2.name)} Turn`,
+        headline: `${possessive(game.ctx.teams[1].name)} Turn`,
         subtitle: expectedSubtitle,
       },
     ]);

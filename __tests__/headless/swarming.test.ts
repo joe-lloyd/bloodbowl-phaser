@@ -44,12 +44,12 @@ function snotlings(linemen = 7): Team {
 async function setUp(game: HeadlessGame) {
   const started = await game.execute({
     type: "start-setup",
-    kickingTeamId: game.ctx.team1.id,
+    kickingTeamId: game.ctx.teams[0].id,
   });
   expect(started.ok).toBe(true);
   for (const [team, isTeam1] of [
-    [game.ctx.team1, true],
-    [game.ctx.team2, false],
+    [game.ctx.teams[0], true],
+    [game.ctx.teams[1], false],
   ] as const) {
     const formation = fixtureValue(
       new FormationManager().getBuiltInFormations(isTeam1)[0]
@@ -72,7 +72,7 @@ function gameWith(
   team1: Team,
   team2 = createReadyMadeTeam(RosterName.HUMAN, "Visitors", 1)
 ) {
-  const game = new HeadlessGame({ seed: 17, team1, team2 });
+  const game = new HeadlessGame({ seed: 17, teams: [team1, team2] });
   const rollDieSpy = vi.spyOn(game.ctx.rng, "rollDie").mockReturnValue(6);
   return Object.assign(game, { rollDieSpy });
 }
@@ -85,16 +85,16 @@ describe("2025 Swarming through the match protocol", () => {
     expect(game.rollDieSpy.mock.calls).toHaveLength(1);
     await game.execute({
       type: "start-setup",
-      kickingTeamId: game.ctx.team1.id,
+      kickingTeamId: game.ctx.teams[0].id,
     });
     expect(game.snapshot().setup?.swarming).toEqual(allowance);
     expect(game.rollDieSpy.mock.calls).toHaveLength(1);
-    await game.execute({ type: "confirm-setup", teamId: game.ctx.team1.id });
+    await game.execute({ type: "confirm-setup", teamId: game.ctx.teams[0].id });
     game.ctx.gameService.resetDriveState();
     await setUp(game);
     expect(game.rollDieSpy.mock.calls).toHaveLength(2);
     expect(
-      game.ctx.gameService.getSetupStatus(game.ctx.team1.id)?.swarming
+      game.ctx.gameService.getSetupStatus(game.ctx.teams[0].id)?.swarming
         ?.additionalPlayerCount
     ).toBe(0);
   });
@@ -106,7 +106,7 @@ describe("2025 Swarming through the match protocol", () => {
     await setUp(game);
     expect(game.snapshot().phase).toBe(GamePhase.KICKOFF);
     expect(
-      game.ctx.team1.players.filter((player) => player.gridPosition)
+      game.ctx.teams[0].players.filter((player) => player.gridPosition)
     ).toHaveLength(7);
     expect(game.rollDieSpy.mock.calls).toHaveLength(0);
   });
@@ -124,7 +124,7 @@ describe("2025 Swarming through the match protocol", () => {
     });
     expect(legal.canApplyPreset).toBe(false);
     expect(legal.canConfirm).toBe(true);
-    const reserve = game.ctx.team1.players[7];
+    const reserve = game.ctx.teams[0].players[7];
     const neutral = await game.execute({
       type: "place-player",
       playerId: fixtureValue(reserve).id,
@@ -136,28 +136,28 @@ describe("2025 Swarming through the match protocol", () => {
     for (const [index, y] of [2, 3, 7].entries()) {
       const placed = await game.execute({
         type: "place-player",
-        playerId: fixtureValue(game.ctx.team1.players[7 + index]).id,
+        playerId: fixtureValue(game.ctx.teams[0].players[7 + index]).id,
         x: 6,
         y,
       });
       expect(placed.ok).toBe(true);
     }
     expect(
-      game.ctx.team1.players.filter((player) => player.gridPosition)
+      game.ctx.teams[0].players.filter((player) => player.gridPosition)
     ).toHaveLength(10);
     const team1Confirmed = await game.execute({
       type: "confirm-setup",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
     });
     expect(team1Confirmed.ok).toBe(true);
     expect(game.snapshot().phase).toBe(GamePhase.KICKOFF);
-    expect(game.snapshot().activeTeamId).toBe(game.ctx.team2.id);
+    expect(game.snapshot().activeTeamId).toBe(game.ctx.teams[1].id);
   });
 
   it("keeps confirmed players in place and refuses reserve positionals", async () => {
     const game = gameWith(snotlings());
     await setUp(game);
-    const base = game.ctx.team1.players[0];
+    const base = game.ctx.teams[0].players[0];
     const position = { ...fixtureValue(fixtureValue(base).gridPosition) };
     const basePlaced = await game.execute({
       type: "place-player",
@@ -173,7 +173,7 @@ describe("2025 Swarming through the match protocol", () => {
     expect(fixtureValue(base).gridPosition).toEqual(position);
     const eighthPlaced = await game.execute({
       type: "place-player",
-      playerId: fixtureValue(game.ctx.team1.players[10]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[10]).id,
       x: 1,
       y: 2,
     });
@@ -181,7 +181,7 @@ describe("2025 Swarming through the match protocol", () => {
     const swapped = await game.execute({
       type: "swap-players",
       player1Id: fixtureValue(base).id,
-      player2Id: fixtureValue(game.ctx.team1.players[7]).id,
+      player2Id: fixtureValue(game.ctx.teams[0].players[7]).id,
     });
     expect(swapped.ok).toBe(false);
   });
@@ -192,14 +192,14 @@ describe("2025 Swarming through the match protocol", () => {
     await setUp(game);
     const firstAddition = await game.execute({
       type: "place-player",
-      playerId: fixtureValue(game.ctx.team1.players[7]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[7]).id,
       x: 5,
       y: 4,
     });
     expect(firstAddition.ok).toBe(true);
     const secondAddition = await game.execute({
       type: "place-player",
-      playerId: fixtureValue(game.ctx.team1.players[8]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[8]).id,
       x: 5,
       y: 5,
     });
@@ -208,10 +208,10 @@ describe("2025 Swarming through the match protocol", () => {
     await setUp(declined);
     await declined.execute({
       type: "confirm-setup",
-      teamId: declined.ctx.team1.id,
+      teamId: declined.ctx.teams[0].id,
     });
     expect(
-      declined.ctx.team1.players.filter((player) => player.gridPosition)
+      declined.ctx.teams[0].players.filter((player) => player.gridPosition)
     ).toHaveLength(7);
     expect(declined.snapshot().phase).toBe(GamePhase.KICKOFF);
   });
@@ -228,7 +228,7 @@ describe("2025 Swarming through the match protocol", () => {
     ).toBe(1);
     const hurt = snotlings();
     const noReserves = gameWith(hurt);
-    for (const player of noReserves.ctx.team1.players.slice(7))
+    for (const player of noReserves.ctx.teams[0].players.slice(7))
       player.status = PlayerStatus.KO;
     await setUp(noReserves);
     expect(noReserves.snapshot().phase).toBe(GamePhase.KICKOFF);
@@ -239,7 +239,7 @@ describe("2025 Swarming through the match protocol", () => {
     await setUp(game);
     await game.execute({
       type: "place-player",
-      playerId: fixtureValue(game.ctx.team1.players[7]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[7]).id,
       x: 5,
       y: 4,
     });
@@ -249,7 +249,7 @@ describe("2025 Swarming through the match protocol", () => {
     });
     const rng = resumed.ctx.rng.captureState();
     expect(
-      resumed.ctx.gameService.getSetupStatus(game.ctx.team1.id)?.swarming
+      resumed.ctx.gameService.getSetupStatus(game.ctx.teams[0].id)?.swarming
     ).toEqual({
       roll: 3,
       maximumAdditionalPlayers: 3,
@@ -257,9 +257,9 @@ describe("2025 Swarming through the match protocol", () => {
     });
     await resumed.execute({ type: "legal-actions" });
     expect(resumed.ctx.rng.captureState()).toEqual(rng);
-    await resumed.execute({ type: "confirm-setup", teamId: game.ctx.team1.id });
+    await resumed.execute({ type: "confirm-setup", teamId: game.ctx.teams[0].id });
     expect(
-      resumed.ctx.team1.players.filter((player) => player.gridPosition)
+      resumed.ctx.teams[0].players.filter((player) => player.gridPosition)
     ).toHaveLength(8);
     expect(resumed.snapshot().phase).toBe(GamePhase.KICKOFF);
   });
@@ -267,9 +267,9 @@ describe("2025 Swarming through the match protocol", () => {
   it("offers both coaches their own allowance and lets the computer place extras", async () => {
     const game = gameWith(snotlings(), snotlings());
     await setUp(game);
-    for (const team of [game.ctx.team1, game.ctx.team2]) {
+    for (const team of [game.ctx.teams[0], game.ctx.teams[1]]) {
       expect(game.snapshot().activeTeamId).toBe(team.id);
-      const choice = await enumerateDecision(game, game.ctx.team1.id);
+      const choice = await enumerateDecision(game, game.ctx.teams[0].id);
       expect(fixtureValue(choice.candidates[0]).label).toContain("Swarming");
       const commands = fixtureValue(choice.candidates[0]).commands;
       for (const command of commands) {

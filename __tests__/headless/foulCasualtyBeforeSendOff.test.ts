@@ -25,7 +25,7 @@ async function foul(seed: number) {
       },
     },
   });
-  const fouler = game.ctx.team1.players[0];
+  const fouler = game.ctx.teams[0].players[0];
   await game.execute({
     type: "declare-action",
     playerId: fixtureValue(fouler).id,

@@ -24,7 +24,7 @@ async function actionsFor(x: number) {
   });
   const response = await game.execute({ type: "legal-actions" });
   return response.legalActions?.players.find(
-    (p) => p.playerId === fixtureValue(game.ctx.team1.players[0]).id
+    (p) => p.playerId === fixtureValue(game.ctx.teams[0].players[0]).id
   )?.actions;
 }
 

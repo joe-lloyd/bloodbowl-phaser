@@ -40,8 +40,8 @@ function foulGame(
       },
     },
   });
-  const fouler = game.ctx.team1.players[0];
-  const target = game.ctx.team2.players[0];
+  const fouler = game.ctx.teams[0].players[0];
+  const target = game.ctx.teams[1].players[0];
   const armourRolls: string[] = [];
   game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ rollType, description }) => {
     if (rollType.startsWith("Foul Armour Roll")) armourRolls.push(description);

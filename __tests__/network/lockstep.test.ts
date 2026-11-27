@@ -50,9 +50,9 @@ async function pair(seed: number) {
       transport,
       game,
       selfId: `${side}-uid`,
-      myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
-      peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
-      hostTeamId: game.ctx.team1.id,
+      myTeamId: side === "host" ? game.ctx.teams[0].id : game.ctx.teams[1].id,
+      peerTeamId: side === "host" ? game.ctx.teams[1].id : game.ctx.teams[0].id,
+      hostTeamId: game.ctx.teams[0].id,
       onResynced: () => resyncs[side]++,
     });
   return {
@@ -165,9 +165,9 @@ describe("lockstep sessions", () => {
       transport: guestEnd,
       game: reloaded,
       selfId: "guest-uid",
-      myTeamId: reloaded.ctx.team2.id,
-      peerTeamId: reloaded.ctx.team1.id,
-      hostTeamId: reloaded.ctx.team1.id,
+      myTeamId: reloaded.ctx.teams[1].id,
+      peerTeamId: reloaded.ctx.teams[0].id,
+      hostTeamId: reloaded.ctx.teams[0].id,
       onResynced: () => resyncs.guest++,
     });
     await after.sendHello();
@@ -191,14 +191,13 @@ describe("lockstep sessions", () => {
       seed: 8128,
       startingPhase: GamePhase.SETUP,
       startingSubPhase: SubPhase.INTRO,
-      team1: structuredClone(hostGame.ctx.team1),
-      team2: structuredClone(hostGame.ctx.team2),
+      teams: [structuredClone(hostGame.ctx.teams[0]), structuredClone(hostGame.ctx.teams[1])],
     });
     const [hostEnd, guestEnd] = createInMemoryTransportPair();
     const ids = {
-      hostTeamId: hostGame.ctx.team1.id,
-      myTeamId: hostGame.ctx.team1.id,
-      peerTeamId: hostGame.ctx.team2.id,
+      hostTeamId: hostGame.ctx.teams[0].id,
+      myTeamId: hostGame.ctx.teams[0].id,
+      peerTeamId: hostGame.ctx.teams[1].id,
     };
     const desyncs: string[] = [];
     const onDesync = (detail: string) => { desyncs.push(detail); };
@@ -225,26 +224,26 @@ describe("lockstep sessions", () => {
     );
 
     const [hostEarly, guestReady] = await Promise.all([
-      host.run({ type: "ready-weather", teamId: hostGame.ctx.team1.id }),
-      guest.run({ type: "ready-weather", teamId: hostGame.ctx.team2.id }),
+      host.run({ type: "ready-weather", teamId: hostGame.ctx.teams[0].id }),
+      guest.run({ type: "ready-weather", teamId: hostGame.ctx.teams[1].id }),
     ]);
     await settle(host, guest);
     expect(hostEarly).toMatchObject({ ok: false, reason: "not-your-turn" });
     expect(guestReady.ok).toBe(true);
 
     expect(rolls).toEqual([]);
-    expect(hostGame.snapshot().weatherReady).toEqual([hostGame.ctx.team2.id]);
+    expect(hostGame.snapshot().weatherReady).toEqual([hostGame.ctx.teams[1].id]);
     expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
 
     const forOther = await guest.run({
       type: "ready-weather",
-      teamId: hostGame.ctx.team1.id,
+      teamId: hostGame.ctx.teams[0].id,
     });
     expect(forOther.ok).toBe(false);
 
     const hostReady = await host.run({
       type: "ready-weather",
-      teamId: hostGame.ctx.team1.id,
+      teamId: hostGame.ctx.teams[0].id,
     });
     await settle(host, guest);
 
@@ -263,9 +262,9 @@ describe("lockstep sessions", () => {
       transport: guestEnd,
       game: guestGame,
       selfId: "guest-uid",
-      myTeamId: guestGame.ctx.team2.id,
-      peerTeamId: guestGame.ctx.team1.id,
-      hostTeamId: guestGame.ctx.team1.id,
+      myTeamId: guestGame.ctx.teams[1].id,
+      peerTeamId: guestGame.ctx.teams[0].id,
+      hostTeamId: guestGame.ctx.teams[0].id,
       onPeerCommand: (command) => {
         if (command.type !== "move") return;
         const player = guestGame.ctx.gameService.getPlayerById(
@@ -364,7 +363,7 @@ describe("lockstep sessions send before they animate", () => {
   it("refuses a command as late for the turn when the turn ends while the screen plays out", async () => {
     const { recording, hostGame, guestGame, host, guest, guestEnd, resyncs } =
       await pair(4242);
-    const hostTeam = hostGame.ctx.team1.id;
+    const hostTeam = hostGame.ctx.teams[0].id;
     let late: { ok: boolean; reason?: string } | null = null;
     const sent: string[] = [];
     for (const step of recording.steps) {

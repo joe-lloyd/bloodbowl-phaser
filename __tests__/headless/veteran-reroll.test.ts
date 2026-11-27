@@ -84,20 +84,20 @@ const BLOCK_POW_SEED = 2;
 
 function newGame(scenario: Scenario, seed: number, veteranIndex: number) {
   const game = new HeadlessGame({ scenario, seed });
-  game.ctx.team1.rerolls = 0;
-  fixtureValue(game.ctx.team1.players[veteranIndex]).veteran = true;
+  game.ctx.teams[0].rerolls = 0;
+  fixtureValue(game.ctx.teams[0].players[veteranIndex]).veteran = true;
   return game;
 }
 
 async function pickUp(game: HeadlessGame): Promise<CommandResponse> {
-  const id = fixtureValue(game.ctx.team1.players[0]).id;
+  const id = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({ type: "declare-action", playerId: id, action: "move" });
   return game.execute({ type: "move", playerId: id, path: [{ x: 5, y: 5 }] });
 }
 
 async function block(game: HeadlessGame): Promise<CommandResponse> {
-  const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
-  const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
+  const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+  const defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: attackerId,
@@ -130,7 +130,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
 
   it("spending it re-rolls the pick-up and marks it used for the game", async () => {
     const game = newGame(pickupScenario, PICKUP_FAILS_SEED, 0);
-    const veteranId = fixtureValue(game.ctx.team1.players[0]).id;
+    const veteranId = fixtureValue(game.ctx.teams[0].players[0]).id;
     await pickUp(game);
 
     const accepted = await game.execute({
@@ -154,7 +154,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
 
   it("is offered alongside a Team Re-roll", async () => {
     const game = newGame(pickupScenario, PICKUP_FAILS_SEED, 0);
-    game.ctx.team1.rerolls = 2;
+    game.ctx.teams[0].rerolls = 2;
     const moved = await pickUp(game);
 
     expect(
@@ -165,7 +165,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
   it("is not offered again once used this game", async () => {
     const game = newGame(pickupScenario, PICKUP_FAILS_SEED, 0);
     game.ctx.gameService.getState().veteranRerollsUsed = [
-      fixtureValue(game.ctx.team1.players[0]).id,
+      fixtureValue(game.ctx.teams[0].players[0]).id,
     ];
     const moved = await pickUp(game);
 
@@ -177,7 +177,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
 
   it("does not cover a failed dodge", async () => {
     const game = newGame(pickupScenario, PICKUP_FAILS_SEED, 1);
-    const dodgerId = fixtureValue(game.ctx.team1.players[1]).id;
+    const dodgerId = fixtureValue(game.ctx.teams[0].players[1]).id;
     await game.execute({
       type: "declare-action",
       playerId: dodgerId,
@@ -197,7 +197,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
 
   it("offers the Veteran re-roll on a failed catch", async () => {
     const game = newGame(handoffScenario, CATCH_FAILS_SEED, 1);
-    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passerId,
@@ -206,7 +206,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
     const handed = await game.execute({
       type: "handoff",
       playerId: passerId,
-      targetId: fixtureValue(game.ctx.team1.players[1]).id,
+      targetId: fixtureValue(game.ctx.teams[0].players[1]).id,
     });
 
     const pending = handed.pendingDecision;
@@ -216,7 +216,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
 
   it("offers the Veteran re-roll on a failed Pass Action roll", async () => {
     const game = newGame(passScenario, PASS_FAILS_SEED, 0);
-    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const passerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passerId,
@@ -246,7 +246,7 @@ describe("Veteran re-roll on block dice (D8)", () => {
 
   it("re-rolls the block dice once", async () => {
     const game = newGame(blockScenario, BLOCK_SKULL_SEED, 0);
-    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     await block(game);
 
     const rerolled = await game.execute({

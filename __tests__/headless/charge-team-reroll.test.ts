@@ -40,7 +40,7 @@ async function chargeGame(): Promise<HeadlessGame> {
     game.ctx.gameService.seedTurnCounts(2);
     const response = await game.execute({
       type: "kick-ball",
-      playerId: fixtureValue(game.ctx.team1.players[0]).id,
+      playerId: fixtureValue(game.ctx.teams[0].players[0]).id,
       x: 14,
       y: 5,
     });
@@ -65,16 +65,16 @@ describe("Team Re-rolls during Charge!", () => {
   it("offers one Team Re-roll for the Charge, on its own ledger", async () => {
     const game = await chargeGame();
     const gs = game.ctx.gameService;
-    game.ctx.team1.rerolls = 3;
-    const [first, second] = game.ctx.team1.players;
-    const [firstMarker, secondMarker] = game.ctx.team2.players;
+    game.ctx.teams[0].rerolls = 3;
+    const [first, second] = game.ctx.teams[0].players;
+    const [firstMarker, secondMarker] = game.ctx.teams[1].players;
     fixtureValue(second).skills = [
       ...fixtureValue(second).skills,
       getSkill(SkillType.DODGE),
     ];
 
-    gs.getState().turn.teamId = game.ctx.team1.id;
-    gs.getRerollArbiter().consumeTeamReroll(game.ctx.team1.id);
+    gs.getState().turn.teamId = game.ctx.teams[0].id;
+    gs.getRerollArbiter().consumeTeamReroll(game.ctx.teams[0].id);
     expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(2);
 
     for (const player of [first, second]) {
@@ -85,7 +85,7 @@ describe("Team Re-rolls during Charge!", () => {
     }
     await game.execute({ type: "kickoff-confirm" });
     expect(deserializeGameState(game.snapshot())).toMatchObject({
-      turn: { teamId: game.ctx.team1.id },
+      turn: { teamId: game.ctx.teams[0].id },
       kick: { step: { stage: "play", event: KickoffEvent.CHARGE } },
     });
 
@@ -142,10 +142,10 @@ describe("Team Re-rolls during Charge!", () => {
 
     expect(gs.getKickoffEventStep()).toBeNull();
     expect(game.snapshot().kick?.step).toBeNull();
-    expect(gs.getState().turn.teamId).toBe(game.ctx.team2.id);
+    expect(gs.getState().turn.teamId).toBe(game.ctx.teams[1].id);
     await game.execute({ type: "end-turn" });
-    expect(gs.getState().turn.teamId).toBe(game.ctx.team1.id);
-    expect(gs.getRerollArbiter().nextTeamReroll(game.ctx.team1.id)).toBe(
+    expect(gs.getState().turn.teamId).toBe(game.ctx.teams[0].id);
+    expect(gs.getRerollArbiter().nextTeamReroll(game.ctx.teams[0].id)).toBe(
       "team"
     );
     expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(1);
@@ -155,9 +155,9 @@ describe("Team Re-rolls during Charge!", () => {
 describe("a save taken during Charge!", () => {
   it("gives the drive's first turn its Team Re-roll after a cold restore", async () => {
     const game = await chargeGame();
-    game.ctx.team1.rerolls = 3;
-    game.ctx.team2.rerolls = 3;
-    for (const player of game.ctx.team1.players.slice(0, 2)) {
+    game.ctx.teams[0].rerolls = 3;
+    game.ctx.teams[1].rerolls = 3;
+    for (const player of game.ctx.teams[0].players.slice(0, 2)) {
       await game.execute({
         type: "kickoff-select-player",
         playerId: player.id,
@@ -165,7 +165,7 @@ describe("a save taken during Charge!", () => {
     }
     await game.execute({ type: "kickoff-confirm" });
     const save = game.matchSave();
-    expect(save.snapshot.turn.teamId).toBe(game.ctx.team1.id);
+    expect(save.snapshot.turn.teamId).toBe(game.ctx.teams[0].id);
 
     const resumed = new HeadlessGame({ matchSave: save });
     const gs = resumed.ctx.gameService;
@@ -173,9 +173,9 @@ describe("a save taken during Charge!", () => {
     expect(endTurn.ok).toBe(true);
     await settle();
     expect(gs.getState().phase).toBe(GamePhase.PLAY);
-    expect(gs.getState().turn.teamId).toBe(resumed.ctx.team2.id);
+    expect(gs.getState().turn.teamId).toBe(resumed.ctx.teams[1].id);
     expect(resumed.snapshot().kick?.step).toBeNull();
-    expect(gs.getRerollArbiter().nextTeamReroll(resumed.ctx.team2.id)).toBe(
+    expect(gs.getRerollArbiter().nextTeamReroll(resumed.ctx.teams[1].id)).toBe(
       "team"
     );
   });

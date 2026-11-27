@@ -11,7 +11,7 @@ import { createInMemoryTransportPair } from "../../src/network/transport";
 import { createMatch, bloodlustDesyncScenario } from "./sessionsHarness";
 
 const status = (game: HeadlessGame, id: string) =>
-  game.ctx.team2.players.find((p) => p.id === id)?.status;
+  game.ctx.teams[1].players.find((p) => p.id === id)?.status;
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -44,7 +44,7 @@ describe("networked sessions", () => {
 
     for (let seed = 1; seed <= 60; seed++) {
       const match = createMatch({ scenario: biteScenario, seed });
-      const [vampire, first, second] = match.game.ctx.team2.players;
+      const [vampire, first, second] = match.game.ctx.teams[1].players;
       const declared = await match.guest.sendCommand({
         type: "declare-action",
         playerId: fixtureValue(vampire).id,
@@ -91,8 +91,8 @@ describe("networked sessions", () => {
 
   it("keeps a Bloodlust-committed declaration intact through a stale cancel and redeclare (regression: infinite-block desync)", async () => {
     const match = createMatch({ scenario: bloodlustDesyncScenario, seed: 5 });
-    const vampire = match.game.ctx.team2.players[0];
-    const opponent = match.game.ctx.team1.players[0];
+    const vampire = match.game.ctx.teams[1].players[0];
+    const opponent = match.game.ctx.teams[0].players[0];
 
     const response = await match.guest.sendCommand({
       type: "declare-action",
@@ -153,9 +153,9 @@ describe("networked sessions", () => {
     const hostSeenSelections: (string | null)[] = [];
     const guestSeenSelections: (string | null)[] = [];
     const ids = {
-      myTeamId: game.ctx.team1.id,
-      peerTeamId: game.ctx.team2.id,
-      hostTeamId: game.ctx.team1.id,
+      myTeamId: game.ctx.teams[0].id,
+      peerTeamId: game.ctx.teams[1].id,
+      hostTeamId: game.ctx.teams[0].id,
     };
     const host = new LockstepSession({
       ...ids,
@@ -179,12 +179,12 @@ describe("networked sessions", () => {
     });
     const before = JSON.stringify(game.snapshot());
 
-    const hostPlayerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const hostPlayerId = fixtureValue(game.ctx.teams[0].players[0]).id;
     await host.sendSelection(hostPlayerId);
     await tick();
     expect(guestSeenSelections).toEqual([hostPlayerId]);
 
-    const guestPlayerId = fixtureValue(game.ctx.team2.players[0]).id;
+    const guestPlayerId = fixtureValue(game.ctx.teams[1].players[0]).id;
     await guest.sendSelection(guestPlayerId);
     await tick();
     expect(hostSeenSelections).toEqual([guestPlayerId]);
@@ -241,8 +241,8 @@ describe("networked sessions", () => {
       },
     };
     const match = createMatch({ scenario: forceEndScenario, seed: 3 });
-    const attacker = match.game.ctx.team1.players[0];
-    const guestMover = match.game.ctx.team2.players[0];
+    const attacker = match.game.ctx.teams[0].players[0];
+    const guestMover = match.game.ctx.teams[1].players[0];
 
     const declared = await match.host.executeLocal({
       type: "declare-action",
@@ -291,10 +291,10 @@ describe("networked sessions", () => {
       },
     };
     const match = createMatch({ scenario: guestBlocks, seed: 3 });
-    match.game.ctx.team2.rerolls = 2;
-    match.guestGame.ctx.team2.rerolls = 2;
-    const [attacker] = match.game.ctx.team2.players;
-    const [defender] = match.game.ctx.team1.players;
+    match.game.ctx.teams[1].rerolls = 2;
+    match.guestGame.ctx.teams[1].rerolls = 2;
+    const [attacker] = match.game.ctx.teams[1].players;
+    const [defender] = match.game.ctx.teams[0].players;
 
     await match.guest.sendCommand({
       type: "declare-action",

@@ -53,7 +53,7 @@ async function leapEast(skill: SkillType | null) {
 
 function canJump(game: HeadlessGame): boolean {
   const gs = game.ctx.gameService;
-  const player = game.ctx.team1.players[0];
+  const player = game.ctx.teams[0].players[0];
   return computeActionAvailability({
     player: fixtureValue(player),
     ballPosition: gs.getState().ballPosition,
@@ -71,11 +71,11 @@ describe("a Jump over an empty square", () => {
 
     expect(response.ok).toBe(true);
     expect(dice).toEqual(["Jump (Human Lineman #1): 4, needs 3+"]);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 12,
       y: 5,
     });
-    expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[0]).status).toBe(
       PlayerStatus.ACTIVE
     );
   });
@@ -84,7 +84,7 @@ describe("a Jump over an empty square", () => {
     const { game, response } = await leapEast(SkillType.POGO);
 
     expect(response.ok).toBe(true);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 12,
       y: 5,
     });
@@ -95,7 +95,7 @@ describe("a Jump over an empty square", () => {
 
     expect(response.ok).toBe(false);
     expect(dice).toEqual([]);
-    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toEqual({
+    expect(fixtureValue(game.ctx.teams[0].players[0]).gridPosition).toEqual({
       x: 10,
       y: 5,
     });

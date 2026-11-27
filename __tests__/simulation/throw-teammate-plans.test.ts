@@ -91,7 +91,7 @@ async function trollAfterGoblin(turn: number) {
     ],
   });
   const coach = createPlannerCoach();
-  const [troller, gob] = subject.ctx.team1.players;
+  const [troller, gob] = subject.ctx.teams[0].players;
   await subject.execute({
     type: "declare-action",
     playerId: fixtureValue(gob).id,
@@ -116,7 +116,7 @@ describe("Throw Team-mate plans", () => {
       team1Placements: [troll(13, 5), goblin({ x: 14, MA: 2 })],
     });
     const coach = createPlannerCoach();
-    const [troller, gob] = subject.ctx.team1.players;
+    const [troller, gob] = subject.ctx.teams[0].players;
 
     const declare = await step(subject, coach);
     expect(declare.command).toEqual({
@@ -189,7 +189,7 @@ describe("Throw Team-mate plans", () => {
       team1Placements: [troll(13, 5), goblin({ x: 14, MA: 6 })],
     });
     const coach = createPlannerCoach();
-    const gob = subject.ctx.team1.players[1];
+    const gob = subject.ctx.teams[0].players[1];
 
     const { command } = await step(subject, coach);
     expect(command).toEqual({

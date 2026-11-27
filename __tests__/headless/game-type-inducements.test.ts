@@ -34,7 +34,7 @@ async function commit(
     {},
     lines.map(([inducement, quantity]) => ({
       inducement,
-      ownerTeamId: game.ctx.team1.id,
+      ownerTeamId: game.ctx.teams[0].id,
       quantity,
       remainingUses: quantity,
       price: 0,
@@ -55,7 +55,7 @@ async function catalogOf(format: MatchFormat): Promise<string[]> {
   const game = newGame(format);
   const result = await game.execute({ type: "offer-inducements" });
   const offer = fixtureValue(result.inducementOffer);
-  return fixtureValue(offer.catalogs[game.ctx.team1.id]).map(
+  return fixtureValue(offer.catalogs[game.ctx.teams[0].id]).map(
     (entry) =>
       `${entry.inducement} ${String(entry.price)} x${String(entry.maxCount)}`
   );
@@ -93,7 +93,7 @@ describe("game type inducement lists (SB-D5, BB-D5, GB-D5)", () => {
     await declineAll(game);
     const state = game.ctx.gameService.getState();
     expect(
-      [game.ctx.team1.id, game.ctx.team2.id].map((teamId) =>
+      [game.ctx.teams[0].id, game.ctx.teams[1].id].map((teamId) =>
         inducementUsesLeft(state, teamId, Inducement.MAGIC_POTION)
       )
     ).toEqual([1, 1]);
@@ -104,7 +104,7 @@ async function potionForKnockedOut(roll: number) {
   const game = newGame(STREET);
   await commit(game, []);
   await declineAll(game);
-  const patient = fixtureValue(game.ctx.team1.players[2]);
+  const patient = fixtureValue(game.ctx.teams[0].players[2]);
   movePlayerToBox(patient, { box: "ko" });
   game.ctx.gameService.flowManager.add(new PreDriveInducementsOperation());
   await settle(game);
@@ -142,7 +142,7 @@ describe("Street Bowl Magic Potions (SB-P1 to SB-P8)", () => {
   });
 
   it("Laudanum returns the player Really Stupid, Thick Skulled and 2 worse at Agility (SB-P3)", async () => {
-    const before = fixtureValue(newGame(STREET).ctx.team1.players[2]).stats.AG;
+    const before = fixtureValue(newGame(STREET).ctx.teams[0].players[2]).stats.AG;
     const { patient } = await potionForKnockedOut(3);
     expect(patient.status).toBe(PlayerStatus.RESERVE);
     expect(hasSkill(patient.skills, SkillType.REALLY_STUPID)).toBe(true);
@@ -154,7 +154,7 @@ describe("Street Bowl Magic Potions (SB-P1 to SB-P8)", () => {
     const game = newGame(STREET);
     await commit(game, []);
     await declineAll(game);
-    const patient = fixtureValue(game.ctx.team1.players[3]);
+    const patient = fixtureValue(game.ctx.teams[0].players[3]);
     patient.injuries.push(InjuryType.BADLY_HURT);
     movePlayerToBox(patient, { box: "casualty" });
     game.ctx.gameService.flowManager.add(new PreDriveInducementsOperation());
@@ -167,7 +167,7 @@ describe("Street Bowl Magic Potions (SB-P1 to SB-P8)", () => {
   });
 
   it("Fungus Beer gives +2 ST, Frenzy and Animal Savagery for the match (SB-P8)", async () => {
-    const before = fixtureValue(newGame(STREET).ctx.team1.players[2]).stats.ST;
+    const before = fixtureValue(newGame(STREET).ctx.teams[0].players[2]).stats.ST;
     const { patient } = await potionForKnockedOut(8);
     expect(patient.stats.ST).toBe(before + 2);
     expect(hasSkill(patient.skills, SkillType.FRENZY)).toBe(true);

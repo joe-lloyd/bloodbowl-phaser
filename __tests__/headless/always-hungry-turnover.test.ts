@@ -40,7 +40,7 @@ async function eatMate(mateHasBall: boolean) {
     scenario: scenario(mateHasBall),
     seed: EATEN_SEED,
   });
-  const throwerId = fixtureValue(game.ctx.team1.players[0]).id;
+  const throwerId = fixtureValue(game.ctx.teams[0].players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: throwerId,
@@ -49,7 +49,7 @@ async function eatMate(mateHasBall: boolean) {
   const response = await game.execute({
     type: "throw-teammate",
     throwerId,
-    teammateId: fixtureValue(game.ctx.team1.players[1]).id,
+    teammateId: fixtureValue(game.ctx.teams[0].players[1]).id,
     x: 8,
     y: 5,
   });
@@ -66,10 +66,10 @@ describe("Always Hungry eating a team-mate", () => {
     const { game, response, dice, throwerId } = await eatMate(false);
 
     expect(dice).toEqual(["Always Hungry: 1", "Always Hungry (Eat): 1"]);
-    expect(fixtureValue(game.ctx.team1.players[1]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[1]).status).toBe(
       PlayerStatus.DEAD
     );
-    expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
+    expect(response.snapshot.activeTeamId).toBe(game.ctx.teams[0].id);
     expect(game.ctx.gameService.hasPlayerActed(throwerId)).toBe(true);
   });
 
@@ -80,10 +80,10 @@ describe("Always Hungry eating a team-mate", () => {
       "Always Hungry: 1",
       "Always Hungry (Eat): 1",
     ]);
-    expect(fixtureValue(game.ctx.team1.players[1]).status).toBe(
+    expect(fixtureValue(game.ctx.teams[0].players[1]).status).toBe(
       PlayerStatus.DEAD
     );
-    expect(response.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+    expect(response.snapshot.activeTeamId).toBe(game.ctx.teams[1].id);
   });
 
   it("records the eaten player as Dead, without a setup refusal", async () => {
@@ -92,7 +92,7 @@ describe("Always Hungry eating a team-mate", () => {
       .filter((e) => e.name === "ui:notification")
       .map((e) => e.data);
 
-    expect(fixtureValue(game.ctx.team1.players[1]).injuries).toContain(
+    expect(fixtureValue(game.ctx.teams[0].players[1]).injuries).toContain(
       InjuryType.DEAD
     );
     expect(notes).not.toContain(

@@ -136,20 +136,20 @@ const plainLog = (id: string) =>
 describe("the dice log", () => {
   it("keeps the block roll and its Team Re-roll with the dice either side", async () => {
     const game = new HeadlessGame({ scenario, seed: SEED });
-    game.ctx.team1.rerolls = 3;
+    game.ctx.teams[0].rerolls = 3;
     const log = createDiceLog({
       id: "test",
       mode: "local",
       seed: SEED,
-      teams: [game.ctx.team1, game.ctx.team2],
+      teams: [game.ctx.teams[0], game.ctx.teams[1]],
     });
     const recorder = new DiceLogRecorder(
       game.ctx.eventBus,
       () => game.ctx.gameService.getState(),
       log
     );
-    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
+    const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -220,7 +220,7 @@ describe("the dice log", () => {
       () => game.ctx.gameService.getState(),
       log
     );
-    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const playerId = fixtureValue(game.ctx.teams[0].players[0]).id;
 
     await game.execute({ type: "declare-action", playerId, action: "move" });
     await game.execute({ type: "move", playerId, path: [{ x: 6, y: 5 }] });
@@ -294,20 +294,20 @@ describe("the dice log", () => {
 
   it("audits both coaches' copies of one online match as one match", async () => {
     const game = new HeadlessGame({ scenario, seed: SEED });
-    game.ctx.team1.rerolls = 3;
+    game.ctx.teams[0].rerolls = 3;
     const log = createDiceLog({
       id: "host",
       mode: "online",
       seed: SEED,
-      teams: [game.ctx.team1, game.ctx.team2],
+      teams: [game.ctx.teams[0], game.ctx.teams[1]],
     });
     const recorder = new DiceLogRecorder(
       game.ctx.eventBus,
       () => game.ctx.gameService.getState(),
       log
     );
-    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
-    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
+    const attackerId = fixtureValue(game.ctx.teams[0].players[0]).id;
+    const defenderId = fixtureValue(game.ctx.teams[1].players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: attackerId,

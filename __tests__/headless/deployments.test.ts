@@ -53,12 +53,12 @@ async function deploy(name: string, kicking: boolean) {
   if (kicking) {
     await game.execute({
       type: "start-setup",
-      kickingTeamId: game.ctx.team1.id,
+      kickingTeamId: game.ctx.teams[0].id,
     });
   } else {
     await game.execute({
       type: "start-setup",
-      kickingTeamId: game.ctx.team2.id,
+      kickingTeamId: game.ctx.teams[1].id,
     });
     const theirs = fixtureValue(
       new FormationManager()
@@ -67,10 +67,10 @@ async function deploy(name: string, kicking: boolean) {
     );
     await game.execute({
       type: "apply-formation",
-      teamId: game.ctx.team2.id,
+      teamId: game.ctx.teams[1].id,
       formation: theirs.positions,
     });
-    await game.execute({ type: "confirm-setup", teamId: game.ctx.team2.id });
+    await game.execute({ type: "confirm-setup", teamId: game.ctx.teams[1].id });
   }
   const formation = fixtureValue(
     new FormationManager()
@@ -79,12 +79,12 @@ async function deploy(name: string, kicking: boolean) {
   );
   const applied = await game.execute({
     type: "apply-formation",
-    teamId: game.ctx.team1.id,
+    teamId: game.ctx.teams[0].id,
     formation: formation.positions,
   });
   expect(applied.ok).toBe(true);
   return Object.fromEntries(
-    game.ctx.team1.players.map((p) => [
+    game.ctx.teams[0].players.map((p) => [
       p.positionName,
       p.gridPosition
         ? `${String(p.gridPosition.x)},${String(p.gridPosition.y)}`
@@ -97,7 +97,7 @@ async function kickingBunker(format: MatchFormat) {
   const game = new HeadlessGame({ seed: 5, team1: dwarfs(), format });
   await game.execute({
     type: "start-setup",
-    kickingTeamId: game.ctx.team1.id,
+    kickingTeamId: game.ctx.teams[0].id,
   });
   const bunker = fixtureValue(
     new FormationManager()
@@ -106,13 +106,13 @@ async function kickingBunker(format: MatchFormat) {
   );
   await game.execute({
     type: "apply-formation",
-    teamId: game.ctx.team1.id,
+    teamId: game.ctx.teams[0].id,
     formation: bunker.positions,
   });
   const line = game.ctx.gameService.getState().setup;
   const los = format.gameType === "sevens" ? 6 : 12;
-  expect(line?.kickingTeamId).toBe(game.ctx.team1.id);
-  return game.ctx.team1.players
+  expect(line?.kickingTeamId).toBe(game.ctx.teams[0].id);
+  return game.ctx.teams[0].players
     .filter((p) => p.gridPosition?.x === los)
     .map((p) => p.positionName)
     .sort((a, b) => a.localeCompare(b));
@@ -213,7 +213,7 @@ describe("deployments", () => {
     const game = new HeadlessGame({ seed: 5 });
     await game.execute({
       type: "start-setup",
-      kickingTeamId: game.ctx.team1.id,
+      kickingTeamId: game.ctx.teams[0].id,
     });
     const press = fixtureValue(
       new FormationManager()
@@ -222,18 +222,18 @@ describe("deployments", () => {
     );
     const applied = await game.execute({
       type: "apply-formation",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       formation: press.positions,
     });
     expect(applied.ok).toBe(true);
-    const before = game.ctx.team1.players.map((p) => p.gridPosition);
+    const before = game.ctx.teams[0].players.map((p) => p.gridPosition);
     const refused = await game.execute({
       type: "apply-formation",
-      teamId: game.ctx.team1.id,
+      teamId: game.ctx.teams[0].id,
       formation: press.positions.map((p) => ({ ...p, role: "bogus" })),
     });
     expect(refused.ok).toBe(false);
-    expect(game.ctx.team1.players.map((p) => p.gridPosition)).toEqual(before);
+    expect(game.ctx.teams[0].players.map((p) => p.gridPosition)).toEqual(before);
   });
 
   it("keeps every preset name reserved, even on a pitch that does not offer it", () => {

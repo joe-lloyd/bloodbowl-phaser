@@ -33,8 +33,8 @@ interface MatchResult {
 async function playFullMatch(seed: number): Promise<MatchResult> {
   const game = new HeadlessGame({ seed, startingPhase: GamePhase.SETUP });
 
-  game.ctx.team1.rerolls = 3;
-  game.ctx.team2.rerolls = 3;
+  game.ctx.teams[0].rerolls = 3;
+  game.ctx.teams[1].rerolls = 3;
 
   const phasesSeen = new Set<string>();
   const decisionsSeen: PendingDecision[] = [];
