@@ -19,6 +19,7 @@ import { isConfinedToReserves } from "../kickoff/driveEffects";
 import { type GameReadiness, readyForLeagueGame } from "../rules/leagueRoster";
 import { teamCaptain } from "../rules/teamCaptain";
 import { assignPlayers } from "../setup/deployment";
+import { pairTeams, playerById, type Seating, teamsOf } from "../seating";
 import {
   emptySetupStatus,
   swarmPlayerLimits,
@@ -42,8 +43,7 @@ export class SetupManager {
 
   private eventBus: IEventBus;
   private state: GameState;
-  private team1: Team;
-  private team2: Team;
+  private seating: Seating;
   private weatherService: WeatherManager;
   private callbacks: {
     onKickoffRequested: () => void;
@@ -53,8 +53,7 @@ export class SetupManager {
   constructor(
     eventBus: IEventBus,
     state: GameState,
-    team1: Team,
-    team2: Team,
+    seating: Seating,
     weatherService: WeatherManager,
     callbacks: {
       onKickoffRequested: () => void;
@@ -64,8 +63,7 @@ export class SetupManager {
   ) {
     this.eventBus = eventBus;
     this.state = state;
-    this.team1 = team1;
-    this.team2 = team2;
+    this.seating = seating;
     this.weatherService = weatherService;
     this.callbacks = callbacks;
     this.delay = delay;
@@ -75,8 +73,7 @@ export class SetupManager {
   public resyncFromTeams(): void {
     this.placedPlayers.clear();
     this.setupReady.clear();
-    this.syncPlacedPlayers(this.team1);
-    this.syncPlacedPlayers(this.team2);
+    for (const team of teamsOf(this.seating)) this.syncPlacedPlayers(team);
     const confirmedTeamIds = this.state.setup?.confirmedTeamIds ?? [];
     for (const id of confirmedTeamIds) this.setupReady.add(id);
   }
@@ -138,12 +135,10 @@ export class SetupManager {
         this.refuse(`Unknown kicking team: ${startingTeamId}`);
         return;
       }
-      const receivingTeam =
-        kickingTeam.id === this.team1.id ? this.team2 : this.team1;
       this.setupReady.clear();
       this.state.setup = this.createSetupState(
         kickingTeam.id,
-        receivingTeam.id
+        this.pairRivalOf(kickingTeam.id)
       );
       this.state.subPhase = SubPhase.SETUP_KICKING;
       this.state.activeTeamId = kickingTeam.id;
@@ -208,7 +203,7 @@ export class SetupManager {
       (position) => position.playerId !== playerId
     );
     const eligible = this.getEligiblePlayers(team);
-    const validation = this.validator.validatePlacement({ candidate: { playerId, x, y }, currentPositions: positions, isTeam1: player.teamId === this.team1.id, availablePlayerCount: eligible.length, limits: swarmPlayerLimits(this.state.setup, team.id, eligible) });
+    const validation = this.validator.validatePlacement({ candidate: { playerId, x, y }, currentPositions: positions, isTeam1: this.isHome(player.teamId), availablePlayerCount: eligible.length, limits: swarmPlayerLimits(this.state.setup, team.id, eligible) });
     if (!validation.valid) {
       return this.refuse(validation.errors[0] ?? "Illegal setup placement.", {
         playerId,
@@ -617,9 +612,8 @@ export class SetupManager {
   }
 
   public getSetupZone(teamId: string): SetupZone | undefined {
-    if (teamId === this.team1.id) return this.validator.getSetupZone(true);
-    if (teamId === this.team2.id) return this.validator.getSetupZone(false);
-    return undefined;
+    if (!this.getTeam(teamId)) return undefined;
+    return this.validator.getSetupZone(this.isHome(teamId));
   }
 
   public getFormationPositions(teamId: string): FormationPosition[] {
@@ -643,7 +637,7 @@ export class SetupManager {
     this.setupReady.clear();
     this.reportedNoAvailablePlayers.clear();
     delete this.state.setup;
-    for (const team of [this.team1, this.team2]) {
+    for (const team of teamsOf(this.seating)) {
       for (const player of team.players) {
         player.hasActed = false;
 
@@ -671,17 +665,18 @@ export class SetupManager {
 
   private ensureSetupState(): SetupState {
     if (!this.state.setup) {
-      const kicking = this.state.activeTeamId ?? this.team1.id;
-      const receiving =
-        kicking === this.team1.id ? this.team2.id : this.team1.id;
-      this.state.setup = this.createSetupState(kicking, receiving);
+      const kicking =
+        this.state.activeTeamId ?? pairTeams(this.seating)[0].id;
+      this.state.setup = this.createSetupState(
+        kicking,
+        this.pairRivalOf(kicking)
+      );
     }
     return this.state.setup;
   }
 
   private updateAllStatuses(): void {
-    this.updateStatus(this.team1.id);
-    this.updateStatus(this.team2.id);
+    for (const team of teamsOf(this.seating)) this.updateStatus(team.id);
   }
 
   private updateStatus(teamId: string): SetupTeamStatus {
@@ -691,7 +686,7 @@ export class SetupManager {
     const captain = teamCaptain(team);
     const status = teamSetupStatus({
       teamId,
-      isTeam1: teamId === this.team1.id,
+      isTeam1: this.isHome(teamId),
       positions: this.getFormationPositions(teamId),
       eligible: this.getEligiblePlayers(team),
       captain: captain && this.isEligible(captain) ? captain : undefined,
@@ -778,15 +773,19 @@ export class SetupManager {
   }
 
   private getTeam(teamId: string): Team | undefined {
-    if (teamId === this.team1.id) return this.team1;
-    if (teamId === this.team2.id) return this.team2;
-    return undefined;
+    return teamsOf(this.seating).find((team) => team.id === teamId);
   }
 
   private getPlayerById(playerId: string): Player | undefined {
-    return (
-      this.team1.players.find((player) => player.id === playerId) ||
-      this.team2.players.find((player) => player.id === playerId)
-    );
+    return playerById(this.seating, playerId);
+  }
+
+  private isHome(teamId: string): boolean {
+    return teamId === pairTeams(this.seating)[0].id;
+  }
+
+  private pairRivalOf(teamId: string): string {
+    const [home, away] = pairTeams(this.seating);
+    return teamId === home.id ? away.id : home.id;
   }
 }

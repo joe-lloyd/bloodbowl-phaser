@@ -185,16 +185,14 @@ function makeSetupManager(core: Core, delay: DelayProvider): SetupManager {
     game,
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     diceController,
     weatherService,
   } = core;
   return new SetupManager(
     eventBus,
     state,
-    team1,
-    team2,
+    seating,
     weatherService,
     {
       onKickoffRequested: () => {
