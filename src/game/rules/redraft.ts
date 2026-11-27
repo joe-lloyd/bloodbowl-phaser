@@ -77,7 +77,7 @@ export function redraftCost(team: Team, choice: RedraftChoice): number {
   return players + staffCost(team, choice);
 }
 
-export function trophyRerolls(team: Team): number {
+function trophyRerolls(team: Team): number {
   return team.club?.trophy ? 1 : 0;
 }
 
