@@ -1,6 +1,7 @@
 import { GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
 import type { Player } from "@/types/Player";
+import type { BallId } from "@/game/rules/balls";
 import type { Team } from "@/types/Team";
 import {
   type PairSeating,
@@ -24,8 +25,6 @@ import {
 import { beginCoinFlip } from "./matchStart";
 import type { GameParts } from "./parts";
 
-export const ONLY_BALL = 0;
-
 export type NextHalf = { kickingTeamId: string } | { rollOff: true };
 
 interface PairStandings {
@@ -38,7 +37,7 @@ interface DrivesFlow {
   readonly kind: "drives";
   readonly scoreRun: "stop";
   begin(): void;
-  touchdown(scorer: Player, ball: typeof ONLY_BALL): void;
+  touchdown(scorer: Player, ball: BallId): void;
   halfOver(): void;
   standings(): PairStandings;
 }

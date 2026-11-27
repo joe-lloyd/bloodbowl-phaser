@@ -1,4 +1,4 @@
-import { placeBall } from "@/game/rules/balls";
+import { ballOf, placeBall } from "@/game/rules/balls";
 import { freshSpend } from "@/game/rules/turnSpend";
 import type { Team } from "@/types/Team";
 import {
@@ -42,7 +42,6 @@ import { fanFactor } from "@/game/rules/winnings";
 import type { GameParts } from "./parts";
 import { GameOperation } from "@/game/core/GameOperation";
 import { takeUnsatedBloodlust } from "./activation";
-import { ONLY_BALL } from "./matchFlow";
 
 export function startKickoff(parts: GameParts): void {
   const { state, eventBus } = parts;
@@ -111,7 +110,7 @@ export function addTouchdown(parts: GameParts, scorerId: string): void {
     );
     return;
   }
-  parts.flow.touchdown(scorer, ONLY_BALL);
+  parts.flow.touchdown(scorer, ballOf(parts.state, scorer) ?? 0);
 }
 
 export function announceFullTime(parts: GameParts): void {
