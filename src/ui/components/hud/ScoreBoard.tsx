@@ -6,6 +6,7 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { teamRerollsLeft } from "../../../game/teamRerolls";
 import { kitOf } from "../../../game/presentation/kits";
 import { GameConfig } from "../../../config/GameConfig";
+import { activeLayout } from "../../../game/variants/activeMatch";
 
 interface TeamRow {
   id: string;
@@ -91,7 +92,7 @@ export function ScoreBoard({
     };
   }, [eventBus]);
 
-  if (rows.length === 0) return null;
+  if (rows.length === 0 || activeLayout().frames.length !== 2) return null;
 
   if (compact) {
     const slim = (row: TeamRow, mirrored: boolean) => (

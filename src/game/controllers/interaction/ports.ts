@@ -13,7 +13,7 @@ export type InteractionPitch = HighlightPitch & Pick<Pitch,
   "drawAssistRings" | "drawInterceptionRolls">;
 
 export type InteractionScene = Pick<GameScene,
-  "team1" | "team2" | "kickingTeam" | "highlightPlayer" | "unhighlightPlayer"> & {
+  "teams" | "team1" | "team2" | "kickingTeam" | "highlightPlayer" | "unhighlightPlayer"> & {
   events: {
     on(event: string, listener: () => void): unknown;
     off(event: string, listener: () => void): unknown;
