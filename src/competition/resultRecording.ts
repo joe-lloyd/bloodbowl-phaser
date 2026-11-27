@@ -6,7 +6,7 @@ import { MIN_DEDICATED_FANS } from "../game/rules/sevensPrices";
 import { queueExpensiveMistakes } from "../game/rules/expensiveMistakes";
 import {
   fanFactor,
-  fixturePaysWinnings,
+  competitionPaysWinnings,
   earnsWinnings,
   fixtureWinnings,
   payWinnings,
@@ -251,7 +251,7 @@ function applyFixtureWinnings(
   previous: { competition: CompetitionDoc; fixture: CompetitionFixture },
   request: FixtureRecord
 ): void {
-  if (!fixturePaysWinnings(previous.competition.type)) return;
+  if (!competitionPaysWinnings(previous.competition)) return;
   const options = request.options ?? {};
   const fanFactors =
     options.fanFactors ??

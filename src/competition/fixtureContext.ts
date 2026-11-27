@@ -19,5 +19,7 @@ export function fixtureContext({
     playedVia,
     ...(competition.type === "tournament" &&
     competition.format === "single-elimination" && { knockout: true }),
+    ...(competition.type === "tournament" &&
+      competition.playOffs && { playOffs: true }),
   };
 }

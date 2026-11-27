@@ -239,9 +239,7 @@ function startingState(
     return { saved, initialState };
   }
   const initialState = GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
-      paysWinnings: fixturePaysWinnings(
-        lobby.competitionContext?.competitionType
-      ),
+      paysWinnings: fixturePaysWinnings(lobby.competitionContext),
       competition: !!lobby.competitionContext,
       pregameInducements: true,
     }, ...startingFormat(

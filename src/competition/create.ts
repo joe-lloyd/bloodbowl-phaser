@@ -29,6 +29,7 @@ import {
   type CompetitionType,
   DEFAULT_LEAGUE_POINTS,
   type OnlineSetup,
+  type TournamentDoc,
   type TournamentFormat,
 } from "./types";
 import {
@@ -185,6 +186,16 @@ export function competitionFixtures(
     : generateSingleElimination(entrants);
 }
 
+function tournamentFields(
+  rules: CompetitionRules
+): Pick<TournamentDoc, "type" | "format" | "playOffs"> {
+  return {
+    type: "tournament",
+    format: rules.format ?? "single-elimination",
+    ...(rules.playOffs && { playOffs: true }),
+  };
+}
+
 export function buildCompetition({
   rules,
   organizerUid,
@@ -222,7 +233,7 @@ export function buildCompetition({
   };
   return rules.type === "league"
     ? { ...base, type: "league", points: DEFAULT_LEAGUE_POINTS }
-    : { ...base, type: "tournament", format: rules.format ?? "single-elimination" };
+    : { ...base, ...tournamentFields(rules) };
 }
 
 export async function lockTeams(

@@ -138,7 +138,7 @@ export async function simulateFixture(
     startingPhase: GamePhase.SETUP,
     progressionEnabled: true,
     knockout: context.knockout,
-    paysWinnings: fixturePaysWinnings(context.competitionType),
+    paysWinnings: fixturePaysWinnings(context),
     competition: true,
     ...startingFormat(
       { gameType: context.gameType },

@@ -13,5 +13,6 @@ export const competitionContextSchema: z.ZodType<CompetitionContext> =
     competitionId: z.string(),
     fixtureId: z.string(),
     knockout: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+    playOffs: z.literal(true).exactOptional(),
     playedVia: fixturePlaySchema.exactOptional(),
   });

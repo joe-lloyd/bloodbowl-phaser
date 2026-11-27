@@ -69,7 +69,7 @@ export function ensureMatchServices(
   const initialState =
     restored?.state ??
     GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
-        paysWinnings: fixturePaysWinnings(competitionContext?.competitionType),
+        paysWinnings: fixturePaysWinnings(competitionContext),
         competition: !!competitionContext,
         pregameInducements: true,
       }, ...startingFormat(

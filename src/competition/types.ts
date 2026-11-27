@@ -34,6 +34,8 @@ export interface CompetitionContext {
 
   knockout?: boolean;
 
+  playOffs?: true;
+
   playedVia?: FixturePlay;
 }
 
@@ -142,6 +144,8 @@ export interface TournamentDoc extends CompetitionBase {
   type: "tournament";
   format: TournamentFormat;
   championEntrantId?: string;
+
+  playOffs?: true;
 }
 
 export type CompetitionDoc = LeagueDoc | TournamentDoc;
