@@ -4,17 +4,23 @@
 
 ## 1. The engine becomes N-seat (two-team results unchanged; every PR passes parity)
 
-- [ ] 1.1 Frames: `game/rules/frames.ts`, `PitchLayout.frames`, geometry callers moved onto frames, old geometry helpers deleted. A table test written first against today's functions covers every square of every layout for both teams.
-- [ ] 1.2 Seating in the rules core: `game/seating.ts`, `GameParts.seating`, services, `TurnManager`, `BallManager` and `SetupManager` moved by meaning; `roster.ts` deleted.
-- [ ] 1.3 Seating in managers, operations, validators and controllers; kick-off, inducements, Master Chef and extra time take `PairSeating`.
-- [ ] 1.4 Seating at the shell: `HeadlessGameContext.teams`, `getTeams(): readonly Team[]`, network, scenes, UI and simulation callers, and a committed codemod for tests.
+- [x] 1.1 Frames: `game/rules/frames.ts`, `PitchLayout.frames`, geometry callers moved onto frames, old geometry helpers deleted. A table test written first against today's functions covers every square of every layout for both teams.
+- [x] 1.2 Seating in the rules core: `game/seating.ts`, `GameParts.seating`, services, `TurnManager`, `BallManager` and `SetupManager` moved by meaning; `roster.ts` deleted.
+- [x] 1.3 Seating in managers, operations, validators and controllers; kick-off, inducements, Master Chef and extra time take `PairSeating`.
+- [ ] 1.4 A match is built from a list of teams: `GameParts`, `GameService`, `HeadlessGameContext.teams`, `getTeams(): readonly Team[]`, and a committed codemod for tests. UI and network code that is honestly two-team moves with the Deathbowl board and HUD (task 4).
 - [ ] 1.5 `MatchFlow` with `DrivesFlow` holding today's code; `TurnManager` turns through `playOrderAfter` with a rotation.
 - [ ] 1.6 Balls as a list: `GameState.balls`, `placeBall` as the only write path, the lint ban, `BallId` on in-flight operations, wire `extraBalls`.
-- [ ] 1.7 Turn spend ledger in place of the four booleans, with `against` on declarations.
+- [x] 1.7 Turn spend ledger in place of the four booleans, with `against` on declarations.
+
+## 1b. The pitch first (the owner asked to see it before more engine work)
+
+- [ ] 1b.1 The plus layout: `plusFrames()` with headings along y, the `deathbowl` venue with its corners off the pitch, one shared on-pitch test.
+- [ ] 1b.2 The Deathbowl arena rendered in Blender on Jellybingus like the other venues, with a dugout and a colour layer per seat.
+- [ ] 1b.3 The arena in the sandbox with four teams set up on their lines (pulls forward the board part of task 4.1).
 
 ## 2. Deathbowl rules, headless
 
-- [ ] 2.1 Format, plus pitch and team entry: `MatchType`, `plus` layout with corners off the pitch, `plusFrames`, the pass-path rule, DB-D1 to DB-D5, four-team `createHeadlessGame`.
+- [ ] 2.1 Format and team entry: `MatchType`, the pass-path rule, DB-D1 to DB-D5, four-team `createHeadlessGame`.
 - [ ] 2.2 Deathbowl flow: set-up in turn order (DB-S1), opening balls (DB-S2), roll-off and rotation (DB-S3), halves (DB-F1, DB-F5), once-per-match re-rolls including Leader (DB-D2), placings (DB-R2).
 - [ ] 2.3 Continuous touchdowns: re-entry (DB-F2, DB-F3), Knock-out rolls and reserve moves (DB-F4), Secret Weapons (DB-F6).
 - [ ] 2.4 Contact and ball rules across teams: cross-team assists (DB-A4), per-team Blitz and Foul (DB-A1, DB-A2), Pass and Hand-off limits, No Hands for the other ball (DB-B1), pass targets and paths (DB-B2), interception order (DB-B3).
