@@ -322,7 +322,11 @@
           }
         ],
         "logical-assignment-operators": "off",
-        "no-negated-condition": "off"
+        "no-negated-condition": "off",
+        "prefer-const": "error",
+        "no-var": "error",
+        "prefer-spread": "error",
+        "prefer-rest-params": "error"
       },
       "plugins": [
         "typescript"
