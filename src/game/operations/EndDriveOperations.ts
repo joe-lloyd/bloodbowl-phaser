@@ -208,15 +208,14 @@ export class ExtraTimeKickoffOperation extends GameOperation {
 
   async execute(context: FlowContext): Promise<void> {
     const { gameService } = context;
-    const [team1, team2] = gameService.getTeams();
+    const [home, away] = gameService.getTeams();
     const winnerId = rollOff(
       gameService.getDiceController(),
       "Extra Time roll-off",
-      team1,
-      team2
+      [home, away]
     );
-    const winner = winnerId === team1.id ? team1 : team2;
-    const other = winner === team1 ? team2 : team1;
+    const winner = winnerId === home.id ? home : away;
+    const other = winner === home ? away : home;
     const answer = await gameService.getDecisionService().request({
       type: "reaction",
       playerId: "",

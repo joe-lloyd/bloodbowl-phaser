@@ -4082,9 +4082,6 @@
   "src/game/rules/extraTime.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 1
-    },
-    "max-params": {
-      "count": 1
     }
   },
   "src/game/rules/journeymen.ts": {

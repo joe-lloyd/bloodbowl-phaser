@@ -11,7 +11,7 @@ export interface Seat {
   readonly frame: Frame;
 }
 
-interface PairSeating {
+export interface PairSeating {
   readonly kind: "pair";
   readonly seats: readonly [Seat, Seat];
 }
@@ -130,9 +130,13 @@ export function playOrderAfter(
   return [...ordered, seatOf(seating, current)].map(({ team }) => team);
 }
 
-export function pairTeams(seating: Seating): readonly [Team, Team] {
+export function pairSeating(seating: Seating): PairSeating {
   if (seating.kind !== "pair") {
     throw new Error("Only a two-team match has a home and an away team.");
   }
+  return seating;
+}
+
+export function pairTeams(seating: PairSeating): readonly [Team, Team] {
   return [seating.seats[0].team, seating.seats[1].team];
 }

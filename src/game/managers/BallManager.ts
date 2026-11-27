@@ -39,6 +39,7 @@ import type { Frame } from "../rules/frames";
 import {
   everyone,
   opponentsOf,
+  pairSeating,
   pairTeams,
   playerAt,
   playerById,
@@ -173,11 +174,11 @@ export class BallManager {
   }
 
   private isTeam1Kicking(): boolean {
-    return this.state.kick?.kickingTeamId !== pairTeams(this.seating)[1].id;
+    return this.state.kick?.kickingTeamId !== pairTeams(pairSeating(this.seating))[1].id;
   }
 
   private pairTeam(isTeam1: boolean): Team {
-    const [home, away] = pairTeams(this.seating);
+    const [home, away] = pairTeams(pairSeating(this.seating));
     return isTeam1 ? home : away;
   }
 
@@ -447,7 +448,7 @@ export class BallManager {
 
   private touchback(): void {
     this.state.ballPosition = null;
-    this.state.kick ??= newKick(pairTeams(this.seating)[0].id, "landed");
+    this.state.kick ??= newKick(pairTeams(pairSeating(this.seating))[0].id, "landed");
     this.awardTouchbackToReceivers(this.state.kick);
   }
 
