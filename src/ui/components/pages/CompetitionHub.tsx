@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Title } from "../componentWarehouse/HudTitle";
-import { readGameType } from "../../../game/variants/gameTypes";
+import { competitionGameTypes } from "../../../competition/fixtureContext";
 import { GameTypeName } from "../common/GameTypeBadge";
 import { useNavigate } from "react-router-dom";
 import { listCompetitions } from "../../../competition/repository";
@@ -45,9 +45,11 @@ function CompetitionCard({
         {competition.name}
       </Title>
       <span className="flex flex-wrap items-center gap-2">
-        <Chip tone="info">
-          <GameTypeName gameType={readGameType(competition.gameType)} size={14} />
-        </Chip>
+        {competitionGameTypes(competition).map((gameType) => (
+          <Chip key={gameType} tone="info">
+            <GameTypeName gameType={gameType} size={14} />
+          </Chip>
+        ))}
         <Chip>{competition.entrants.length} teams</Chip>
         <Chip tone={STATUS_TONE[competition.status]}>
           {competition.status === "draft" ? "sign-ups open" : competition.status}

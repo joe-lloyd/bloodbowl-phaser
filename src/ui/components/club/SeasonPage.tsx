@@ -3,13 +3,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   type HomeLeague,
   type PlayOffFinish,
+  type SeasonFormat,
   type SeasonRecord,
   type Team,
   hasBlockingPendingDevelopment,
 } from "../../../types/Team";
 import {
   homeLeagueOf,
-  SEASON_GAME_TYPES,
   type SeasonPhase,
   seasonPhase,
   startSeason,
@@ -21,10 +21,11 @@ import {
   startPlayOffs,
 } from "../../../competition/seasonEnd";
 import { thousands } from "../../../game/rules/club";
+import { SEVENS_SEASON, seasonFormatProblem } from "../../../game/rules/seasonFormat";
+import { SeasonFormatPicker } from "./SeasonFormatPicker";
 import type { CompetitionDoc, LeagueDoc } from "../../../competition/types";
 import { SEASON_RIVALS } from "../../../game/rules/homeLeague";
 import { getTeamById } from "../../../game/managers/TeamManager";
-import type { GameType } from "../../../game/variants/gameTypes";
 import type { Difficulty } from "../../../simulation/ai/difficulty";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { useAuth } from "../../hooks/useAuth";
@@ -79,36 +80,10 @@ function Rivals({ league }: { league: HomeLeague }) {
   );
 }
 
-function GameTypeChoice({
-  value,
-  onChange,
-}: {
-  value: GameType;
-  onChange: (gameType: GameType) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Game type">
-      {SEASON_GAME_TYPES.map((gameType) => (
-        <HudButton
-          key={gameType}
-          role="radio"
-          aria-checked={gameType === value}
-          variant={gameType === value ? "selected" : "secondary"}
-          onClick={() => {
-            onChange(gameType);
-          }}
-        >
-          <GameTypeName gameType={gameType} size={18} />
-        </HudButton>
-      ))}
-    </div>
-  );
-}
-
 function StartSeason({ club, onStarted }: { club: Team; onStarted: () => void }) {
   const { user } = useAuth();
   const league = homeLeagueOf(club);
-  const [gameType, setGameType] = useState<GameType>("sevens");
+  const [format, setFormat] = useState<SeasonFormat>(league.format ?? SEVENS_SEASON);
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -116,7 +91,7 @@ function StartSeason({ club, onStarted }: { club: Team; onStarted: () => void })
     setBusy(true);
     try {
       await startSeason(club.id, {
-        gameType,
+        format,
         difficulty,
         organizerUid: user?.uid ?? null,
       });
@@ -130,11 +105,12 @@ function StartSeason({ club, onStarted }: { club: Team; onStarted: () => void })
   return (
     <Section title={`Start season ${String(league.season)}`}>
       <p className="mb-3 font-hud-body text-hud-sm text-hud-dim">
-        Every club plays every other club once. Pick the game type the season
-        is played in.
+        Every club plays every other club once. Play the whole season in one
+        game type, draw each round's game type at random, or set the order
+        yourself.
       </p>
       <PostGameSteps club={club} />
-      <GameTypeChoice value={gameType} onChange={setGameType} />
+      <SeasonFormatPicker club={club} value={format} onChange={setFormat} />
       <DifficultyPicker value={difficulty} onChange={setDifficulty} />
       {error && (
         <Notice tone="bad" role="alert" className="mt-4">
@@ -144,7 +120,7 @@ function StartSeason({ club, onStarted }: { club: Team; onStarted: () => void })
       <HudButton
         variant="primary"
         className="mt-5"
-        disabled={busy || hasBlockingPendingDevelopment(club)}
+        disabled={busy || hasBlockingPendingDevelopment(club) || !!seasonFormatProblem(format)}
         onClick={() => void start()}
       >
         Start season {league.season}
@@ -304,7 +280,11 @@ function History({ history }: { history: SeasonRecord[] }) {
             <tr key={record.season} data-testid={`season-${String(record.season)}`}>
               <td>{record.season}</td>
               <td>
-                <GameTypeName gameType={record.gameType} />
+                <span className="inline-flex flex-wrap gap-x-3 gap-y-1">
+                  {(record.gameTypes ?? [record.gameType]).map((gameType) => (
+                    <GameTypeName key={gameType} gameType={gameType} />
+                  ))}
+                </span>
               </td>
               <td>{placing(record.position)}</td>
               <td>

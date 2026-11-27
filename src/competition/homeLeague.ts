@@ -1,15 +1,25 @@
-import type { GameType } from "../game/variants/gameTypes";
 import { newHomeLeague, SEASON_RIVALS } from "../game/rules/homeLeague";
+import { gutterLockReason } from "../game/rules/club";
+import {
+  formatGameTypes,
+  roundGameTypes,
+  SEASON_ROUNDS,
+  seasonFormatProblem,
+} from "../game/rules/seasonFormat";
 import { REDRAFT_BASE_BUDGET } from "../game/rules/redraft";
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import type { Difficulty } from "../simulation/ai/difficulty";
-import type { HomeLeague, Team } from "../types/Team";
+import type { HomeLeague, SeasonFormat, Team } from "../types/Team";
 import { pickComputerTemplates } from "./computerFill";
 import {
   createComputerTeamFromTemplate,
   getComputerTeamTemplates,
 } from "./computerTeamTemplates";
-import { createCompetition, uniqueTeamName } from "./create";
+import {
+  createCompetition,
+  uniqueTeamName,
+  type CompetitionRules,
+} from "./create";
 import { findCompetitionById } from "./repository";
 import { clearActiveCompetition } from "./resultRecording";
 import {
@@ -30,16 +40,31 @@ export type SeasonPhase =
   | "finished";
 
 export interface SeasonSetup {
-  gameType: GameType;
+  format: SeasonFormat;
   difficulty: Difficulty;
   organizerUid: string | null;
 }
 
-export const SEASON_GAME_TYPES: readonly GameType[] = [
-  "sevens",
-  "street-bowl",
-  "beach-bowl",
-];
+export function seasonRoundRules(
+  format: SeasonFormat,
+  rounds: { first: number; count: number },
+  random: Random
+): Pick<CompetitionRules, "gameType" | "roundGameTypes"> {
+  const gameTypes = roundGameTypes(format, rounds, random);
+  return {
+    gameType: gameTypes[0] ?? "sevens",
+    ...(format.kind !== "single" && { roundGameTypes: gameTypes }),
+  };
+}
+
+function assertFormatPlayable(club: Team, format: SeasonFormat): void {
+  const problem = seasonFormatProblem(format);
+  if (problem) throw new Error(problem);
+  const locked = formatGameTypes(format).includes("gutter-bowl")
+    ? gutterLockReason(club)
+    : undefined;
+  if (locked) throw new Error(locked);
+}
 
 export function seasonProfile(): RosterRuleProfile {
   return createRosterRuleProfile({
@@ -136,13 +161,12 @@ export async function startSeason(
     throw new Error(`Season ${String(league.season)} has already started.`);
   if (league.redraftWins !== undefined)
     throw new Error("Finish the redraft before the next season starts.");
-  if (!SEASON_GAME_TYPES.includes(setup.gameType))
-    throw new Error("A season is played as Sevens, Street Bowl or Beach Bowl.");
+  assertFormatPlayable(club, setup.format);
   const rivals = await seasonRivals(club, league, random);
   const competition = await createCompetition({
     type: "league",
     name: `Club League, season ${String(league.season)}`,
-    gameType: setup.gameType,
+    ...seasonRoundRules(setup.format, { first: 0, count: SEASON_ROUNDS }, random),
     organizerUid: setup.organizerUid,
     entrants: [club, ...rivals].map((team) => ({
       team,
@@ -157,6 +181,7 @@ export async function startSeason(
     ...league,
     rivalIds: rivals.map((rival) => rival.id),
     leagueId: competition.id,
+    format: setup.format,
   };
   await saveTeam(stored);
   return competition;

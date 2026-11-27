@@ -5,7 +5,11 @@ vi.mock("../../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-import { homeLeagueOf, startSeason } from "../../../src/competition/homeLeague";
+import {
+  homeLeagueOf,
+  type SeasonSetup,
+  startSeason,
+} from "../../../src/competition/homeLeague";
 import { finishSeason, startPlayOffs } from "../../../src/competition/seasonEnd";
 import { clubRedraftBudget, confirmRedraft } from "../../../src/competition/offSeason";
 import {
@@ -84,7 +88,11 @@ async function playOut(type: CompetitionType, id: string, clubId: string): Promi
   throw new Error("The season did not finish.");
 }
 
-const setup = { gameType: "sevens", difficulty: "standard", organizerUid: null } as const;
+const setup: SeasonSetup = {
+  format: { kind: "single", gameType: "sevens" },
+  difficulty: "standard",
+  organizerUid: null,
+};
 
 describe("a club's league seasons", () => {
   beforeEach(() => {
@@ -110,6 +118,7 @@ describe("a club's league seasons", () => {
       rivalIds: rivals.map((entrant) => entrant.teamId),
       benchIds: [],
       leagueId: league.id,
+      format: { kind: "single", gameType: "sevens" },
       history: [],
     });
   });
@@ -195,7 +204,11 @@ describe("a club's league seasons", () => {
     expect(redrafted.rerolls).toBe(stored.rerolls);
     expect(homeLeagueOf(redrafted).redraftWins).toBeUndefined();
 
-    const second = await startSeason(club.id, { ...setup, gameType: "beach-bowl" }, seeded(5));
+    const second = await startSeason(
+      club.id,
+      { ...setup, format: { kind: "single", gameType: "beach-bowl" } },
+      seeded(5)
+    );
     expect(second.name).toBe("Club League, season 2");
     expect(second.gameType).toBe("beach-bowl");
     const firstIds = new Set(first.entrants.map((entrant) => entrant.teamId));
@@ -213,5 +226,111 @@ describe("a club's league seasons", () => {
     await expect(startSeason(club.id, setup, seeded(7))).rejects.toThrow(
       "Season 1 has already started."
     );
+  });
+});
+
+const roundTypes = (competition: CompetitionDoc) =>
+  [...new Set(competition.fixtures.map((fixture) => fixture.round))]
+    .sort((a, b) => a - b)
+    .map((round) => [
+      ...new Set(
+        competition.fixtures
+          .filter((fixture) => fixture.round === round)
+          .map((fixture) => fixture.gameType)
+      ),
+    ]);
+
+describe("a season of mixed game types", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("plays a set order round by round and starts the play-offs again from round 1", async () => {
+    const club = await foundHumanClub();
+    const order = ["sevens", "street-bowl", "beach-bowl", "sevens", "street-bowl", "beach-bowl", "beach-bowl"] as const;
+    const league = await startSeason(
+      club.id,
+      { ...setup, format: { kind: "order", gameTypes: [...order] } },
+      seeded(8)
+    );
+
+    expect(league.gameType).toBeUndefined();
+    expect(roundTypes(league)).toEqual(order.map((gameType) => [gameType]));
+    const roundTwo = fixtureValue(league.fixtures.find((fixture) => fixture.round === 2));
+    expect(
+      fixtureContext({ competition: league, fixtureId: roundTwo.id, playedVia: "reported" }).gameType
+    ).toBe("street-bowl");
+
+    await playOut("league", league.id, club.id);
+    const playOffs = await startPlayOffs(club.id, null, seeded(9));
+    expect(playOffs.gameType).toBeUndefined();
+    expect(roundTypes(playOffs)).toEqual([["sevens"], ["street-bowl"]]);
+
+    await playOut("tournament", playOffs.id, club.id);
+    const record = await finishSeason(club.id, seeded(10));
+    expect(record.gameType).toBe("sevens");
+    expect(record.gameTypes).toEqual(["sevens", "street-bowl", "beach-bowl"]);
+  });
+
+  it("draws every round from the picked game types, one game type a round", async () => {
+    const club = await foundHumanClub();
+    const league = await startSeason(
+      club.id,
+      { ...setup, format: { kind: "random", gameTypes: ["street-bowl", "beach-bowl"] } },
+      seeded(11)
+    );
+
+    const rounds = roundTypes(league);
+    expect(rounds).toHaveLength(7);
+    expect(rounds.every((types) => types.length === 1)).toBe(true);
+    expect(new Set(rounds.flat())).toEqual(new Set(["street-bowl", "beach-bowl"]));
+    expect(league.gameType ?? "sevens").toBe(fixtureValue(rounds[0])[0]);
+  });
+
+  it("keeps Gutter Bowl rounds out until the club reaches 750k, then lets every club play them", async () => {
+    const club = await foundHumanClub();
+    const format = { kind: "order", gameTypes: ["sevens", "gutter-bowl"] } as const;
+    await expect(
+      startSeason(club.id, { ...setup, format: { ...format, gameTypes: [...format.gameTypes] } }, seeded(12))
+    ).rejects.toThrow("Gutter Bowl opens when team value plus treasury reaches 750k");
+
+    const stored = fixtureValue(getTeamById(club.id));
+    stored.treasury += 750_000;
+    await saveTeam(stored);
+    const league = await startSeason(
+      club.id,
+      { ...setup, format: { ...format, gameTypes: [...format.gameTypes] } },
+      seeded(12)
+    );
+    expect(roundTypes(league).flat()).toEqual([
+      "sevens", "gutter-bowl", "sevens", "gutter-bowl", "sevens", "gutter-bowl", "sevens",
+    ]);
+  });
+
+  it("records a game type drawn only for the play-offs and keeps the format for next season", async () => {
+    const club = await foundHumanClub();
+    const format = { kind: "random", gameTypes: ["sevens", "beach-bowl"] } as const;
+    const league = await startSeason(
+      club.id,
+      { ...setup, format: { ...format, gameTypes: [...format.gameTypes] } },
+      () => 0.1
+    );
+    expect(roundTypes(league).flat()).toEqual(Array.from({ length: 7 }, () => "sevens"));
+
+    await playOut("league", league.id, club.id);
+    const playOffs = await startPlayOffs(club.id, null, () => 0.9);
+    expect(roundTypes(playOffs)).toEqual([["beach-bowl"], ["beach-bowl"]]);
+    await playOut("tournament", playOffs.id, club.id);
+
+    const record = await finishSeason(club.id, seeded(14));
+    expect(record.gameTypes).toEqual(["sevens", "beach-bowl"]);
+    expect(homeLeagueOf(fixtureValue(getTeamById(club.id))).format).toEqual(format);
+  });
+
+  it("refuses a random season with only one game type to draw", async () => {
+    const club = await foundHumanClub();
+    await expect(
+      startSeason(club.id, { ...setup, format: { kind: "random", gameTypes: ["sevens"] } }, seeded(13))
+    ).rejects.toThrow("A random season needs at least two game types to draw from.");
   });
 });

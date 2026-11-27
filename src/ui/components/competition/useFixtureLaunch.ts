@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { errorText } from "../../errorText";
-import { fixtureContext } from "../../../competition/fixtureContext";
+import { fixtureContext, fixtureGameType } from "../../../competition/fixtureContext";
 import { fetchEntrantTeam } from "../../../competition/teamRefs";
 import type {
   CompetitionDoc,
@@ -16,7 +16,7 @@ import {
 import { hasBlockingPendingDevelopment, type Team } from "../../../types/Team";
 import { getRosterByRosterName } from "../../../data/RosterTemplates";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
-import { GAME_TYPE_LABELS, readGameType } from "../../../game/variants/gameTypes";
+import { GAME_TYPE_LABELS } from "../../../game/variants/gameTypes";
 
 export interface HostedFixture extends LobbyFixture {
   competitionName: string;
@@ -45,9 +45,10 @@ function blockingDevelopment(
 
 function illegalClubSquad(
   competition: CompetitionDoc,
+  fixture: CompetitionFixture,
   { home, away, homeTeam, awayTeam }: FixtureTeams
 ): string | null {
-  const gameType = readGameType(competition.gameType);
+  const gameType = fixtureGameType(competition, fixture);
   for (const { entrant, team } of [
     { entrant: home, team: homeTeam },
     { entrant: away, team: awayTeam },
@@ -106,7 +107,7 @@ async function loadFixtureTeams(
   const teams = { home, away, homeTeam, awayTeam };
   return (
     blockingDevelopment(competition, teams) ??
-    illegalClubSquad(competition, teams) ??
+    illegalClubSquad(competition, fixture, teams) ??
     teams
   );
 }

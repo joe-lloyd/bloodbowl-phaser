@@ -206,9 +206,15 @@ export interface Formation {
 
 export type PlayOffFinish = "champion" | "runner-up" | "third" | "fourth";
 
+export type SeasonFormat =
+  | { kind: "single"; gameType: GameType }
+  | { kind: "random"; gameTypes: GameType[] }
+  | { kind: "order"; gameTypes: GameType[] };
+
 export interface SeasonRecord {
   season: number;
   gameType: GameType;
+  gameTypes?: GameType[];
   leagueId: string;
   position: number;
   wins: number;
@@ -227,6 +233,7 @@ export interface HomeLeague {
   trophyHolderId?: string;
   redraftWins?: number;
   newcomerBudget?: number;
+  format?: SeasonFormat;
   history: SeasonRecord[];
 }
 

@@ -14,6 +14,13 @@ import { ROSTER_SLOTS, rosterSlotsFor } from "./playerSlots";
 
 export const GUTTER_UNLOCK_WORTH = 750_000;
 
+export const CLUB_GAME_TYPES: readonly GameType[] = [
+  "sevens",
+  "street-bowl",
+  "beach-bowl",
+  "gutter-bowl",
+];
+
 export const CLUB_ROSTER_SLOTS = rosterSlotsFor({ club: {} });
 
 export const CLUB_MAX_POSITIONALS = 5;
@@ -201,7 +208,7 @@ export function carryGutterUnlock(team: Team, stored: Team | undefined): void {
 }
 
 export function gutterLockReason(team: Team): string | undefined {
-  if (!team.club || gutterUnlocked(team)) return undefined;
+  if (!team.club || team.computerCoached || gutterUnlocked(team)) return undefined;
   return `Gutter Bowl opens when team value plus treasury reaches ${thousands(GUTTER_UNLOCK_WORTH)} (now ${thousands(clubWorth(team))}).`;
 }
 

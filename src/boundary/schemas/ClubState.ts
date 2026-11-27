@@ -1,10 +1,16 @@
 import { z } from "zod";
-import type { ClubState, HomeLeague, SeasonRecord } from "../../types/Team";
+import type {
+  ClubState,
+  HomeLeague,
+  SeasonFormat,
+  SeasonRecord,
+} from "../../types/Team";
 import { gameTypeSchema } from "./GameType";
 
 const seasonRecordSchema: z.ZodType<SeasonRecord> = z.object({
   season: z.number().int().positive(),
   gameType: gameTypeSchema,
+  gameTypes: gameTypeSchema.array().exactOptional(),
   leagueId: z.string(),
   position: z.number().int().positive(),
   wins: z.number().int().nonnegative(),
@@ -16,6 +22,12 @@ const seasonRecordSchema: z.ZodType<SeasonRecord> = z.object({
     .exactOptional(),
 });
 
+const seasonFormatSchema: z.ZodType<SeasonFormat> = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("single"), gameType: gameTypeSchema }),
+  z.object({ kind: z.literal("random"), gameTypes: gameTypeSchema.array() }),
+  z.object({ kind: z.literal("order"), gameTypes: gameTypeSchema.array() }),
+]);
+
 const homeLeagueSchema: z.ZodType<HomeLeague> = z.object({
   season: z.number().int().positive(),
   rivalIds: z.string().array(),
@@ -25,6 +37,7 @@ const homeLeagueSchema: z.ZodType<HomeLeague> = z.object({
   trophyHolderId: z.string().exactOptional(),
   redraftWins: z.number().int().nonnegative().exactOptional(),
   newcomerBudget: z.number().int().positive().exactOptional(),
+  format: seasonFormatSchema.exactOptional(),
   history: seasonRecordSchema.array(),
 });
 

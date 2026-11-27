@@ -1,5 +1,6 @@
 import {
   DEFAULT_GAME_TYPE,
+  GAME_TYPE_LABELS,
   readGameType,
   type GameType,
 } from "../game/variants/gameTypes";
@@ -61,6 +62,8 @@ export interface CompetitionRules {
   computerDifficulty?: Difficulty;
 
   playOffs?: boolean;
+
+  roundGameTypes?: readonly GameType[];
 }
 
 export interface NewCompetition extends CompetitionRules {
@@ -176,7 +179,7 @@ export async function assertTeamsCanEnter({
   assertEntrantsCompatible(teams, profile, { ruleset, gameType });
 }
 
-export function competitionFixtures(
+function scheduledFixtures(
   rules: Pick<CompetitionRules, "type" | "format" | "playOffs">,
   entrants: CompetitionEntrant[]
 ): CompetitionFixture[] {
@@ -184,6 +187,38 @@ export function competitionFixtures(
   return rules.type === "league" || rules.format === "round-robin"
     ? generateRoundRobin(entrants)
     : generateSingleElimination(entrants);
+}
+
+export function competitionFixtures(
+  rules: Pick<CompetitionRules, "type" | "format" | "playOffs" | "roundGameTypes">,
+  entrants: CompetitionEntrant[]
+): CompetitionFixture[] {
+  const fixtures = scheduledFixtures(rules, entrants);
+  const rounds = rules.roundGameTypes;
+  if (!rounds) return fixtures;
+  return fixtures.map((fixture) => {
+    const gameType = rounds[fixture.round - 1];
+    return gameType === undefined ? fixture : { ...fixture, gameType };
+  });
+}
+
+async function assertTeamsCanPlay(
+  teams: readonly Team[],
+  rules: {
+    ruleset: SevensRuleset;
+    gameTypes: readonly GameType[];
+    profile: RosterRuleProfile | undefined;
+  }
+): Promise<void> {
+  const { ruleset, gameTypes, profile } = rules;
+  for (const gameType of gameTypes) {
+    try {
+      await assertTeamsCanEnter({ teams, ruleset, gameType, profile });
+    } catch (cause) {
+      if (gameTypes.length === 1 || !(cause instanceof Error)) throw cause;
+      throw new Error(`${GAME_TYPE_LABELS[gameType]} rounds: ${cause.message}`, { cause });
+    }
+  }
 }
 
 function tournamentFields(
@@ -257,12 +292,14 @@ export async function createCompetition(
   const ruleset = readSevensRuleset(input.ruleset);
   const gameType = readGameType(input.gameType);
   const choices = withComputerTeams(input, { ruleset, gameType });
-  await assertTeamsCanEnter({
-    teams: choices.map((choice) => choice.team),
-    ruleset,
-    gameType,
-    profile: input.profile,
-  });
+  await assertTeamsCanPlay(
+    choices.map((choice) => choice.team),
+    {
+      ruleset,
+      gameTypes: [...new Set([gameType, ...(input.roundGameTypes ?? [])])],
+      profile: input.profile,
+    }
+  );
 
   const competition = buildCompetition({
     rules: { ...input, ruleset, gameType },

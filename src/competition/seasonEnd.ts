@@ -1,4 +1,4 @@
-import { readGameType } from "../game/variants/gameTypes";
+import { readGameType, type GameType } from "../game/variants/gameTypes";
 import { rotateRivals } from "../game/rules/homeLeague";
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import {
@@ -9,7 +9,13 @@ import {
   calculateTeamValue,
 } from "../types/Team";
 import { createCompetition } from "./create";
-import { homeLeagueOf, loadClub, seasonProfile } from "./homeLeague";
+import {
+  homeLeagueOf,
+  loadClub,
+  seasonProfile,
+  seasonRoundRules,
+} from "./homeLeague";
+import { competitionGameTypes } from "./fixtureContext";
 import { getCompetition } from "./repository";
 import { runOffSeason } from "./offSeason";
 import { RNGService } from "../services/rng/RNGService";
@@ -68,9 +74,27 @@ function qualifiers(regular: LeagueDoc): Team[] {
   });
 }
 
+function playOffRoundRules(
+  league: HomeLeague,
+  regular: LeagueDoc,
+  random: Random
+): ReturnType<typeof seasonRoundRules> {
+  const format = league.format ?? {
+    kind: "single",
+    gameType: readGameType(regular.gameType),
+  };
+  const played = Math.max(0, ...regular.fixtures.map((fixture) => fixture.round));
+  return seasonRoundRules(
+    format,
+    { first: played, count: Math.log2(PLAY_OFF_CLUBS) },
+    random
+  );
+}
+
 export async function startPlayOffs(
   clubId: string,
-  organizerUid: string | null
+  organizerUid: string | null,
+  random: Random = Math.random
 ): Promise<TournamentDoc> {
   const league = homeLeagueOf(loadClub(clubId));
   if (league.playOffsId) throw new Error("The play-offs have already started.");
@@ -81,7 +105,7 @@ export async function startPlayOffs(
     format: "single-elimination",
     playOffs: true,
     name: `Club League, season ${String(league.season)} play-offs`,
-    gameType: readGameType(regular.gameType),
+    ...playOffRoundRules(league, regular, random),
     ...(regular.ruleset !== undefined && { ruleset: regular.ruleset }),
     organizerUid,
     entrants: qualifiers(regular).map((team) => ({ team, ownerUid: organizerUid })),
@@ -156,7 +180,12 @@ async function passTrophy(
 function seasonRecord(
   regular: LeagueDoc,
   clubId: string,
-  playOffs: { season: number; champion: string; playOff: PlayOffFinish | undefined }
+  playOffs: {
+    season: number;
+    champion: string;
+    playOff: PlayOffFinish | undefined;
+    gameTypes: GameType[];
+  }
 ): SeasonRecord {
   const entrant = regular.entrants.find((each) => each.teamId === clubId);
   const index = regular.standings.findIndex(
@@ -167,6 +196,7 @@ function seasonRecord(
   return {
     season: playOffs.season,
     gameType: readGameType(regular.gameType),
+    ...(playOffs.gameTypes.length > 1 && { gameTypes: playOffs.gameTypes }),
     leagueId: regular.id,
     position: index + 1,
     wins: standing.wins,
@@ -197,6 +227,12 @@ export async function finishSeason(
     season: league.season,
     champion: champion?.name ?? "Nobody",
     playOff: places.get(clubId),
+    gameTypes: [
+      ...new Set([
+        ...competitionGameTypes(regular),
+        ...competitionGameTypes(playOffs),
+      ]),
+    ],
   });
   const offSeason = await runOffSeason({
     regular,
@@ -213,6 +249,7 @@ export async function finishSeason(
     ...(holder !== undefined && { trophyHolderId: holder }),
     redraftWins: offSeason.clubWins,
     newcomerBudget: offSeason.newcomerBudget,
+    ...(league.format && { format: league.format }),
     history: [...league.history, record],
   };
   await saveTeam(stored);

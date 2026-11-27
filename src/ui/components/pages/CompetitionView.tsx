@@ -1,4 +1,5 @@
 import { CompetitionRulesLine } from "../common/CompetitionRulesLine";
+import { GameTypeName } from "../common/GameTypeBadge";
 import { Title } from "../componentWarehouse/HudTitle";
 import { useParams } from "react-router-dom";
 import type {
@@ -66,9 +67,14 @@ function ThirdPlaceGame({
   if (!fixture) return null;
   return (
     <div className="mt-6">
-      <Title level="section" as="h3" className="mb-2">
-        Third-place game
-      </Title>
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Title level="section" as="h3">
+          Third-place game
+        </Title>
+        {fixture.gameType && (
+          <GameTypeName gameType={fixture.gameType} className="hud-label text-hud-dim" />
+        )}
+      </div>
       {renderCard(fixture)}
     </div>
   );

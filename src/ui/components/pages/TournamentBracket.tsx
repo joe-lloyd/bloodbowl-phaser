@@ -16,6 +16,7 @@ import {
   type FixtureResult,
 } from "../../../competition/types";
 import { cx } from "../componentWarehouse/HudKit";
+import { GameTypeName } from "../common/GameTypeBadge";
 
 export function walkoverLine(
   entrants: CompetitionEntrant[],
@@ -111,6 +112,16 @@ function sameBoxes(a: Map<string, CardBox>, b: Map<string, CardBox>): boolean {
     }
   }
   return true;
+}
+
+function FixtureGameType({ fixture }: { fixture: CompetitionFixture }) {
+  return fixture.gameType ? (
+    <GameTypeName
+      gameType={fixture.gameType}
+      size={14}
+      className="mb-2 hud-label text-hud-dim"
+    />
+  ) : null;
 }
 
 export function TournamentBracket({
@@ -247,6 +258,7 @@ export function TournamentBracket({
                       : "border-white/10 shadow-hud"
                   )}
                 >
+                  <FixtureGameType fixture={fixture} />
                   <BracketSlot
                     entrant={home}
                     {...slotFacts(fixture, "home", eliminated)}
