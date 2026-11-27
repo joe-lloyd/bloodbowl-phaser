@@ -17,6 +17,7 @@ import {
 } from "../../rules/throwTeammate";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { SPECIAL_ACTION_MODES } from "./actionSteps";
+import { playerById } from "../../seating";
 import { type FinishKind, finishKindAt } from "./plan";
 import { showSteps } from "./movement";
 
@@ -438,9 +439,7 @@ export function playerClickTarget(
 
   const target =
     takes === "pass"
-      ? [...c.scene.team1.players, ...c.scene.team2.players].find(
-          (p) => p.id === playerId
-        )
+      ? playerById(c.seating(), playerId)
       : takes && c.gameService.getPlayerById(playerId);
   if (!target?.gridPosition) return null;
   if (takes === "pass")

@@ -4,6 +4,8 @@ import { DiceWatch } from "../../presentation/diceWatch";
 import { kickTargetColor } from "../../presentation/kickTarget";
 import { kitOf } from "../../presentation/kits";
 import type { KickoffScene } from "./scenePorts";
+import { pairSeating, pairTeams } from "../../seating";
+import { sceneSeating } from "../sceneSeating";
 
 export class KickTargetMarker {
   private latest = 0;
@@ -37,10 +39,8 @@ export class KickTargetMarker {
   }
 
   private color(): number {
-    const { team1, team2 } = this.scene;
-    const kits = [team1, team2].map(
-      (team) => kitOf([team1, team2], team.id).primary
-    );
+    const teams = pairTeams(pairSeating(sceneSeating(this.scene)));
+    const kits = teams.map((team) => kitOf(teams, team.id).primary);
     return kickTargetColor(kits, activeLayout().surface);
   }
 }

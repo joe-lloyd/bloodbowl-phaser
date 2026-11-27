@@ -8,6 +8,7 @@ import type { GameplayInteractionController } from "../GameplayInteractionContro
 import { activeActionFor, isStandingOpponent } from "./players";
 import { adjacentSquares, adjacentTo } from "./squares";
 import { drawCurrentPath, findLeg } from "./routes";
+import { everyone, playerById } from "../../seating";
 
 interface Square {
   x: number;
@@ -65,17 +66,12 @@ export function plannedActor(c: GameplayInteractionController, player: Player): 
   return end ? { ...player, gridPosition: { ...end } } : player;
 }
 
-const scenePlayers = (c: GameplayInteractionController): Player[] => [
-  ...c.getSceneTeam1().players,
-  ...c.getSceneTeam2().players,
-];
-
 export function boardWith(c: GameplayInteractionController, actor: Player): Player[] {
-  return scenePlayers(c).map((p) => (p.id === actor.id ? actor : p));
+  return everyone(c.seating()).map((p) => (p.id === actor.id ? actor : p));
 }
 
 export function scenePlayer(c: GameplayInteractionController, id: string): Player | undefined {
-  return scenePlayers(c).find((p) => p.id === id);
+  return playerById(c.seating(), id);
 }
 
 const isDowned = (p: Player) =>

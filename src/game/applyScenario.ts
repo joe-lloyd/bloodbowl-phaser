@@ -70,25 +70,46 @@ function clearScenarioGrants(team: Team): void {
   }
 }
 
-function applyRerolls(scenario: Scenario, team1: Team, team2: Team): void {
+type SideKey = "team1" | "team2";
+
+interface ScenarioSide {
+  readonly key: SideKey;
+  readonly team: Team;
+  readonly placements: PlayerPlacement[];
+}
+
+function sidesOf(
+  scenario: Scenario,
+  home: Team,
+  away: Team
+): readonly [ScenarioSide, ScenarioSide] {
+  const { team1Placements, team2Placements } = scenario.setup;
+  return [
+    { key: "team1", team: home, placements: team1Placements },
+    { key: "team2", team: away, placements: team2Placements },
+  ];
+}
+
+function applyRerolls(
+  scenario: Scenario,
+  sides: readonly ScenarioSide[]
+): void {
   const { teamRerolls } = scenario.setup;
-  if (teamRerolls?.team1 !== undefined) team1.rerolls = teamRerolls.team1;
-  if (teamRerolls?.team2 !== undefined) team2.rerolls = teamRerolls.team2;
+  for (const { key, team } of sides) {
+    const rerolls = teamRerolls?.[key];
+    if (rerolls !== undefined) team.rerolls = rerolls;
+  }
 }
 
 function scenarioMeasures(
   scenario: Scenario,
-  team1: Team,
-  team2: Team
+  sides: readonly ScenarioSide[]
 ): MatchInducementsState | undefined {
   const measures = scenario.setup.measures;
   if (!measures) return undefined;
   const state = { ...emptyMatchInducements(), rolled: true };
-  const teamMeasures = [
-    [team1, measures.team1 ?? []],
-    [team2, measures.team2 ?? []],
-  ] as const;
-  for (const [team, held] of teamMeasures) {
+  for (const { key, team } of sides) {
+    const held = measures[key] ?? [];
     state.measures[team.id] = held.map((measure) => ({
       measure,
       used: measure === DesperateMeasure.MAGIC_SCROLL,
@@ -102,18 +123,17 @@ function scenarioMeasures(
 
 function scenarioOptionalFields(
   scenario: Scenario,
-  team1: Team,
-  team2: Team
+  sides: readonly ScenarioSide[]
 ): Partial<Pick<GameState, "matchInducements" | "bribes">> {
-  const matchInducements = scenarioMeasures(scenario, team1, team2);
+  const matchInducements = scenarioMeasures(scenario, sides);
+  const { bribes } = scenario.setup;
   return {
     ...(matchInducements && { matchInducements }),
-    ...(scenario.setup.bribes && {
-          bribes: {
-            [team1.id]: scenario.setup.bribes.team1 ?? 0,
-            [team2.id]: scenario.setup.bribes.team2 ?? 0,
-          },
-        }),
+    ...(bribes && {
+      bribes: Object.fromEntries(
+        sides.map(({ key, team }) => [team.id, bribes[key] ?? 0])
+      ),
+    }),
   };
 }
 
@@ -133,21 +153,18 @@ function ballSquare(scenario: Scenario): { x: number; y: number } | null {
 
 export function applyScenario(
   scenario: Scenario,
-  team1: Team,
-  team2: Team
+  home: Team,
+  away: Team
 ): GameState {
-  SetupManager.sanitizeTeam(team1);
-  SetupManager.sanitizeTeam(team2);
+  const sides = sidesOf(scenario, home, away);
+  for (const { team } of sides) SetupManager.sanitizeTeam(team);
+  for (const { team } of sides) clearScenarioGrants(team);
+  applyRerolls(scenario, sides);
+  for (const { team, placements } of sides) applyPlacements(team, placements);
 
-  clearScenarioGrants(team1);
-  clearScenarioGrants(team2);
-  applyRerolls(scenario, team1, team2);
-
-  applyPlacements(team1, scenario.setup.team1Placements);
-  applyPlacements(team2, scenario.setup.team2Placements);
-
-  const activeTeamId =
-    scenario.setup.activeTeam === "team1" ? team1.id : team2.id;
+  const activeSide =
+    sides.find(({ key }) => key === scenario.setup.activeTeam) ?? sides[1];
+  const activeTeamId = activeSide.team.id;
 
   const turnNumber =
     scenario.setup.turn ?? (scenario.setup.phase === GamePhase.KICKOFF ? 0 : 2);
@@ -170,13 +187,10 @@ export function applyScenario(
       hasThrownBomb: false,
       movementUsed: new Map(),
     },
-    score: {
-      [team1.id]: 0,
-      [team2.id]: 0,
-    },
+    score: Object.fromEntries(sides.map(({ team }) => [team.id, 0])),
     weather: scenario.setup.weather ?? "Nice",
     ballPosition: ballSquare(scenario),
     activePlayer: null,
-    ...scenarioOptionalFields(scenario, team1, team2),
+    ...scenarioOptionalFields(scenario, sides),
   };
 }

@@ -1,4 +1,5 @@
 import { kickoffTurnOf } from "../../kickoff/kickRecord";
+import { opponentsOf, teammatesOf } from "../../seating";
 import { isOwnActor } from "./players";
 import { souvenirModifier } from "../../inducements/souvenirModifiers";
 import { adjacentSquares } from "./squares";
@@ -38,17 +39,10 @@ function sidesOf(
   c: GameplayInteractionController,
   player: Player
 ): { teammates: Player[]; opponents: Player[] } {
-  const team =
-    player.teamId === c.getSceneTeam1().id
-      ? c.getSceneTeam1()
-      : c.getSceneTeam2();
-  const opponentTeam =
-    player.teamId === c.getSceneTeam1().id
-      ? c.getSceneTeam2()
-      : c.getSceneTeam1();
+  const seating = c.seating();
   return {
-    teammates: team.players.filter((p) => p.gridPosition && p.id !== player.id),
-    opponents: opponentTeam.players.filter((p) => p.gridPosition),
+    teammates: teammatesOf(seating, player.id),
+    opponents: opponentsOf(seating, player.teamId).filter((p) => p.gridPosition),
   };
 }
 

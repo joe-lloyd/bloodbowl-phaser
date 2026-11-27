@@ -45,6 +45,8 @@ import type { PlanFinish, PlannedDeclaration } from "./interaction/plan";
 import { PLANNED_MOVE } from "./interaction/plan";
 import { dragRouteTo, routeOwnerAt } from "./interaction/routes";
 import { playerClickTarget } from "./interaction/stepClicks";
+import { opponentsOf, playerAt, type Seating } from "../seating";
+import { sceneSeating } from "./sceneSeating";
 import {
   clickInPlay,
   clickTouchback,
@@ -619,27 +621,15 @@ export class GameplayInteractionController {
   }
 
   getPlayerAt(x: number, y: number): Player | null {
-    const t1 = this.getSceneTeam1();
-    const t2 = this.getSceneTeam2();
-    const players = [...t1.players, ...t2.players];
-
-    return (
-      players.find((p) => p.gridPosition?.x === x && p.gridPosition.y === y) ??
-      null
-    );
+    return playerAt(this.seating(), { x, y }) ?? null;
   }
 
-  getSceneTeam1() {
-    return this.scene.team1;
-  }
-  getSceneTeam2() {
-    return this.scene.team2;
+  seating(): Seating {
+    return sceneSeating(this.scene);
   }
 
   getOpposingPlayers(myTeamId: string): Player[] {
-    const t1 = this.getSceneTeam1();
-    const t2 = this.getSceneTeam2();
-    return myTeamId === t1.id ? t2.players : t1.players;
+    return opponentsOf(this.seating(), myTeamId);
   }
 
   public clearAllInteractionHighlights(): void {

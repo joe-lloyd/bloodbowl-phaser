@@ -9,6 +9,8 @@ import { SetupPhaseHandler } from "./handlers/SetupPhaseHandler";
 import { PlayPhaseHandler } from "./handlers/PlayPhaseHandler";
 import { KickoffPhaseHandler } from "./handlers/KickoffPhaseHandler";
 import { TouchdownPhaseHandler } from "./handlers/TouchdownPhaseHandler";
+import { pairSeating, pairTeams, teamsOf } from "../seating";
+import { sceneSeating } from "./sceneSeating";
 
 interface SceneOrchestratorConfig {
   skipCoinFlip?: boolean;
@@ -137,16 +139,14 @@ export class SceneOrchestrator {
   public startPlacement(subPhase: SubPhase): void {
     const isKicking = subPhase === SubPhase.SETUP_KICKING;
     const activeTeamId = this.gameService.getActiveTeamId();
-    const activeTeam = [this.scene.team1, this.scene.team2].find((team) => team.id === activeTeamId);
+    const seating = sceneSeating(this.scene);
+    const activeTeam = teamsOf(seating).find((team) => team.id === activeTeamId);
     if (!activeTeam) return;
 
     if (isKicking) {
-      const otherTeam =
-        activeTeam.id === this.scene.team1.id
-          ? this.scene.team2
-          : this.scene.team1;
+      const [home, away] = pairTeams(pairSeating(seating));
       this.scene.kickingTeam = activeTeam;
-      this.scene.receivingTeam = otherTeam;
+      this.scene.receivingTeam = activeTeam.id === home.id ? away : home;
     }
 
     showSetupPlacement({ scene: this.scene, gameService: this.gameService, eventBus: this.eventBus }, { subPhase, team: activeTeam });
