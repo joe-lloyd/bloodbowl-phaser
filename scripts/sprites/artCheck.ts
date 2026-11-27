@@ -23,6 +23,7 @@ const SHADE = "~shade";
 const PORTRAIT = "portrait";
 const PORTRAIT_FRAMES = "idle/se/";
 const PACK_SLACK = 1.01;
+const REINSTALL = "Re-install the model with scripts/sprites/factory/install_layered.py.";
 
 interface Box {
   readonly x: number;
@@ -121,7 +122,7 @@ function portraitOf(layer: LayerData): LayerData {
 function overpacked({ file, bytes, layer }: Packed): string[] {
   const best = packLayer(layer).length;
   if (bytes.length <= best * PACK_SLACK) return [];
-  return [`${file}: ${String(bytes.length)} bytes, packs to ${String(best)}. Run pnpm sprites:pack-layers.`];
+  return [`${file}: ${String(bytes.length)} bytes, packs to ${String(best)}. ${REINSTALL}`];
 }
 
 function checkBody(dir: string, layers: readonly string[]): string[] {
@@ -132,11 +133,11 @@ function checkBody(dir: string, layers: readonly string[]): string[] {
   const problems = drawn
     .map(({ file, layer }) => ({ file, needless: needlessDepth(layer, boxes) }))
     .filter(({ needless }) => needless > 0)
-    .map(({ file, needless }) => `${file}: ${String(needless)} pixels keep depth no other layer overlaps. Run flat_depth.py.`);
+    .map(({ file, needless }) => `${file}: ${String(needless)} pixels keep depth no other layer overlaps. ${REINSTALL}`);
   for (const [at, portrait] of portraits.entries()) {
     const source = full[at];
     if (source && !sameLayer(portraitOf(source.layer), portrait.layer)) {
-      problems.push(`${portrait.file}: not the idle/se frames of ${source.file}. Run portrait_layers.py.`);
+      problems.push(`${portrait.file}: not the idle/se frames of ${source.file}. ${REINSTALL}`);
     }
   }
   return problems;
@@ -177,7 +178,7 @@ function checkModel(model: string, art: LayeredModel | undefined): string[] {
 }
 
 function changedLayers(since: string): string[] {
-  const changed = execFileSync("git", ["diff", "--name-only", "--diff-filter=AM", since, "--", SPRITES], {
+  const changed = execFileSync("git", ["diff", "--name-only", "--no-renames", "--diff-filter=AM", since, "--", SPRITES], {
     cwd: ROOT,
     encoding: "utf8",
   });
