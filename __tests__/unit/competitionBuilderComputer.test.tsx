@@ -10,6 +10,8 @@ vi.mock("../../src/firebase/config", () => ({
 }));
 
 import { getCompetition } from "../../src/competition/repository";
+import { fixtureContext } from "../../src/competition/fixtureContext";
+import { recordCompetitionFixture } from "../../src/competition/resultRecording";
 import { loadTeams, saveTeam } from "../../src/game/managers/TeamManager";
 import { createReadyMadeTeam } from "../../src/simulation/lineups";
 import { RosterName } from "../../src/types/Team";
@@ -37,16 +39,17 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function openBuilder() {
+async function openBuilder(type: "league" | "tournament" = "league") {
+  const path = type === "league" ? "/leagues" : "/tournaments";
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={["/leagues/new"]}>
+      <MemoryRouter initialEntries={[`${path}/new`]}>
         <Routes>
           <Route
-            path="/leagues/new"
-            element={<CompetitionBuilder type="league" />}
+            path={`${path}/new`}
+            element={<CompetitionBuilder type={type} />}
           />
-          <Route path="/leagues/:id" element={<OpenedLeague />} />
+          <Route path={`${path}/:id`} element={<OpenedLeague />} />
         </Routes>
       </MemoryRouter>
     );
@@ -274,4 +277,87 @@ it("lets an organizer replace a NAF-only build after switching to GW rules", asy
       (team) => team.computerTemplateId === "snotling-max-strength"
     )
   ).toHaveLength(1);
+});
+
+const click = (target: HTMLElement) => {
+  act(() => {
+    target.click();
+  });
+};
+
+async function openFourTeamTournament() {
+  await openBuilder("tournament");
+  for (let added = 0; added < 4; added++) click(button("+ Add computer team"));
+}
+
+const gameTypeToggle = (label: string) =>
+  fixtureValue(
+    [
+      ...container.querySelectorAll<HTMLButtonElement>(
+        ':scope [aria-label="Game types in the tournament"] button'
+      ),
+    ].find((candidate) => candidate.textContent.includes(label))
+  );
+
+const roundChoice = (round: number, label: string) =>
+  fixtureValue(
+    container.querySelector<HTMLButtonElement>(
+      `:scope [aria-label="Round ${String(round)} game type"] [aria-label="${label}"]`
+    )
+  );
+
+async function generatedTournament() {
+  await act(async () => {
+    button("Generate competition").click();
+    await Promise.resolve();
+  });
+  const id = fixtureValue(container.querySelector('[data-testid="opened"]')).textContent;
+  return fixtureValue(await getCompetition("tournament", id));
+}
+
+it("draws a random mixed tournament's first round and leaves the final for later", async () => {
+  await openFourTeamTournament();
+  click(gameTypeToggle("Street Bowl"));
+  click(gameTypeToggle("Beach Bowl"));
+
+  const tournament = await generatedTournament();
+  expect(tournament.gameTypePool).toEqual(["sevens", "street-bowl", "beach-bowl"]);
+  const firstRound = new Set(
+    tournament.fixtures.filter((game) => game.round === 1).map((game) => game.gameType)
+  );
+  expect(firstRound.size).toBe(1);
+  expect(["sevens", "street-bowl", "beach-bowl"]).toContain([...firstRound][0]);
+  const finalOf = (competition: typeof tournament) =>
+    competition.fixtures.filter((game) => game.round === 2).map((game) => game.gameType);
+  expect(finalOf(tournament)).toEqual([undefined]);
+
+  let current = tournament;
+  for (const game of tournament.fixtures) {
+    if (game.round !== 1) continue;
+    await recordCompetitionFixture({
+      context: fixtureContext({ competition: current, fixtureId: game.id, playedVia: "reported" }),
+      homeScore: 1,
+      awayScore: 0,
+    });
+    current = fixtureValue(await getCompetition("tournament", tournament.id));
+  }
+  const [final] = finalOf(current);
+  expect(["sevens", "street-bowl", "beach-bowl"]).toContain(final);
+});
+
+it("plays a set-order tournament in the order the organizer picked", async () => {
+  await openFourTeamTournament();
+  click(gameTypeToggle("Beach Bowl"));
+  click(button("Set order"));
+  click(roundChoice(1, "Beach Bowl"));
+  click(roundChoice(2, "Sevens"));
+
+  const tournament = await generatedTournament();
+  expect(tournament.entrants).toHaveLength(4);
+  expect(tournament.gameTypePool).toBeUndefined();
+  expect(tournament.fixtures.map((game) => [game.round, game.gameType])).toEqual([
+    [1, "beach-bowl"],
+    [1, "beach-bowl"],
+    [2, "sevens"],
+  ]);
 });
