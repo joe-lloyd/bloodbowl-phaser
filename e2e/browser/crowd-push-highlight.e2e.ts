@@ -70,7 +70,10 @@ for (const c of CASES) {
     await app.hud.chooseBlockResult("push");
 
     await expect
-      .poll(async () => (await app.bridge.pendingDecision())?.type)
+      .poll(async () => {
+        const pending = await app.bridge.pendingDecision();
+        return pending?.type;
+      })
       .toBe("push-direction");
     const decision = await app.bridge.pendingDecision();
     if (decision?.type !== "push-direction")
@@ -78,23 +81,27 @@ for (const c of CASES) {
     expect([...decision.options].sort(bySquare)).toEqual(c.crowd);
 
     await expect
-      .poll(async () =>
-        [...(await app.bridge.pitchHighlights())].sort(bySquare)
-      )
+      .poll(async () => {
+        const highlights = await app.bridge.pitchHighlights();
+        return [...highlights].sort(bySquare);
+      })
       .toEqual(c.crowd);
 
     const defenderId = await app.bridge.resolveRef("team2:0");
     const target = c.crowd.at(-1);
-    const pushedIntoCrowd = async () =>
-      (await app.bridge.events()).some(
+    const pushedIntoCrowd = async () => {
+      const logged = await app.bridge.events();
+      return logged.some(
         (e) =>
           e.name === GameEventNames.PlayerPushedIntoCrowd &&
           (e.data as { playerId?: string })?.playerId === defenderId
       );
+    };
     await expect(app.hud.blockDiceDialog()).toBeHidden();
 
     await expect(async () => {
-      if ((await app.bridge.pendingDecision())?.type === "push-direction") {
+      const pending = await app.bridge.pendingDecision();
+      if (pending?.type === "push-direction") {
         await waitForSquareToSettle(page, app, fixtureValue(target));
         await app.pitch.clickSquare(fixtureValue(target));
       }
@@ -102,7 +109,10 @@ for (const c of CASES) {
     }).toPass({ timeout: 20_000 });
 
     await expect
-      .poll(async () => (await app.bridge.pitchHighlights()).filter(offPitch))
+      .poll(async () => {
+        const highlights = await app.bridge.pitchHighlights();
+        return highlights.filter((square) => offPitch(square));
+      })
       .toEqual([]);
   });
 }

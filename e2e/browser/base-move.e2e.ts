@@ -49,7 +49,10 @@ for (const { size, use } of [
 
       await page.getByTestId("action-move-standup").click();
       await expect
-        .poll(async () => (await app.bridge.snapshot()).activePlayer?.action)
+        .poll(async () => {
+          const snapshot = await app.bridge.snapshot();
+          return snapshot.activePlayer?.action;
+        })
         .toBe("move");
       await squareOf(app, "team1:1").toEqual({ x: 4, y: 8 });
       await expect(page.getByTestId("action-step-move")).toBeVisible();
@@ -97,9 +100,13 @@ for (const { size, use } of [
       await page.getByTestId("action-plan-go").click();
       await squareOf(app, "team1:0").toEqual(LANDING);
       await expect
-        .poll(async () => (await app.bridge.snapshot()).ballPosition, {
-          timeout: 20_000,
-        })
+        .poll(
+          async () => {
+            const snapshot = await app.bridge.snapshot();
+            return snapshot.ballPosition;
+          },
+          { timeout: 20_000 }
+        )
         .toEqual(RECEIVER);
       await shot(page, `${size}-pass-thrown`);
     });
@@ -124,6 +131,9 @@ test("J and U press the second half from the keyboard", async ({ page }) => {
   await app.pitch.clickPlayer("team1:1");
   await page.keyboard.press("u");
   await expect
-    .poll(async () => (await app.bridge.snapshot()).activePlayer?.action)
+    .poll(async () => {
+      const snapshot = await app.bridge.snapshot();
+      return snapshot.activePlayer?.action;
+    })
     .toBe("move");
 });

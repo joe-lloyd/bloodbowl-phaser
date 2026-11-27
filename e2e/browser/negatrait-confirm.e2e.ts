@@ -7,10 +7,10 @@ test("Bone Head shows in the plan, rolls only on Go, and Clear declares nothing"
 }) => {
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "bone-head-activation" });
-  const rolls = async () =>
-    (await app.bridge.events()).filter(
-      (e) => e.name === GameEventNames.DiceRoll
-    );
+  const rolls = async () => {
+    const logged = await app.bridge.events();
+    return logged.filter((e) => e.name === GameEventNames.DiceRoll);
+  };
 
   await app.pitch.clickPlayer("team1:0");
   await app.hud.actionButton("move").click();
@@ -23,13 +23,19 @@ test("Bone Head shows in the plan, rolls only on Go, and Clear declares nothing"
   });
   await page.getByTestId("action-plan-clear").click();
   await expect(plan).toBeHidden();
-  expect((await app.bridge.snapshot()).activePlayer).toBeNull();
+  const snapshot = await app.bridge.snapshot();
+  expect(snapshot.activePlayer).toBeNull();
   expect(await rolls()).toHaveLength(0);
 
   await app.pitch.clickSquare({ x: 12, y: 5 });
   await expect(plan).toContainText("Bone Head 2+");
   expect(await rolls()).toHaveLength(0);
   await page.getByTestId("action-plan-go").click();
-  await expect.poll(async () => (await rolls()).length).toBe(1);
+  await expect
+    .poll(async () => {
+      const found = await rolls();
+      return found.length;
+    })
+    .toBe(1);
   await expect(plan).toBeHidden();
 });

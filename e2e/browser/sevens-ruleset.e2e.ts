@@ -66,9 +66,8 @@ test("a coach resumes Swarming and places an eighth player through the canvas", 
       teamId: team.id,
       formation: fixtureValue(new FormationManager().getBuiltInFormations(side)[0]).positions,
     });
-    expect(
-      (await game.execute({ type: "confirm-setup", teamId: team.id })).ok
-    ).toBe(true);
+    const confirmed = await game.execute({ type: "confirm-setup", teamId: team.id });
+    expect(confirmed.ok).toBe(true);
   }
   const save = game.matchSave();
   const reserve = fixtureValue(home.players.find((player) => !player.gridPosition));
@@ -116,10 +115,10 @@ test("a coach resumes Swarming and places an eighth player through the canvas", 
   await page.mouse.up();
   await expect
     .poll(
-      async () =>
-        fixtureValue((await app.bridge.snapshot()).teams[0]).players.filter(
-          (player) => player.position
-        ).length
+      async () => {
+        const snapshot = await app.bridge.snapshot();
+        return fixtureValue(snapshot.teams[0]).players.filter((player) => player.position).length;
+      }
     )
     .toBe(8);
   await page.screenshot({

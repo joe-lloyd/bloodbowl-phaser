@@ -106,7 +106,8 @@ test("a tap selects, a tap plans, Go walks", async ({
   await page.getByTestId("player-chip").tap();
   await expect(page.getByTestId("player-card")).toBeHidden();
   await app.pitch.waitForCameraToSettle();
-  expect((await cameraState(page)).zoom).toBe(zoom);
+  const cameraNow = await cameraState(page);
+  expect(cameraNow.zoom).toBe(zoom);
 
   const target = { x: start.x + 2, y: start.y };
   await tapSquare(page, app, target);
@@ -198,11 +199,13 @@ test("two fingers zoom, and a double tap on open ground fits the pitch", async (
 
 test("End Turn ends the turn only after a hold", async ({ page }) => {
   const app = await openScenario(page, "near-corner-blitz");
-  const first = (await app.bridge.snapshot()).activeTeamId;
+  const startSnapshot = await app.bridge.snapshot();
+  const first = startSnapshot.activeTeamId;
   const button = page.getByTestId("end-turn");
   await button.tap();
   await expect(page.getByText("Hold to end the turn")).toBeVisible();
-  expect((await app.bridge.snapshot()).activeTeamId).toBe(first);
+  const afterTap = await app.bridge.snapshot();
+  expect(afterTap.activeTeamId).toBe(first);
 
   const box = fixtureValue((await button.boundingBox()));
   const finger = await touches(page);
@@ -211,7 +214,10 @@ test("End Turn ends the turn only after a hold", async ({ page }) => {
     900
   );
   await expect
-    .poll(async () => (await app.bridge.snapshot()).activeTeamId)
+    .poll(async () => {
+      const snapshot = await app.bridge.snapshot();
+      return snapshot.activeTeamId;
+    })
     .not.toBe(first);
 });
 
@@ -235,15 +241,20 @@ test("a pass aims on the first tap, keeps its aim across steps, and throws on Go
   await app.pitch.waitForCameraToSettle();
 
   await expect(plan).toContainText("Catch");
-  expect((await app.bridge.snapshot()).ballPosition).toEqual(thrower);
+  const beforeGo = await app.bridge.snapshot();
+  expect(beforeGo.ballPosition).toEqual(thrower);
 
   await page.getByTestId("action-plan-go").tap();
 
   await page.getByRole("button", { name: "Decline" }).tap();
   await expect
-    .poll(async () => (await app.bridge.snapshot()).ballPosition, {
-      timeout: 10_000,
-    })
+    .poll(
+      async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.ballPosition;
+      },
+      { timeout: 10_000 }
+    )
     .not.toEqual(thrower);
 });
 
@@ -276,6 +287,12 @@ test("the coin toss, setup and kickoff all work by touch", async ({ page }) => {
     .getByRole("button", { name: "ROLL KICK-OFF" })
     .tap({ timeout: 20_000 });
   await expect
-    .poll(async () => (await app.bridge.snapshot()).phase, { timeout: 20_000 })
+    .poll(
+      async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.phase;
+      },
+      { timeout: 20_000 }
+    )
     .toBe("PLAY");
 });

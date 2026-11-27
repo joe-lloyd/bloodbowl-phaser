@@ -20,6 +20,11 @@ const ROSTERS = [
   [RosterName.DWARF, "Karak Hammers"],
 ] as const;
 
+const play = (game: CompetitionFixture) => {
+  game.status = "complete";
+  game.result = { homeScore: 2, awayScore: 1, completedAt: 0 };
+};
+
 function season(allPlayed = false) {
   const teams = ROSTERS.map(([roster, name], index) => {
     const team = createReadyMadeTeam(roster, name, 0x8e1b1b + index * 0x2040);
@@ -35,10 +40,6 @@ function season(allPlayed = false) {
     seed: index + 1,
   }));
   const fixtures = generateRoundRobin(entrants);
-  const play = (game: CompetitionFixture) => {
-    game.status = "complete";
-    game.result = { homeScore: 2, awayScore: 1, completedAt: 0 };
-  };
   if (allPlayed) {
     for (const fixture of fixtures) play(fixture);
   } else play(fixtureValue(fixtures[0]));

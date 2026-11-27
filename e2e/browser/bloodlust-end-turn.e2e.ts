@@ -21,8 +21,12 @@ test("End Turn with a failed Bloodlust bite owed leaves the player Distracted", 
   await app.hud.endTurn().click();
 
   await expect
-    .poll(async () => (await app.bridge.snapshot()).activeTeamId)
+    .poll(async () => {
+      const snapshot = await app.bridge.snapshot();
+      return snapshot.activeTeamId;
+    })
     .not.toBe(team1.id);
-  const vampire = fixtureValue((await app.bridge.snapshot()).teams[0]).players[0];
+  const snapshot = await app.bridge.snapshot();
+  const vampire = fixtureValue(snapshot.teams[0]).players[0];
   expect(fixtureValue(vampire).conditions.map((c) => c.type)).toEqual(["Distracted"]);
 });

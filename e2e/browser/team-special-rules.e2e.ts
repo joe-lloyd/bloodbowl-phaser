@@ -10,7 +10,8 @@ async function diceLogText(page: Page): Promise<string> {
   if (!(await log.isVisible()))
     await page.getByTestId("dice-log-toggle").click();
   await expect(log).toBeVisible();
-  return (await log.innerText()).toLowerCase();
+  const text = await log.innerText();
+  return text.toLowerCase();
 }
 
 async function logEntry(page: Page, rollType: string): Promise<void> {
@@ -39,7 +40,10 @@ test("the Team Captain's 6 keeps the Team Re-roll", async ({ page }) => {
   await app.bridge.expectEvent(GameEventNames.RerollUsed);
 
   await expect
-    .poll(async () => fixtureValue((await app.bridge.snapshot()).teams[0]).rerolls)
+    .poll(async () => {
+      const snapshot = await app.bridge.snapshot();
+      return fixtureValue(snapshot.teams[0]).rerolls;
+    })
     .toBe(1);
   await expect.poll(() => diceLogText(page)).toContain("team captain");
   await logEntry(page, "Team Captain");
@@ -57,9 +61,13 @@ test("Bribery and Corruption re-rolls a 1 to Argue the Call", async ({
   await page.keyboard.press("Enter");
 
   await expect
-    .poll(async () => (await app.bridge.snapshot()).briberyRerollsUsed, {
-      timeout: 20_000,
-    })
+    .poll(
+      async () => {
+        const snapshot = await app.bridge.snapshot();
+        return snapshot.briberyRerollsUsed;
+      },
+      { timeout: 20_000 }
+    )
     .toEqual([await app.bridge.resolveRef("team1")]);
   await expect
     .poll(() => diceLogText(page))

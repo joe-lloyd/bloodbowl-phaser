@@ -19,7 +19,10 @@ test("a coach sees their injured player after the opponent's block", async ({
   await app.pitch.clickSquare({ x: 9, y: 7 });
   await app.bridge.expectEvent(GameEventNames.PlayerCasualtyInflicted);
   await expect
-    .poll(async () => (await app.bridge.phase()).activeTeamId)
+    .poll(async () => {
+      const phase = await app.bridge.phase();
+      return phase.activeTeamId;
+    })
     .toBe(teams[0].id);
   const card = page.getByTestId("turn-catch-up");
   await expect(card).toContainText("Since your last turn");

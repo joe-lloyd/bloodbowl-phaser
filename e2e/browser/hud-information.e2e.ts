@@ -28,7 +28,8 @@ test("the player card counts movement and rushes left after a partial move", asy
   await page.setViewportSize({ width: 1280, height: 720 });
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "movement-test", seed: 7 });
-  const runner = fixtureValue((await app.bridge.snapshot()).teams[0]).players[0];
+  const snapshot = await app.bridge.snapshot();
+  const runner = fixtureValue(snapshot.teams[0]).players[0];
   const ma = fixtureValue(runner).stats.MA;
   await app.hud.declareAction("team1:0", "move");
   await app.pitch.clickPath([
@@ -38,7 +39,10 @@ test("the player card counts movement and rushes left after a partial move", asy
   await app.pitch.clickSquare({ x: 2, y: 3 });
   await expect
     .poll(
-      async () => fixtureValue(fixtureValue((await app.bridge.snapshot()).teams[0]).players[0]).position
+      async () => {
+        const current = await app.bridge.snapshot();
+        return fixtureValue(fixtureValue(current.teams[0]).players[0]).position;
+      }
     )
     .toEqual({ x: 2, y: 3 });
   await expect(page.getByTestId("movement-left")).toHaveText(

@@ -64,16 +64,25 @@ test("a charger under the airborne ball rolls no Pick up, then Catches it", asyn
   await app.pitch.clickSquare(landing);
   await expect.poll(() => app.pitch.squareOf(fixtureValue(charger).ref)).toEqual(landing);
   await expect(page.getByText(/pick ?up/i)).toHaveCount(0);
-  expect((await app.bridge.snapshot()).ballPosition).toEqual(landing);
-  expect((await app.bridge.phase()).phase).toBe("KICKOFF");
+  const after = await app.bridge.snapshot();
+  expect(after.ballPosition).toEqual(landing);
+  const phaseNow = await app.bridge.phase();
+  expect(phaseNow.phase).toBe("KICKOFF");
   await page.screenshot({ path: `${shots}/charger-under-airborne-ball.png` });
   await page.getByRole("button", { name: /end activation/i }).click();
 
   await expect
-    .poll(async () => (await app.bridge.phase()).phase, { timeout: 20_000 })
+    .poll(
+      async () => {
+        const phase = await app.bridge.phase();
+        return phase.phase;
+      },
+      { timeout: 20_000 }
+    )
     .toBe("PLAY");
   expect(await app.bridge.pitchLayers()).not.toContain("kick_target");
-  const rolls = (await app.bridge.events())
+  const events = await app.bridge.events();
+  const rolls = events
     .filter((e) => e.name === "diceRoll")
     .map((e) => (e.data as { rollType: string }).rollType);
   console.log(`rolls: ${JSON.stringify(rolls)}`);

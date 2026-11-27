@@ -3,11 +3,13 @@ import { test, expect } from "@playwright/test";
 import { GameEventNames } from "../../src/types/events";
 import { GameApp } from "../support/pages/game";
 
-const crowdRolls = async (app: GameApp) =>
-  (await app.bridge.events())
+const crowdRolls = async (app: GameApp) => {
+  const events = await app.bridge.events();
+  return events
     .filter((e) => e.name === GameEventNames.DiceRoll)
     .map((e) => (e.data as { description: string }).description)
     .filter((d) => d.startsWith("Crowd Takes Action"));
+};
 
 test("the crowd knocks a Stalling carrier down on a roll of the Turn number or more", async ({
   page,
@@ -31,7 +33,10 @@ test("the crowd knocks a Stalling carrier down on a roll of the Turn number or m
     path: test.info().outputPath("stalling-crowd-hits.png"),
   });
   await expect
-    .poll(async () => (await app.bridge.snapshot()).activeTeamId)
+    .poll(async () => {
+      const snapshot = await app.bridge.snapshot();
+      return snapshot.activeTeamId;
+    })
     .not.toBe(team1.id);
   const snapshot = await app.bridge.snapshot();
   const carrier = fixtureValue(snapshot.teams[0]).players[0];

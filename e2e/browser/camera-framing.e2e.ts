@@ -106,19 +106,19 @@ test("direct teammate selection after movement holds zoom for every frame and se
   await app.pitch.clickPlayer("team1:1");
   await app.pitch.waitForCameraToSettle();
   await page.waitForTimeout(1500);
-  const selected = (await app.bridge.events())
-    .findLast((e) => e.name === GameEventNames.PlayerSelected);
+  const logged = await app.bridge.events();
+  const selected = logged.findLast((e) => e.name === GameEventNames.PlayerSelected);
   expect(selected?.data).toMatchObject({ player: { id: requestedId } });
-  expect((await app.bridge.snapshot()).turn.activatedPlayerIds).toContain(
+  const snapshot = await app.bridge.snapshot();
+  expect(snapshot.turn.activatedPlayerIds).toContain(
     await app.bridge.resolveRef("team1:0")
   );
   expectZoomHeld(
     await finishCameraSample(page, test.info(), "direct-selection-frames")
   );
+  const events = await app.bridge.events();
   expect(
-    (await app.bridge.events()).filter(
-      (e) => e.name === GameEventNames.Camera_ChooseNextPlayer
-    )
+    events.filter((e) => e.name === GameEventNames.Camera_ChooseNextPlayer)
   ).toEqual([]);
   await page.screenshot({
     path: test.info().outputPath("direct-selection.png"),
@@ -171,11 +171,15 @@ test("the wheel can zoom out after a wide team fit", async ({ page }) => {
   await app.hud.declareAction("team1:0", "move");
   await page.getByTestId("action-end-activation").click();
   await app.pitch.waitForCameraToSettle();
-  const before = (await cameraState(page)).zoom;
+  const beforeState = await cameraState(page);
+  const before = beforeState.zoom;
   await page.mouse.move(640, 360);
   await page.mouse.wheel(0, 100);
   await expect
-    .poll(async () => (await cameraState(page)).zoom)
+    .poll(async () => {
+      const state = await cameraState(page);
+      return state.zoom;
+    })
     .toBeLessThan(before);
 });
 
@@ -222,7 +226,12 @@ test("resizing during a team zoom keeps every eligible player visible", async ({
   const app = await openSpread(page);
   await app.hud.declareAction("team1:0", "move");
   await page.getByTestId("action-end-activation").click();
-  await expect.poll(async () => (await cameraState(page)).zooming).toBe(true);
+  await expect
+    .poll(async () => {
+      const state = await cameraState(page);
+      return state.zooming;
+    })
+    .toBe(true);
   await page.setViewportSize({ width: 844, height: 390 });
   await expectTeamFits(page, app, 0, true);
 });
@@ -255,8 +264,8 @@ for (const afterMs of [250, 700]) {
     const requestedId = await app.bridge.resolveRef("team2:0");
     await expect
       .poll(async () => {
-        const event = (await app.bridge.events())
-          .findLast((e) => e.name === GameEventNames.PlayerSelected);
+        const logged = await app.bridge.events();
+        const event = logged.findLast((e) => e.name === GameEventNames.PlayerSelected);
         return event?.data;
       })
       .toMatchObject({ player: { id: requestedId } });

@@ -1,5 +1,6 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
+import { byCodeUnit } from "../../src/game/core/order";
 import { GameApp } from "../support/pages/game";
 
 const prompt = (page: Page) => page.getByTestId("bite-target-prompt");
@@ -25,18 +26,21 @@ async function failBesideTwoThralls(page: Page) {
   return { app, team1, team2, players };
 }
 
-const statusOf = async (app: GameApp, playerId: string) =>
-  (await app.bridge.snapshot()).teams
+const statusOf = async (app: GameApp, playerId: string) => {
+  const snapshot = await app.bridge.snapshot();
+  return snapshot.teams
     .flatMap((team) => team.players)
     .find((p) => p.id === playerId)?.status;
+};
 
 async function expectTargetsMarked(app: GameApp) {
   await expect
-    .poll(async () =>
-      (await app.bridge.pitchHighlights())
+    .poll(async () => {
+      const highlights = await app.bridge.pitchHighlights();
+      return highlights
         .map(({ x, y }) => `${String(x)},${String(y)}`)
-        .sort()
-    )
+        .sort(byCodeUnit);
+    })
     .toEqual(expect.arrayContaining(["10,6", "11,5"]));
 }
 
@@ -80,11 +84,12 @@ test("two Thralls in reach at the end of the activation: the coach clicks who to
   expect(biter?.conditions ?? []).toEqual([]);
 
   await expect
-    .poll(async () =>
-      (await app.bridge.pitchHighlights()).filter(
+    .poll(async () => {
+      const highlights = await app.bridge.pitchHighlights();
+      return highlights.filter(
         ({ x, y }) => (x === 11 && y === 5) || (x === 10 && y === 6)
-      )
-    )
+      );
+    })
     .toEqual([]);
   await shot(page, testInfo, "3-after-bite.png");
 });
@@ -108,7 +113,10 @@ test("two Thralls in reach at End Turn: the coach clicks who to bite", async ({
 
   await expect(prompt(page)).toBeHidden();
   await expect
-    .poll(async () => (await app.bridge.snapshot()).activeTeamId)
+    .poll(async () => {
+      const snapshot = await app.bridge.snapshot();
+      return snapshot.activeTeamId;
+    })
     .toBe(team2.id);
   expect(await statusOf(app, players.first)).not.toBe("Active");
   expect(await statusOf(app, players.second)).toBe("Active");

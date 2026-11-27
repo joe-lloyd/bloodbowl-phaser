@@ -110,10 +110,9 @@ test("foul previews armour in the plan, and Clear drops it unrolled", async ({
   await page.screenshot({ path: test.info().outputPath("foul-plan.png") });
   await page.getByTestId("action-plan-clear").click();
   await expect(plan).toBeHidden();
+  const eventLog = await app.bridge.events();
   expect(
-    (await app.bridge.events()).filter(
-      (e) => e.name === GameEventNames.DiceRoll
-    )
+    eventLog.filter((e) => e.name === GameEventNames.DiceRoll)
   ).toHaveLength(0);
 });
 
@@ -142,8 +141,10 @@ test("a foul clears its red target square once the foul is over", async ({
   await app.hud.declareAction("team1:0", "foul");
   await app.hud.selectActionStep("foul");
   const target = await app.pitch.squareOf("team2:0");
-  const highlights = async () =>
-    (await app.bridge.pitchLayers()).filter((name) => name === "highlight");
+  const highlights = async () => {
+    const layers = await app.bridge.pitchLayers();
+    return layers.filter((name) => name === "highlight");
+  };
 
   await app.pitch.hoverSquare(target);
   await app.pitch.hoverSquare({ x: target.x, y: target.y + 2 });
@@ -190,10 +191,13 @@ test("a blitz plan lists the block's Rush, and Go rolls it with no extra prompt"
 
   await page.getByTestId("action-plan-go").click();
   await expect
-    .poll(async () =>
-      (await app.bridge.events()).some(
-        (e) => e.name === GameEventNames.DiceRoll && JSON.stringify(e).includes("Rush")
-      ),
+    .poll(
+      async () => {
+        const eventLog = await app.bridge.events();
+        return eventLog.some(
+          (e) => e.name === GameEventNames.DiceRoll && JSON.stringify(e).includes("Rush")
+        );
+      },
       { timeout: 20_000 }
     )
     .toBe(true);

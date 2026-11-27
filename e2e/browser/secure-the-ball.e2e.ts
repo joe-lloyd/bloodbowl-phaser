@@ -11,7 +11,8 @@ test("Secure the Ball moves onto the ball with one unnumbered action and the rig
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "secure-ball-move-to-ball", seed: 9 });
   const initialSnapshot = await app.bridge.snapshot();
-  const eventsBeforeSteps = (await app.bridge.events()).length;
+  const startEvents = await app.bridge.events();
+  const eventsBeforeSteps = startEvents.length;
   await app.pitch.waitForCameraToSettle();
   await app.pitch.clickPlayer("team1:0");
   await app.hud.actionButton("secureBall").click();
@@ -38,11 +39,13 @@ test("Secure the Ball moves onto the ball with one unnumbered action and the rig
       );
     })
     .toBe(true);
-  expect(fixtureValue(fixtureValue((await app.bridge.snapshot()).teams[0]).players[0]).position).toEqual({
+  const snapshotAfter = await app.bridge.snapshot();
+  expect(fixtureValue(fixtureValue(snapshotAfter.teams[0]).players[0]).position).toEqual({
     x: 7,
     y: 5,
   });
-  const dice = (await app.bridge.events())
+  const diceEvents = await app.bridge.events();
+  const dice = diceEvents
     .filter((e) => e.name === "diceRoll")
     .map((e) => (e.data as { description: string }).description);
   expect(dice).toEqual(["Secure the Ball (Human Lineman #1): 2, needs 2+"]);

@@ -24,7 +24,8 @@ test("a Bribe that works keeps the fouler on the pitch", async ({ page }) => {
   const argue = card.getByTestId("sent-off-argue");
   await expect(argue).toContainText("Argue the Call 5+");
   await expect(argue).toContainText("The referee ignores the argument.");
-  const argued = (await app.bridge.events()).find(
+  const argueEvents = await app.bridge.events();
+  const argued = argueEvents.find(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
       (e.data as { rollType: string }).rollType === "Argue the Call"
@@ -54,9 +55,8 @@ test("a Bribe that works keeps the fouler on the pitch", async ({ page }) => {
 
   const snapshot = await app.bridge.snapshot();
   expect(fixtureValue(fixtureValue(snapshot.teams[0]).players[0]).status).toBe(PlayerStatus.ACTIVE);
-  expect(
-    (await app.bridge.events()).some((e) => e.name === GameEventNames.Turnover)
-  ).toBe(false);
+  const endEvents = await app.bridge.events();
+  expect(endEvents.some((e) => e.name === GameEventNames.Turnover)).toBe(false);
 });
 
 test("a pocketed Bribe still Sends-off the fouler, then the card closes by itself", async ({

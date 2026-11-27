@@ -107,7 +107,8 @@ test("a saved team can play a fresh catalogue opponent without saving the oppone
 }) => {
   page.on("dialog", (dialog) => void dialog.accept());
   await seedAllRosters(page, { fullStrength: true });
-  const saved = (await savedTeams(page)).length;
+  const teamsBefore = await savedTeams(page);
+  const saved = teamsBefore.length;
   await openCatalogue(page, "Green Bay Smackers");
   await page.getByRole("button", { name: "Play against", exact: true }).click();
   await expect(
@@ -130,7 +131,8 @@ test("a saved team can play a fresh catalogue opponent without saving the oppone
   await expect(page.getByRole("button", { name: "FLIP COIN" })).toBeVisible({
     timeout: 15_000,
   });
-  const opponent = (await app.bridge.snapshot()).teams.find(
+  const snapshot = await app.bridge.snapshot();
+  const opponent = snapshot.teams.find(
     (team) => team.name === "Green Bay Smackers"
   );
   expect(opponent?.players).toHaveLength(7);
@@ -174,11 +176,12 @@ test("the same template enters two leagues as different teams with the league mo
       page.getByRole("heading", { name, exact: true })
     ).toBeVisible();
   }
-  const copies = (await savedTeams(page)).filter(
+  const teams = await savedTeams(page);
+  const copies = teams.filter(
     (team) => team.computerTemplateId === "human-reroll-mix-roster"
   );
   expect(copies).toHaveLength(2);
-  expect(copies.map((team) => team.advancementMode).sort()).toEqual([
+  expect(copies.map((team) => team.advancementMode ?? "").sort((a, b) => a.localeCompare(b))).toEqual([
     "advanced-league",
     "sevens-skill-selection",
   ]);

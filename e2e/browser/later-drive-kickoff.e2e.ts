@@ -32,7 +32,13 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
     await page.waitForTimeout(800);
   }
   await expect
-    .poll(async () => (await app.bridge.phase()).phase, { timeout: 15_000 })
+    .poll(
+      async () => {
+        const phase = await app.bridge.phase();
+        return phase.phase;
+      },
+      { timeout: 15_000 }
+    )
     .toBe("KICKOFF");
 
   await page.evaluate((turnStarted) => {
@@ -67,10 +73,10 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
   const landed = (pattern: RegExp) =>
     expect
       .poll(
-        async () =>
-          (await page.evaluate(() => globalThis.__tray)).find((line) =>
-            pattern.test(line)
-          ),
+        async () => {
+          const lines = await page.evaluate(() => globalThis.__tray);
+          return lines.find((line) => pattern.test(line));
+        },
         { timeout: 15_000 }
       )
       .toBeTruthy();

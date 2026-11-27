@@ -32,8 +32,9 @@ test("armour and injury land as two throws before the turnover hands over", asyn
         bannerAt: 0,
       };
       globalThis.__throws = log;
-      const note = (what: string) =>
+      const note = (what: string) => {
         log.beats.push({ at: Math.round(performance.now()), what });
+      };
       globalThis.eventBus.on(
         names.roll,
         (roll: { rollType: string; description: string }) => {
@@ -44,10 +45,11 @@ test("armour and injury land as two throws before the turnover hands over", asyn
       );
       globalThis.eventBus.on(
         names.tray,
-        (tray: { thrown: number; landedThrough: number }) =>
+        (tray: { thrown: number; landedThrough: number }) => {
           note(
             `tray thrown ${String(tray.thrown)} landed ${String(tray.landedThrough)}`
-          )
+          );
+        }
       );
       globalThis.eventBus.on(names.moment, (moment: { kind: string } | null) => {
         note(`moment ${moment?.kind ?? "none"}`);
@@ -55,10 +57,10 @@ test("armour and injury land as two throws before the turnover hands over", asyn
           log.bannerAt = performance.now();
       });
 
-      const tray = document.querySelector('[data-testid="dice-tray"]');
+      const tray = document.querySelector<HTMLElement>('[data-testid="dice-tray"]');
       let last = "";
       new MutationObserver(() => {
-        const state = tray?.getAttribute("data-dice") ?? "";
+        const state = tray?.dataset["dice"] ?? "";
         const text = tray?.textContent ?? "";
         const key = `${state} ${text}`;
         if (key === last) return;
@@ -91,8 +93,8 @@ test("armour and injury land as two throws before the turnover hands over", asyn
     await page.waitForFunction(
       () =>
         document
-          .querySelector('[data-testid="dice-tray"]')
-          ?.getAttribute("data-dice") === "landed" &&
+          .querySelector<HTMLElement>('[data-testid="dice-tray"]')
+          ?.dataset["dice"] === "landed" &&
         (
           document.querySelector('[data-testid="dice-tray"]')?.textContent ?? ""
         ).includes("Armour")
@@ -101,8 +103,8 @@ test("armour and injury land as two throws before the turnover hands over", asyn
     await page.waitForFunction(
       () =>
         document
-          .querySelector('[data-testid="dice-tray"]')
-          ?.getAttribute("data-dice") === "landed" &&
+          .querySelector<HTMLElement>('[data-testid="dice-tray"]')
+          ?.dataset["dice"] === "landed" &&
         (
           document.querySelector('[data-testid="dice-tray"]')?.textContent ?? ""
         ).includes("Injury")

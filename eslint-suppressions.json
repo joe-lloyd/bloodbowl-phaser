@@ -3454,27 +3454,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-return-array-push": {
-      "count": 1
-    }
-  },
-  "e2e/browser/ball-and-chain.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 4
-    }
-  },
-  "e2e/browser/base-move.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 3
-    }
-  },
-  "e2e/browser/bloodlust-bite-choice.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 4
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 1
     }
   },
   "e2e/browser/bloodlust-bite-reaction.e2e.ts": {
@@ -3483,17 +3462,6 @@
     },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 3
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 3
-    },
-    "unicorn/no-return-array-push": {
-      "count": 1
-    }
-  },
-  "e2e/browser/bloodlust-end-turn.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 2
     }
   },
   "e2e/browser/camera-framing.e2e.ts": {
@@ -3508,9 +3476,6 @@
     },
     "max-params": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 7
     }
   },
   "e2e/browser/computer-dice-log.e2e.ts": {
@@ -3538,12 +3503,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 3
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 1
     }
   },
   "e2e/browser/crowd-push-highlight.e2e.ts": {
@@ -3552,12 +3511,6 @@
     },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    },
-    "unicorn/no-array-callback-reference": {
-      "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 4
     }
   },
   "e2e/browser/decision-dock.e2e.ts": {
@@ -3571,23 +3524,10 @@
   "e2e/browser/friendly-short-team.e2e.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 2
     }
   },
   "e2e/browser/half-time-card.e2e.ts": {
     "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "e2e/browser/hud-information.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 2
-    }
-  },
-  "e2e/browser/keyboard.e2e.ts": {
-    "unicorn/no-await-expression-member": {
       "count": 1
     }
   },
@@ -3597,32 +3537,15 @@
     },
     "no-restricted-syntax": {
       "count": 2
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 4
     }
   },
   "e2e/browser/kickoff-charge.e2e.ts": {
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 1
-    }
-  },
-  "e2e/browser/kickoff-playground.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 3
-    },
-    "unicorn/no-unnecessary-parameters": {
-      "count": 1
     }
   },
   "e2e/browser/kickoff-reveal.e2e.ts": {
     "no-restricted-syntax": {
-      "count": 1
-    },
-    "unicorn/no-await-expression-member": {
       "count": 1
     }
   },
@@ -3635,19 +3558,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 2
-    }
-  },
-  "e2e/browser/league-rounds.e2e.ts": {
-    "unicorn/consistent-function-scoping": {
-      "count": 1
-    }
-  },
-  "e2e/browser/match-journey.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 4
     }
   },
   "e2e/browser/match-strip.e2e.ts": {
@@ -3656,14 +3566,6 @@
     },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 1
-    }
-  },
-  "e2e/browser/negatrait-confirm.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 3
     }
   },
   "e2e/browser/opening.e2e.ts": {
@@ -3678,46 +3580,16 @@
     },
     "no-restricted-syntax": {
       "count": 3
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 5
-    },
-    "unicorn/prefer-includes-over-repeated-comparisons": {
-      "count": 1
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 1
     }
   },
   "e2e/browser/other-coach-move.e2e.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 1
-    }
-  },
-  "e2e/browser/parity.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 2
-    }
-  },
-  "e2e/browser/phone-dice.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 1
-    }
-  },
-  "e2e/browser/phone-kickoff.e2e.ts": {
-    "unicorn/no-await-expression-member": {
       "count": 2
     }
   },
   "e2e/browser/phone-layout.e2e.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 7
     }
   },
   "e2e/browser/pitch-exits.e2e.ts": {
@@ -3726,17 +3598,11 @@
     },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
-    },
-    "unicorn/no-return-array-push": {
-      "count": 1
     }
   },
   "e2e/browser/pitch-geometry.e2e.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 6
-    },
-    "unicorn/require-array-sort-compare": {
-      "count": 1
     }
   },
   "e2e/browser/player-sprite.e2e.ts": {
@@ -3758,9 +3624,6 @@
   "e2e/browser/razzle-dazzle.e2e.ts": {
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 2
     }
   },
   "e2e/browser/roll-banner.e2e.ts": {
@@ -3768,21 +3631,8 @@
       "count": 1
     }
   },
-  "e2e/browser/roll-previews.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 3
-    }
-  },
   "e2e/browser/rule-interaction-shapes.e2e.ts": {
     "@typescript-eslint/prefer-optional-chain": {
-      "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 3
-    }
-  },
-  "e2e/browser/sandbox-cases.e2e.ts": {
-    "unicorn/no-await-expression-member": {
       "count": 1
     }
   },
@@ -3792,24 +3642,15 @@
     },
     "no-restricted-syntax": {
       "count": 4
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 4
     }
   },
   "e2e/browser/secure-the-ball.e2e.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 3
     }
   },
   "e2e/browser/sent-off-card.e2e.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    },
-    "unicorn/no-await-expression-member": {
       "count": 2
     }
   },
@@ -3820,26 +3661,11 @@
     "@typescript-eslint/no-non-null-assertion": {
       "count": 6
     },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
     "max-params": {
-      "count": 2
+      "count": 1
     },
     "no-restricted-syntax": {
       "count": 3
-    },
-    "unicorn/no-array-reduce": {
-      "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 7
-    },
-    "unicorn/no-return-array-push": {
-      "count": 1
-    },
-    "unicorn/no-unnecessary-parameters": {
-      "count": 1
     }
   },
   "e2e/browser/setup-grid-pick.e2e.ts": {
@@ -3848,12 +3674,6 @@
     },
     "no-restricted-syntax": {
       "count": 6
-    },
-    "unicorn/consistent-function-scoping": {
-      "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 9
     }
   },
   "e2e/browser/sevens-ruleset.e2e.ts": {
@@ -3871,14 +3691,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 2
-    }
-  },
-  "e2e/browser/smoke.e2e.ts": {
-    "unicorn/no-return-array-push": {
-      "count": 1
     }
   },
   "e2e/browser/sports-wizard.e2e.ts": {
@@ -3887,17 +3699,11 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 6
     }
   },
   "e2e/browser/stalling.e2e.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "unicorn/no-await-expression-member": {
-      "count": 2
     }
   },
   "e2e/browser/team-builder-layout.e2e.ts": {
@@ -3913,21 +3719,6 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "e2e/browser/team-special-rules.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 3
-    }
-  },
-  "e2e/browser/turn-catch-up.e2e.ts": {
-    "unicorn/no-await-expression-member": {
-      "count": 1
-    }
-  },
-  "e2e/browser/turnover-pace.e2e.ts": {
-    "unicorn/no-return-array-push": {
       "count": 1
     }
   },

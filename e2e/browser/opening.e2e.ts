@@ -8,9 +8,16 @@ import { pickFormation } from "../support/setup";
 import { seedAllRosters } from "../support/seedTeams";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
+import { byCodeUnit } from "../../src/game/core/order";
 
 test.use({ contextOptions: { reducedMotion: "no-preference" } });
 if (process.env["SHOTS"]) test.use({ video: "on" });
+
+const ANNOUNCED_EVENTS: ReadonlySet<string> = new Set([
+  GameEventNames.UI_Announce,
+  GameEventNames.UI_StartWeather,
+  GameEventNames.UI_StartCoinFlip,
+]);
 
 test("introductions, then the coin, then setup with no zone left glowing", async ({
   page,
@@ -96,13 +103,9 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   await confirmPregame(page);
 
   await expect(flip).toBeVisible({ timeout: 15_000 });
-  const announced = (await app.bridge.events())
-    .filter(
-      (e) =>
-        e.name === GameEventNames.UI_Announce ||
-        e.name === GameEventNames.UI_StartWeather ||
-        e.name === GameEventNames.UI_StartCoinFlip
-    )
+  const announcedEvents = await app.bridge.events();
+  const announced = announcedEvents
+    .filter((e) => ANNOUNCED_EVENTS.has(e.name))
     .map((e) =>
       e.name === GameEventNames.UI_Announce
         ? (e.data as { kind: string }).kind
@@ -140,12 +143,14 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     return w.namedAt - w.flippedAt;
   });
   expect(namedAfterMs).toBeGreaterThan(1500);
-  const toss = (await app.bridge.events()).find(
+  const tossEvents = await app.bridge.events();
+  const toss = tossEvents.find(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
       (e.data as { rollType: string }).rollType === "Coin Toss"
   );
-  const winner = (await app.bridge.teams()).find(
+  const teamList = await app.bridge.teams();
+  const winner = teamList.find(
     (t) => t.id === (toss?.data as { teamId: string }).teamId
   );
   await expect(page.getByText(`${String(winner?.name)} wins the toss!`)).toBeVisible();
@@ -159,10 +164,11 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   for (let team = 0; team < 2; team++) {
     await expect(page.getByTestId("formation-menu")).toBeVisible({ timeout: 15_000 });
 
+    const layers = await app.bridge.pitchLayers();
     expect(
-      (await app.bridge.pitchLayers())
+      layers
         .filter((name) => name.startsWith("setup_zone_"))
-        .sort()
+        .sort(byCodeUnit)
     ).toEqual(["setup_zone_highlight", "setup_zone_markings"]);
     await expect(page.getByTestId("setup-checklist")).toContainText(
       "Line of scrimmage 0/3"
@@ -203,7 +209,13 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   }
 
   await expect
-    .poll(async () => (await app.bridge.phase()).phase, { timeout: 15_000 })
+    .poll(
+      async () => {
+        const current = await app.bridge.phase();
+        return current.phase;
+      },
+      { timeout: 15_000 }
+    )
     .not.toBe(GamePhase.SETUP);
   expect(await app.bridge.pitchLayers()).not.toContain("setup_zone_highlight");
   await shot("setup-done");

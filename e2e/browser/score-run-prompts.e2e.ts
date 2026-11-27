@@ -102,12 +102,14 @@ test("a score run plans the Dodge and the Rush, and scores at the end on Go", as
       : test.info().outputPath(`${name}.png`);
     await page.screenshot({ path });
   };
-  const carrier = async () =>
-    fixtureValue(fixtureValue((await app.bridge.snapshot()).teams[0]).players.find((p) => p.position));
-  const scored = async () =>
-    (await app.bridge.events()).some(
-      (e) => e.name === GameEventNames.Touchdown
-    );
+  const carrier = async () => {
+    const snapshot = await app.bridge.snapshot();
+    return fixtureValue(fixtureValue(snapshot.teams[0]).players.find((p) => p.position));
+  };
+  const scored = async () => {
+    const eventLog = await app.bridge.events();
+    return eventLog.some((e) => e.name === GameEventNames.Touchdown);
+  };
 
   await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: SEED });
   await observeMoments(page);
@@ -121,7 +123,8 @@ test("a score run plans the Dodge and the Rush, and scores at the end on Go", as
   const plan = page.getByTestId("action-plan");
   await expect(plan).toContainText("Dodge 3+");
   await expect(plan).toContainText("Rush 2+");
-  expect((await carrier()).position).toEqual({ x: 12, y: 5 });
+  const carried = await carrier();
+  expect(carried.position).toEqual({ x: 12, y: 5 });
   expect(await scored()).toBe(false);
   await shot("route-plotted");
   await page.getByTestId("action-plan-go").click();
@@ -132,7 +135,13 @@ test("a score run plans the Dodge and the Rush, and scores at the end on Go", as
   await expect(touchdown).toContainText("Touchdown", { timeout: 15_000 });
   await shot("touchdown");
   await expect
-    .poll(async () => (await app.bridge.phase()).phase, { timeout: 15_000 })
+    .poll(
+      async () => {
+        const current = await app.bridge.phase();
+        return current.phase;
+      },
+      { timeout: 15_000 }
+    )
     .toBe("SETUP");
   const moments = await page.evaluate(() => globalThis.__momentProof.moments);
   const scoredMoment = moments.find((moment) => moment.kind === "touchdown");

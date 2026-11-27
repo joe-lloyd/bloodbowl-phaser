@@ -31,7 +31,13 @@ test("a lone charger gets the action menu, then the receiving team plays", async
   await page.getByRole("button", { name: /end activation/i }).click();
 
   await expect
-    .poll(async () => (await app.bridge.phase()).phase, { timeout: 20_000 })
+    .poll(
+      async () => {
+        const phase = await app.bridge.phase();
+        return phase.phase;
+      },
+      { timeout: 20_000 }
+    )
     .toBe("PLAY");
   await app.pitch.clickPlayer("team2:3");
   await expect(app.hud.actionButton("move")).toBeVisible({ timeout: 10_000 });
