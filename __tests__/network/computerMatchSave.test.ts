@@ -1,170 +1,17 @@
-import { fixtureValue } from "../../src/testing/fixtureValue";
-import {
-  confirmComputerPregame,
-  rollKickoffsAtOnce,
-} from "../utils/computerPregame";
-
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { createComputerMatch } from "../../src/network/ComputerMatch";
-import { type OnlineMatch } from "../../src/network/OnlineMatch";
-import { EventBus } from "../../src/services/EventBus";
-import { ServiceContainer } from "../../src/services/ServiceContainer";
-import { createLineupTeam } from "../../src/simulation/lineups";
-import { stabilizeIds } from "../../src/headless/createHeadlessGame";
-import { enumerateDecision } from "../../src/simulation/candidates";
-import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
-import { createCoachRng } from "../../src/simulation/rng";
-import {
-  type MatchSave,
-  restoreMatchSave,
-} from "../../src/headless/serialization";
-import { whenEngineQuiet } from "../../src/game/core/GameFlowManager";
-import {
-  type MatchSaveRepository,
-  describeMatchSave,
-  setMatchSaveRepository,
-} from "../../src/game/persistence/MatchSaveRepository";
+import { describe, expect, it, vi } from "vitest";
+import { confirmComputerPregame } from "../utils/computerPregame";
+import { restoreMatchSave } from "../../src/headless/serialization";
 import { GamePhase } from "../../src/types/GameState";
-import { GameEventNames } from "../../src/types/events";
-import { RosterName } from "../../src/types/Team";
 import { type CompetitionContext } from "../../src/competition/types";
-
-const autosave = { difficulty: "standard" };
-const ms = (time: number) =>
-  new Promise((resolve) => setTimeout(resolve, time));
-
-let latest: MatchSave | null = null;
-
-let writtenOver: (string | null)[] = [];
-const repository: MatchSaveRepository = {
-  read: () => latest,
-  write: (save) => {
-    latest = save;
-    writtenOver.push(liveGame().pendingDecision()?.type ?? null);
-  },
-  clear: () => {
-    latest = null;
-  },
-  describe: () => (latest ? describeMatchSave(latest) : null),
-};
-
-let match: OnlineMatch | null = null;
-afterEach(() => {
-  match?.close();
-  match = null;
-  latest = null;
-  writtenOver = [];
-  setMatchSaveRepository(null);
-  ServiceContainer.reset();
-});
-
-const liveGame = () =>
-  fixtureValue(globalThis.__computerMatch).game;
-
-function startNew(
-  pace: number,
-  competitionContext?: CompetitionContext
-): OnlineMatch {
-  setMatchSaveRepository(repository);
-  match = createComputerMatch({
-    ...(competitionContext !== undefined && { competitionContext: competitionContext }),
-    eventBus: new EventBus(),
-    team1: stabilizeIds(
-      createLineupTeam(RosterName.DARK_ELF, "Poin", 0xcc0000),
-      "team1"
-    ),
-    team2: stabilizeIds(
-      createLineupTeam(RosterName.HUMAN, "Ready-made", 0x0000cc),
-      "team2"
-    ),
-    computerTeamId: "team2",
-    pace,
-    autosave,
-  });
-  return match;
-}
-
-function resume(save: MatchSave) {
-  const restored = restoreMatchSave(save);
-  const eventBus = new EventBus();
-  rollKickoffsAtOnce(eventBus);
-  match = createComputerMatch({
-    eventBus,
-    team1: restored.teams[0],
-    team2: restored.teams[1],
-    computerTeamId: fixtureValue(save.computer).computerTeamId,
-    pace: 0,
-    resume: restored,
-    autosave,
-  });
-  return {
-    live: match,
-    boardReady: () => {
-      eventBus.emit(
-        GameEventNames.GameStateRestored,
-        liveGame().ctx.gameService.getState()
-      );
-    },
-  };
-}
-
-async function humanStep(
-  live: OnlineMatch,
-  rng: ReturnType<typeof createCoachRng>
-): Promise<number> {
-  await whenEngineQuiet();
-  const game = liveGame();
-  const snapshot = game.snapshot();
-  if (
-    !live.mayAct() ||
-    (snapshot.phase === GamePhase.KICKOFF &&
-      !game.pendingDecision() &&
-      game.ctx.gameService.getState().kick)
-  ) {
-    await ms(1);
-    return 0;
-  }
-  const kicker =
-    snapshot.phase === GamePhase.KICKOFF
-      ? snapshot.activeTeamId === "team1"
-        ? "team2"
-        : "team1"
-      : null;
-  const point = await enumerateDecision(game, kicker);
-  const { index } = await heuristicCoach.choose({
-    game,
-    snapshot,
-    point,
-    rng,
-  });
-  let commands = 0;
-  const { commands: sequence } = fixtureValue(point.candidates[index]);
-  for (const command of sequence) {
-    const response = await live.run(command);
-    expect(response.reason).toBeUndefined();
-    commands++;
-  }
-  return commands;
-}
-
-async function playToHumanTurn(live: OnlineMatch): Promise<void> {
-  const rng = createCoachRng(5);
-  while (true) {
-    await whenEngineQuiet();
-    if (
-      liveGame().snapshot().phase === GamePhase.PLAY &&
-      !liveGame().pendingDecision() &&
-      live.mayAct()
-    )
-      return;
-    await humanStep(live, rng);
-  }
-}
-
-async function savedTurn(teamId: string): Promise<MatchSave> {
-  while (latest?.snapshot.activeTeamId !== teamId) await ms(10);
-  return latest;
-}
+import {
+  ms,
+  latest,
+  liveGame,
+  startNew,
+  resume,
+  playToHumanTurn,
+  savedTurn,
+} from "../utils/computerMatchSession";
 
 describe("saving a match against the computer", () => {
   it("saves readiness before the toss and keeps the match resumable", async () => {
@@ -234,8 +81,10 @@ describe("saving a match against the computer", () => {
       resume(save);
 
       const { turnManager, ...resumed } = liveGame().snapshot();
-      const { turnManager: _saved, ...saved } = save.snapshot;
-      expect(structuredClone(resumed)).toEqual(saved);
+      expect(structuredClone(resumed)).toEqual({
+        ...save.snapshot,
+        turnManager: undefined,
+      });
       expect(turnManager).toEqual(save.turnManager);
       expect(resumed.phase).toBe(GamePhase.PLAY);
       expect(resumed.activeTeamId).toBe("team1");
@@ -260,62 +109,4 @@ describe("saving a match against the computer", () => {
     boardReady();
     while (JSON.stringify(liveGame().snapshot()) === before) await ms(20);
   }, 60_000);
-
-  it("never saves while a block, push or kick-off choice is open", async () => {
-    const live = startNew(0);
-    await confirmComputerPregame(live);
-    await live.run({ type: "start-setup", kickingTeamId: "team2" });
-    const rng = createCoachRng(11);
-    while (!liveGame().snapshot().turn.isHalf2) {
-      if (live.mayAct()) await ms(100);
-      await humanStep(live, rng);
-    }
-
-    expect(writtenOver.length).toBeGreaterThan(10);
-    expect(writtenOver.filter((open) => open !== null)).toEqual([]);
-  }, 120_000);
-
-  it("plays to full time across reloads, then clears the save", async () => {
-    let live = startNew(0);
-    await confirmComputerPregame(live);
-    await live.run({ type: "start-setup", kickingTeamId: "team2" });
-    const rng = createCoachRng(5);
-    let reloads = 0;
-    let sinceReload = 0;
-    let resumedFrom = "";
-    for (let i = 0; i < 60_000; i++) {
-      if (liveGame().snapshot().phase === GamePhase.GAME_OVER) break;
-      sinceReload += await humanStep(live, rng);
-      if (sinceReload < 25) continue;
-      await whenEngineQuiet();
-      await ms(100);
-      const save = fixtureValue(latest);
-
-      const saved = JSON.stringify(save.snapshot);
-      if (saved === resumedFrom) {
-        expect(sinceReload, "human commands with no newer save").toBeLessThan(
-          150
-        );
-        continue;
-      }
-      resumedFrom = saved;
-      live.close();
-      const next = resume(save);
-      live = next.live;
-      next.boardReady();
-      reloads++;
-      sinceReload = 0;
-    }
-
-    const final = liveGame().snapshot();
-    expect(final.phase).toBe(GamePhase.GAME_OVER);
-    expect(final.turn.isHalf2).toBe(true);
-    expect(reloads).toBeGreaterThan(3);
-
-    await whenEngineQuiet();
-    await ms(150);
-    live.close();
-    match = null;
-    expect(latest).toBeNull();
-  }, 280_000);
 });

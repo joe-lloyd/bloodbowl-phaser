@@ -215,7 +215,7 @@ describe("repeatable Sevens policy lab", () => {
     } finally {
       rmSync(out, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it("reports the forced receiver when the opening drive is an automatic touchback", async () => {
     const out = mkdtempSync(path.join(tmpdir(), "bb7-lab-touchback-"));

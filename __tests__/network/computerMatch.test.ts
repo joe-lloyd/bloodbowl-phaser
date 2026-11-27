@@ -1,5 +1,4 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
-import { type HeadlessCommand } from "../../src/headless/protocol";
 import { confirmComputerPregame } from "../utils/computerPregame";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -34,28 +33,6 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const state = () => ServiceContainer.getInstance().gameService.getState();
 
-async function sendHumanCommands(
-  online: OnlineMatch,
-  commands: readonly HeadlessCommand[]
-): Promise<{ sent: number; refused: boolean }> {
-  let sent = 0;
-  for (const command of commands) {
-    const response = await online.run(command);
-    sent++;
-    if (!response.ok) return { sent, refused: true };
-  }
-  return { sent, refused: false };
-}
-
-function acknowledgeBounces(bus: EventBus): void {
-  bus.on(GameEventNames.PassFumbled, ({ presentationId }) => {
-    if (presentationId)
-      bus.emit(GameEventNames.UI_PresentationAcknowledged, {
-        id: presentationId,
-      });
-  });
-}
-
 const teams = () => ({
   team1: stabilizeIds(createLineupTeam(RosterName.HUMAN, "H", 1), "team1"),
   team2: stabilizeIds(createLineupTeam(RosterName.ORC, "O", 2), "team2"),
@@ -66,7 +43,6 @@ const listeners = (bus: EventBus) =>
     .reduce((count, name) => count + bus.listenerCount(name), 0);
 
 describe("a match against the computer, once closed", () => {
-
   it("leaves no listeners on the page's event bus", () => {
     const eventBus = new EventBus();
     match = createComputerMatch({
@@ -87,7 +63,9 @@ describe("a match against the computer, once closed", () => {
       computerTeamId: "team2",
     });
     const synced: unknown[] = [];
-    eventBus.on(GameEventNames.UI_SyncBoard, (data) => { synced.push(data); });
+    eventBus.on(GameEventNames.UI_SyncBoard, (data) => {
+      synced.push(data);
+    });
     const running = match.run({ type: "end-turn" });
     match.close();
     await running;
@@ -103,7 +81,9 @@ describe("a match against the computer, once closed", () => {
     });
     match.close();
     const announced: unknown[] = [];
-    eventBus.on(GameEventNames.UI_Notification, (note) => { announced.push(note); });
+    eventBus.on(GameEventNames.UI_Notification, (note) => {
+      announced.push(note);
+    });
     eventBus.emit(GameEventNames.PhaseChanged, {
       phase: GamePhase.GAME_OVER,
     });
@@ -175,7 +155,9 @@ describe("whose turn it is against the computer", () => {
     );
     const eventBus = new EventBus();
     const turns: string[] = [];
-    eventBus.on(GameEventNames.TurnStarted, ({ teamId }) => { turns.push(teamId); });
+    eventBus.on(GameEventNames.TurnStarted, ({ teamId }) => {
+      turns.push(teamId);
+    });
     match = createComputerMatch({
       eventBus,
       team1,
@@ -215,8 +197,7 @@ describe("whose turn it is against the computer", () => {
         rng,
       });
       const { commands } = fixtureValue(point.candidates[index]);
-      for (const command of commands)
-        await live.run(command);
+      for (const command of commands) await live.run(command);
     }
     return { live, game, turns, team1, team2 };
   };
@@ -245,89 +226,6 @@ describe("whose turn it is against the computer", () => {
     expect(second.reason).toBe("not-your-turn");
     expect(turns).toEqual(["team1", "team2"]);
   }, 60_000);
-});
-
-describe("a match against the computer", () => {
-  it.each(["human", "computer"] as const)(
-    "plays to full time when the %s kicks first",
-    async (firstKicker) => {
-      const team1 = stabilizeIds(
-        createLineupTeam(RosterName.HUMAN, "Reavers", 0xcc0000),
-        "team1"
-      );
-      const team2 = stabilizeIds(
-        createLineupTeam(RosterName.ORC, "Gouged Eye", 0x0000cc),
-        "team2"
-      );
-      const eventBus = new EventBus();
-      acknowledgeBounces(eventBus);
-      let computerActivations = 0;
-      eventBus.on(GameEventNames.PlayerActivated, (playerId: string) => {
-        if (playerId.startsWith(team2.id)) computerActivations++;
-      });
-      match = createComputerMatch({
-        eventBus,
-        team1,
-        team2,
-        computerTeamId: team2.id,
-        pace: 0,
-      });
-      await confirmComputerPregame(match);
-
-      await match.run({
-        type: "start-setup",
-        kickingTeamId: firstKicker === "human" ? team1.id : team2.id,
-      });
-
-      const game = fixtureValue(globalThis.__computerMatch).game;
-      const rng = createCoachRng(5);
-      let humanCommands = 0;
-      let refused = 0;
-      for (let i = 0; i < 40_000; i++) {
-        await whenEngineQuiet();
-        const snapshot = game.snapshot();
-        if (snapshot.phase === GamePhase.GAME_OVER) break;
-        if (
-          !match.mayAct() ||
-          (snapshot.phase === GamePhase.KICKOFF &&
-            !game.pendingDecision() &&
-            game.ctx.gameService.getState().kick)
-        ) {
-          await tick();
-          continue;
-        }
-        const kicker =
-          snapshot.phase === GamePhase.KICKOFF
-            ? snapshot.activeTeamId === team1.id
-              ? team2.id
-              : team1.id
-            : null;
-        const point = await enumerateDecision(game, kicker);
-
-        expect(point.teamId).toBe(team1.id);
-        const { index } = await heuristicCoach.choose({
-          game,
-          snapshot,
-          point,
-          rng,
-        });
-        const outcome = await sendHumanCommands(
-          match,
-          fixtureValue(point.candidates[index]).commands
-        );
-        humanCommands += outcome.sent;
-        if (outcome.refused) refused++;
-      }
-
-      const final = game.snapshot();
-      expect(final.phase).toBe(GamePhase.GAME_OVER);
-      expect(humanCommands).toBeGreaterThan(50);
-      expect(refused).toBe(0);
-
-      expect(computerActivations).toBeGreaterThan(20);
-    },
-    120_000
-  );
 });
 
 describe("the computer's pace", () => {

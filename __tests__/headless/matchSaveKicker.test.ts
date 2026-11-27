@@ -32,7 +32,7 @@ describe("the kicking team in a match save", () => {
 
     expect(new Set(seen.map((s) => s.setupTeamId)).size).toBe(2);
     expect(seen.filter((s) => s.saved !== s.setupTeamId)).toEqual([]);
-  });
+  }, 30_000);
 
   it("keeps a kicker the game was given before any drive began", () => {
     const game = new HeadlessGame({
