@@ -6,6 +6,7 @@ import autoprefixer from "autoprefixer";
 import tailwindcss from "tailwindcss";
 import { defineConfig, type Plugin } from "vite";
 import { GALLERY_ROSTER_MODELS } from "./src/gallery/galleryModels";
+import { BROWSER_TARGETS } from "./vite.config.ts";
 
 const here = (file: string) => path.resolve(path.dirname(fileURLToPath(import.meta.url)), file);
 const PUBLIC = here("public");
@@ -69,6 +70,7 @@ export default defineConfig(({ command }) => ({
   },
   server: { port: 3100, fs: { allow: [here(".")] } },
   build: {
+    target: BROWSER_TARGETS,
     outDir: OUT,
     emptyOutDir: true,
     chunkSizeWarningLimit: 6000,

@@ -1,13 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path from "node:path";
-import { offlineManifest } from "./scripts/offline-manifest";
+import { fileURLToPath } from "node:url";
+import { offlineManifest } from "./scripts/offline-manifest.ts";
+
+export const BROWSER_TARGETS = ["es2020", "edge88", "firefox78", "chrome87", "safari14"];
 
 export default defineConfig({
   plugins: [react(), offlineManifest()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": fileURLToPath(new URL("src", import.meta.url)),
     },
   },
   server: {
@@ -19,11 +21,14 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
+    target: BROWSER_TARGETS,
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          phaser: ["phaser"],
-          react: ["react", "react-dom"],
+        codeSplitting: {
+          groups: [
+            { name: "phaser", test: /[\\/]node_modules[\\/]phaser[\\/]/ },
+            { name: "react", test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          ],
         },
       },
     },
