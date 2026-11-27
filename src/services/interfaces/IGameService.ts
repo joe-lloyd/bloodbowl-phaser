@@ -13,7 +13,7 @@ import { BallMovementController } from "@/game/controllers/BallMovementControlle
 import { DiceController } from "@/game/controllers/DiceController";
 import { ArmourController } from "@/game/controllers/ArmourController";
 import { InjuryController } from "@/game/controllers/InjuryController";
-import { type NextHalf } from "@/game/managers/TurnManager";
+import { type NextHalf } from "../gameService/matchFlow";
 import type { MoveStep } from "../../headless/protocol";
 
 export interface IGameService {

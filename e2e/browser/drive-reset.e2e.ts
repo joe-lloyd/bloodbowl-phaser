@@ -49,7 +49,7 @@ test("a touchdown puts every player back on their feet at full opacity", async (
   await page.evaluate(`(() => {
     const scene = window.game.scene.getScenes(true)
       .find((candidate) => candidate.playerSprites);
-    scene.gameService.addTouchdown(scene.team1.id, scene.team1.players[0].id);
+    scene.gameService.addTouchdown(scene.team1.players[0].id);
   })()`);
   for (let team = 0; team < 2; team++) {
     await page.getByRole("button", { name: /LOAD/ }).click({ timeout: 30_000 });

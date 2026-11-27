@@ -18,14 +18,6 @@ import { knockoutRecoveryTarget } from "@/game/rules/injuryTables";
 import { GameEventNames } from "@/types/events";
 import { isLeagueMode } from "@/types/Team";
 import { PlayerCondition, PlayerStatus } from "@/types/Player";
-import { type NextHalf } from "@/game/managers/TurnManager";
-import {
-  ClearPitchOperation,
-  ExtraTimeKickoffOperation,
-  KORecoveryOperation,
-  StartNextDriveOperation,
-  TouchdownCelebrationOperation,
-} from "@/game/operations/EndDriveOperations";
 import {
   assertSinglePlayerLocation,
   movePlayerToBox,
@@ -40,10 +32,6 @@ import {
 } from "@/game/inducements/matchInducements";
 import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
 import {
-  PreDriveInducementsOperation,
-  holdsDriveInducements,
-} from "@/game/inducements/driveInducements";
-import {
   driveEffectsEmpty,
   emptyDriveEffects,
   getDriveEffects,
@@ -53,6 +41,7 @@ import { fanFactor } from "@/game/rules/winnings";
 import type { GameParts } from "./parts";
 import { GameOperation } from "@/game/core/GameOperation";
 import { takeUnsatedBloodlust } from "./activation";
+import { ONLY_BALL } from "./matchFlow";
 
 export function startKickoff(parts: GameParts): void {
   const { state, eventBus } = parts;
@@ -107,77 +96,21 @@ export function selectKicker(parts: GameParts, playerId: string): void {
   }
 }
 
-export function addTouchdown(
-  parts: GameParts,
-  teamId: string,
-  scorerId?: string
-): void {
+export function addTouchdown(parts: GameParts, scorerId: string): void {
   if (parts.state.phase !== GamePhase.PLAY) return;
+  const scorer = parts.game.getPlayerById(scorerId);
+  if (!scorer) throw new Error(`No player ${scorerId} plays in this match.`);
 
-  if (scorerId && takeUnsatedBloodlust(parts, scorerId)) {
+  if (takeUnsatedBloodlust(parts, scorerId)) {
     parts.flowManager.add(
       new BloodlustBiteOperation(scorerId, "consequences", (sated) => {
-        if (sated) parts.game.addTouchdown(teamId, scorerId);
+        if (sated) parts.game.addTouchdown(scorerId);
         else parts.game.finishActivation(scorerId);
       })
     );
     return;
   }
-  parts.state.score[teamId] = (parts.state.score[teamId] ?? 0) + 1;
-
-  if (parts.state.activeTeamId && parts.state.activeTeamId !== teamId) {
-    parts.turnManager.skipNextTurn(teamId);
-    parts.eventBus.emit(
-      GameEventNames.UI_Notification,
-      `${parts.game.getTeam(teamId)?.name ?? "The scorers"} skip their next turn celebrating!`
-    );
-  }
-
-  parts.state.phase = GamePhase.TOUCHDOWN;
-  parts.state.subPhase = SubPhase.SCORING;
-
-  parts.eventBus.emit(GameEventNames.PhaseChanged, {
-    phase: GamePhase.TOUCHDOWN,
-    subPhase: SubPhase.SCORING,
-  });
-  parts.eventBus.emit(GameEventNames.Touchdown, {
-    teamId,
-    score: parts.state.score[teamId],
-    ...(scorerId !== undefined && { scorerId }),
-  });
-
-  announceTouchdown(parts, teamId, scorerId);
-
-  parts.flowManager.add(new TouchdownCelebrationOperation(teamId));
-}
-
-function announceTouchdown(
-  parts: GameParts,
-  teamId: string,
-  scorerId: string | undefined
-): void {
-  const { state } = parts;
-  const [team1, team2] = pairTeams(pairSeating(parts.seating));
-  const scorer = scorerId ? parts.game.getPlayerById(scorerId) : undefined;
-  const who = scorer?.playerName ?? parts.game.getTeam(teamId)?.name ?? teamId;
-  const score = `${team1.name} ${String(state.score[team1.id] ?? 0)} : ${String(state.score[team2.id] ?? 0)} ${team2.name}`;
-  const turnsLeft = [team1, team2]
-    .map(
-      (team) => `${team.name} ${String(parts.turnManager.turnsLeft(team.id))}`
-    )
-    .join(", ");
-  const detail = `${who} scores. ${score}. Turns left in the half: ${turnsLeft}`;
-  parts.eventBus.emit(GameEventNames.UI_Announce, {
-    kind: "touchdown",
-    headline: "Touchdown!",
-    subtitle: detail,
-  });
-  parts.eventBus.emit(GameEventNames.UI_LogEntry, {
-    category: "score",
-    headline: "TOUCHDOWN!",
-    detail,
-    teamId,
-  });
+  parts.flow.touchdown(scorer, ONLY_BALL);
 }
 
 export function announceFullTime(parts: GameParts): void {
@@ -185,26 +118,22 @@ export function announceFullTime(parts: GameParts): void {
   const score1 = parts.state.score[team1.id] ?? 0;
   const score2 = parts.state.score[team2.id] ?? 0;
   const scoreline = `${team1.name} ${String(score1)} : ${String(score2)} ${team2.name}`;
-  const line = `FULL TIME — ${scoreline} (${fullTimeOutcome(parts, score1, score2)})`;
+  const line = `FULL TIME — ${scoreline} (${fullTimeOutcome(parts)})`;
   parts.eventBus.emit(GameEventNames.UI_Notification, line);
   parts.eventBus.emit(GameEventNames.UI_GameLog, line);
 }
 
-function fullTimeOutcome(
-  parts: GameParts,
-  score1: number,
-  score2: number
-): string {
-  const [team1, team2] = pairTeams(pairSeating(parts.seating));
+function fullTimeOutcome(parts: GameParts): string {
   const result = parts.state.result;
   if (result?.reason === "concession" || result?.reason === "forfeit") {
     return concededOutcome(parts, result);
   }
-  if (score1 === score2 && result?.penalties) {
-    return penaltyOutcome(parts, result.penalties);
-  }
-  if (score1 === score2) return "draw";
-  return `${score1 > score2 ? team1.name : team2.name} win`;
+  const { winnerId, penalties } = parts.flow.standings();
+  const winner = winnerId === null ? undefined : parts.game.getTeam(winnerId);
+  if (!winner) return "draw";
+  if (!penalties) return `${winner.name} win`;
+  const kicks = Object.values(penalties);
+  return `${winner.name} win on Penalties, ${String(Math.max(...kicks))}–${String(Math.min(...kicks))}`;
 }
 
 function concededOutcome(parts: GameParts, result: MatchResult): string {
@@ -231,40 +160,10 @@ export function rollFanFactors(parts: GameParts): void {
 }
 
 export function updateDedicatedFans(parts: GameParts): void {
-  const penalties = parts.state.result?.penalties ?? {};
+  const { winnerId } = parts.flow.standings();
   for (const team of teamsOf(parts.seating)) {
-    updateTeamFans(parts, team, penalties);
+    updateTeamFans(parts, team, fanOutcome(winnerId, team.id));
   }
-}
-
-export function endDrive(
-  parts: GameParts,
-  reason: "touchdown" | "halftime",
-  next: NextHalf
-): void {
-  const halfOver =
-    reason === "touchdown" && parts.turnManager.isHalfExhausted();
-  const upNext = halfOver ? parts.turnManager.beginNextHalf() : next;
-  const kickingTeamId =
-    upNext && "kickingTeamId" in upNext ? upNext.kickingTeamId : null;
-
-  parts.flowManager.add(
-    new ClearPitchOperation(
-      halfOver ? "halftime" : reason,
-      kickingTeamId,
-      upNext !== null
-    )
-  );
-  parts.flowManager.add(new KORecoveryOperation());
-
-  if (upNext === null) return;
-  if (holdsDriveInducements(parts.state, teamsOf(parts.seating)))
-    parts.flowManager.add(new PreDriveInducementsOperation());
-  parts.flowManager.add(
-    kickingTeamId
-      ? new StartNextDriveOperation(kickingTeamId)
-      : new ExtraTimeKickoffOperation()
-  );
 }
 
 export function resetDriveState(parts: GameParts): void {
@@ -369,42 +268,27 @@ export function checkForTouchdown(parts: GameParts, playerId: string): boolean {
   if (!scoresAt(frame, player.gridPosition)) {
     return false;
   }
-  parts.game.addTouchdown(player.teamId, player.id);
+  parts.game.addTouchdown(player.id);
   return true;
-}
-
-function penaltyOutcome(
-  parts: GameParts,
-  penalties: Record<string, number>
-): string {
-  const [team1, team2] = pairTeams(pairSeating(parts.seating));
-  const won1 = penalties[team1.id] ?? 0;
-  const won2 = penalties[team2.id] ?? 0;
-  const winner = won1 > won2 ? team1 : team2;
-  return `${winner.name} win on Penalties, ${String(Math.max(won1, won2))}–${String(Math.min(won1, won2))}`;
 }
 
 function updateTeamFans(
   parts: GameParts,
   team: Team,
-  penalties: Record<string, number>
+  outcome: "win" | "loss" | "draw"
 ): void {
-  const { state } = parts;
-  const [team1, team2] = pairTeams(pairSeating(parts.seating));
   const dice = parts.diceController;
-  const otherId = team.id === team1.id ? team2.id : team1.id;
-  const lead =
-    (state.score[team.id] ?? 0) - (state.score[otherId] ?? 0) ||
-    (penalties[team.id] ?? 0) - (penalties[otherId] ?? 0);
-  const outcome = fanOutcome(lead);
   updateTeamDedicatedFans(team, outcome, () =>
     dice.rollD6(`Dedicated Fans (${team.name})`, team.id)
   );
 }
 
-function fanOutcome(lead: number): "win" | "loss" | "draw" {
-  if (lead > 0) return "win";
-  return lead < 0 ? "loss" : "draw";
+function fanOutcome(
+  winnerId: string | null,
+  teamId: string
+): "win" | "loss" | "draw" {
+  if (winnerId === null) return "draw";
+  return winnerId === teamId ? "win" : "loss";
 }
 
 export function resetActivationMarks(marks: GameParts["marks"]): void {

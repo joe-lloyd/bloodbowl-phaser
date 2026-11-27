@@ -22,6 +22,7 @@ describe("TurnManager", () => {
   let mockTeam2: Team;
   let mockCallbacks: {
     onPhaseChanged: Mock<[phase: GamePhase, subPhase?: SubPhase], void>;
+    halfOver: Mock<[], undefined>;
   };
 
   beforeEach(() => {
@@ -37,6 +38,7 @@ describe("TurnManager", () => {
 
     mockCallbacks = {
       onPhaseChanged: vi.fn<[phase: GamePhase, subPhase?: SubPhase], void>(),
+      halfOver: vi.fn<[], undefined>(),
     };
 
     manager = new TurnManager(
@@ -145,7 +147,7 @@ describe("TurnManager", () => {
       expect(mockState.activeTeamId).toBe("team2");
     });
 
-    it("should end half after 6 turns per team", () => {
+    it("hands the half to the match flow after 6 turns per team", () => {
       for (let i = 0; i < 6; i++) {
         manager.startTurn("team1");
         manager.startTurn("team2");
@@ -153,20 +155,17 @@ describe("TurnManager", () => {
 
       manager.endTurn();
 
-      expect(mockState.phase).toBe(GamePhase.HALFTIME);
+      expect(mockCallbacks.halfOver).toHaveBeenCalledTimes(1);
+      expect(mockState.activeTeamId).toBe("team2");
     });
 
-    it("should call onPhaseChanged on half-time", () => {
-      for (let i = 0; i < 6; i++) {
-        manager.startTurn("team1");
-        manager.startTurn("team2");
-      }
+    it("does not hand the half over while a team has turns left", () => {
+      manager.startTurn("team1");
 
       manager.endTurn();
 
-      expect(mockCallbacks.onPhaseChanged).toHaveBeenCalledWith(
-        GamePhase.HALFTIME
-      );
+      expect(mockCallbacks.halfOver).not.toHaveBeenCalled();
+      expect(mockState.activeTeamId).toBe("team2");
     });
   });
 

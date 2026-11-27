@@ -92,7 +92,6 @@ describe("engine boundaries wait for visual moments", () => {
     });
     for (const game of [visual, headless]) {
       game.ctx.gameService.addTouchdown(
-        game.ctx.teams[0].id,
         fixtureValue(game.ctx.teams[0].players[0]).id
       );
     }

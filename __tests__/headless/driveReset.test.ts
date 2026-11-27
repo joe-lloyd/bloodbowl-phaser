@@ -108,7 +108,7 @@ const DRIVE_ENDS = [
     end: async (game: HeadlessGame) => {
       const { gameService } = game.ctx;
       const [, team2] = game.ctx.teams;
-      gameService.addTouchdown(team2.id, fixtureValue(team2.players[0]).id);
+      gameService.addTouchdown(fixtureValue(team2.players[0]).id);
       await gameService.getFlowContext().flowManager.whenIdle();
     },
   },

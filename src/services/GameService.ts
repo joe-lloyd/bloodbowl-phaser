@@ -14,10 +14,7 @@ import {
   type BlockResult,
   BlockResolutionService,
 } from "./BlockResolutionService";
-import {
-  type NextHalf,
-  type TurnManagerState,
-} from "../game/managers/TurnManager";
+import { type TurnManagerState } from "../game/managers/TurnManager";
 import { PassController } from "../game/controllers/PassController";
 import { CatchController } from "../game/controllers/CatchController";
 import { BallMovementController } from "../game/controllers/BallMovementController";
@@ -46,6 +43,7 @@ import * as declaration from "./gameService/declareAction";
 import * as drive from "./gameService/driveLifecycle";
 import * as inducements from "./gameService/inducements";
 import * as matchStart from "./gameService/matchStart";
+import { endDrive, type NextHalf } from "./gameService/matchFlow";
 import * as moves from "./gameService/moveActions";
 import * as specials from "./gameService/specialActions";
 import type { MoveStep } from "../headless/protocol";
@@ -379,7 +377,7 @@ export class GameService implements IGameService {
   }
 
   beginCoinFlip(): void {
-    matchStart.beginCoinFlip(this.parts);
+    this.parts.flow.begin();
   }
 
   readyForWeather(teamId: string): boolean {
@@ -403,7 +401,7 @@ export class GameService implements IGameService {
   }
 
   endHalf(): void {
-    this.parts.turnManager.endHalf();
+    this.parts.flow.halfOver();
   }
 
   finishActivation(playerId: string): void {
@@ -599,12 +597,12 @@ export class GameService implements IGameService {
     this.parts.eventBus.emit(GameEventNames.BallPlaced, { x, y });
   }
 
-  addTouchdown(teamId: string, scorerId?: string): void {
-    drive.addTouchdown(this.parts, teamId, scorerId);
+  addTouchdown(scorerId: string): void {
+    drive.addTouchdown(this.parts, scorerId);
   }
 
   endDrive(reason: "touchdown" | "halftime", next: NextHalf): void {
-    drive.endDrive(this.parts, reason, next);
+    endDrive(this.parts, reason, next);
   }
 
   resetDriveState(): void {
