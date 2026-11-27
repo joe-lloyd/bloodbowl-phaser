@@ -1,5 +1,4 @@
 import { HeadlessGame } from "../../headless/HeadlessGame";
-import { type GridPosition } from "../../headless/protocol";
 import { GameConfig } from "../../config/GameConfig";
 import { isStandableSquare } from "../../game/rules/pitchSquares";
 import { type Player, PlayerStatus, hasTackleZone } from "../../types/Player";
@@ -8,8 +7,12 @@ import { type Weather } from "../../game/rules/weather";
 import { teamRerollsLeft } from "../../game/teamRerolls";
 import { isLeagueMode } from "../../types/Team";
 import { SkillType, hasSkill } from "../../types/Skills";
+import type { BallId, BallSlot } from "../../game/rules/balls";
+import type { Frame } from "../../game/rules/frames";
+import { type Seat, rivalsOf, seatOf } from "../../game/seating";
+import { PITCH_LAYOUTS, type Square } from "../../game/variants/pitchLayouts";
 
-export type Square = GridPosition;
+export type { Square } from "../../game/variants/pitchLayouts";
 
 export type FieldPlayer = Player & { gridPosition: Square };
 
@@ -35,20 +38,28 @@ export function neighbours(s: Square): Square[] {
   return out;
 }
 
-type Ball =
-  | { kind: "carried"; at: Square; carrier: FieldPlayer }
-  | { kind: "loose"; at: Square }
-  | { kind: "none" };
+export type BallView =
+  | {
+      readonly id: BallId;
+      readonly kind: "carried";
+      readonly at: Square;
+      readonly carrier: FieldPlayer;
+    }
+  | { readonly id: BallId; readonly kind: "loose"; readonly at: Square }
+  | { readonly id: BallId; readonly kind: "none" };
+
+type BallViews = readonly [BallView, ...BallView[]];
 
 export interface Board {
   gs: GameService;
   us: string;
-  them: string;
+  seat: Seat;
+  rivals: readonly Seat[];
   ours: FieldPlayer[];
   theirs: FieldPlayer[];
 
   everyone: FieldPlayer[];
-  ball: Ball;
+  balls: BallViews;
   weather: Weather;
 
   rerolls: number;
@@ -61,39 +72,65 @@ export interface Board {
 
   lead: number;
 
-  dir: 1 | -1;
+  goalScale: number;
 
   marks: DataView;
 
   occupant: (FieldPlayer | undefined)[];
 }
 
+const FITTED_GOAL_SCALE = PITCH_LAYOUTS.stadium.cols - 1;
+
 function ballOn(
-  position: Square | null,
+  { id, at: position }: BallSlot,
   occupant: (FieldPlayer | undefined)[]
-): Ball {
-  if (!position) return { kind: "none" };
+): BallView {
+  if (!position) return { id, kind: "none" };
   const at = { ...position };
   const holder = occupant[key(at)];
   return holder?.status === PlayerStatus.ACTIVE
-    ? { kind: "carried", at, carrier: holder }
-    : { kind: "loose", at };
+    ? { id, kind: "carried", at, carrier: holder }
+    : { id, kind: "loose", at };
+}
+
+export function mapBalls(
+  board: Board,
+  change: (ball: BallView) => BallView
+): BallViews {
+  const [first, ...rest] = board.balls;
+  return [change(first), ...rest.map((ball) => change(ball))];
+}
+
+export const firstBall = (board: Board): BallView => board.balls[0];
+
+export function looseBallKey(board: Board): number {
+  const ball = firstBall(board);
+  return ball.kind === "loose" ? key(ball.at) : -1;
+}
+
+function turnsLeftOf(gs: GameService, teamId: string): number {
+  return Math.max(0, GameConfig.TURNS_PER_HALF - gs.getTurnNumber(teamId));
 }
 
 export function readBoard(game: HeadlessGame, us: string): Board {
   const gs = game.ctx.gameService;
   const state = gs.getState();
-  const [first, second] = game.ctx.teams;
-  const them = us === first.id ? second.id : first.id;
+  const seating = gs.getSeating();
+  const seat = seatOf(seating, us);
+  const rivals = rivalsOf(seating, us);
   const playersOnField = (teamId: string) =>
     (gs.getTeam(teamId)?.players ?? []).filter(onField);
   const ours = playersOnField(us);
-  const theirs = playersOnField(them);
+  const theirs = rivals.flatMap(({ team }) => playersOnField(team.id));
   const everyone = [...ours, ...theirs];
 
   const { marks, occupant } = fieldMaps(theirs, everyone);
 
-  const ball = ballOn(state.balls[0].at, occupant);
+  const [firstSlot, ...otherSlots] = state.balls;
+  const balls: BallViews = [
+    ballOn(firstSlot, occupant),
+    ...otherSlots.map((slot) => ballOn(slot, occupant)),
+  ];
 
   const turn = state.turn;
   const ourTeam = gs.getTeam(us);
@@ -102,42 +139,88 @@ export function readBoard(game: HeadlessGame, us: string): Board {
   return {
     gs,
     us,
-    them,
+    seat,
+    rivals,
     ours,
     theirs,
     everyone,
-    ball,
+    balls,
     weather: state.weather,
     rerolls: ourTeam ? teamRerollsLeft(state, ourTeam) : 0,
     turnsLeft: ourTurn
       ? Math.max(0, GameConfig.TURNS_PER_HALF - turn.turnNumber)
       : 0,
     opponentTurnsLeft: Math.max(
-      0,
-      GameConfig.TURNS_PER_HALF - gs.getTurnNumber(them)
+      ...rivals.map(({ team }) => turnsLeftOf(gs, team.id))
     ),
     persistentInjuries:
       game.ctx.matchStats.progressionEnabled ||
       isLeagueMode(ourTeam?.advancementMode),
     half2: turn.isHalf2,
-    lead: (score[us] ?? 0) - (score[them] ?? 0),
-    dir: us === first.id ? 1 : -1,
+    lead:
+      (score[us] ?? 0) -
+      Math.max(...rivals.map(({ team }) => score[team.id] ?? 0)),
+    goalScale:
+      seating.kind === "pair" ? FITTED_GOAL_SCALE : seat.frame.arm.length - 1,
     marks,
     occupant,
   };
 }
 
+function frameOf(board: Board, team: string): Frame {
+  if (team === board.us) return board.seat.frame;
+  const rival = board.rivals.find((seat) => seat.team.id === team);
+  if (!rival) throw new Error(`No team ${team} sits at this match.`);
+  return rival.frame;
+}
+
+export function stepsToScore(frame: Frame, s: Square): number {
+  const last = frame.arm.length - 1;
+  switch (frame.heading) {
+    case "+x":
+      return last - s.x;
+    case "-x":
+      return s.x;
+    case "+y":
+      return last - s.y;
+    case "-y":
+      return s.y;
+  }
+}
+
+interface Offset {
+  along: number;
+  across: number;
+}
+
+export function stepFrom(frame: Frame, s: Square, by: Offset): Square {
+  switch (frame.heading) {
+    case "+x":
+      return { x: s.x + by.along, y: s.y + by.across };
+    case "-x":
+      return { x: s.x - by.along, y: s.y + by.across };
+    case "+y":
+      return { x: s.x + by.across, y: s.y + by.along };
+    case "-y":
+      return { x: s.x + by.across, y: s.y - by.along };
+  }
+}
+
+export const forwardOf = (board: Board, s: Square, by: Offset): Square =>
+  stepFrom(board.seat.frame, s, by);
+
 export function toGoal(board: Board, s: Square, team = board.us): number {
-  const dir = team === board.us ? board.dir : -board.dir;
-  return dir === 1 ? pitchWidth() - 1 - s.x : s.x;
+  return stepsToScore(frameOf(board, team), s);
 }
 
 export const standing = (p: Player) => p.status === PlayerStatus.ACTIVE;
 
 export const canCarry = (p: Player) => !hasSkill(p.skills, SkillType.NO_BALL);
 
-export const carrierOf = (board: Board) =>
-  board.ball.kind === "carried" ? board.ball.carrier : undefined;
+export function carrierOf(board: Board): FieldPlayer | undefined {
+  const ball = firstBall(board);
+  return ball.kind === "carried" ? ball.carrier : undefined;
+}
 
 function fieldMaps(theirs: FieldPlayer[], everyone: FieldPlayer[]) {
   const marks = new DataView(new ArrayBuffer(pitchWidth() * pitchHeight()));

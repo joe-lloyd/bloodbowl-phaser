@@ -15,6 +15,7 @@ import {
   onPitch,
   pitchHeight,
   pitchWidth,
+  mapBalls,
   readBoard,
   standing,
 } from "./board";
@@ -59,7 +60,7 @@ export function kickoffGround({
   const { kick } = read.gs.getState();
   const board: Board = {
     ...read,
-    ball: { kind: "none" },
+    balls: mapBalls(read, ({ id }) => ({ id, kind: "none" })),
     turnsLeft: Math.max(
       0,
       GameConfig.TURNS_PER_HALF - read.gs.getTurnNumber(teamId)

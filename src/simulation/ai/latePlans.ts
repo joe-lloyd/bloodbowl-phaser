@@ -9,8 +9,8 @@ import { blockOdds, casualtyChance, d6, fallCasualtyChance } from "./chance";
 import {
   type Board,
   type Square,
-  pitchWidth,
   carrierOf,
+  firstBall,
   distance,
   toGoal,
 } from "./board";
@@ -26,24 +26,26 @@ export const nextTurnReach = (player: Player) =>
 
 export function opponentCanScore(board: Board): boolean {
   const turns = board.opponentTurnsLeft;
-  if (turns === 0 || board.ball.kind === "none") return false;
-  const goal = (at: Square) => pitchWidth() - 1 - toGoal(board, at);
-  const ball = board.ball;
+  const ball = firstBall(board);
+  if (turns === 0 || ball.kind === "none") return false;
+  const goal = (player: Player, at: Square) => toGoal(board, at, player.teamId);
   if (ball.kind === "loose")
     return board.theirs.some(
       (p) =>
-        distance(p.gridPosition, ball.at) + goal(ball.at) <=
+        distance(p.gridPosition, ball.at) + goal(p, ball.at) <=
         turns * nextTurnReach(p)
     );
-  if (ball.carrier.teamId === board.us) return true;
-  const reach = turns * nextTurnReach(ball.carrier);
-  if (goal(ball.at) <= reach) return true;
+  const { carrier } = ball;
+  if (carrier.teamId === board.us) return true;
+  const reach = turns * nextTurnReach(carrier);
+  if (goal(carrier, ball.at) <= reach) return true;
   return board.theirs.some(
     (mate) =>
-      mate.id !== ball.carrier.id &&
-      goal(mate.gridPosition) <= turns * nextTurnReach(mate) &&
+      mate.id !== carrier.id &&
+      mate.teamId === carrier.teamId &&
+      goal(mate, mate.gridPosition) <= turns * nextTurnReach(mate) &&
       distance(ball.at, mate.gridPosition) <=
-        reach + (ball.carrier.stats.PA > 0 ? 13 : 1)
+        reach + (carrier.stats.PA > 0 ? 13 : 1)
   );
 }
 
@@ -150,10 +152,7 @@ export function finalBallLoss(
   );
   const canReply = board.theirs.some((opponent) => {
     if (!hasTackleZone(opponent)) return false;
-    const goal =
-      board.dir === 1
-        ? opponent.gridPosition.x
-        : pitchWidth() - 1 - opponent.gridPosition.x;
+    const goal = toGoal(board, opponent.gridPosition, opponent.teamId);
     return goal <= nextTurnReach(opponent);
   });
   const concedingChangesResult = !board.half2 || board.lead >= 0;
@@ -198,8 +197,9 @@ export function scoringValue({
 
 function scoreWithoutCarrier(board: Board, available: Available): boolean {
   if (board.turnsLeft > 1) return true;
-  if (board.ball.kind === "none") return false;
-  const at = board.ball.at;
+  const ball = firstBall(board);
+  if (ball.kind === "none") return false;
+  const at = ball.at;
   return board.ours.some((player) => {
     if (!available.has(player.id)) return false;
     const [normal, rushes] = movesLeft(board, player);

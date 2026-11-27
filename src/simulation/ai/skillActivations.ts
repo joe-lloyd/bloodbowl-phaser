@@ -5,7 +5,15 @@ import { canSecureBall } from "../../game/rules/secureBall";
 import { type Context, gamble, tierFor } from "./activationContext";
 import type { Activation } from "./activations";
 import { blockFrom, targetValue } from "./blockActivations";
-import { type Board, canCarry, distance, key, standing, toGoal } from "./board";
+import {
+  type Board,
+  canCarry,
+  distance,
+  firstBall,
+  key,
+  standing,
+  toGoal,
+} from "./board";
 import { feedingCost, unfedChance } from "./feeding";
 import { movesLeft, routesFor, withTeamReroll } from "./routes";
 import { gazeActivations } from "./gazeActivations";
@@ -28,8 +36,9 @@ export const SKILL_PLANS: Partial<
 
 function pickupScoreValue(c: Context, player: Player): number {
   const { board, w } = c;
-  if (board.ball.kind !== "loose") return -Infinity;
-  const pickup = c.routes(player).get(key(board.ball.at));
+  const ball = firstBall(board);
+  if (ball.kind !== "loose") return -Infinity;
+  const pickup = c.routes(player).get(key(ball.at));
   if (!pickup) return -Infinity;
   const extraUsed =
     pickup.path.length +
@@ -86,12 +95,13 @@ export function secureBallActivations(
   player: Player
 ): Activation[] {
   const { board, w } = c;
+  const ball = firstBall(board);
   if (
-    board.ball.kind !== "loose" ||
+    ball.kind !== "loose" ||
     !canCarry(player) ||
     !canSecureBall(
       player,
-      board.ball.at,
+      ball.at,
       board.everyone.filter((p) => p.id !== player.id)
     )
   )
@@ -103,9 +113,9 @@ export function secureBallActivations(
           board.gs.getRerollArbiter().skillRerollAvailable(player, skill)
         )
       : routes
-  ).get(key(board.ball.at));
+  ).get(key(ball.at));
   if (!route) return [];
-  const goal = toGoal(board, board.ball.at);
+  const goal = toGoal(board, ball.at);
   const value =
     gamble(
       c,

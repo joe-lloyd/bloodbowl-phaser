@@ -1,4 +1,10 @@
-import { type FieldPlayer as Player, canCarry, key, standing } from "./board";
+import {
+  type FieldPlayer as Player,
+  canCarry,
+  firstBall,
+  key,
+  standing,
+} from "./board";
 import { type Context, gamble, tierFor } from "./activationContext";
 import { nextTurnReach } from "./latePlans";
 import type { Activation } from "./activations";
@@ -6,7 +12,7 @@ import { CARRY_TURNS, paceWorth } from "./ballActivations";
 import { SkillType, hasSkill } from "../../types/Skills";
 
 function couldPickUp(c: Context, player: Player): boolean {
-  const ball = c.board.ball;
+  const ball = firstBall(c.board);
   return (
     ball.kind === "loose" &&
     standing(player) &&
@@ -30,8 +36,9 @@ export function pickupPace(c: Context, player: Player): number {
 
 export function pickupActivation(c: Context, player: Player): Activation[] {
   const { board, w } = c;
-  if (board.ball.kind !== "loose" || !canCarry(player)) return [];
-  const route = c.routes(player).get(key(board.ball.at));
+  const ball = firstBall(board);
+  if (ball.kind !== "loose" || !canCarry(player)) return [];
+  const route = c.routes(player).get(key(ball.at));
   if (!route) return [];
   return [
     {

@@ -14,6 +14,7 @@ import {
   carrierOf,
   distance,
   key,
+  looseBallKey,
   neighbours,
   projectBoard,
   standing,
@@ -92,7 +93,7 @@ function gazeRoutes(
     const route = routes.get(key(at));
     if (
       route &&
-      !(c.board.ball.kind === "loose" && key(route.to) === key(c.board.ball.at))
+      looseBallKey(c.board) !== key(route.to)
     )
       froms.push(route);
   }
