@@ -10,12 +10,14 @@ import { fixtureContext } from "../../../src/competition/fixtureContext";
 import { getCompetition } from "../../../src/competition/repository";
 import {
   closeWalkovers,
+  keepRecordedResult,
   recordCompetitionFixture,
 } from "../../../src/competition/resultRecording";
+import { releaseFinishedEntries } from "../../../src/competition/teamLocks";
 import { getComputerTeamTemplates } from "../../../src/competition/computerTeamTemplates";
 import type { CompetitionDoc } from "../../../src/competition/types";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
-import { getTeamById, saveTeam } from "../../../src/game/managers/TeamManager";
+import { deleteTeam, getTeamById, saveTeam } from "../../../src/game/managers/TeamManager";
 import { foundClub } from "../../../src/game/rules/club";
 import { hirePlayer } from "../../../src/game/rules/teamPricing";
 import { chooseFirstLinemanAsVeteran } from "../../../src/game/rules/veteran";
@@ -50,6 +52,20 @@ async function starClub(): Promise<Team> {
   return club;
 }
 
+async function knockout(club: Team): Promise<CompetitionDoc> {
+  const templates = getComputerTeamTemplates().slice(0, 3);
+  return createCompetition({
+    type: "tournament",
+    format: "single-elimination",
+    name: "Altdorf Cup",
+    organizerUid: null,
+    entrants: [
+      { team: club, ownerUid: null },
+      ...templates.map((template) => ({ computerTemplateId: template.id })),
+    ],
+  });
+}
+
 async function playOut(id: string, clubId: string): Promise<CompetitionDoc> {
   for (let guard = 0; guard < 10; guard++) {
     const tournament = fixtureValue(await getCompetition("tournament", id));
@@ -80,17 +96,7 @@ describe("a club's tournament against computer teams", () => {
   it("has no team value cap and ends with one scouting roll for the club", async () => {
     const club = await starClub();
     expect(calculateTeamValue(club)).toBeGreaterThan(1_200_000);
-    const templates = getComputerTeamTemplates().slice(0, 3);
-    const tournament = await createCompetition({
-      type: "tournament",
-      format: "single-elimination",
-      name: "Altdorf Cup",
-      organizerUid: null,
-      entrants: [
-        { team: club, ownerUid: null },
-        ...templates.map((template) => ({ computerTemplateId: template.id })),
-      ],
-    });
+    const tournament = await knockout(club);
 
     const finished = await playOut(tournament.id, club.id);
     expect(finished.status).toBe("complete");
@@ -100,5 +106,44 @@ describe("a club's tournament against computer teams", () => {
 
     await closeWalkovers(finished);
     expect(offersOf(fixtureValue(getTeamById(club.id)))).toHaveLength(1);
+  });
+
+  it.each([
+    ["keeps the offer", 2_000_000],
+    ["keeps the scouted player gone", 0],
+  ])("%s when the results screen saves the final's team", async (_label, treasury) => {
+    const club = await starClub();
+    const tournament = await knockout(club);
+    const inFinal = fixtureValue(getTeamById(club.id));
+    inFinal.treasury = treasury;
+    await saveTeam(inFinal);
+    const star = fixtureValue(inFinal.players[1]).id;
+    const matchCopy = structuredClone(inFinal);
+
+    await playOut(tournament.id, club.id);
+    keepRecordedResult(matchCopy);
+    await saveTeam(matchCopy);
+
+    const saved = fixtureValue(getTeamById(club.id));
+    const scouted = offersOf(saved).length + (saved.draftHistory?.length ?? 0);
+    expect(scouted).toBe(1);
+    expect(saved.players.some((player) => player.id === star)).toBe(treasury > 0);
+    expect(saved.activeCompetitionId).toBeUndefined();
+  });
+
+  it("scouts a club whose owner was away when the tournament finished", async () => {
+    const club = await starClub();
+    const tournament = await knockout(club);
+    const away = fixtureValue(getTeamById(club.id));
+    await deleteTeam(club.id);
+
+    await playOut(tournament.id, club.id);
+    await saveTeam(away);
+    await releaseFinishedEntries();
+    await releaseFinishedEntries();
+
+    const back = fixtureValue(getTeamById(club.id));
+    expect(back.activeCompetitionId).toBeUndefined();
+    expect(offersOf(back).map((offer) => offer.matchId)).toEqual([`tournament-${tournament.id}`]);
   });
 });

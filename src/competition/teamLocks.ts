@@ -1,7 +1,7 @@
 import { loadTeams } from "../game/managers/TeamManager";
 import type { Team } from "../types/Team";
 import { findCompetitionById } from "./repository";
-import { clearActiveCompetition } from "./resultRecording";
+import { clearActiveCompetition, releaseFinishedEntrant } from "./resultRecording";
 import type { CompetitionDoc } from "./types";
 
 export function lockIsStale(
@@ -23,7 +23,9 @@ export async function releaseFinishedEntries(): Promise<void> {
     const competitionId = team.activeCompetitionId;
     if (!competitionId) continue;
     const competition = await findCompetitionById(competitionId);
-    if (lockIsStale(team, competition))
+    if (competition?.status === "complete")
+      await releaseFinishedEntrant(team.id, competition);
+    else if (lockIsStale(team, competition))
       await clearActiveCompetition(team.id, competitionId);
   }
 }

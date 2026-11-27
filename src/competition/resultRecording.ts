@@ -132,13 +132,24 @@ export function keepRecordedResult(team: Team): void {
 
   const queued = (stored.pendingDevelopment ?? []).filter(
     (entry) =>
-      entry.kind === "expensive-mistakes" &&
+      (entry.kind === "expensive-mistakes" || entry.kind === "drafted-player-offer") &&
       !team.pendingDevelopment?.some((own) => own.id === entry.id)
   );
   if (queued.length > 0)
     team.pendingDevelopment = [...(team.pendingDevelopment ?? []), ...queued];
+  keepDraftedPlayersGone(team, stored);
   if (stored.activeCompetitionId === undefined) delete team.activeCompetitionId;
   else team.activeCompetitionId = stored.activeCompetitionId;
+}
+
+function keepDraftedPlayersGone(team: Team, stored: Team): void {
+  const left = (stored.draftHistory ?? []).filter(
+    (record) => !team.draftHistory?.some((own) => own.id === record.id)
+  );
+  if (left.length === 0) return;
+  const leftIds = new Set(left.map((record) => record.playerId));
+  team.players = team.players.filter((player) => !leftIds.has(player.id));
+  team.draftHistory = [...(team.draftHistory ?? []), ...left];
 }
 
 async function updateEntrantRecords({
@@ -482,12 +493,18 @@ function scoutAtTournamentEnd(
   return saveTeam(team);
 }
 
+export async function releaseFinishedEntrant(
+  teamId: string,
+  competition: CompetitionDoc
+): Promise<void> {
+  await scoutAtTournamentEnd(teamId, competition);
+  await clearActiveCompetition(teamId, competition.id);
+}
+
 async function releaseEntrants(competition: CompetitionDoc): Promise<void> {
   if (competition.status !== "complete") return;
-  for (const entrant of competition.entrants) {
-    await scoutAtTournamentEnd(entrant.teamId, competition);
-    await clearActiveCompetition(entrant.teamId, competition.id);
-  }
+  for (const entrant of competition.entrants)
+    await releaseFinishedEntrant(entrant.teamId, competition);
 }
 
 export function clearActiveCompetition(
