@@ -4012,7 +4012,7 @@
       "count": 1
     },
     "no-implicit-coercion": {
-      "count": 3
+      "count": 2
     },
     "typescript/no-unnecessary-condition": {
       "count": 1
@@ -6272,15 +6272,12 @@
   },
   "src/ui/components/hud/PlayerInfoPanel.tsx": {
     "complexity": {
-      "count": 2
+      "count": 1
     },
     "max-lines-per-function": {
       "count": 2
     },
     "react/jsx-key": {
-      "count": 1
-    },
-    "typescript/no-unnecessary-condition": {
       "count": 1
     },
     "typescript/prefer-nullish-coalescing": {
