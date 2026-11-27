@@ -12,6 +12,7 @@ LAYERED_DIR is the factory's out/layered folder (render.py --layers). For each m
   (density, look options, layers per body, palette tables),
 - points the positions a character (<model>.json in characters/ or DIR) is used by at its model,
 - copies golden.json to __tests__/fixtures/layered/<model>.golden.json for the compositor's unit test.
+- checks the installed models with pnpm sprites:art-check, the same check CI runs.
 """
 import json
 import shutil
@@ -78,6 +79,7 @@ def main(layered, models, characters=CHARACTERS):
         assign(source.name, manifest, characters)
         install(source, manifest)
     MANIFEST.write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n")
+    subprocess.run(["pnpm", "sprites:art-check", *(source.name for source in sources)], cwd=ROOT, check=True)
 
 
 if __name__ == "__main__":

@@ -1,15 +1,32 @@
 import { readFileSync } from "node:fs";
-import { crc32, deflateSync } from "node:zlib";
+// eslint-disable-next-line n/no-unsupported-features/node-builtins -- zstd is experimental before Node 23.8; installs and CI run Node 22.15+, which has it
+import { crc32, deflateSync, zstdCompressSync } from "node:zlib";
 import { Decompress, decompress } from "fzstd";
 import {
   LAYER_FILE,
   readLayerBlob,
   readLayerHeader,
+  writeLayerBlob,
   type LayerData,
   type LayerIndex,
 } from "../../src/boundary/layeredArt";
+import { byCodeUnit } from "../../src/game/core/order";
 
 const INDEX_CHUNK = 16_384;
+const PACK_LEVEL = 19;
+const COMPRESSION_LEVEL_PARAM = 100;
+
+export function packLayer(layer: LayerData): Buffer {
+  return zstdCompressSync(writeLayerBlob(layer), { params: { [COMPRESSION_LEVEL_PARAM]: PACK_LEVEL } });
+}
+
+function sortedFrames(layer: LayerData): string {
+  return JSON.stringify(Object.entries(layer.frames).sort(([a], [b]) => byCodeUnit(a, b)));
+}
+
+export function sameLayer(a: LayerData, b: LayerData): boolean {
+  return a.pixels === b.pixels && sortedFrames(a) === sortedFrames(b) && Buffer.from(a.planes).equals(Buffer.from(b.planes));
+}
 
 export function readLayerFiles(base: string): LayerData {
   return readLayerBlob(decompress(readFileSync(`${base}${LAYER_FILE}`)), base);
