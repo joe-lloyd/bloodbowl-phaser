@@ -12,12 +12,13 @@ import {
   type CompetitionEntrant,
   type LeagueDoc,
 } from "../../src/competition/types";
-import { saveTeams } from "../../src/game/managers/TeamManager";
+import { getTeamById, saveTeams } from "../../src/game/managers/TeamManager";
 import { CompetitionView } from "../../src/ui/components/pages/CompetitionView";
 import { TeamBuilder } from "../utils/test-builders";
 import { RosterName, type Team } from "../../src/types/Team";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
-import { foundClub } from "../../src/game/rules/club";
+import { clubWorth, foundClub } from "../../src/game/rules/club";
+import type { GameType } from "../../src/game/variants/gameTypes";
 import { hirePlayer } from "../../src/game/rules/teamPricing";
 import type { SevensRuleset } from "../../src/game/rules/sevensRuleset";
 
@@ -52,13 +53,14 @@ function entrantsFor(teams: Team[]): CompetitionEntrant[] {
 async function playLocalFixture(
   root: Root,
   container: HTMLDivElement,
-  { teams, ruleset }: { teams: Team[]; ruleset: SevensRuleset }
+  { teams, ruleset, gameType }: { teams: Team[]; ruleset: SevensRuleset; gameType?: GameType }
 ): Promise<LeagueDoc["fixtures"]> {
   saveTeams(teams);
   const entrants = entrantsFor(teams);
   const fixtures = generateRoundRobin(entrants);
   const league: LeagueDoc = {
     ruleset,
+    ...(gameType && { gameType }),
     id: "season-1",
     type: "league",
     name: "Season 1",
@@ -169,5 +171,29 @@ describe("launching a competition fixture", () => {
 
     expect(container.querySelector('[data-testid="launched"]')).toBeNull();
     expect(container.textContent).toContain("Shadow Wake's Sevens squad cannot play:");
+  });
+
+  it("lifts a computer club below 750k to play a Gutter Bowl fixture", async () => {
+    const rival = foundClub("Low Rollers", RosterName.HUMAN);
+    rival.id = "low-rollers";
+    rival.computerCoached = true;
+    const lineman = fixtureValue(
+      getRosterByRosterName(RosterName.HUMAN).playerTemplates.find(
+        (template) => template.positionName === "Human Lineman"
+      )
+    );
+    for (let index = 0; index < 7; index++) hirePlayer(rival, lineman);
+    expect(clubWorth(rival)).toBeLessThan(750_000);
+
+    await playLocalFixture(root, container, {
+      teams: [clubWithFivePositionals(), rival],
+      ruleset: "gw-2025",
+      gameType: "gutter-bowl",
+    });
+
+    expect(container.querySelector('[data-testid="launched"]')).not.toBeNull();
+    const lifted = fixtureValue(getTeamById("low-rollers"));
+    expect(clubWorth(lifted)).toBe(750_000);
+    expect(lifted.club?.gutterUnlocked).toBe(true);
   });
 });

@@ -45,7 +45,7 @@ function CompetitionCard({
         {competition.name}
       </Title>
       <span className="flex flex-wrap items-center gap-2">
-        {competitionGameTypes(competition).map((gameType) => (
+        {(competition.gameTypePool ?? competitionGameTypes(competition)).map((gameType) => (
           <Chip key={gameType} tone="info">
             <GameTypeName gameType={gameType} size={14} />
           </Chip>

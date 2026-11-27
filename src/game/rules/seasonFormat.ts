@@ -53,22 +53,18 @@ export function roundGameTypes(
   );
 }
 
-export function reshapeFormat(
-  format: SeasonFormat,
-  kind: SeasonFormat["kind"],
-  open: readonly GameType[]
+export type SeasonMix = "random" | "order";
+
+export function seasonFormatFor(
+  involved: readonly GameType[],
+  mix: SeasonMix
 ): SeasonFormat {
-  const current = formatGameTypes(format);
-  const pool = current.length > 1 ? current : [...open];
-  switch (kind) {
-    case "single":
-      return { kind, gameType: current[0] ?? "sevens" };
-    case "random":
-      return { kind, gameTypes: pool };
-    case "order":
-      return {
-        kind,
-        gameTypes: Array.from({ length: SEASON_ROUNDS }, (_, round) => pick(pool, round)),
-      };
-  }
+  const [only, ...others] = involved;
+  if (!only) return SEVENS_SEASON;
+  if (others.length === 0) return { kind: "single", gameType: only };
+  if (mix === "random") return { kind: "random", gameTypes: [...involved] };
+  return {
+    kind: "order",
+    gameTypes: Array.from({ length: SEASON_ROUNDS }, (_, round) => pick(involved, round)),
+  };
 }

@@ -1,5 +1,5 @@
 import type { GameType } from "../game/variants/gameTypes";
-import type { CompetitionFixture } from "./types";
+import type { CompetitionDoc, CompetitionFixture } from "./types";
 
 export interface RoundPlan {
   next?: number;
@@ -38,4 +38,22 @@ export function roundGameType(
 ): GameType | undefined {
   return fixtures.find((fixture) => fixture.round === round && fixture.gameType)
     ?.gameType;
+}
+
+export function revealNextRound(
+  competition: CompetitionDoc,
+  rollDie: (sides: number) => number
+): CompetitionDoc {
+  const pool = competition.gameTypePool;
+  const { next } = roundPlan(competition.fixtures);
+  if (!pool || next === undefined) return competition;
+  if (roundGameType(competition.fixtures, next)) return competition;
+  const gameType = pool[rollDie(pool.length) - 1];
+  if (!gameType) return competition;
+  return {
+    ...competition,
+    fixtures: competition.fixtures.map((fixture) =>
+      fixture.round === next ? { ...fixture, gameType } : fixture
+    ),
+  };
 }

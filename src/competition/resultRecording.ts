@@ -32,6 +32,7 @@ import { manageComputerTeams } from "./computerTeams";
 import { carriesInjuries } from "../game/rules/injuryRules";
 import { restoreClubHome } from "../game/rules/club";
 import { assertFixtureInOpenRound } from "./schedule";
+import { revealNextRound } from "./roundPlan";
 
 interface TeamRecordUpdate {
   entrant: CompetitionEntrant;
@@ -366,6 +367,11 @@ function markPlayedVia(next: CompetitionDoc, context: CompetitionContext): void 
   if (result && context.playedVia) result.playedVia = context.playedVia;
 }
 
+const roundDraw =
+  (rng?: Pick<IRNGService, "rollDie">) =>
+  (sides: number): number =>
+    (rng ?? new RNGService(Date.now())).rollDie(sides);
+
 export async function recordCompetitionFixture(
   reported: FixtureRecord
 ): Promise<CompetitionDoc> {
@@ -383,7 +389,8 @@ export async function recordCompetitionFixture(
         reported,
         fixture && homeTeamIdOf(latest, fixture)
       );
-      return recordFixtureTransaction(latest, request, uid);
+      const next = recordFixtureTransaction(latest, request, uid);
+      return next && revealNextRound(next, roundDraw(reported.options?.rng));
     }
   );
   const { progressedTeams } = request;
@@ -424,7 +431,7 @@ export async function closeWalkovers(
         (latest) => {
           const next = walkOverNext(latest);
           progress.closed = next !== null;
-          return next;
+          return next && revealNextRound(next, roundDraw());
         }
       );
     }

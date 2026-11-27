@@ -201,6 +201,11 @@ export function restoreClubHome(team: Team, stored: Team): void {
   team.cheerleaders = stored.cheerleaders;
 }
 
+export function raiseToGutterFloor(team: Team): void {
+  team.treasury += Math.max(0, GUTTER_UNLOCK_WORTH - clubWorth(team));
+  latchGutterUnlock(team);
+}
+
 export function carryGutterUnlock(team: Team, stored: Team | undefined): void {
   if (team.club && stored?.club?.gutterUnlocked)
     team.club.gutterUnlocked = true;
@@ -208,7 +213,7 @@ export function carryGutterUnlock(team: Team, stored: Team | undefined): void {
 }
 
 export function gutterLockReason(team: Team): string | undefined {
-  if (!team.club || team.computerCoached || gutterUnlocked(team)) return undefined;
+  if (!team.club || gutterUnlocked(team)) return undefined;
   return `Gutter Bowl opens when team value plus treasury reaches ${thousands(GUTTER_UNLOCK_WORTH)} (now ${thousands(clubWorth(team))}).`;
 }
 

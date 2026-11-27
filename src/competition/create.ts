@@ -64,6 +64,8 @@ export interface CompetitionRules {
   playOffs?: boolean;
 
   roundGameTypes?: readonly GameType[];
+
+  gameTypePool?: readonly GameType[];
 }
 
 export interface NewCompetition extends CompetitionRules {
@@ -250,6 +252,7 @@ export function buildCompetition({
   const base = {
     ruleset: readSevensRuleset(rules.ruleset),
     ...(gameType !== DEFAULT_GAME_TYPE && { gameType }),
+    ...(rules.gameTypePool && { gameTypePool: [...rules.gameTypePool] }),
     id: `${rules.type}-${String(now)}-${Math.random().toString(36).slice(2, 8)}`,
     name: rules.name.trim(),
     organizerUid,
@@ -296,7 +299,13 @@ export async function createCompetition(
     choices.map((choice) => choice.team),
     {
       ruleset,
-      gameTypes: [...new Set([gameType, ...(input.roundGameTypes ?? [])])],
+      gameTypes: [
+        ...new Set([
+          gameType,
+          ...(input.roundGameTypes ?? []),
+          ...(input.gameTypePool ?? []),
+        ]),
+      ],
       profile: input.profile,
     }
   );

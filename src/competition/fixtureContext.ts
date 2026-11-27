@@ -7,18 +7,34 @@ import type {
   FixturePlay,
 } from "./types";
 
-type GameTypeSource = Pick<CompetitionDoc, "gameType" | "fixtures">;
+type GameTypeSource = Pick<CompetitionDoc, "gameType" | "gameTypePool">;
 
-export function fixtureGameType(
-  competition: Pick<CompetitionDoc, "gameType">,
-  fixture: Pick<CompetitionFixture, "gameType"> | undefined
-): GameType {
-  return readGameType(fixture?.gameType ?? competition.gameType);
+function drawnGameType(
+  competition: GameTypeSource,
+  fixture: Pick<CompetitionFixture, "gameType" | "round"> | undefined
+): GameType | undefined {
+  if (fixture?.gameType) return fixture.gameType;
+  if (fixture && competition.gameTypePool)
+    throw new Error(
+      `Round ${String(fixture.round)}'s game type is drawn when round ${String(fixture.round - 1)} is over.`
+    );
+  return competition.gameType;
 }
 
-export function competitionGameTypes(competition: GameTypeSource): GameType[] {
+export function fixtureGameType(
+  competition: GameTypeSource,
+  fixture: Pick<CompetitionFixture, "gameType" | "round"> | undefined
+): GameType {
+  return readGameType(drawnGameType(competition, fixture));
+}
+
+export function competitionGameTypes(
+  competition: GameTypeSource & Pick<CompetitionDoc, "fixtures">
+): GameType[] {
   const byRound = [...competition.fixtures].sort((a, b) => a.round - b.round);
-  const played = byRound.map((fixture) => fixtureGameType(competition, fixture));
+  const played = byRound.flatMap((fixture) =>
+    fixture.gameType ?? (competition.gameTypePool ? [] : readGameType(competition.gameType))
+  );
   return played.length > 0
     ? [...new Set(played)]
     : [readGameType(competition.gameType)];
@@ -34,7 +50,7 @@ export function fixtureContext({
   playedVia: FixturePlay;
 }): CompetitionContext {
   const fixture = competition.fixtures.find((each) => each.id === fixtureId);
-  const gameType = fixture?.gameType ?? competition.gameType;
+  const gameType = drawnGameType(competition, fixture);
   return {
     ruleset: competition.ruleset ?? DEFAULT_SEVENS_RULESET,
     ...(gameType !== undefined && { gameType }),

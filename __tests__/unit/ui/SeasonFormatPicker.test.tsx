@@ -54,48 +54,45 @@ describe("SeasonFormatPicker", () => {
     return found;
   };
 
-  it("sets a game type for every round and changes one round at a time", () => {
+  it("builds a set order from only the game types the coach ticks", () => {
     act(() => {
       root.render(<Harness club={foundClub("Altdorf Anvils", RosterName.HUMAN)} seen={seen} />);
     });
 
-    click(button("Set order"));
-    const rounds = [...container.querySelectorAll('[role="radiogroup"][aria-label$="game type"]')];
-    expect(rounds.map((group) => group.getAttribute("aria-label"))).toEqual([
-      "Round 1 game type", "Round 2 game type", "Round 3 game type", "Round 4 game type",
-      "Round 5 game type", "Round 6 game type", "Round 7 game type",
-    ]);
-    expect(latest()).toEqual({
-      kind: "order",
-      gameTypes: ["sevens", "street-bowl", "beach-bowl", "sevens", "street-bowl", "beach-bowl", "sevens"],
-    });
-
-    click(button("Gutter Bowl", fixtureValue(rounds[1])));
-    expect(latest()).toEqual({
-      kind: "order",
-      gameTypes: ["sevens", "street-bowl", "beach-bowl", "sevens", "street-bowl", "beach-bowl", "sevens"],
-    });
-    expect(button("Gutter Bowl", fixtureValue(rounds[1])).disabled).toBe(true);
+    expect(button("Gutter Bowl").disabled).toBe(true);
     expect(container.textContent).toContain("Gutter Bowl opens when team value plus treasury reaches 750k");
+    click(button("Beach Bowl"));
+    expect(latest()).toEqual({ kind: "random", gameTypes: ["sevens", "beach-bowl"] });
 
-    click(button("Beach Bowl", fixtureValue(rounds[1])));
+    click(button("Set order"));
     expect(latest()).toEqual({
       kind: "order",
-      gameTypes: ["sevens", "beach-bowl", "beach-bowl", "sevens", "street-bowl", "beach-bowl", "sevens"],
+      gameTypes: ["sevens", "beach-bowl", "sevens", "beach-bowl", "sevens", "beach-bowl", "sevens"],
+    });
+    const rounds = [...container.querySelectorAll('[role="radiogroup"][aria-label$="game type"]')];
+    expect(rounds).toHaveLength(7);
+    expect(
+      [...fixtureValue(rounds[0]).querySelectorAll("button")].map((each) => each.getAttribute("aria-label"))
+    ).toEqual(["Sevens", "Beach Bowl"]);
+
+    click(button("Sevens", fixtureValue(rounds[2])));
+    click(button("Beach Bowl", fixtureValue(rounds[2])));
+    expect(latest()).toEqual({
+      kind: "order",
+      gameTypes: ["sevens", "beach-bowl", "beach-bowl", "beach-bowl", "sevens", "beach-bowl", "sevens"],
     });
   });
 
-  it("draws from the picked game types and warns when fewer than two are left", () => {
+  it("plays one game type when only one is ticked and never unticks the last", () => {
     act(() => {
       root.render(<Harness club={foundClub("Altdorf Anvils", RosterName.HUMAN)} seen={seen} />);
     });
 
-    click(button("Random each round"));
-    expect(latest()).toEqual({ kind: "random", gameTypes: ["sevens", "street-bowl", "beach-bowl"] });
-
-    click(button("Sevens"));
+    expect(container.querySelector('[aria-label="How the game types mix"]')).toBeNull();
+    expect(button("Sevens").disabled).toBe(true);
     click(button("Street Bowl"));
-    expect(latest()).toEqual({ kind: "random", gameTypes: ["beach-bowl"] });
-    expect(container.textContent).toContain("A random season needs at least two game types to draw from.");
+    click(button("Sevens"));
+    expect(latest()).toEqual({ kind: "single", gameType: "street-bowl" });
+    expect(container.querySelector('[aria-label="How the game types mix"]')).toBeNull();
   });
 });
