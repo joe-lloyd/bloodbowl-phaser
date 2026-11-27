@@ -131,11 +131,11 @@ function pushTeam(uid: string, { id, local, base }: Push): Promise<PushOutcome> 
   });
 }
 
-function settleSoon(upload: Promise<void>): Promise<void> {
+function settleSoon(upload: Promise<void>, offline: boolean): Promise<void> {
   upload.catch((error: unknown) => {
     console.error("Failed to upload teams:", error);
   });
-  if (!navigator.onLine) return Promise.resolve();
+  if (offline || !navigator.onLine) return Promise.resolve();
   return Promise.race([
     upload,
     new Promise<void>((resolve) => setTimeout(resolve, SAVE_WAIT_MS)),
@@ -168,16 +168,19 @@ export class CloudTeamRepository implements TeamRepository {
   saveTeams(teams: Team[]): Promise<void> {
     const before = this.state.teams;
     this.update(withTeams(this.state, teams), false);
-    return settleSoon(this.enqueue(() => this.uploadPending(before).then(() => undefined)));
+    return settleSoon(
+      this.enqueue(() => this.uploadPending(before).then(() => undefined)),
+      this.offline
+    );
   }
 
   resync(): Promise<void> {
     return this.enqueue(async () => {
       this.setSyncing(1);
       try {
-        this.update(mergeCloud(this.state, await fetchCloudTeams(this.uid)));
-        this.offline = false;
-        if (await this.uploadPending(undefined)) this.update({ ...this.state, syncedAt: Date.now() });
+        const pulled = await this.pull();
+        const uploaded = await this.uploadPending(undefined);
+        if (pulled && uploaded) this.update({ ...this.state, syncedAt: Date.now() });
       } catch (cause) {
         this.noteFailure(cause);
       } finally {
@@ -186,9 +189,24 @@ export class CloudTeamRepository implements TeamRepository {
     });
   }
 
+  private async pull(): Promise<boolean> {
+    try {
+      this.update(mergeCloud(this.state, await fetchCloudTeams(this.uid)));
+      this.offline = false;
+      return true;
+    } catch (cause) {
+      if (!isNetworkFailure(cause)) throw cause;
+      this.noteFailure(cause);
+      return false;
+    }
+  }
+
   keepLocal(teamId: string): Promise<void> {
     this.update(keepLocalVersion(this.state, teamId));
-    return settleSoon(this.enqueue(() => this.uploadPending(undefined).then(() => undefined)));
+    return settleSoon(
+      this.enqueue(() => this.uploadPending(undefined).then(() => undefined)),
+      this.offline
+    );
   }
 
   takeCloud(teamId: string): void {

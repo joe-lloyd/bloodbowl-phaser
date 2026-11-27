@@ -1,7 +1,7 @@
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FirebaseError } from "firebase/app";
-import { runTransaction } from "firebase/firestore";
+import { getDocsFromServer, runTransaction } from "firebase/firestore";
 import { CloudTeamRepository } from "../../../src/firebase/cloudTeamRepository";
 import { cloudDocument, libraryFromMirror } from "../../../src/firebase/teamLibrarySync";
 import { readTeamMirror } from "../../../src/boundary/teamMirror";
@@ -125,6 +125,19 @@ describe("offline saves", () => {
     expect(mirror().pending).toEqual(["first"]);
     network.up = true;
     await repository.resync();
+    expect(storedTreasury("first")).toBe(55_000);
+    expect(mirror().pending).toEqual([]);
+  });
+
+  it("uploads waiting changes when the list of teams cannot be fetched yet", async () => {
+    const repository = primed([activeTeam("first", 10_000)]);
+    network.up = false;
+    await repository.saveTeams([activeTeam("first", 55_000)]);
+    network.up = true;
+    vi.mocked(getDocsFromServer).mockRejectedValueOnce(new FirebaseError("unavailable", "Client is offline"));
+
+    await repository.resync();
+
     expect(storedTreasury("first")).toBe(55_000);
     expect(mirror().pending).toEqual([]);
   });
