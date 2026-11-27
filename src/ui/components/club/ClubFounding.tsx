@@ -56,7 +56,7 @@ export function ClubFounding() {
     >
       <PageHeader
         title="FOUND A CLUB"
-        subtitle="Draft a standard 600k Sevens team. That team is your Core Sevens squad, and it plays Street Bowl and Beach Bowl too. Every league and tournament game earns Star Player Points, so injuries, skills and deaths follow each player into every game type. Friendlies are exhibitions and change nothing."
+        subtitle="Draft a standard 600k Sevens team. That team is your Core Sevens squad, and it plays Street Bowl and Beach Bowl too. Every league and tournament game earns Star Player Points, so injuries, skills and deaths follow each player into every game type. Its career runs through the club league, one season at a time. A friendly keeps only the SPP you choose to count."
       />
       <Section title="Club name">
         <Field label="Name">

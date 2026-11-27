@@ -526,10 +526,13 @@ export function TeamBuilder() {
     }
   };
 
-  const saveBeforeOpeningPlayer = async (current: Team): Promise<boolean> => {
+  const saveBeforeLeaving = async (
+    current: Team,
+    place: string
+  ): Promise<boolean> => {
     if (
       !postMatch &&
-      !confirm("Save your changes to this team before opening the player?")
+      !confirm(`Save your changes to this team before opening ${place}?`)
     ) {
       return false;
     }
@@ -542,7 +545,7 @@ export function TeamBuilder() {
       restoreAdvancementLock(current, wasLocked);
       setTeam({ ...current });
       alert(
-        `Your changes could not be saved, so the player was not opened. Your edits are still here. ${cause instanceof Error ? cause.message : String(cause)}`
+        `Your changes could not be saved, so ${place} was not opened. Your edits are still here. ${cause instanceof Error ? cause.message : String(cause)}`
       );
       return false;
     } finally {
@@ -554,7 +557,7 @@ export function TeamBuilder() {
       restoreAdvancementLock(current, wasLocked);
       setTeam({ ...current });
       alert(
-        "Your changes could not be saved, so the player was not opened. Your edits are still here."
+        `Your changes could not be saved, so ${place} was not opened. Your edits are still here.`
       );
       return false;
     }
@@ -562,16 +565,22 @@ export function TeamBuilder() {
     return true;
   };
 
-  const handleOpenPlayer = async (playerId: string) => {
+  const leaveSaved = async (path: string, place: string) => {
     if (!team || saveInFlight.current || isTeamSaving()) return;
     if (
       savedSnapshot.current !== snapshotOf(team) &&
-      !(await saveBeforeOpeningPlayer(team))
+      !(await saveBeforeLeaving(team, place))
     ) {
       return;
     }
-    navigate(`/build-team/${team.id}/player/${playerId}${search}`);
+    navigate(path);
   };
+
+  const handleOpenPlayer = (playerId: string) =>
+    leaveSaved(
+      `/build-team/${team?.id ?? ""}/player/${playerId}${search}`,
+      "the player"
+    );
 
   const handleBack = () => {
     navigate(destination);
@@ -659,7 +668,12 @@ export function TeamBuilder() {
         matchWinnings={matchWinnings}
         waitingForDevelopment={waitingForDevelopment}
       />
-      <ClubNotice team={team} />
+      <ClubNotice
+        team={team}
+        onOpenSeason={() =>
+          void leaveSaved(`/clubs/${team.id}/season`, "the club league")
+        }
+      />
       {captainVacancyCandidates(team).length > 0 && (
         <Notice tone="info" title="No Team Captain" className="mb-4">
           This team has no Team Captain. You may appoint one in the pre-game of

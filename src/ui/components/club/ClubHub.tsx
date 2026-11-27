@@ -4,6 +4,7 @@ import type { Team } from "../../../types/Team";
 import { GAME_TYPE_LABELS } from "../../../game/variants/gameTypes";
 import { clubEntries } from "../../../game/rules/clubEntries";
 import { inTournament } from "../../../game/rules/club";
+import { homeLeagueOf } from "../../../competition/homeLeague";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import {
   Chip,
@@ -18,6 +19,9 @@ import { GutterProgress } from "./GutterProgress";
 
 function competitionChip(team: Team) {
   if (!team.activeCompetitionId) return null;
+  const league = homeLeagueOf(team);
+  if (team.activeCompetitionId === league.leagueId)
+    return <Chip tone="gold">Season {league.season}</Chip>;
   return inTournament(team) ? (
     <Chip tone="blood">In a tournament</Chip>
   ) : (
