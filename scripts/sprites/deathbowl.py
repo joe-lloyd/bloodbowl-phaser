@@ -12,21 +12,22 @@ look the same as on every other venue.
 layouts.json holds the arena from the game's own layout: the pitch squares,
 each seat's own end zone, the lines (pitch edge, end zone lines, Lines of
 Scrimmage and wide-zone lines, the four Lines of Scrimmage also closing the
-7 by 7 centre) and the four dugouts, one 11 by 3 strip per seat in the
-corner beside its own arm. The strips come from venueSidelines.ts, so the
-render and the game read one definition, and a unit test checks meta.json
-against it.
+7 by 7 centre) and the four dugouts. Each seat keeps its reserves in the
+corner beside its own arm, and its KO, casualty and sent-off boxes in a
+26 by 3 strip behind its own end line. The four strips turn like a
+pinwheel, each covering the ring corner by its reserves, so the pitch and
+dugouts fill a 29 by 29 square. The strips come from venueSidelines.ts, so
+the render and the game read one definition, and a unit test checks
+meta.json against it.
 
 The mask pass paints each seat's kit in its own colour (MASKS, also written
 to meta.json) so build_game_assets.py can split a north, east, south and
 west layer for Phaser to tint. Each seat owns its dugout, its own end zone
-and the quarter of the crowd round its corner.
+and the stand behind its end line.
 
 The camera looks from the south-east corner, so tall seating would hide
-whatever lies north or west of it. Only the north end and the crowds behind
-West's and South's dugouts stand tall. The east, south and west ends keep a
-few low rows: West's dugout runs out past the west end line, north of the
-west end, and a tall west stand would hide it.
+whatever lies north or west of it. The north and west stands stand tall;
+the east and south stands keep a few low rows.
 """
 
 import os
@@ -52,7 +53,7 @@ SEAT_PARTS = {
                              ("trim", "flat", 1.0), ("banner", "toon", 0.5))
 }
 TALL, LOW = 16, 3
-NEAR = 21.9  # front of the low east and south stands, as far out as the stadium's near end
+TREAD = 0.85
 
 
 def turf(b, layout):
@@ -74,53 +75,63 @@ def lines(b, layout):
     b.box("line", c - Vector((0.35, 0.35, 0)), c + Vector((0.35, 0.35, 0.01)))
 
 
+def strip_length(strip):
+    return sum(n for _, n in strip["boxes"])
+
+
 def strip_box(strip, margin):
-    """The grid rectangle an 11 by 3 dugout strip covers, grown by `margin`."""
+    """The grid rectangle a 3-deep dugout strip covers, grown by `margin`."""
     (sx, sy), (ax, ay), (dx, dy) = strip["start"], strip["along"], strip["depth"]
-    xs = (sx, sx + ax * 11 + dx * 3)
-    ys = (sy, sy + ay * 11 + dy * 3)
+    n = strip_length(strip)
+    xs = (sx, sx + ax * n + dx * 3)
+    ys = (sy, sy + ay * n + dy * 3)
     return min(xs) - margin, min(ys) - margin, max(xs) + margin, max(ys) + margin
+
+
+def outline(layout):
+    """The grid square the pitch and every dugout fill: (lo, hi) on both axes."""
+    boxes = [strip_box(strip, 0) for strips in layout["strips"].values() for strip in strips]
+    return min(min(x0, y0) for x0, y0, _, _ in boxes), max(max(x1, y1) for _, _, x1, y1 in boxes)
 
 
 def apron(b, layout):
     b.box("ground", (-200, -200, -0.3), (260, 200, -0.05))
-    vn["gbox"](b, "apron", -1, -1, layout["cols"] + 1, layout["rows"] + 1, -0.05, 0.0)
-    for strip in layout["strips"].values():
-        x0, y0, x1, y1 = strip_box(strip, 0.5)
-        vn["gbox"](b, "apron", x0, y0, x1, y1, -0.05, 0.0)
+    lo, hi = outline(layout)
+    vn["gbox"](b, "apron", lo - 0.5, lo - 0.5, hi + 1.5, hi + 1.5, -0.05, 0.0)
 
 
 def dugouts(b, layout):
+    """Reserves in the corner, then the KO, casualty and sent-off strip, which ends against the next seat's."""
     for seat in SEATS:
-        strip = layout["strips"][seat]
-        along, depth = tuple(strip["along"]), tuple(strip["depth"])
-        far = depth[0] < 0 or depth[1] < 0
-        st["dugout"](b, seat, *strip["start"], along, depth, far=far)
-
-
-def halves(low, high, split):
-    """kit_of for a stand split at world coordinate `split`."""
-    return lambda t: low if t < split else high
+        for strip in layout["strips"][seat]:
+            along, depth = tuple(strip["along"]), tuple(strip["depth"])
+            far = depth[0] < 0 or depth[1] < 0
+            boxes = [tuple(box) for box in strip["boxes"]]
+            st["dugout"](b, seat, *strip["start"], along, depth, far=far, boxes=boxes,
+                         open_end=strip_length(strip) > 4)
 
 
 def crowd(b, rng, layout):
-    """Stands behind each end zone and behind each dugout, split into the four seats' corners."""
-    mid = layout["cols"] / 2 * S
+    """A stand behind each seat's end line, outside the square, in that seat's kit.
+
+    The tall north and west stands run on over the corners behind them, so the
+    corners have no gaps; the low east and south stands meet them there.
+    """
+    lo, hi = outline(layout)
+    # the near stands sit a square further out, so their flags clear the dugouts
+    near, far = (hi + 1.5) * S, (lo - 0.5) * S
+    tall = 0.3 + TALL * TREAD
+    low = 0.3 + LOW * TREAD
     top = 0.6 + TALL * 0.48 + 1.8
-    far = [
-        # (x0, x1, front, out, kit_of): the north end, behind West's dugout, behind South's dugout
-        (5 * S, 16 * S, S, (0, 1), halves("west", "north", mid)),
-        (-7.6 * S, 5 * S, -0.5 * S, (0, 1), lambda t: "west"),
-        (-28.6 * S, -16.5 * S, 0.45 * S, (-1, 0), lambda t: "south"),
-    ]
-    for x0, x1, front, out, kit_of in far:
-        depth = st["stand"](b, rng, x0, x1, front, out, TALL, 0.6, kit_of)
+    seat_kit = {seat: (lambda t, seat=seat: seat) for seat in SEATS}
+    # (x0, x1, front, out, seat): grid north is world +Y and grid west world -X
+    for x0, x1, front, out, seat in ((far - tall, near + low, -far, (0, 1), "north"),
+                                     (-near, -far, far, (-1, 0), "west")):
+        depth = st["stand"](b, rng, x0, x1, front, out, TALL, 0.6, seat_kit[seat])
         sgn = out[1] if out[0] == 0 else out[0]
-        st["banners"](b, x0, x1, front + sgn * depth, out, top, kit_of)
-    # the west end; the east end and behind North's dugout; the south end and behind East's dugout
-    st["stand"](b, rng, -16 * S, -5.3 * S, -S, (-1, 0), LOW, 0.25, halves("south", "west", -mid), back=False)
-    st["stand"](b, rng, -16 * S, 7.6 * S, NEAR * S, (1, 0), LOW, 0.25, halves("east", "north", -mid), back=False)
-    st["stand"](b, rng, 5 * S, 28.6 * S, -NEAR * S, (0, -1), LOW, 0.25, halves("south", "east", mid), back=False)
+        st["banners"](b, x0, x1, front + sgn * depth, out, top, seat_kit[seat])
+    st["stand"](b, rng, -near - low, -far, near, (1, 0), LOW, 0.25, seat_kit["east"], back=False)
+    st["stand"](b, rng, far - tall, near, -near, (0, -1), LOW, 0.25, seat_kit["south"], back=False)
 
 
 def build(layout):

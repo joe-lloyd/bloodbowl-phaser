@@ -99,7 +99,7 @@ describe("Deathbowl arena", () => {
   const arena = PITCH_LAYOUTS.deathbowl;
   const dugouts = arenaDugouts(arena);
 
-  it("puts each seat's dugout in the corner beside its own arm, reserves nearest the pitch", () => {
+  it("keeps each seat's reserves in the corner beside its own arm", () => {
     expect(dugouts.north.reserves.slice(0, 4)).toEqual([
       [17.5, 3.5],
       [17.5, 2.5],
@@ -108,26 +108,51 @@ describe("Deathbowl arena", () => {
     ]);
     expect(dugouts.east.reserves[0]).toEqual([17.5, 17.5]);
     expect(dugouts.south.reserves[0]).toEqual([3.5, 17.5]);
-    expect(dugouts.west["sent off"]).toEqual([
-      [-6.5, 3.5],
-      [-6.5, 2.5],
-      [-6.5, 1.5],
-    ]);
+    expect(dugouts.west.reserves[0]).toEqual([3.5, 3.5]);
   });
 
-  it("keeps the 33 squares of all four dugouts apart and off the pitch", () => {
+  it("puts KO, casualties and sent off behind each seat's own end line, KO by the reserves", () => {
+    expect(dugouts.north.ko.slice(0, 2)).toEqual([
+      [24.5, -1.5],
+      [23.5, -1.5],
+    ]);
+    expect(dugouts.north["sent off"].at(-1)).toEqual([-0.5, -3.5]);
+    expect(dugouts.east.injured[0]).toEqual([22.5, 14.5]);
+    expect(dugouts.south.ko[0]).toEqual([-3.5, 22.5]);
+    expect(dugouts.west["sent off"]).toHaveLength(18);
+    expect(dugouts.west["sent off"][0]).toEqual([-1.5, 16.5]);
+  });
+
+  it("keeps the 90 squares of each seat's dugout apart and off the pitch", () => {
     const squares = ARENA_SEATS.flatMap((seat) =>
       Object.values(dugouts[seat]).flat()
     );
-    expect(squares).toHaveLength(132);
-    expect(
-      new Set(squares.map(([x, y]) => `${String(x)},${String(y)}`)).size
-    ).toBe(132);
+    expect(squares).toHaveLength(360);
+    expect(new Set(squares.map((square) => square.join(","))).size).toBe(360);
     expect(
       squares.filter(([x, y]) =>
         isInsideLayout(arena, { x: Math.floor(x), y: Math.floor(y) })
       )
     ).toEqual([]);
+  });
+
+  it("closes the pitch and dugouts into a 29 by 29 square", () => {
+    const taken = new Set(
+      ARENA_SEATS.flatMap((seat) => Object.values(dugouts[seat]).flat()).map(
+        ([x, y]) => [Math.floor(x), Math.floor(y)].join(",")
+      )
+    );
+    const edge = Array.from({ length: 29 }, (_, k) => k - 4).flatMap((k) => [
+      [k, -4],
+      [k, 24],
+      [-4, k],
+      [24, k],
+    ]);
+    const xs = [...taken].map((key) => Number(key.split(",", 1)[0]));
+    const ys = [...taken].map((key) => Number(key.split(",", 2)[1]));
+    expect([Math.min(...xs), Math.max(...xs)]).toEqual([-4, 24]);
+    expect([Math.min(...ys), Math.max(...ys)]).toEqual([-4, 24]);
+    expect(edge.filter((square) => !taken.has(square.join(",")))).toEqual([]);
   });
 
   it("draws the arena's dugouts where the game puts them, with a tint layer per seat", () => {

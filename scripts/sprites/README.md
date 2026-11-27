@@ -88,11 +88,13 @@ pitch layout fails the tests until the venue is rendered again.
 
 `deathbowl.py` builds the four-team plus pitch. It reuses `stadium.py` and
 `venues.py` and reads the same `layouts.json`, whose last entry holds the
-arena's squares, end zones, lines and dugouts. Each seat's dugout is an
-11 by 3 Sevens strip that starts in the corner beside its own arm and runs
-out past that arm's end line. `arenaDugoutStrips` in
-`src/game/presentation/venueSidelines.ts` defines the strips, so the render
-and the game share them. The mask pass paints North red, East green, South
+arena's squares, end zones, lines and dugouts. Each seat keeps its reserves
+box in the corner beside its own arm. Its KO, casualty and sent-off boxes
+sit in a 26 by 3 strip behind its own end line, one square off the pitch.
+The four strips turn like a pinwheel, each covering the ring corner by its
+reserves, so the pitch and dugouts fill a 29 by 29 square.
+`arenaDugoutStrips` in `src/game/presentation/venueSidelines.ts` defines the
+strips, so the render and the game share them. The mask pass paints North red, East green, South
 blue and West white, and meta.json lists those colours under `masks`. A
 render takes about 25 seconds on Jellybingus.
 
