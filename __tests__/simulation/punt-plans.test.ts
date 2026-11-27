@@ -64,8 +64,12 @@ describe("the computer's Punt", () => {
 
   it("punts to team-mates in the end zone when nothing else can score", async () => {
     const game = lastTurn({ x: 14, y: 5 }, ENDZONE);
-    game.ctx.gameService.getState().turn.hasPassed = true;
-    game.ctx.gameService.getState().turn.hasHandedOff = true;
+    game.ctx.gameService.getState().turn.spend = {
+      blitzed: [],
+      fouled: [],
+      passes: 1,
+      handOffs: 1,
+    };
     const actor = game.ctx.team1.players[0]?.id;
     expect(await choose(game)).toMatchObject({
       type: "declare-action",

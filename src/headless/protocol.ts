@@ -59,6 +59,7 @@ export type HeadlessCommand =
       blockReplacement?: BlockReplacement;
 
       razzleDazzle?: boolean;
+      against?: string;
     }
   | { type: "cancel-action"; playerId: string }
   | { type: "move"; playerId: string; path: MoveStep[] }

@@ -103,6 +103,7 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     action: actionTypeSchema,
     blockReplacement: blockReplacementSchema.exactOptional(),
     razzleDazzle: flagSchema.exactOptional(),
+    against: z.string().exactOptional(),
   }),
   z.looseObject({
     type: z.literal("cancel-action"),

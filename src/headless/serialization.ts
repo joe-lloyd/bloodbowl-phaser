@@ -25,18 +25,19 @@ import { type TurnManagerState } from "../game/managers/TurnManager";
 import { type SetupState } from "../types/SetupTypes";
 import { type InducementsMatchState } from "../types/Inducements";
 import { teamRerollsLeft } from "../game/teamRerolls";
+import {
+  type SpendWire,
+  spendFromWire,
+  spendToWire,
+} from "../game/rules/turnSpend";
 
-export interface TurnSnapshot {
+export interface TurnSnapshot extends SpendWire {
   teamId: string;
   turnNumber: number;
   isHalf2: boolean;
 
   extraTime?: boolean;
   activatedPlayerIds: string[];
-  hasBlitzed: boolean;
-  hasPassed: boolean;
-  hasHandedOff: boolean;
-  hasFouled: boolean;
   hasThrownTeamMate: boolean;
   hasKickedTeamMate: boolean;
   hasThrownBomb: boolean;
@@ -230,10 +231,7 @@ export function serializeGameState(
       isHalf2: state.turn.isHalf2,
       ...(state.turn.extraTime && { extraTime: true }),
       activatedPlayerIds: [...state.turn.activatedPlayerIds],
-      hasBlitzed: state.turn.hasBlitzed,
-      hasPassed: state.turn.hasPassed,
-      hasHandedOff: state.turn.hasHandedOff,
-      hasFouled: state.turn.hasFouled,
+      ...spendToWire(state.turn.spend, teams.length),
       hasThrownTeamMate: state.turn.hasThrownTeamMate,
       hasKickedTeamMate: state.turn.hasKickedTeamMate,
       hasThrownBomb: state.turn.hasThrownBomb,
@@ -308,6 +306,12 @@ function legacyKick(snapshot: GameSnapshot): { kick?: KickRecord } {
   };
 }
 
+function rivalIds(snapshot: GameSnapshot): string[] {
+  return snapshot.teams
+    .map((team) => team.id)
+    .filter((id) => id !== snapshot.turn.teamId);
+}
+
 export function deserializeGameState(snapshot: GameSnapshot): GameState {
   const turn: TurnData = {
     teamId: snapshot.turn.teamId,
@@ -315,10 +319,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     isHalf2: snapshot.turn.isHalf2,
     ...(snapshot.turn.extraTime && { extraTime: true }),
     activatedPlayerIds: new Set(snapshot.turn.activatedPlayerIds),
-    hasBlitzed: snapshot.turn.hasBlitzed,
-    hasPassed: snapshot.turn.hasPassed,
-    hasHandedOff: snapshot.turn.hasHandedOff,
-    hasFouled: snapshot.turn.hasFouled,
+    spend: spendFromWire(snapshot.turn, rivalIds(snapshot)),
 
     hasThrownTeamMate: snapshot.turn.hasThrownTeamMate,
     hasKickedTeamMate: snapshot.turn.hasKickedTeamMate,

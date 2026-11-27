@@ -3,6 +3,13 @@ import { type GameState } from "@/types/GameState";
 import { type ActionType, GameEventNames } from "@/types/events";
 import { type BlockReplacement } from "@/types/BlockReplacement";
 import { type Player } from "@/types/Player";
+import { playerById, type Seating } from "../seating";
+import {
+  type Declaration,
+  maySpend,
+  spend,
+  targetOf,
+} from "../rules/turnSpend";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { foulSpent, spendMeasure } from "../inducements/matchInducements";
 import { mustRedeclare } from "../rules/awaitingDeclaration";
@@ -29,35 +36,44 @@ export function openActivation(
   };
 }
 
+type ActivePlayer = NonNullable<GameState["activePlayer"]>;
+
+interface DeclarationChoices {
+  blockReplacement?: BlockReplacement | undefined;
+  against?: string | undefined;
+}
+
 export class PlayerActionManager {
   private eventBus: IEventBus;
   private state: GameState;
-  private getPlayer: (id: string) => Player | undefined;
-  constructor(
-    eventBus: IEventBus,
-    state: GameState,
-    getPlayer: (id: string) => Player | undefined
-  ) {
+  private seating: Seating;
+  constructor(eventBus: IEventBus, state: GameState, seating: Seating) {
     this.eventBus = eventBus;
     this.state = state;
-    this.getPlayer = getPlayer;
+    this.seating = seating;
+  }
+
+  private getPlayer(id: string): Player | undefined {
+    return playerById(this.seating, id);
   }
 
   public declareAction(
     playerId: string,
     action: ActionType,
-    blockReplacement?: BlockReplacement
+    { blockReplacement, against }: DeclarationChoices = {}
   ): boolean {
-    if (!this.canDeclareAction(playerId, action)) {
+    if (!this.canDeclareAction(playerId, action, against)) {
       return false;
     }
+    const foul = action === "foul" && this.declarationOf(playerId, action, against);
 
     this.state.activePlayer = {
       id: playerId,
       action: action,
 
-      ...(action === "foul" && this.state.turn.hasFouled && { grudgeMatch: true }),
+      ...(foul && !maySpend(this.state.turn.spend, foul) && { grudgeMatch: true }),
       ...(blockReplacement && { blockReplacement, blockReplacementUsed: false }),
+      ...(against !== undefined && { against }),
     };
 
     this.eventBus.emit(
@@ -114,7 +130,7 @@ export class PlayerActionManager {
     if (active.razzleDazzle?.actions.length === 1 && player) {
       spendMeasure(this.state, player.teamId, DesperateMeasure.RAZZLE_DAZZLE);
     }
-    this.updateTurnFlags(active.action, playerId);
+    this.updateTurnFlags(active);
   }
 
   public cancelAction(playerId: string): boolean {
@@ -144,24 +160,23 @@ export class PlayerActionManager {
     return true;
   }
 
-  public canDeclareAction(playerId: string, action: ActionType): boolean {
-    const turn = this.state.turn;
-
+  public canDeclareAction(
+    playerId: string,
+    action: ActionType,
+    against?: string
+  ): boolean {
     switch (action) {
       case "blitz":
-        return !turn.hasBlitzed;
       case "pass":
-        return !turn.hasPassed;
       case "handoff":
-        return !turn.hasHandedOff;
       case "foul": {
-        const fouler = this.getPlayer(playerId);
-        return !!fouler && !foulSpent(this.state, fouler.teamId);
+        const declaration = this.declarationOf(playerId, action, against);
+        return !!declaration && this.mayDeclare(playerId, declaration);
       }
       case "throwTeamMate":
         return this.teamMateThrowLimit(playerId) !== null;
       case "throwBomb":
-        return !turn.hasThrownBomb;
+        return !this.state.turn.hasThrownBomb;
       default:
         return true;
     }
@@ -188,26 +203,33 @@ export class PlayerActionManager {
     return null;
   }
 
-  private updateTurnFlags(
-    action: ActionType | string | null,
-    playerId: string
-  ): void {
+  private mayDeclare(playerId: string, declaration: Declaration): boolean {
+    if (declaration.kind !== "foul") {
+      return maySpend(this.state.turn.spend, declaration);
+    }
+    const fouler = this.getPlayer(playerId);
+    return !!fouler && !foulSpent(this.state, fouler.teamId, declaration.against);
+  }
+
+  private declarationOf(
+    playerId: string,
+    action: ActionType | null,
+    against: string | undefined
+  ): Declaration | undefined {
+    if (action === "pass" || action === "handoff") return { kind: action };
+    if (action !== "blitz" && action !== "foul") return undefined;
+    const mover = this.getPlayer(playerId);
+    const target = mover && targetOf(this.seating, mover.teamId, against);
+    return target === undefined ? undefined : { kind: action, against: target };
+  }
+
+  private updateTurnFlags(active: ActivePlayer): void {
     const turn = this.state.turn;
-    switch (action) {
-      case "blitz":
-        turn.hasBlitzed = true;
-        break;
-      case "pass":
-        turn.hasPassed = true;
-        break;
-      case "handoff":
-        turn.hasHandedOff = true;
-        break;
-      case "foul":
-        turn.hasFouled = true;
-        break;
+    const declaration = this.declarationOf(active.id, active.action, active.against);
+    if (declaration) turn.spend = spend(turn.spend, declaration);
+    switch (active.action) {
       case "throwTeamMate": {
-        const limit = this.teamMateThrowLimit(playerId);
+        const limit = this.teamMateThrowLimit(active.id);
         if (limit) turn[limit] = true;
         break;
       }
@@ -221,10 +243,7 @@ export class PlayerActionManager {
 
   private emitTurnFlags(): void {
     this.eventBus.emit(GameEventNames.TurnDataUpdated, {
-      hasBlitzed: this.state.turn.hasBlitzed,
-      hasPassed: this.state.turn.hasPassed,
-      hasHandedOff: this.state.turn.hasHandedOff,
-      hasFouled: this.state.turn.hasFouled,
+      spend: this.state.turn.spend,
     });
   }
 

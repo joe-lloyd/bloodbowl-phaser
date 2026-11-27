@@ -71,6 +71,19 @@ function assertTeam(ctx: HeadlessGameContext, teamId: string): void {
   }
 }
 
+function assertRivalTarget(
+  ctx: HeadlessGameContext,
+  playerId: string,
+  against: string
+): void {
+  if (!ctx.gameService.getTeam(against)) {
+    throw new Error(`unknown-team:${against}`);
+  }
+  if (requirePlayer(ctx, playerId).teamId === against) {
+    throw new Error(`own-team-target:${against}`);
+  }
+}
+
 function refuseUnless(
   host: CommandHost,
   pending: PendingDecision,
@@ -336,7 +349,8 @@ const COMMAND_HANDLERS: CommandHandlers = {
     ) {
       throw new Error("invalid-block-replacement");
     }
-    const declared = ctx.gameService.declareAction({ playerId: cmd.playerId, action: cmd.action, ...(cmd.blockReplacement !== undefined && { blockReplacement: cmd.blockReplacement }), options: cmd.razzleDazzle === undefined ? {} : { razzleDazzle: cmd.razzleDazzle } }
+    if (cmd.against !== undefined) assertRivalTarget(ctx, cmd.playerId, cmd.against);
+    const declared = ctx.gameService.declareAction({ playerId: cmd.playerId, action: cmd.action, ...(cmd.blockReplacement !== undefined && { blockReplacement: cmd.blockReplacement }), options: { ...(cmd.razzleDazzle !== undefined && { razzleDazzle: cmd.razzleDazzle }), ...(cmd.against !== undefined && { against: cmd.against }) } }
     );
     if (!declared) throw new Error("illegal-action-declaration");
   },

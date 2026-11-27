@@ -1,3 +1,4 @@
+import { freshSpend, spend } from "../../src/game/rules/turnSpend";
 import { kickoffTurnOf } from "../../src/game/kickoff/kickRecord";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -60,10 +61,7 @@ describe("the kick-off turn in the HUD", () => {
               turnData={{
                 phase,
                 activeTeamId: turn.teamId,
-                hasBlitzed: turn.hasBlitzed,
-                hasPassed: false,
-                hasHandedOff: false,
-                hasFouled: false,
+                spend: turn.spend,
               }}
             />
             <EndTurnButton
@@ -140,7 +138,10 @@ describe("the kick-off turn in the HUD", () => {
     await render();
     await select(home(1).id);
     expect(blitz()).not.toBeNull();
-    gs.getState().turn.hasBlitzed = true;
+    gs.getState().turn.spend = spend(freshSpend(), {
+      kind: "blitz",
+      against: game.ctx.team2.id,
+    });
     await render();
     expect(blitz()).toBeNull();
   });

@@ -45,6 +45,7 @@ const activePlayerSchema = z.looseObject({
     .union([z.literal(false), z.literal(true)])
     .exactOptional(),
   grudgeMatch: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+  against: z.string().exactOptional(),
   razzleDazzle: razzleDazzleSchema.exactOptional(),
   stalling: z.union([z.literal(false), z.literal(true)]).exactOptional(),
 });

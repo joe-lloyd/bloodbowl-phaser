@@ -79,17 +79,12 @@ export function spentSummary(spent: string[]): string | null {
   return spent.length > 0 ? `Spent: ${spent.join(", ")}` : null;
 }
 
-export function spentActions(
-  turn: Pick<
-    TurnData,
-    "hasBlitzed" | "hasPassed" | "hasHandedOff" | "hasFouled"
-  >
-): string[] {
+export function spentActions({ spend }: Pick<TurnData, "spend">): string[] {
   return [
-    { spent: turn.hasBlitzed, label: "Blitz" },
-    { spent: turn.hasPassed, label: "Pass" },
-    { spent: turn.hasHandedOff, label: "Hand-off" },
-    { spent: turn.hasFouled, label: "Foul" },
+    { spent: spend.blitzed.length > 0, label: "Blitz" },
+    { spent: spend.passes > 0, label: "Pass" },
+    { spent: spend.handOffs > 0, label: "Hand-off" },
+    { spent: spend.fouled.length > 0, label: "Foul" },
   ]
     .filter((action) => action.spent)
     .map((action) => action.label);

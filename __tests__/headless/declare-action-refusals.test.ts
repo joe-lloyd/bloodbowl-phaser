@@ -47,6 +47,52 @@ async function declareAndStep(
   expect(moved.ok).toBe(true);
 }
 
+describe("declaring a Blitz against a team", () => {
+  it("refuses a team that is not playing", async () => {
+    const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
+    const blitzer = fixtureValue(game.ctx.team1.players[0]).id;
+
+    const result = await game.execute({
+      type: "declare-action",
+      playerId: blitzer,
+      action: "blitz",
+      against: "nobody",
+    });
+
+    expect(result).toMatchObject({ ok: false, reason: "command-failed: unknown-team:nobody" });
+    expect(game.ctx.gameService.getState().activePlayer).toBeNull();
+  });
+
+  it("refuses the mover's own team", async () => {
+    const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
+    const blitzer = fixtureValue(game.ctx.team1.players[0]).id;
+
+    const result = await game.execute({
+      type: "declare-action",
+      playerId: blitzer,
+      action: "blitz",
+      against: game.ctx.team1.id,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: `command-failed: own-team-target:${game.ctx.team1.id}`,
+    });
+  });
+
+  it("spends the Blitz against the rival once it moves, with no block thrown", async () => {
+    const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
+    const gs = game.ctx.gameService;
+    const blitzer = fixtureValue(game.ctx.team1.players[0]).id;
+    await declareAndStep(game, blitzer, "blitz");
+    await game.execute({ type: "end-activation", playerId: blitzer });
+
+    expect(gs.getState().turn.spend.blitzed).toEqual([game.ctx.team2.id]);
+    const other = fixtureValue(game.ctx.team1.players[1]).id;
+    expect(gs.declareAction({ playerId: other, action: "blitz" })).toBe(false);
+  });
+});
+
 describe("declaring an Action", () => {
   it("refuses a switch to another Action once the player has moved", async () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
@@ -116,7 +162,7 @@ describe("declaring an Action", () => {
       id: other,
       action: "move",
     });
-    expect(gs.getState().turn.hasPassed).toBe(false);
+    expect(gs.getState().turn.spend.passes).toBe(0);
   });
 
   it("refuses a Move for a Rooted player", () => {

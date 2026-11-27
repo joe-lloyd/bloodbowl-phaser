@@ -23,7 +23,8 @@ import {
   BLOCK_REPLACEMENT_DEFINITIONS,
 } from "../types/BlockReplacement";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
-import { foulSpent } from "../game/inducements/matchInducements";
+import { spendFor } from "../game/inducements/matchInducements";
+import { openTargets } from "../game/rules/turnSpend";
 
 export function playersAdjacent(a: Player, b: Player): boolean {
   return (
@@ -106,13 +107,18 @@ function playerActions({
       (o.status === PlayerStatus.PRONE || o.status === PlayerStatus.STUNNED)
   );
   const reachable = gs.getAvailableMovements(player.id, "jump");
+  const ledger = spendFor(state, teamId);
+  const rivals = gs
+    .getTeams()
+    .map((team) => team.id)
+    .filter((id) => id !== teamId);
   const availability = computeActionAvailability({
     player,
     ballPosition: state.ballPosition,
     opponents,
     teammates: gs.getTeammates(player.id),
     reachable,
-    turn: { ...state.turn, hasFouled: foulSpent(state, teamId) },
+    turn: { ...state.turn, spend: ledger },
     hasMovedInAction: false,
   });
   const actions = razzleDazzleSecond(
@@ -121,8 +127,8 @@ function playerActions({
     declarableActions({
       player,
       availability,
-      hasBlitzed: state.turn.hasBlitzed,
-      canFoul: !foulSpent(state, teamId),
+      canBlitz: openTargets(state.turn.spend, rivals, "blitz").length > 0,
+      canFoul: openTargets(ledger, rivals, "foul").length > 0,
       carriesBall: ballOnSquare(state, square),
       canBlock: adjacentStanding.length > 0,
     }).filter((action) => kickoffTurnAllows(state, action))
@@ -163,14 +169,14 @@ function allowed(entries: [ActionType, boolean][]): ActionType[] {
 function declarableActions({
   player,
   availability,
-  hasBlitzed,
+  canBlitz,
   canFoul,
   carriesBall,
   canBlock,
 }: {
   player: Player;
   availability: ActionAvailability;
-  hasBlitzed: boolean;
+  canBlitz: boolean;
   canFoul: boolean;
   carriesBall: boolean;
   canBlock: boolean;
@@ -179,7 +185,7 @@ function declarableActions({
   if (player.status === PlayerStatus.PRONE) {
     return allowed([
       ["move", availability.move || availability.standUp],
-      ["blitz", !hasBlitzed],
+      ["blitz", canBlitz],
       ["foul", canFoul],
 
       ["punt", availability.punt],
@@ -191,7 +197,7 @@ function declarableActions({
     ["move", availability.move],
     ["block", canBlock],
     ["multipleBlock", availability.multipleBlock],
-    ["blitz", !hasBlitzed],
+    ["blitz", canBlitz],
     ["pass", carriesBall && availability.pass],
     ["handoff", availability.handoff],
     ["secureBall", availability.secureBall],

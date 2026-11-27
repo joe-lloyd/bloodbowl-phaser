@@ -2,6 +2,7 @@ import type { DiceRollData } from "../../boundary/diceRoll";
 import { GameEventNames } from "./names";
 import { GamePhase, type GameState, SubPhase } from "../GameState";
 import { type Player } from "../Player";
+import type { TurnSpend } from "../../game/rules/turnSpend";
 
 export interface MatchGameEvents {
   [GameEventNames.PhaseChanged]: {
@@ -22,10 +23,7 @@ export interface MatchGameEvents {
   [GameEventNames.RazzleDazzleSecondAction]: { playerId: string };
   [GameEventNames.ActionMustBeRedeclared]: { playerId: string };
   [GameEventNames.TurnDataUpdated]: {
-    hasBlitzed: boolean;
-    hasPassed: boolean;
-    hasHandedOff: boolean;
-    hasFouled: boolean;
+    spend: TurnSpend;
   };
 
   [GameEventNames.PlayerPlaced]: { playerId: string; x: number; y: number };

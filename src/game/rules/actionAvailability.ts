@@ -19,6 +19,7 @@ import {
 } from "./blockReplacements";
 import { type ActionType } from "../../types/events";
 import { chebyshev } from "./chebyshev";
+import { freshSpend, maySpend, type TurnSpend } from "./turnSpend";
 
 const ACTIONS_WITH_A_MOVE: ReadonlySet<ActionType> = new Set<ActionType>([
   "move",
@@ -52,10 +53,7 @@ export function razzleDazzleAllows(
 }
 
 export interface TurnFlags {
-  hasBlitzed: boolean;
-  hasPassed: boolean;
-  hasHandedOff: boolean;
-  hasFouled: boolean;
+  spend: TurnSpend;
 
   hasThrownTeamMate: boolean;
   hasKickedTeamMate: boolean;
@@ -63,10 +61,7 @@ export interface TurnFlags {
 }
 
 const UNSPENT_FLAGS: TurnFlags = {
-  hasBlitzed: false,
-  hasPassed: false,
-  hasHandedOff: false,
-  hasFouled: false,
+  spend: freshSpend(),
   hasThrownTeamMate: false,
   hasKickedTeamMate: false,
 };
@@ -281,26 +276,37 @@ function actingBoard(
   };
 }
 
+function blitzable(ledger: TurnSpend, opponents: Player[]): Player[] {
+  return opponents.filter((o) =>
+    maySpend(ledger, { kind: "blitz", against: o.teamId })
+  );
+}
+
 function moveFirstActions(board: ActingBoard) {
   const { input, canEndAdjacentTo, canHaveBall } = board;
   const { player, turn } = input;
   const fresh = !input.hasMovedInAction;
 
   const blitz =
-    !turn.hasBlitzed &&
     fresh &&
-    board.standingEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
+    blitzable(turn.spend, board.standingEnemies).some((e) =>
+      canEndAdjacentTo(e.gridPosition!)
+    );
   const foul =
-    !turn.hasFouled &&
     fresh &&
-    board.downEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
+    board.downEnemies.some(
+      (e) =>
+        maySpend(turn.spend, { kind: "foul", against: e.teamId }) &&
+        canEndAdjacentTo(e.gridPosition!)
+    );
 
   const myBall = hasSkill(player.skills, SkillType.MY_BALL);
-  const pass = !myBall && !turn.hasPassed && fresh && canHaveBall;
+  const pass =
+    !myBall && maySpend(turn.spend, { kind: "pass" }) && fresh && canHaveBall;
 
   const handoff =
     !myBall &&
-    !turn.hasHandedOff &&
+    maySpend(turn.spend, { kind: "handoff" }) &&
     fresh &&
     canHaveBall &&
     board.handoffEligibleMates.some((t) => canEndAdjacentTo(t.gridPosition!));
@@ -341,12 +347,13 @@ function blockReplacementActions(board: ActingBoard) {
               .length > 0
         )
       : [];
+  const targets = blitzable(turn.spend, opponents);
   const blitzBlockReplacements =
-    !turn.hasBlitzed && fresh
+    targets.length > 0 && fresh
       ? BLOCK_REPLACEMENTS.filter((replacement) =>
           hasReachableBlockReplacementTarget(
             player,
-            opponents,
+            targets,
             reachable,
             replacement
           )

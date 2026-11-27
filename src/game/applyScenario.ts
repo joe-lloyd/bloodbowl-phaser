@@ -1,3 +1,4 @@
+import { freshSpend } from "./rules/turnSpend";
 import { type Scenario, type PlayerPlacement } from "../types/Scenario";
 import { type Team } from "../types/Team";
 import { type GameState, GamePhase } from "../types/GameState";
@@ -178,10 +179,7 @@ export function applyScenario(
       turnNumber,
       isHalf2: false,
       activatedPlayerIds: new Set(),
-      hasBlitzed: false,
-      hasPassed: false,
-      hasHandedOff: false,
-      hasFouled: false,
+      spend: freshSpend(),
       hasThrownTeamMate: false,
       hasKickedTeamMate: false,
       hasThrownBomb: false,

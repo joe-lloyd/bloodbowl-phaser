@@ -1,3 +1,4 @@
+import { freshSpend, spend } from "../../src/game/rules/turnSpend";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -176,7 +177,10 @@ describe("typed block-replacement declarations", () => {
       scenario: scenario("spent-blitz", [SkillType.STAB]),
       seed: 5,
     });
-    spent.ctx.gameService.getState().turn.hasBlitzed = true;
+    spent.ctx.gameService.getState().turn.spend = spend(freshSpend(), {
+      kind: "blitz",
+      against: spent.ctx.team2.id,
+    });
     const spentId = fixtureValue(spent.ctx.team1.players[0]).id;
     const beforeSpent = JSON.stringify(spent.snapshot());
     const declaration = await spent.execute({

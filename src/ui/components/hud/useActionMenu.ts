@@ -15,16 +15,14 @@ import {
 } from "../../../game/rules/actionAvailability";
 import { kickoffTurnAllows } from "../../../game/kickoff/kickoffTurn";
 import { groundBall } from "../../../game/rules/ballInTheAir";
-import { holdsMeasure } from "../../../game/inducements/matchInducements";
+import { holdsMeasure, spendFor } from "../../../game/inducements/matchInducements";
 import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
+import { freshSpend, type TurnSpend } from "../../../game/rules/turnSpend";
 
 export interface MenuTurnData {
   phase: GamePhase;
   activeTeamId: string | null;
-  hasBlitzed?: boolean | null;
-  hasPassed?: boolean | null;
-  hasHandedOff?: boolean | null;
-  hasFouled?: boolean | null;
+  spend?: TurnSpend | null;
   movementUsed?: Map<string, number> | Readonly<Record<string, number>>;
 }
 
@@ -68,27 +66,16 @@ function menuTurnFlags({
   state,
   teamId,
 }: {
-  turnData: {
-    hasBlitzed?: boolean | null;
-    hasPassed?: boolean | null;
-    hasHandedOff?: boolean | null;
-    hasFouled?: boolean | null;
-  };
+  turnData: { spend?: TurnSpend | null };
   state: GameState;
   teamId: string;
 }): TurnFlags {
   return {
-    hasBlitzed: !!turnData.hasBlitzed,
-    hasPassed: !!turnData.hasPassed,
-    hasHandedOff: !!turnData.hasHandedOff,
+    spend: spendFor(state, teamId, turnData.spend ?? freshSpend()),
     hasPunted: !!state.turn.hasPunted,
 
     hasThrownTeamMate: state.turn.hasThrownTeamMate,
     hasKickedTeamMate: state.turn.hasKickedTeamMate,
-
-    hasFouled:
-      !!turnData.hasFouled &&
-      !holdsMeasure(state, teamId, DesperateMeasure.GRUDGE_MATCH),
   };
 }
 

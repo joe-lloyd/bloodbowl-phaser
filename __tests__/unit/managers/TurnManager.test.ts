@@ -104,9 +104,9 @@ describe("TurnManager", () => {
     it("should reset turn state", () => {
       manager.startTurn("team1");
 
-      expect(mockState.turn.hasBlitzed).toBe(false);
-      expect(mockState.turn.hasPassed).toBe(false);
-      expect(mockState.turn.hasFouled).toBe(false);
+      expect(mockState.turn.spend.blitzed).toHaveLength(0);
+      expect(mockState.turn.spend.passes).toBe(0);
+      expect(mockState.turn.spend.fouled).toHaveLength(0);
       expect(mockState.turn.activatedPlayerIds.size).toBe(0);
     });
 

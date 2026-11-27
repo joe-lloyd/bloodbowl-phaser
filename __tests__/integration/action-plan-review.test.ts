@@ -74,7 +74,7 @@ describe("action plan review fixes", () => {
     expect(gs.declareAction({ playerId: squig.id, action: "blitz" })).toBe(true);
     controller.handlePlayerClick(fixtureValue(game.ctx.team1.players[2]).id);
     expect(gs.hasPlayerActed(squig.id)).toBe(true);
-    expect(gs.getState().turn.hasBlitzed).toBe(false);
+    expect(gs.getState().turn.spend.blitzed).toHaveLength(0);
   });
 
   it("settles a deferred Bone Head roll before a Jump", async () => {

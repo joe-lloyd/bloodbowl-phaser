@@ -1,3 +1,4 @@
+import { freshSpend } from "../../src/game/rules/turnSpend";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -98,10 +99,7 @@ describe("GameHUD match options menu wiring", () => {
         turn: {
           teamId: "team1",
           turnNumber: 1,
-          hasBlitzed: false,
-          hasPassed: false,
-          hasHandedOff: false,
-          hasFouled: false,
+          spend: freshSpend(),
         },
       }),
       getTeam: (id: string) => ({ id, name: "Reikland Reavers" }),

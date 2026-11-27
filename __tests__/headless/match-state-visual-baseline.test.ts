@@ -1,3 +1,4 @@
+import { freshSpend } from "../../src/game/rules/turnSpend";
 import { createTestPlayer } from "../fixtures/players";
 import { shouldUpdateVisualBaselines } from "../../src/boundary/testEnvironment";
 import { fixtureValue } from "../../src/testing/fixtureValue";
@@ -41,10 +42,7 @@ function stateWith(
       turnNumber: 1,
       isHalf2: false,
       activatedPlayerIds: new Set(activated),
-      hasBlitzed: false,
-      hasPassed: false,
-      hasHandedOff: false,
-      hasFouled: false,
+      spend: freshSpend(),
       hasThrownTeamMate: false,
       hasKickedTeamMate: false,
       hasThrownBomb: false,
