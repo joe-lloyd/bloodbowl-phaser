@@ -7,6 +7,7 @@ import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import { consumeFreeReroll, freeRerollsFor } from "../kickoff/driveEffects";
 import { spendTeamReroll, teamRerollsLeft } from "../teamRerolls";
+import { activeRules } from "../variants/activeMatch";
 
 export type TeamRerollKind = "free" | "team" | "leader";
 
@@ -26,7 +27,9 @@ export class RerollArbiter {
 
   public beginHalf(teamIds: string[]): void {
     const half = this.state.turn.isHalf2 ? "h2" : "h1";
-    if (this.state.leaderRerolls?.half === half) return;
+    const held = this.state.leaderRerolls;
+    if (held?.half === half) return;
+    if (held && !activeRules().format.rerollsRefillAtHalf) return;
     this.state.leaderRerolls = {
       half,
       teamIds: teamIds.filter((teamId) => this.hasOnPitchLeader(teamId)),
