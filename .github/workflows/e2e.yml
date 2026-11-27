@@ -241,6 +241,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Resolve Playwright version
         id: pw
+        shell: bash
         run: echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
         id: browser-cache
