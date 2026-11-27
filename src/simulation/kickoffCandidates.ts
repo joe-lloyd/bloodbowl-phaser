@@ -91,8 +91,7 @@ export function kickoffChoiceCandidates(
 function oneSquareSteps(game: HeadlessGame, player: Player): Candidate[] {
   const from = player.gridPosition;
   if (!from) return [];
-  const { team1, team2 } = game.ctx;
-  const taken = [...team1.players, ...team2.players].flatMap(
+  const taken = game.ctx.teams.flatMap(({ players }) => players).flatMap(
     ({ gridPosition }) => gridPosition ?? []
   );
   const out: Candidate[] = [];

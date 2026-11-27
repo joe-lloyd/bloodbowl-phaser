@@ -22,14 +22,14 @@ import {
 } from "../game/progression/MatchStats";
 import { type MatchSave, restoreMatchSave } from "./serialization";
 import { type TurnManagerState } from "../game/managers/TurnManager";
+import { type SeatedTeams, seatedTeams } from "../game/seating";
 
 export interface HeadlessGameOptions {
   ctx?: HeadlessGameContext;
 
   autoStartOnReady?: boolean;
 
-  team1?: Team;
-  team2?: Team;
+  teams?: readonly Team[];
 
   seed?: number | undefined;
 
@@ -70,8 +70,7 @@ export interface HeadlessGameContext {
   eventBus: IEventBus;
   gameService: GameService;
   rng: IRNGService;
-  team1: Team;
-  team2: Team;
+  teams: SeatedTeams;
   seed: number;
   matchStats: MatchStats;
 }
@@ -90,25 +89,22 @@ type RestoredSave = ReturnType<typeof restoreMatchSave> | null;
 function matchTeams(
   options: HeadlessGameOptions,
   restored: RestoredSave
-): { team1: Team; team2: Team } {
+): SeatedTeams {
+  if (restored) return restored.teams;
+  if (options.teams) return seatedTeams(options.teams);
   const roster = options.defaultRoster ?? RosterName.HUMAN;
-  const team1Roster = options.scenario?.setup.team1Roster ?? roster;
-  const team2Roster = options.scenario?.setup.team2Roster ?? roster;
-  const team1 =
-    restored?.teams[0] ??
-    options.team1 ??
+  const { team1Roster = roster, team2Roster = roster } =
+    options.scenario?.setup ?? {};
+  return [
     stabilizeIds(
       TeamFactory.createTestTeam(team1Roster, "Home Team", 0xcc0000),
       "team1"
-    );
-  const team2 =
-    restored?.teams[1] ??
-    options.team2 ??
+    ),
     stabilizeIds(
       TeamFactory.createTestTeam(team2Roster, "Away Team", 0x0000cc),
       "team2"
-    );
-  return { team1, team2 };
+    ),
+  ];
 }
 
 function savedInputs(options: HeadlessGameOptions, restored: RestoredSave) {
@@ -128,7 +124,7 @@ const formatOption = (options: HeadlessGameOptions) =>
 function scenarioState(
   options: HeadlessGameOptions,
   scenario: Scenario,
-  { team1, team2 }: { team1: Team; team2: Team }
+  [team1, team2]: SeatedTeams
 ): GameState {
   const { format } = options;
   if (!format) return applyScenario(scenario, team1, team2);
@@ -146,20 +142,18 @@ const savedTurnManager = (
 function startingState(
   options: HeadlessGameOptions,
   restored: RestoredSave,
-  team1: Team,
-  team2: Team
+  teams: SeatedTeams
 ): GameState | undefined {
   const initialState: GameState | undefined =
     restored?.state ?? options.initialState;
   if (initialState) return initialState;
-  if (options.scenario) return scenarioState(options, options.scenario, { team1, team2 });
-  return freshMatchState(options, team1, team2);
+  if (options.scenario) return scenarioState(options, options.scenario, teams);
+  return freshMatchState(options, teams);
 }
 
 function freshMatchState(
   options: HeadlessGameOptions,
-  team1: Team,
-  team2: Team
+  teams: SeatedTeams
 ): GameState | undefined {
   const fixture = {
     ...(options.paysWinnings && { paysWinnings: true }),
@@ -167,8 +161,7 @@ function freshMatchState(
   };
   if (options.startingPhase) {
     return GameService.createMatchState({
-      team1,
-      team2,
+      teams,
       startingPhase: options.startingPhase,
       ...(options.startingSubPhase !== undefined && { startingSubPhase: options.startingSubPhase }),
       fixture,
@@ -177,8 +170,7 @@ function freshMatchState(
   }
   if (options.paysWinnings || options.competition || options.format) {
     return GameService.createMatchState({
-      team1,
-      team2,
+      teams,
       startingPhase: GamePhase.SANDBOX_IDLE,
       fixture,
       ...formatOption(options),
@@ -196,12 +188,12 @@ export function createHeadlessGame(
     ? restoreMatchSave(options.matchSave)
     : null;
   const { rngState, matchStatsState, seed } = savedInputs(options, restored);
-  const { team1, team2 } = matchTeams(options, restored);
+  const teams = matchTeams(options, restored);
 
   const eventBus = new EventBus();
   const matchStats = new MatchStats(
     eventBus,
-    [team1, team2],
+    teams,
     matchStatsState?.progressionEnabled ?? options.progressionEnabled
   );
   if (matchStatsState) {
@@ -211,9 +203,9 @@ export function createHeadlessGame(
   if (rngState) rng.restoreState(rngState);
   const blockResolutionService = new BlockResolutionService(rng);
 
-  const initialState = startingState(options, restored, team1, team2);
+  const initialState = startingState(options, restored, teams);
 
-  const gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: rng, blockResolutionService: blockResolutionService, ...(initialState !== undefined && { initialState: initialState }), delay: options.delay ?? noDelay }
+  const gameService = new GameService({ eventBus: eventBus, teams: teams, rngService: rng, blockResolutionService: blockResolutionService, ...(initialState !== undefined && { initialState: initialState }), delay: options.delay ?? noDelay }
   );
   if (options.knockout) gameService.getState().knockout = true;
   if (options.paysWinnings) gameService.getState().paysWinnings = true;
@@ -223,5 +215,5 @@ export function createHeadlessGame(
     gameService.restoreTurnManagerState(turnManagerState);
   }
 
-  return { eventBus, gameService, rng, team1, team2, seed, matchStats };
+  return { eventBus, gameService, rng, teams, seed, matchStats };
 }

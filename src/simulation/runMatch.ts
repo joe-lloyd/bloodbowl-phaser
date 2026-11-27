@@ -234,8 +234,7 @@ export function createSimGame(
   team2.rerolls = rerolls;
   return new HeadlessGame({
     seed,
-    team1,
-    team2,
+    teams: [team1, team2],
     startingPhase: GamePhase.SETUP,
     format: typeof format === "string" ? seededFormat(format, seed) : format,
   });
@@ -292,7 +291,7 @@ export async function prepareSimInducements(
 export async function grantSimInducements(game: HeadlessGame): Promise<void> {
   await commitSimInducements(
     game,
-    [game.ctx.team1.id, game.ctx.team2.id].flatMap((ownerTeamId) =>
+    game.ctx.teams.map((team) => team.id).flatMap((ownerTeamId) =>
       SIM_INDUCEMENTS[simGameType(game)].map(([inducement, quantity]) => ({
         inducement,
         ownerTeamId,
@@ -429,7 +428,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   let refused = new Set<string>();
 
   const teamIndex = (teamId: string): 0 | 1 =>
-    teamId === game.ctx.team1.id ? 0 : 1;
+    teamId === game.ctx.teams[0].id ? 0 : 1;
   const report = (
     kind: FindingKind,
     key: string,

@@ -15,6 +15,7 @@ import { isBlockReplacement } from "../types/BlockReplacement";
 import { Inducement } from "../types/Inducements";
 import { canChooseBiteTarget } from "../types/decisions";
 import { isStandableSquare } from "../game/rules/pitchSquares";
+import { pairSeating, pairTeams } from "../game/seating";
 
 type QueryCommand = Extract<
   HeadlessCommand,
@@ -66,7 +67,7 @@ function requirePlayer(ctx: HeadlessGameContext, playerId: string): Player {
 }
 
 function assertTeam(ctx: HeadlessGameContext, teamId: string): void {
-  if (teamId !== ctx.team1.id && teamId !== ctx.team2.id) {
+  if (ctx.teams.every((team) => team.id !== teamId)) {
     throw new Error(`unknown-team:${teamId}`);
   }
 }
@@ -151,7 +152,7 @@ async function block(
   if (!isLegalBlockTarget(attacker, defender)) {
     throw new Error("illegal-block-target");
   }
-  const allPlayers = [...ctx.team1.players, ...ctx.team2.players];
+  const allPlayers = ctx.teams.flatMap((team) => team.players);
   const analysis = blockValidator.analyzeBlock({ attacker: attacker, defender: defender, allPlayers: allPlayers, activeTeamId: gs.getActiveTeamId() });
   await gs.rollBlockDice({ attackerId: cmd.attackerId, defenderId: cmd.defenderId, numDice: analysis.diceCount, isAttackerChoice: !analysis.isUphill }
   );
@@ -168,7 +169,8 @@ async function coinFlip({
     throw new Error("coin-flip-only-before-first-drive");
   }
   const roll = ctx.rng.rollDie(2);
-  const kickingTeam = roll === 1 ? ctx.team1 : ctx.team2;
+  const [heads, tails] = pairTeams(pairSeating(gs.getSeating()));
+  const kickingTeam = roll === 1 ? heads : tails;
   logEvent({
     name: "headless:coinFlip",
     data: { kickingTeamId: kickingTeam.id },
@@ -312,7 +314,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
     const kicker = requirePlayer(host.ctx, cmd.playerId);
     if (!isStandableSquare({ x: cmd.x, y: cmd.y }))
       throw new Error("kick-target-blocked");
-    const isTeam1Kicking = kicker.teamId === host.ctx.team1.id;
+    const isTeam1Kicking = kicker.teamId === host.ctx.teams[0].id;
     await host.ctx.gameService.kickBall({ isTeam1Kicking: isTeam1Kicking, playerId: cmd.playerId, targetX: cmd.x, targetY: cmd.y }
     );
   },

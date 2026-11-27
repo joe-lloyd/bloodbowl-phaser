@@ -238,7 +238,7 @@ function startingState(
     if (lobby.competitionContext) initialState.competition = true;
     return { saved, initialState };
   }
-  const initialState = GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
+  const initialState = GameService.createMatchState({ teams: [team1, team2], startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
       paysWinnings: fixturePaysWinnings(lobby.competitionContext),
       competition: !!lobby.competitionContext,
       pregameInducements: true,
@@ -355,7 +355,7 @@ class OnlineSession {
     this.engine = this.container.engineGameService;
     this.game = new HeadlessGame({
       ctx: { eventBus: this.eventBus, gameService: this.engine, rng: this.container.rngService,
-        team1, team2, seed: options.seed, matchStats: this.container.matchStats },
+        teams: [team1, team2], seed: options.seed, matchStats: this.container.matchStats },
       kickingTeamId: resume.kickingTeamId,
     });
     this.session = this.createSession(resume.commands.applied);
@@ -373,7 +373,7 @@ class OnlineSession {
   private initializeServices(initialState: ReturnType<typeof startingState>["initialState"], resume: ReturnType<typeof resumeParts>) {
     const { team1, team2 } = this.sides;
     return ServiceContainer.initialize({
-      eventBus: this.eventBus, team1, team2, initialState, seed: this.options.seed,
+      eventBus: this.eventBus, teams: [team1, team2], initialState, seed: this.options.seed,
       gameServiceFactory: (inner) => new NetworkedGameService({ inner,
         dispatch: (command) => this.runOwn(command), pendingDecision: () => this.game.pendingDecision(), eventBus: this.eventBus }),
       progressionEnabled: this.options.lobby.settings.progressionEnabled,

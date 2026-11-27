@@ -24,6 +24,7 @@ import { engineDecision, requestedDecision } from "./pendingDecisions";
 import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { type Player } from "../types/Player";
+import { pairSeating, pairTeams } from "../game/seating";
 
 export const tick: () => Promise<void> =
   typeof setImmediate === "function"
@@ -108,10 +109,10 @@ export class HeadlessGame {
   }
 
   public snapshot(): GameSnapshot {
-    const snapshot = serializeGameState(this.ctx.gameService.getState(), [
-      this.ctx.team1,
-      this.ctx.team2,
-    ]);
+    const snapshot = serializeGameState(
+      this.ctx.gameService.getState(),
+      this.ctx.teams
+    );
 
     snapshot.turnManager = this.ctx.gameService.captureTurnManagerState();
     return snapshot;
@@ -123,7 +124,7 @@ export class HeadlessGame {
 
   public matchSave(): MatchSave {
     const gs = this.ctx.gameService;
-    const { team1, team2 } = this.ctx;
+    const [team1, team2] = pairTeams(pairSeating(gs.getSeating()));
     const turnManager = gs.captureTurnManagerState();
     const state = gs.getState();
     const kickingTeamId = this.driveKickingTeamId() ?? team1.id;

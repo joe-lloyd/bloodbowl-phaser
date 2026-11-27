@@ -34,8 +34,7 @@ export class ScenarioLoader {
 
     ServiceContainer.initialize({
       eventBus: this.eventBus,
-      team1: this.team1,
-      team2: this.team2,
+      teams: [this.team1, this.team2],
       initialState,
       ...(seed !== undefined && { seed }),
     });

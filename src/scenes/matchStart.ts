@@ -68,7 +68,7 @@ export function ensureMatchServices(
   const { restored, team1, team2, competitionContext } = start;
   const initialState =
     restored?.state ??
-    GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
+    GameService.createMatchState({ teams: [team1, team2], startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
         paysWinnings: fixturePaysWinnings(competitionContext),
         competition: !!competitionContext,
         pregameInducements: true,
@@ -85,8 +85,7 @@ export function ensureMatchServices(
   const save = restored?.save;
   ServiceContainer.initialize({
     eventBus: globalThis.eventBus,
-    team1,
-    team2,
+    teams: [team1, team2],
     initialState,
     progressionEnabled:
       save?.matchStats.progressionEnabled ?? progressionEnabled ?? false,

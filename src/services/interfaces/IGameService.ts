@@ -5,6 +5,7 @@ import type * as InducementTypes from "@/types/Inducements";
 import { GamePhase, type GameState, SubPhase } from "@/types/GameState";
 import { type Player } from "@/types/Player";
 import { type Team } from "@/types/Team";
+import type { Seating } from "@/game/seating";
 import { type BlockResult } from "../../services/BlockResolutionService";
 import { PassController } from "@/game/controllers/PassController";
 import { CatchController } from "@/game/controllers/CatchController";
@@ -308,7 +309,9 @@ export interface IGameService {
   getTeammates(playerId: string): Player[];
   getTeam(teamId: string): Team | undefined;
 
-  getTeams(): [Team, Team];
+  getTeams(): readonly Team[];
+
+  getSeating(): Seating;
   getMovementUsed(playerId: string): number;
 
   finishBlockActivation(playerId: string): void;

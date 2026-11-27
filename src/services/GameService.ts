@@ -64,16 +64,14 @@ export class GameService implements IGameService {
 
   constructor({
     eventBus,
-    team1,
-    team2,
+    teams,
     rngService,
     blockResolutionService,
     initialState,
     delay = realTimeDelay,
   }: {
     eventBus: IEventBus;
-    team1: Team;
-    team2: Team;
+    teams: readonly Team[];
     rngService: IRNGService;
     blockResolutionService: BlockResolutionService;
     initialState?: GameState;
@@ -82,8 +80,7 @@ export class GameService implements IGameService {
     this.parts = createGameParts({
       game: this,
       eventBus,
-      team1,
-      team2,
+      teams,
       initialState,
       rngService,
       blockResolutionService,
@@ -93,7 +90,7 @@ export class GameService implements IGameService {
     this.flowManager = this.parts.flowManager;
 
     if (this.parts.state.phase === GamePhase.PLAY) {
-      this.parts.rerollArbiter.beginHalf([team1.id, team2.id]);
+      this.parts.rerollArbiter.beginHalf(teams.map((team) => team.id));
     }
 
     inducements.restoreMatchInducements(this.parts);
@@ -626,7 +623,8 @@ export class GameService implements IGameService {
 
   tossCoin(): string {
     assertPregamePurchasesComplete(this.parts.state);
-    return this.diceController.tossCoin(this.parts.team1, this.parts.team2);
+    const [heads, tails] = seating.pairTeams(seating.pairSeating(this.parts.seating));
+    return this.diceController.tossCoin(heads, tails);
   }
 
   canCoinFlip(): boolean {
@@ -709,8 +707,12 @@ export class GameService implements IGameService {
     return seating.teamsOf(this.parts.seating).find((team) => team.id === teamId);
   }
 
-  public getTeams(): [Team, Team] {
-    return [this.parts.team1, this.parts.team2];
+  public getTeams(): readonly Team[] {
+    return seating.teamsOf(this.parts.seating);
+  }
+
+  public getSeating(): seating.Seating {
+    return this.parts.seating;
   }
 
   public foulPlayer(

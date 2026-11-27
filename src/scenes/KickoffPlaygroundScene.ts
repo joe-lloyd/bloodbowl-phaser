@@ -35,8 +35,7 @@ export class KickoffPlaygroundScene extends GameScene {
     };
     ServiceContainer.initialize({
       eventBus: globalThis.eventBus,
-      team1,
-      team2,
+      teams: [team1, team2],
       initialState,
     });
     super.init({ ...data, team1, team2, autosaveEnabled: false });

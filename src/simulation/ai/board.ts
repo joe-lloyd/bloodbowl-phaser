@@ -83,8 +83,8 @@ function ballOn(
 export function readBoard(game: HeadlessGame, us: string): Board {
   const gs = game.ctx.gameService;
   const state = gs.getState();
-  const team1 = game.ctx.team1.id;
-  const them = us === team1 ? game.ctx.team2.id : team1;
+  const [first, second] = game.ctx.teams;
+  const them = us === first.id ? second.id : first.id;
   const playersOnField = (teamId: string) =>
     (gs.getTeam(teamId)?.players ?? []).filter(onField);
   const ours = playersOnField(us);
@@ -121,7 +121,7 @@ export function readBoard(game: HeadlessGame, us: string): Board {
       isLeagueMode(ourTeam?.advancementMode),
     half2: turn.isHalf2,
     lead: (score[us] ?? 0) - (score[them] ?? 0),
-    dir: us === team1 ? 1 : -1,
+    dir: us === first.id ? 1 : -1,
     marks,
     occupant,
   };

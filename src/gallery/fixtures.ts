@@ -60,8 +60,7 @@ export function setupMatch(options: FixtureOptions = {}): MatchFixture {
   const state = scenario
     ? applyScenario(scenario, team1, team2)
     : GameService.createInitialState({
-        team1: team1,
-        team2: team2,
+        teams: [team1, team2],
         startingPhase: options.phase ?? GamePhase.PLAY,
       });
   Object.assign(
@@ -74,8 +73,7 @@ export function setupMatch(options: FixtureOptions = {}): MatchFixture {
   ServiceContainer.reset();
   const services = ServiceContainer.initialize({
     eventBus: bus,
-    team1: team1,
-    team2: team2,
+    teams: [team1, team2],
     initialState: state,
     seed: options.seed ?? 7,
     progressionEnabled: options.progression ?? false,

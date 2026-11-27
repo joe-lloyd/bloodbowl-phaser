@@ -5,6 +5,7 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { affordsInducement } from "../../../game/inducements/rules";
 import { shoppingTeamId } from "../../../game/inducements/pregame";
+import { pairIds } from "../../../game/seating";
 import { WaitingLine } from "../componentWarehouse/HudBanner";
 import { HudButton, Notice } from "../componentWarehouse/HudKit";
 import { OpeningPanel } from "./OpeningPanel";
@@ -16,8 +17,7 @@ export function PregameInducements({ eventBus }: { eventBus: EventBus }) {
   if (!pregame || !pending || decision || !ServiceContainer.isInitialized())
     return null;
   const service = ServiceContainer.getInstance().gameService;
-  const [team1, team2] = service.getTeams();
-  const shopper = shoppingTeamId(pregame, [team1.id, team2.id]);
+  const shopper = shoppingTeamId(pregame, pairIds(service.getSeating()));
   const match = getActiveOnlineMatch();
   const mine = !match || shopper === match.myTeamId;
   if (shopper && mine)

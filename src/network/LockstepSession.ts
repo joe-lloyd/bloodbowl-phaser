@@ -8,6 +8,7 @@ import {
   type HeadlessCommand,
 } from "../headless/protocol";
 import { stateChecksum } from "../headless/checksum";
+import { pairSeating, pairTeams } from "../game/seating";
 import { whenEngineQuiet, withoutPacing } from "../game/core/GameFlowManager";
 import {
   applySnapshotToTeams,
@@ -63,7 +64,8 @@ export function restoreEngine(
   game: HeadlessGame,
   state: Omit<LockstepState, "applied" | "replay">
 ): void {
-  const { team1, team2, gameService, rng, matchStats } = game.ctx;
+  const { gameService, rng, matchStats } = game.ctx;
+  const [team1, team2] = pairTeams(pairSeating(gameService.getSeating()));
 
   restoreTeam(team1, state.teams[0]);
   restoreTeam(team2, state.teams[1]);
@@ -197,7 +199,7 @@ export class LockstepSession {
     }
     return {
       snapshot: game.snapshot(),
-      teams: [game.ctx.team1, game.ctx.team2],
+      teams: [...pairTeams(pairSeating(game.ctx.gameService.getSeating()))],
       pending: game.pendingDecision(),
       rng: game.ctx.rng.captureState(),
       matchStats: game.ctx.matchStats.captureState(),

@@ -9,6 +9,7 @@ import {
 } from "../headless/protocol";
 import { GamePhase } from "../types/GameState";
 import { shoppingTeamId } from "../game/inducements/pregame";
+import { pairIds } from "../game/seating";
 
 const THROW_TEAMMATE = "throw-teammate";
 
@@ -273,7 +274,7 @@ export function gateContextOf(
     ...(gameService.getState().weatherReady !== undefined && { weatherReady: gameService.getState().weatherReady }),
     inducementShopper: shoppingTeamId(
       gameService.getState().pregameInducements,
-      [game.ctx.team1.id, game.ctx.team2.id]
+      pairIds(gameService.getSeating())
     ),
   };
 }

@@ -9,6 +9,7 @@ import {
 import { GamePhase, type GameState, SubPhase } from "../types/GameState";
 import { type Player } from "../types/Player";
 import { type Team } from "../types/Team";
+import type { Seating } from "../game/seating";
 import { type BlockResult } from "../services/BlockResolutionService";
 import { canChooseBiteTarget } from "../types/decisions";
 import { GameEventNames } from "../types/events";
@@ -307,8 +308,11 @@ export class NetworkedGameService implements IGameService {
   getTeam(teamId: string): Team | undefined {
     return this.inner.getTeam(teamId);
   }
-  getTeams(): [Team, Team] {
+  getTeams(): readonly Team[] {
     return this.inner.getTeams();
+  }
+  getSeating(): Seating {
+    return this.inner.getSeating();
   }
   getMovementUsed(playerId: string): number {
     return this.inner.getMovementUsed(playerId);

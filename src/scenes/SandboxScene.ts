@@ -112,9 +112,9 @@ export class SandboxScene extends GameScene {
 
   override init(data: { team1?: Team; team2?: Team }): void {
     if (data?.team1 && data.team2) {
-      const initialState = GameService.createInitialState({ team1: data.team1, team2: data.team2, startingPhase: GamePhase.SANDBOX_IDLE }
+      const initialState = GameService.createInitialState({ teams: [data.team1, data.team2], startingPhase: GamePhase.SANDBOX_IDLE }
       );
-      ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), team1: data.team1, team2: data.team2, initialState: initialState });
+      ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), teams: [data.team1, data.team2], initialState: initialState });
       super.init(data as { team1: Team; team2: Team });
     } else {
       const team1 = sandboxTeam(
@@ -136,9 +136,9 @@ export class SandboxScene extends GameScene {
       team2.cheerleaders = 2;
       team2.dedicatedFans = 1;
 
-      const initialState = GameService.createInitialState({ team1: team1, team2: team2, startingPhase: GamePhase.SANDBOX_IDLE }
+      const initialState = GameService.createInitialState({ teams: [team1, team2], startingPhase: GamePhase.SANDBOX_IDLE }
       );
-      ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), team1: team1, team2: team2, initialState: initialState });
+      ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), teams: [team1, team2], initialState: initialState });
 
       super.init({ team1, team2 });
     }

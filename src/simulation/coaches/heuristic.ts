@@ -376,7 +376,8 @@ function readBoard(context: CoachContext): Board {
   const state = gs.getState();
   const ball = state.ballPosition ? { ...state.ballPosition } : null;
   const carrier = ball
-    ? [...context.game.ctx.team1.players, ...context.game.ctx.team2.players]
+    ? context.game.ctx.teams
+        .flatMap((team) => team.players)
         .filter(onField)
         .find(
           (p) =>
@@ -388,7 +389,7 @@ function readBoard(context: CoachContext): Board {
   return {
     gs,
     teamId: context.point.teamId,
-    team1Id: context.game.ctx.team1.id,
+    team1Id: context.game.ctx.teams[0].id,
     ball,
     carrier,
   };

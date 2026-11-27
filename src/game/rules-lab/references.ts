@@ -2,9 +2,13 @@ import { headlessCommandSchema } from "../../boundary/schemas/HeadlessCommand";
 import { z } from "zod";
 import { type HeadlessCommand } from "../../headless/protocol";
 
+interface TeamRef {
+  id: string;
+  players: { id: string }[];
+}
+
 export interface RefContext {
-  team1: { id: string; players: { id: string }[] };
-  team2: { id: string; players: { id: string }[] };
+  teams: readonly [TeamRef, TeamRef, ...TeamRef[]];
 }
 
 const PLAYER_REF = /^(team1|team2):(\d+)$/;
@@ -20,13 +24,13 @@ function isPlayerRef(ref: string): boolean {
 export function resolveReference(ctx: RefContext, ref: string): string {
   const match = PLAYER_REF.exec(ref);
   if (match) {
-    const team = match[1] === "team1" ? ctx.team1 : ctx.team2;
+    const team = ctx.teams[match[1] === "team1" ? 0 : 1];
     const player = team.players[Number(match[2])];
     if (!player) throw new Error(`no player for ref '${ref}'`);
     return player.id;
   }
-  if (ref === "team1") return ctx.team1.id;
-  if (ref === "team2") return ctx.team2.id;
+  if (ref === "team1") return ctx.teams[0].id;
+  if (ref === "team2") return ctx.teams[1].id;
   return ref;
 }
 

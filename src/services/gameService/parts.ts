@@ -67,8 +67,6 @@ interface ActivationMarks {
 export interface GameParts {
   game: GameService;
   state: GameState;
-  team1: Team;
-  team2: Team;
   seating: Seating;
   eventBus: IEventBus;
   diceController: DiceController;
@@ -96,8 +94,7 @@ export interface GameParts {
 interface PartOptions {
   game: GameService;
   eventBus: IEventBus;
-  team1: Team;
-  team2: Team;
+  teams: readonly Team[];
   initialState: GameState | undefined;
   rngService: IRNGService;
   blockResolutionService: BlockResolutionService;
@@ -130,19 +127,17 @@ export function createGameParts(options: PartOptions): GameParts {
 function createCore({
   game,
   eventBus,
-  team1,
-  team2,
+  teams,
   initialState,
   rngService,
   delay,
 }: PartOptions) {
-  const state = initialState ?? createInitialState({ team1, team2 });
+  const state = initialState ?? createInitialState({ teams });
   activateMatchFormat(formatOf(state));
-  const seating = seatTeams([team1, team2], activeLayout());
+  const seating = seatTeams(teams, activeLayout());
 
   if (!initialState) {
-    SetupManager.sanitizeTeam(team1);
-    SetupManager.sanitizeTeam(team2);
+    for (const team of teams) SetupManager.sanitizeTeam(team);
   }
 
   const marks: ActivationMarks = {
@@ -170,8 +165,6 @@ function createCore({
   return {
     game,
     eventBus,
-    team1,
-    team2,
     seating,
     state,
     marks,
