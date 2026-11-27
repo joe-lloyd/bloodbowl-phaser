@@ -5,7 +5,6 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { teamRerollsLeft } from "../../../game/teamRerolls";
 import { kitOf } from "../../../game/presentation/kits";
-import { pairSeating, pairTeams } from "../../../game/seating";
 import { GameConfig } from "../../../config/GameConfig";
 
 interface TeamRow {
@@ -48,13 +47,13 @@ export function ScoreBoard({
         .filter((t): t is NonNullable<typeof t> => !!t);
 
       const online = getActiveOnlineMatch();
-      const pair = pairTeams(pairSeating(gs.getSeating()));
+      const seated = gs.getTeams();
       setRows(
         teams.map((team) => ({
           id: team.id,
           name: team.name,
           roster: team.rosterName,
-          color: hexColor(kitOf(pair, team.id).primary),
+          color: hexColor(kitOf(seated, team.id).primary),
           score: state.score[team.id] ?? 0,
           turn: gs.getTurnNumber(team.id),
           rerolls: teamRerollsLeft(state, team),

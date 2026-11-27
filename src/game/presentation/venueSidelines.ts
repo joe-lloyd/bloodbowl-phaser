@@ -6,7 +6,7 @@ export interface PitchSize {
   rows: number;
 }
 
-export interface VenueDugouts {
+interface VenueDugouts {
   home: DugoutSquares;
   away: DugoutSquares;
 }
@@ -78,7 +78,7 @@ interface DugoutStrip {
 
 export const ARENA_SEATS = ["north", "east", "south", "west"] as const;
 
-type ArenaSeat = (typeof ARENA_SEATS)[number];
+export type ArenaSeat = (typeof ARENA_SEATS)[number];
 
 export type ArenaStrips = Readonly<
   Record<ArenaSeat, readonly [DugoutStrip, DugoutStrip]>

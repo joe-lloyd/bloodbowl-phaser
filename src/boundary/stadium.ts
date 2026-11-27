@@ -20,12 +20,15 @@ const stadiumMeta = z.object({
   square_m: z.number(),
   cols: z.number(),
   rows: z.number(),
-  dugouts: z.object({ home: dugout, away: dugout }),
+  dugouts: z.union([
+    z.object({ home: dugout, away: dugout }),
+    z.object({ north: dugout, east: dugout, south: dugout, west: dugout }),
+  ]),
   sizes: z.object({ lo: sizeLo }),
 });
 
 export type StadiumMeta = z.infer<typeof stadiumMeta>;
-export type DugoutSquares = StadiumMeta["dugouts"]["home"];
+export type DugoutSquares = z.infer<typeof dugout>;
 export type DugoutBox = keyof DugoutSquares;
 
 export function parseStadiumMeta(value: unknown): StadiumMeta {

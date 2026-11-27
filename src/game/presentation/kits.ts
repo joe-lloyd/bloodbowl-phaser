@@ -17,26 +17,29 @@ export function colorDistance(a: number, b: number): number {
 
 const apart = (shirt: number, from: number) => colorDistance(shirt, from) >= CLASH;
 
-export function matchKits(
-  home: TeamColors,
-  away: TeamColors
-): { home: TeamColors; away: TeamColors } {
-  if (apart(away.primary, home.primary)) return { home, away };
-
-  const shirt = [away.secondary, ...CHANGE_SHIRTS].find(
-    (s) => apart(s, home.primary) && apart(s, home.secondary)
+function kitAgainst(
+  team: TeamColors,
+  earlier: readonly TeamColors[]
+): TeamColors {
+  if (earlier.every((kit) => apart(team.primary, kit.primary))) return team;
+  const shirt = [team.secondary, ...CHANGE_SHIRTS].find((candidate) =>
+    earlier.every(
+      (kit) => apart(candidate, kit.primary) && apart(candidate, kit.secondary)
+    )
   );
-  return {
-    home,
-    away:
-      shirt === undefined ? away : { primary: shirt, secondary: away.primary },
-  };
+  return shirt === undefined ? team : { primary: shirt, secondary: team.primary };
 }
 
-export function kitOf(
-  teams: readonly [Team, Team],
-  teamId: string
-): TeamColors {
-  const kits = matchKits(teams[0].colors, teams[1].colors);
-  return teamId === teams[1].id ? kits.away : kits.home;
+export function matchKits(teams: readonly TeamColors[]): TeamColors[] {
+  const kits: TeamColors[] = [];
+  for (const team of teams) kits.push(kitAgainst(team, kits));
+  return kits;
+}
+
+export function kitOf(teams: readonly Team[], teamId: string): TeamColors {
+  const kits = matchKits(teams.map((team) => team.colors));
+  const index = teams.findIndex((team) => team.id === teamId);
+  const kit = kits[index] ?? kits[0];
+  if (!kit) throw new Error("A match needs teams before they wear kits.");
+  return kit;
 }
