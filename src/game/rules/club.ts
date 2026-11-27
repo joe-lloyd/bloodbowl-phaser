@@ -181,6 +181,9 @@ export function thousands(gold: number): string {
   return `${String(Math.floor(gold / 1000))}k`;
 }
 
+const bigGuy = (player: Pick<Player, "keywords">) =>
+  player.keywords.includes(TraitKeyWord.BIG_GUY);
+
 function positionRefusal(team: Team, template: PlayerTemplate): string | undefined {
   const rostered = rosteredPlayers(team);
   const ofPosition = rostered.filter(
@@ -189,8 +192,6 @@ function positionRefusal(team: Team, template: PlayerTemplate): string | undefin
   if (template.maxAllowed !== undefined && ofPosition >= template.maxAllowed)
     return `${template.positionName}: the ${team.rosterName} roster allows 0-${String(template.maxAllowed)}, and the club has ${String(ofPosition)}.`;
   const { maxBigGuys } = getRosterByRosterName(team.rosterName);
-  const bigGuy = (player: Pick<Player, "keywords">) =>
-    player.keywords.includes(TraitKeyWord.BIG_GUY);
   if (
     maxBigGuys !== undefined &&
     bigGuy(template) &&

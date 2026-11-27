@@ -105,18 +105,6 @@ export abstract class BlockActivation extends BlockRerolls {
     defender2Id: string
   ): Promise<void> {
     const attacker = this.getPlayerById(attackerId);
-    const defenders = [
-      this.getPlayerById(defender1Id),
-      this.getPlayerById(defender2Id),
-    ];
-    const adjacent = (defender: Player | undefined) =>
-      !!attacker?.gridPosition &&
-      !!defender?.gridPosition &&
-      Math.max(
-        Math.abs(attacker.gridPosition.x - defender.gridPosition.x),
-        Math.abs(attacker.gridPosition.y - defender.gridPosition.y)
-      ) === 1;
-
     if (!attacker || attacker.status !== PlayerStatus.ACTIVE) {
       throw new Error("illegal-multiple-block:attacker");
     }
@@ -126,6 +114,17 @@ export abstract class BlockActivation extends BlockRerolls {
     if (defender1Id === defender2Id) {
       throw new Error("illegal-multiple-block:duplicate-target");
     }
+    const adjacent = (defender: Player | undefined) =>
+      !!attacker.gridPosition &&
+      !!defender?.gridPosition &&
+      Math.max(
+        Math.abs(attacker.gridPosition.x - defender.gridPosition.x),
+        Math.abs(attacker.gridPosition.y - defender.gridPosition.y)
+      ) === 1;
+    const defenders = [
+      this.getPlayerById(defender1Id),
+      this.getPlayerById(defender2Id),
+    ];
     if (
       defenders.some(
         (defender) =>

@@ -375,7 +375,7 @@ export function characteristicChoices(
     7: ["AG", "ST"],
     8: ["MA", "ST", "AG", "PA", "AV"],
   };
-  if (!table[roll]) throw new Error("Characteristic roll must be a D8 result");
+  if (table[roll] === undefined) throw new Error("Characteristic roll must be a D8 result");
   return table[roll].filter((stat) => {
     const improved = player.characteristicAdvances?.[stat] ?? 0;
     const maximum = CHARACTERISTIC_MAXIMUMS[stat];

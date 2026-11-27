@@ -81,7 +81,7 @@ export function nextComputerPregameCommand(
   teamId: string,
   teamIds: readonly [string, string]
 ): import("../../headless/protocol").HeadlessCommand | null {
-  if (!pregame.ready[teamId]) return { type: "ready-weather", teamId };
+  if (pregame.ready[teamId] !== true) return { type: "ready-weather", teamId };
   const offer = pregame.offer;
   if (!offer || shoppingTeamId(pregame, teamIds) !== teamId) return null;
   const change = nextBasketChange(

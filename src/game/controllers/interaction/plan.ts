@@ -130,10 +130,11 @@ function bestRouteNextTo(c: GameplayInteractionController, player: Player, targe
     })
     .map(({ x, y }) => findLeg({ c, player, x, y }))
     .filter((result) => result.valid && result.path.length > 0);
-  return routes.reduce<(typeof routes)[number] | null>(
-    (best, next) => (best && routeScore(best) <= routeScore(next) ? best : next),
-    null
-  );
+  let best: (typeof routes)[number] | null = null;
+  for (const next of routes) {
+    best = best && routeScore(best) <= routeScore(next) ? best : next;
+  }
+  return best;
 }
 
 export function reachNextTo(c: GameplayInteractionController, target: Square): boolean {

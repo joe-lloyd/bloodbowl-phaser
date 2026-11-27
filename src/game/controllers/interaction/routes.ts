@@ -434,8 +434,8 @@ export async function walkRoute(c: GameplayInteractionController, playerId: stri
     if (!(await takeLeg(c, player, leg))) break;
     walked = true;
     await c.scene.playerSettled?.(playerId);
-    const end = leg.path.reduce((_, square) => square, leg.path[0]);
-    if (stoppedShort(c, playerId, end)) break;
+    const end = leg.path.at(-1);
+    if (end === undefined || stoppedShort(c, playerId, end)) break;
     rest = rest.slice(leg.path.length);
   }
   return walked;

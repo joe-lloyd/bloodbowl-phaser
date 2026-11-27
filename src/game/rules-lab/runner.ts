@@ -208,7 +208,8 @@ export async function runRuleConfig(
     return response;
   };
 
-  script: for (const step of config.script ?? []) {
+  const steps = config.script ?? [];
+  script: for (const step of steps) {
     let response = await execute(step);
 
     for (let guard = 0; response.pendingDecision && guard < 25; guard++) {

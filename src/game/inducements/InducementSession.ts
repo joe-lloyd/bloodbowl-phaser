@@ -30,12 +30,14 @@ export class InducementSession {
     this.profile = profile;
     this.budgets = budgets;
     this.catalogs = catalogs;
-    for (const [id, selection] of Object.entries(saved?.selections ?? {}))
+    const savedSelections = Object.entries(saved?.selections ?? {});
+    for (const [id, selection] of savedSelections)
       this.selections.set(
         id,
         selection.map((line) => ({ ...line }))
       );
-    for (const [id, confirmed] of Object.entries(saved?.confirmed ?? {}))
+    const savedConfirmed = Object.entries(saved?.confirmed ?? {});
+    for (const [id, confirmed] of savedConfirmed)
       if (confirmed) this.confirmed.add(id);
   }
 

@@ -172,10 +172,11 @@ export function resolveExpensiveMistakes(
   return result;
 }
 
+const gold = (amount: number) => `${amount.toLocaleString("en-GB")} gp`;
+
 export function describeExpensiveMistakes(
   result: ExpensiveMistakesResult
 ): string {
-  const gold = (amount: number) => `${amount.toLocaleString("en-GB")} gp`;
   if (result.roll === null || result.outcome === null) {
     return `No roll: the Treasury holds ${gold(result.treasuryBefore)}, under ${gold(EXPENSIVE_MISTAKES_THRESHOLD)}.`;
   }

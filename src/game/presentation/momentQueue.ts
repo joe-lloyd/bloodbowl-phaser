@@ -136,7 +136,9 @@ export class MomentQueue {
 
   whenIdle(): Promise<void> {
     if (!this.isBusy()) return Promise.resolve();
-    return new Promise((resolve) => this.idleWaiters.push(resolve));
+    return new Promise((resolve) => {
+      this.idleWaiters.push(resolve);
+    });
   }
 
   private enqueue(moment: MatchMoment): void {

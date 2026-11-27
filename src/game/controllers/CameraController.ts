@@ -8,6 +8,7 @@ import { GameConfig } from "../../config/GameConfig";
 import { isTyping } from "../presentation/keyboardFocus";
 import { PHONE_QUERY, matchesMedia } from "../presentation/phoneLayout";
 import { phoneArea, phoneZoom } from "./phoneCamera";
+import { bestBy } from "../core/order";
 
 interface Point {
   x: number;
@@ -15,6 +16,11 @@ interface Point {
 }
 
 type FocusPoints = [Point, ...Point[]];
+
+const along = ({ anchor,low,high,half }: { anchor: number; low: number; high: number; half: number; }) =>
+  high - low <= 2 * half
+    ? (low + high) / 2
+    : Math.min(Math.max(anchor, low + half), high - half);
 
 type View =
   | { kind: "overview" }
@@ -98,9 +104,9 @@ export function clearArea(
             { ...area, bottom: Math.min(area.bottom, p.top) },
           ]),
     ];
-    const best = cuts.reduce((a, b) => (size(b) > size(a) ? b : a));
+    const best = bestBy(cuts, size);
 
-    if (size(best) > 0) Object.assign(area, best);
+    if (best && size(best) > 0) Object.assign(area, best);
   }
   return area;
 }
@@ -357,10 +363,6 @@ export class CameraController {
     const zoom = this.actionZoom(box, area, this.camera.zoom);
     const halfWidth = (area.right - area.left) / (2 * 1.15 * zoom);
     const halfHeight = (area.bottom - area.top) / (2 * 1.15 * zoom);
-    const along = ({ anchor,low,high,half }: { anchor: number; low: number; high: number; half: number; }) =>
-      high - low <= 2 * half
-        ? (low + high) / 2
-        : Math.min(Math.max(anchor, low + half), high - half);
     const centre = this.centreInArea(
       {
         x: along({ anchor: points[0].x,low: box.left,high: box.right,half: halfWidth }),
@@ -582,7 +584,9 @@ export class CameraController {
 
     input.mouse?.disableContextMenu();
 
-    const onWheel = (...[pointer, , , dy]: [Phaser.Input.Pointer, unknown, number, number]) => {
+    const onWheel = (...args: [Phaser.Input.Pointer, unknown, number, number]) => {
+      const [pointer] = args;
+      const dy = args[3];
       const mode = pointer.event instanceof WheelEvent ? pointer.event.deltaMode : undefined;
       const pixels =
         dy * this.wheelScale(mode);

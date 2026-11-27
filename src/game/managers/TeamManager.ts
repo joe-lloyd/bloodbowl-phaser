@@ -63,13 +63,15 @@ const localRepository: TeamRepository = {
   },
 };
 
-let activeRepository: TeamRepository = localRepository;
 const repositoryListeners = new Set<() => void>();
 
 export type TeamLibraryStatus = "loaded" | "loading" | "failed";
 
-let libraryStatus: TeamLibraryStatus = "loaded";
-let retryLibraryLoad: (() => void) | null = null;
+const teamLibrary: {
+  repository: TeamRepository;
+  status: TeamLibraryStatus;
+  retry: (() => void) | null;
+} = { repository: localRepository, status: "loaded", retry: null };
 
 export class TeamLibraryUnavailableError extends Error {
   readonly status: Exclude<TeamLibraryStatus, "loaded">;
@@ -89,37 +91,37 @@ function notifyLibraryListeners(): void {
 }
 
 export function setTeamRepository(repository: TeamRepository | null): void {
-  activeRepository = repository ?? localRepository;
-  libraryStatus = "loaded";
+  teamLibrary.repository = repository ?? localRepository;
+  teamLibrary.status = "loaded";
   notifyLibraryListeners();
 }
 
 export function assertTeamLibraryLoaded(): void {
-  if (libraryStatus !== "loaded") {
-    throw new TeamLibraryUnavailableError(libraryStatus);
+  if (teamLibrary.status !== "loaded") {
+    throw new TeamLibraryUnavailableError(teamLibrary.status);
   }
 }
 
 export function getTeamLibraryStatus(): TeamLibraryStatus {
-  return libraryStatus;
+  return teamLibrary.status;
 }
 
 export function isTeamLibraryPending(): boolean {
-  return libraryStatus === "loading";
+  return teamLibrary.status === "loading";
 }
 
 export function setTeamLibraryStatus(status: TeamLibraryStatus): void {
-  if (libraryStatus === status) return;
-  libraryStatus = status;
+  if (teamLibrary.status === status) return;
+  teamLibrary.status = status;
   notifyLibraryListeners();
 }
 
 export function setTeamLibraryRetry(retry: (() => void) | null): void {
-  retryLibraryLoad = retry;
+  teamLibrary.retry = retry;
 }
 
 export function retryTeamLibrary(): void {
-  retryLibraryLoad?.();
+  teamLibrary.retry?.();
 }
 
 export function onTeamRepositoryChanged(listener: () => void): () => void {
@@ -137,7 +139,7 @@ export function saveTeams(teams: Team[]): Promise<void> {
     assertTeamLibraryLoaded();
     for (const team of teams) clearUnneededExpensiveMistakes(team);
     const stored = new Map(
-      activeRepository.loadTeams().map((team) => [team.id, team])
+      teamLibrary.repository.loadTeams().map((team) => [team.id, team])
     );
     for (const team of teams) {
       carryGutterUnlock(team, stored.get(team.id));
@@ -145,7 +147,7 @@ export function saveTeams(teams: Team[]): Promise<void> {
     const locked = teams.map((team) =>
       withStartLock(team, stored.get(team.id))
     );
-    saved = Promise.resolve(activeRepository.saveTeams(locked));
+    saved = Promise.resolve(teamLibrary.repository.saveTeams(locked));
   } catch (cause) {
     saved = Promise.reject(cause);
   }
@@ -157,8 +159,8 @@ export function saveTeams(teams: Team[]): Promise<void> {
 }
 
 export function loadTeams(): Team[] {
-  if (libraryStatus !== "loaded") return [];
-  const teams = activeRepository.loadTeams();
+  if (teamLibrary.status !== "loaded") return [];
+  const teams = teamLibrary.repository.loadTeams();
   for (const team of teams) {
     clearUnneededExpensiveMistakes(team);
 
@@ -201,7 +203,7 @@ export function saveTeam(team: Team): Promise<void> {
 
 export function deleteTeam(teamId: string): void | Promise<void> {
   assertTeamLibraryLoaded();
-  return activeRepository.deleteTeam(teamId);
+  return teamLibrary.repository.deleteTeam(teamId);
 }
 
 export function getTeamById(teamId: string): Team | undefined {

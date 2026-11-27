@@ -73,7 +73,9 @@ const UNICORN_OFF = [
   "no-null", "filename-case", "name-replacements", "consistent-boolean-name",
   "consistent-arrow-return-style", "no-nested-ternary", "prefer-switch", "prefer-ternary",
   "prefer-combined-guards", "require-css-escape", "prefer-await", "prefer-simple-condition-first",
-  "no-array-sort", "no-array-reverse",
+  "no-array-sort", "no-array-reverse", "prefer-number-coercion", "prefer-math-trunc", "prefer-code-point",
+  "prefer-then-catch", "no-thenable", "no-computed-property-existence-check", "prefer-query-selector",
+  "prefer-options-parameter", "no-break-in-nested-loop", "prefer-observer-apis", "prefer-path2d",
   "consistent-class-member-order",
   ...NEWER_THAN_ES2023,
 ];
@@ -170,6 +172,25 @@ const config = defineConfig(
     files: ["scripts/**/*.ts", "src/headless/cli.ts", "src/simulation/cli.ts", "src/simulation/commands/**/*.ts"],
     rules: { "n/no-process-exit": "off", "unicorn/no-process-exit": "off" },
   },
+  {
+    files: [
+      "e2e/**", "__tests__/**", "src/testing/**", "src/main.ts", "src/ui/pages/GamePage.tsx",
+      "src/network/ComputerMatch.ts", "src/network/computerCoach.ts", "src/gallery/isolate.ts",
+    ],
+    rules: { "unicorn/no-global-object-property-assignment": "off" },
+  },
+  {
+    files: ["e2e/**", "__tests__/**"],
+    rules: { "unicorn/prefer-event-target": "off", "unicorn/dom-node-dataset": "off" },
+  },
+  {
+    files: ["e2e/fullgame/uxProbe.ts"],
+    rules: { "unicorn/consistent-function-scoping": "off" },
+  },
+  {
+    files: ["src/data/persistence/teamPersistence.ts"],
+    rules: { "unicorn/consistent-conditional-object-spread": "off" },
+  },
   { files: ["src/boundary/**", "studio/boundary/**"], rules: { "no-restricted-syntax": ["error", ...UI_ONLY] } },
   { files: ["src/ui/**"], rules: { "no-restricted-syntax": ["error", ...BOUNDARY_ONLY] } },
 );
@@ -181,6 +202,7 @@ export const testSizeExceptions = {
     "max-depth", "max-nested-callbacks", "max-statements",
     "sonarjs/no-identical-functions", "sonarjs/no-duplicate-string",
     "unicorn/max-nested-calls", "unicorn/no-top-level-assignment-in-function",
+    "unicorn/prefer-structured-clone",
   ].map((rule) => [rule, "off"])),
 };
 

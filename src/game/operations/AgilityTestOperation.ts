@@ -45,7 +45,7 @@ export class AgilityTestOperation extends GameOperation {
     const modString =
       this.modifiers >= 0
         ? `+${String(this.modifiers)}`
-        : `${String(this.modifiers)}`;
+        : String(this.modifiers);
     const info = this.description || `${this.testName} Test`;
     const needed = requiredRoll(this.targetNumber, this.modifiers);
     eventBus.emit(

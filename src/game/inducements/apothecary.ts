@@ -58,7 +58,7 @@ function ownApothecaryAvailable(
 ): boolean {
   return (
     !!gameService.getTeam(teamId)?.apothecary &&
-    !gameService.getState().inducements?.apothecaryUsed?.[teamId]
+    gameService.getState().inducements?.apothecaryUsed?.[teamId] !== true
   );
 }
 
@@ -81,9 +81,9 @@ function spendApothecary(gameService: IGameService, teamId: string): void {
     return;
   }
   const state = gameService.getState();
-  APOTHECARY_INDUCEMENTS.some((inducement) =>
-    spendInducement(state, teamId, inducement)
-  );
+  for (const inducement of APOTHECARY_INDUCEMENTS) {
+    if (spendInducement(state, teamId, inducement)) break;
+  }
 }
 
 type ApothecaryOffer =

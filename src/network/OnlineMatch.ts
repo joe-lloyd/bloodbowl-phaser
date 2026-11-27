@@ -94,12 +94,12 @@ export interface OnlineMatch {
 
 type InputHold = "opponent-away" | "timeout" | null;
 
-let activeMatch: OnlineMatch | null = null;
+const activeMatch: { current: OnlineMatch | null } = { current: null };
 export function getActiveOnlineMatch(): OnlineMatch | null {
-  return activeMatch;
+  return activeMatch.current;
 }
 export function setActiveOnlineMatch(match: OnlineMatch | null): void {
-  activeMatch = match;
+  activeMatch.current = match;
 }
 
 export const NO_CHANGE = Symbol("selection-no-change");
@@ -518,7 +518,7 @@ class OnlineSession {
     if (this.hold) return false;
     if (this.game.pendingDecision()) return this.decidingTeamId() === this.sides.myTeamId;
     const pregame = this.engine.getState().pregameInducements;
-    if (pregame && !pregame.complete) return !pregame.offer?.confirmed[this.sides.myTeamId];
+    if (pregame && !pregame.complete) return pregame.offer?.confirmed[this.sides.myTeamId] !== true;
     if (this.engine.getPhase() === GamePhase.KICKOFF && !kickoffTurnOf(this.engine.getState())) return this.isKickoffActor();
     return this.engine.getActiveTeamId() === this.sides.myTeamId;
   }
@@ -567,7 +567,7 @@ class OnlineSession {
     this.session.close();
     this.transport.close();
     void this.session.whenIdle().finally(() => { this.eventBus.dispose(); });
-    if (activeMatch === this.match) setActiveOnlineMatch(null);
+    if (activeMatch.current === this.match) setActiveOnlineMatch(null);
   }
 
   private finishMatch(): OnlineMatch {

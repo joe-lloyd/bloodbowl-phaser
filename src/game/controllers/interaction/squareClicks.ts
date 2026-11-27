@@ -1,4 +1,3 @@
-import type { ActionType } from "@/types/events";
 import { settleActivationRoll } from "./activationRoll";
 import { awaitingDeclaration } from "@/game/rules/awaitingDeclaration";
 import { isOwnActor } from "./players";
@@ -74,10 +73,9 @@ function isDownedOpponent(
 
 function rollAllows(
   c: GameplayInteractionController,
-  playerId: string,
-  action: ActionType
+  playerId: string
 ): boolean | Promise<boolean> {
-  return !c.rollingActivation() || settleActivationRoll(c, playerId, action);
+  return !c.rollingActivation() || settleActivationRoll(c, playerId, "foul");
 }
 
 async function foulInsteadOfBlock(
@@ -87,7 +85,7 @@ async function foulInsteadOfBlock(
     c.dropFinish();
     c.pitch.clearPath();
     await selectAction(c, { playerId, action: "foul" });
-    if (!(await rollAllows(c, playerId, "foul"))) return;
+    if (!(await rollAllows(c, playerId))) return;
     await c.onSquareClicked(x, y);
     return;
   }
@@ -101,7 +99,7 @@ async function foulInsteadOfBlock(
     return;
   }
   enterActionMode({ c,playerId,action: "foul",blockReplacement: null });
-  if (!(await rollAllows(c, playerId, "foul"))) return;
+  if (!(await rollAllows(c, playerId))) return;
   await c.onSquareClicked(x, y);
 }
 
@@ -183,7 +181,6 @@ async function blockFromClick(
   }
 
   const declared = declarationOf(state, blocker.id);
-  const currentAction = declared.action;
 
   if (c.gameService.hasUsedBlitzBlock(blocker.id)) {
     c.eventBus.emit(
@@ -197,6 +194,7 @@ async function blockFromClick(
     return attackInsteadOfBlock({ c,attacker: blocker,target,replacement: declared.replacement });
   }
 
+  const currentAction = declared.action;
   if (!currentAction) {
     const asked = askGates(c, blocker.id, "block");
     if (asked && !(await asked)) return;

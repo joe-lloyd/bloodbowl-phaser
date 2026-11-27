@@ -368,8 +368,8 @@ export class ThrowTeammateOperation extends GameOperation {
     teammate: Player
   ): "eaten" | "squirmed" | "thrown" {
     const { gameService, eventBus } = context;
-    const dice = gameService.getDiceController();
     if (!hasSkill(thrower.skills, SkillType.ALWAYS_HUNGRY)) return "thrown";
+    const dice = gameService.getDiceController();
     const hunger = dice.rollD6("Always Hungry", thrower.teamId);
     if (hunger !== 1) return "thrown";
     eventBus.emit(GameEventNames.SkillTriggered, {
@@ -467,7 +467,6 @@ export class ThrowTeammateOperation extends GameOperation {
     bullseye: boolean
   ): ThrownFlight {
     const { gameService, eventBus } = context;
-    const dice = gameService.getDiceController();
     if (bullseye) {
       eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: thrower.id,
@@ -479,6 +478,7 @@ export class ThrowTeammateOperation extends GameOperation {
         swooped: false,
       };
     }
+    const dice = gameService.getDiceController();
     if (this.swoopFacing) {
       eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: teammate.id,

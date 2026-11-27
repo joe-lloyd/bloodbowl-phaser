@@ -40,20 +40,12 @@ function pitCasualty(parts: GameParts, player: Player): void {
     cause: "special",
     sppEligible: false,
   });
-  parts.flowManager.add(
-    new CasualtyOperation(
-      player.id,
-      rollCasualty(
-        parts.diceController,
-        player,
-        injuryTableFor(
-          parts.state,
-          [parts.team1, parts.team2].find((team) => team.id === player.teamId)
-        )
-      )
-    ),
-    true
+  const owner = [parts.team1, parts.team2].find(
+    (team) => team.id === player.teamId
   );
+  const injuryTable = injuryTableFor(parts.state, owner);
+  const roll = rollCasualty(parts.diceController, player, injuryTable);
+  parts.flowManager.add(new CasualtyOperation(player.id, roll), true);
 }
 
 export function rollSewerPits(parts: GameParts): boolean {

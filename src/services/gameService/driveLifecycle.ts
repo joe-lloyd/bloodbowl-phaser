@@ -270,10 +270,11 @@ export function resetDriveState(parts: GameParts): void {
 
   const driveEffects = getDriveEffects(state);
   if (!driveEffectsEmpty(driveEffects)) {
-    for (const teamId of new Set([
+    const teamIds = new Set([
       ...Object.keys(driveEffects.freeRerolls),
       ...Object.keys(driveEffects.owedAssists),
-    ])) {
+    ]);
+    for (const teamId of teamIds) {
       parts.eventBus.emit(GameEventNames.DriveEffectExpired, {
         teamId,
         effect: "drive-effects",

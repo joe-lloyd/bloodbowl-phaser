@@ -116,9 +116,10 @@ export function mayJumpAnything(player: Player): boolean {
   );
 }
 
+const inBounds = (x: number, y: number) => isStandableSquare({ x, y });
+
 export function legalJumpTargets(player: Player, from: { x: number; y: number }, players: Player[]): JumpTarget[] {
   const others = players.filter((other) => other.id !== player.id && other.gridPosition);
-  const inBounds = (x: number, y: number) => isStandableSquare({ x, y });
   return jumpTargets(from, others, mayJumpAnything(player), inBounds);
 }
 

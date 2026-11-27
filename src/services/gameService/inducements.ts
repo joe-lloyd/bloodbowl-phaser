@@ -211,7 +211,7 @@ export function confirmInducements(
   if (![parts.team1.id, parts.team2.id].includes(teamId))
     return { ok: false, errors: ["unknown-team"] };
 
-  if (pregame?.complete || pregame?.offer?.confirmed[teamId])
+  if (pregame?.complete || pregame?.offer?.confirmed[teamId] === true)
     return { ok: true, errors: [] };
   const error = purchaseError(parts, teamId);
   if (error) return { ok: false, errors: [error] };

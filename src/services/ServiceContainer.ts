@@ -81,32 +81,33 @@ export class ServiceContainer {
   }
 
   static initialize(options: ServiceContainerOptions): ServiceContainer {
-    const { team1, team2, seed } = options;
-    ServiceContainer.instance = new ServiceContainer(options);
+    const { team1, team2, seed = 0 } = options;
+    const instance = new ServiceContainer(options);
+    this.instance = instance;
 
     installBrowserTestBridge({
-      eventBus: ServiceContainer.instance.eventBus,
-      gameService: ServiceContainer.instance.engineGameService,
-      rng: ServiceContainer.instance.rngService,
+      eventBus: instance.eventBus,
+      gameService: instance.engineGameService,
+      rng: instance.rngService,
       team1,
       team2,
-      seed: seed ?? 0,
-      matchStats: ServiceContainer.instance.matchStats,
+      seed,
+      matchStats: instance.matchStats,
     });
-    return ServiceContainer.instance;
+    return instance;
   }
 
   static getInstance(): ServiceContainer {
-    if (!ServiceContainer.instance) {
+    if (!this.instance) {
       throw new Error(
         "ServiceContainer not initialized. Call initialize() first."
       );
     }
-    return ServiceContainer.instance;
+    return this.instance;
   }
 
   static isInitialized(): boolean {
-    return ServiceContainer.instance !== null;
+    return this.instance !== null;
   }
 
   static reset(): void {

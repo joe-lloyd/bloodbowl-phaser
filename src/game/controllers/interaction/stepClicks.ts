@@ -416,8 +416,8 @@ function aimsAtPassingPlayer(c: GameplayInteractionController): boolean {
 
 function boardTakesPlayerClick(c: GameplayInteractionController): boolean {
   const mode = c.currentActionMode;
-  const step = c.currentStepId;
   if (mode === "foul" || mode === "throwTeamMate") return true;
+  const step = c.currentStepId;
   if (mode === "multipleBlock") return step === "multipleBlock";
   if (mode === "throwBomb") return step === "bomb";
   return step === "target" && (c.currentBlockReplacement !== null || mode === "gaze");

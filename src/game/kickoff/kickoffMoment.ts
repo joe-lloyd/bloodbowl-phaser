@@ -62,7 +62,7 @@ const SEVENS_ROLLS_FOR_RESULT = new Set<KickoffEvent>([
 ]);
 
 const isSevensEvent = (event: KickoffEvent): event is SevensKickoffEvent =>
-  event in summary;
+  Object.hasOwn(summary, event);
 
 const playsTheSevensRule = (event: KickoffEvent): event is SevensKickoffEvent =>
   isSevensEvent(event) &&

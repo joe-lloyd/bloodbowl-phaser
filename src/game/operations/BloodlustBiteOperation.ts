@@ -138,8 +138,8 @@ export class BloodlustBiteOperation extends GameOperation {
           a.gridPosition!.y - b.gridPosition!.y ||
           a.gridPosition!.x - b.gridPosition!.x
       );
-    const decisions = context.gameService.getDecisionService();
     if (thralls.length === 0) return undefined;
+    const decisions = context.gameService.getDecisionService();
     const [thrall] = thralls;
     if (thralls.length === 1 && thrall) {
       const answer = (await decisions.request({

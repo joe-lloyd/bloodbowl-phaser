@@ -12,7 +12,7 @@ export const SEVENS_FORMAT: MatchFormat = {
   venue: "stadium",
 };
 
-let active: MatchFormat = SEVENS_FORMAT;
+const session: { active: MatchFormat } = { active: SEVENS_FORMAT };
 
 export function formatOf(state: {
   gameType?: GameType;
@@ -27,27 +27,28 @@ export function activateMatchFormat(format: MatchFormat): void {
   if (!gameTypeRules(format.gameType).venues.includes(format.venue)) {
     throw new Error(`${format.venue} is not a ${format.gameType} venue.`);
   }
-  active = format;
+  session.active = format;
 }
 
 export function keepMatchFormat(format: MatchFormat): void {
+  const { active } = session;
   if (active.gameType === format.gameType && active.venue === format.venue)
     return;
   throw new Error(
-    `A ${active.gameType} match on the ${active.venue} took over the rules while a ${format.gameType} match on the ${format.venue} was running.`
+    `A ${session.active.gameType} match on the ${session.active.venue} took over the rules while a ${format.gameType} match on the ${format.venue} was running.`
   );
 }
 
 export function activeMatchFormat(): MatchFormat {
-  return active;
+  return session.active;
 }
 
 export function activeLayout(): PitchLayout {
-  return PITCH_LAYOUTS[active.venue];
+  return PITCH_LAYOUTS[session.active.venue];
 }
 
 export function activeRules(): GameTypeRules {
-  return gameTypeRules(active.gameType);
+  return gameTypeRules(session.active.gameType);
 }
 
 export function matchFormatFor(
@@ -63,11 +64,11 @@ export function matchFormatFor(
 }
 
 export function withMatchFormat<T>(format: MatchFormat, run: () => T): T {
-  const previous = active;
+  const previous = session.active;
   activateMatchFormat(format);
   try {
     return run();
   } finally {
-    active = previous;
+    session.active = previous;
   }
 }

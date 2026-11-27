@@ -178,10 +178,9 @@ export class MatchStats {
       if (!result.safeLanding) return;
       const passenger = this.get(result.thrownPlayerId);
       if (passenger) passenger.safeLandings++;
-      if (result.superbThrow) {
-        const thrower = this.get(result.throwerId);
-        if (thrower) thrower.superbThrows++;
-      }
+      if (!result.superbThrow) return;
+      const thrower = this.get(result.throwerId);
+      if (thrower) thrower.superbThrows++;
     });
     this.eventBus.on(GameEventNames.PassIntercepted, ({ interceptorId }) => {
       const stats = this.get(interceptorId);

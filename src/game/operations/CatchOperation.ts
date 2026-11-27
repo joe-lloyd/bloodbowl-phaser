@@ -143,11 +143,11 @@ export class CatchOperation extends GameOperation {
     console.log(
       `[CatchOperation] Player ${player.playerName} attempting catch...`
     );
-    const setPiece =
+    const isSetPiece =
       !!this.pass?.setPiece && player.teamId === this.pass.passerTeamId;
     const success = await catchRoll(context, player, {
       ...this.options,
-      setPiece,
+      setPiece: isSetPiece,
     });
 
     if (success) {

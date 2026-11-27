@@ -24,7 +24,9 @@ export class DecisionService {
 
   public whenClosed(): Promise<boolean> {
     if (!this.current) return Promise.resolve(true);
-    return new Promise((resolve) => this.closers.push(resolve));
+    return new Promise((resolve) => {
+      this.closers.push(resolve);
+    });
   }
 
   private close(answered: boolean): void {

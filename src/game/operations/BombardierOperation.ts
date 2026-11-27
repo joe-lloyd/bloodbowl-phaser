@@ -225,9 +225,9 @@ export class BombardierOperation extends GameOperation {
     target: { x: number; y: number },
     accurate: boolean
   ): Promise<string | undefined> {
+    if (!thrower.gridPosition) return undefined;
     const gameService = context.gameService;
     const eventBus = context.eventBus;
-    if (!thrower.gridPosition) return undefined;
 
     const passController = gameService.getPassController();
     const catchController = gameService.getCatchController();

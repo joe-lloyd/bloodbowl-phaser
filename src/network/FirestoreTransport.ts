@@ -50,9 +50,9 @@ export class FirestoreTransport implements Transport {
     const newest = await getDocs(
       query(messages, orderBy("at", "desc"), limit(1))
     );
+    if (this.closed) return;
     const at: unknown = newest.docs[0]?.get("at");
     const since = parseMessageTimestamp(at);
-    if (this.closed) return;
     this.stopListening = onSnapshot(
       since
         ? query(messages, where("at", ">", since), orderBy("at", "asc"))

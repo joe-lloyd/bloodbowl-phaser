@@ -35,8 +35,7 @@ export class SidelineTerrace {
     const layout = staffTerraceLayout(squares);
     const { floor, corners } = terraceFloor(scene, layout, { kit, project });
     this.bounds = corners;
-    this.objects.push(floor);
-    this.objects.push(terraceLabel(scene, layout, project));
+    this.objects.push(floor, terraceLabel(scene, layout, project));
     const staff = getVisibleSidelineStaff(team);
     for (const member of staff) {
       const slot = staffTerraceSlot(layout, member);
@@ -63,20 +62,19 @@ export class SidelineTerrace {
       );
       this.objects.push(figure);
     }
-    if (staff.length === 0) {
-      const at = project(layout.x + 3, layout.y + 1.5 * layout.direction);
-      const empty = scene.add
-        .text(at.x, at.y, "NO STAFF", {
-          fontFamily: "Georgia, serif",
-          fontSize: "13px",
-          color: "#d6c6a6",
-        })
-        .setOrigin(0.5)
-        .setDepth(6)
-        .setInteractive({ useHandCursor: true });
-      this.inspectable(empty, getEmptySidelineCrewInfo, bus);
-      this.objects.push(empty);
-    }
+    if (staff.length > 0) return;
+    const at = project(layout.x + 3, layout.y + 1.5 * layout.direction);
+    const empty = scene.add
+      .text(at.x, at.y, "NO STAFF", {
+        fontFamily: "Georgia, serif",
+        fontSize: "13px",
+        color: "#d6c6a6",
+      })
+      .setOrigin(0.5)
+      .setDepth(6)
+      .setInteractive({ useHandCursor: true });
+    this.inspectable(empty, getEmptySidelineCrewInfo, bus);
+    this.objects.push(empty);
   }
 
   private inspectable(

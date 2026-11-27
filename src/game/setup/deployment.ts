@@ -30,10 +30,10 @@ const at = (back: number, lane: number, role: DeploymentRole): Slot => ({
   lane,
   role,
 });
-const wide = (back: number, lane: number, role: DeploymentRole): Slot => ({
+const wide = (back: number, lane: number): Slot => ({
   back,
   lane,
-  role,
+  role: "flank",
   wide: true,
 });
 const line = (lane: number): Slot => at(0, lane, "line");
@@ -59,8 +59,8 @@ export const DEPLOYMENTS: readonly Deployment[] = [
       line(-2),
       line(0),
       line(2),
-      wide(2, -TOUCHLINE, "flank"),
-      wide(2, TOUCHLINE, "flank"),
+      wide(2, -TOUCHLINE),
+      wide(2, TOUCHLINE),
       at(4, -TOUCHLINE, "deep"),
       at(4, TOUCHLINE, "support"),
     ],
@@ -87,8 +87,8 @@ export const DEPLOYMENTS: readonly Deployment[] = [
       line(0),
       line(1),
       line(2),
-      wide(0, -INNER_WIDE, "flank"),
-      wide(0, INNER_WIDE, "flank"),
+      wide(0, -INNER_WIDE),
+      wide(0, INNER_WIDE),
     ],
   },
   {
@@ -98,8 +98,8 @@ export const DEPLOYMENTS: readonly Deployment[] = [
       line(-1),
       line(0),
       line(1),
-      wide(0, -INNER_WIDE, "flank"),
-      wide(0, INNER_WIDE, "flank"),
+      wide(0, -INNER_WIDE),
+      wide(0, INNER_WIDE),
       at(2, 0, "support"),
       at(4, 0, "deep"),
     ],
@@ -150,8 +150,8 @@ export const DEPLOYMENTS: readonly Deployment[] = [
       line(-1),
       line(0),
       line(1),
-      wide(1, -INNER_WIDE, "flank"),
-      wide(1, INNER_WIDE, "flank"),
+      wide(1, -INNER_WIDE),
+      wide(1, INNER_WIDE),
       at(3, -1, "deep"),
       at(3, 1, "support"),
     ],

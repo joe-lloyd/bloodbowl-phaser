@@ -87,7 +87,7 @@ export class FormationManager {
   ): void {
     const formations = this.getAllFormations();
 
-    if (!formations[teamId]) {
+    if (formations[teamId] === undefined) {
       formations[teamId] = [];
     }
 
@@ -104,7 +104,7 @@ export class FormationManager {
   loadFormation(teamId: string, name: string): FormationPosition[] | null {
     const formations = this.getAllFormations();
 
-    if (!formations[teamId]) {
+    if (formations[teamId] === undefined) {
       return null;
     }
 
@@ -120,7 +120,7 @@ export class FormationManager {
   deleteFormation(teamId: string, name: string): boolean {
     const formations = this.getAllFormations();
 
-    if (!formations[teamId]) {
+    if (formations[teamId] === undefined) {
       return false;
     }
 

@@ -25,8 +25,7 @@ export function addReserveLineman(team: Team): Player | null {
     (candidate) => candidate.keywords.includes(PositionKeyWord.LINEMAN)
   );
   if (!template) return null;
-  const number =
-    team.players.reduce((max, player) => Math.max(max, player.number), 0) + 1;
+  const number = Math.max(0, ...team.players.map((player) => player.number)) + 1;
   const player = createPlayer(template, team.id, number);
   player.id = uniquePlayerId(team, player.id);
   player.status = PlayerStatus.RESERVE;

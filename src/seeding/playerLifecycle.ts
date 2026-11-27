@@ -113,20 +113,21 @@ const STAT_DECREASE_INJURIES: Partial<Record<InjuryType, keyof PlayerStats>> = {
 function decoratePlayer(player: Player, plan: PlayerDecorationPlan): void {
   const surplus = 1000;
   player.spp = surplus;
-  for (const pick of plan.advancements ?? []) {
+  const advancementPicks = plan.advancements ?? [];
+  for (const pick of advancementPicks) {
     applyAdvancement(player, toAdvancementChoice(player, pick));
   }
   const spent = surplus - player.spp;
   const unspent = plan.unspentSpp ?? 0;
   player.spp = unspent;
 
-  for (const injury of plan.injuries ?? []) {
+  const injuryList = plan.injuries ?? [];
+  for (const injury of injuryList) {
     player.injuries.push(injury);
     const stat = STAT_DECREASE_INJURIES[injury];
-    if (stat) {
-      const direction = stat === "AG" || stat === "PA" ? 1 : -1;
-      player.stats[stat] += direction;
-    }
+    if (!stat) continue;
+    const direction = stat === "AG" || stat === "PA" ? 1 : -1;
+    player.stats[stat] += direction;
   }
 
   const earned = spent + unspent;

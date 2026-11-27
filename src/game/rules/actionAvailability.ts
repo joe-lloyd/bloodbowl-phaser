@@ -405,7 +405,7 @@ const LEFT_AFTER_MOVE: Record<
 };
 
 const endsWithAnAct = (action: ActionType): action is AfterMove =>
-  action in LEFT_AFTER_MOVE;
+  Object.hasOwn(LEFT_AFTER_MOVE, action);
 
 export function actsFromHere(
   action: ActionType,

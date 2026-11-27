@@ -25,8 +25,8 @@ function grantCaptaincy(player: Player): void {
 
 function grantScenarioSkill(player: Player, entry: SkillEntry): void {
   const type = typeof entry === "object" ? entry.type : entry;
-  const parameter = typeof entry === "object" ? entry.parameter : undefined;
   if (hasSkill(player.skills, type)) return;
+  const parameter = typeof entry === "object" ? entry.parameter : undefined;
   player.skills.push({
     ...getSkill(type, parameter),
     scenarioGranted: true,

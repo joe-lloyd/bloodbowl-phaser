@@ -237,17 +237,18 @@ export function spendSportsWizard(state: GameState, teamId: string): void {
 export function turnIntoFrog(
   state: GameState,
   player: Player,
-  spell: { drives: number } = { drives: 1 }
+  spell?: { drives: number }
 ): void {
   const mi = getMatchInducements(state);
   if (isFrog(state, player.id)) return;
+  const drives = spell?.drives ?? 1;
   mi.frogs = [
     ...(mi.frogs ?? []),
     {
       playerId: player.id,
       stats: { ...player.stats },
       skills: player.skills,
-      ...((spell.drives > 1) && { drivesLeft: spell.drives }),
+      ...((drives > 1) && { drivesLeft: drives }),
     },
   ];
 
@@ -278,7 +279,8 @@ export function restoreFrogs(
   if (!mi) return;
   const lasting = (frog: FrogRecord) =>
     ending === "drive" && (frog.drivesLeft ?? 1) > 1;
-  for (const frog of mi.frogs ?? []) {
+  const frogs = mi.frogs ?? [];
+  for (const frog of frogs) {
     const player = players.find((p) => p.id === frog.playerId);
     if (!player || lasting(frog)) continue;
     player.stats = { ...frog.stats };
@@ -530,7 +532,8 @@ export class ResolvePregameInducementsOperation extends GameOperation {
       }
     }
     for (const team of teams) {
-      for (const prayer of mi.prayers[team.id] ?? []) {
+      const prayers = mi.prayers[team.id] ?? [];
+      for (const prayer of prayers) {
         await applyPrayer(context, team, prayer);
       }
     }

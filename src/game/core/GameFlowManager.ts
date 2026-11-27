@@ -2,45 +2,45 @@ import { GameOperation } from "./GameOperation";
 
 export type DelayProvider = (ms: number) => Promise<void>;
 
-let runningDelays = 0;
+const delays = { running: 0 };
 const quietWaiters: (() => void)[] = [];
 
 export async function trackEngineWork(work: Promise<void>): Promise<void> {
-  runningDelays++;
+  delays.running++;
   try {
     await work;
   } finally {
-    runningDelays--;
-    if (runningDelays === 0)
+    delays.running--;
+    if (delays.running === 0)
       for (const wake of quietWaiters.splice(0)) {
         wake();
       }
   }
 }
 
-let paced = true;
+const pacing = { paced: true };
 
 export async function withoutPacing<T>(work: () => Promise<T>): Promise<T> {
-  paced = false;
+  pacing.paced = false;
   try {
     return await work();
   } finally {
-    paced = true;
+    pacing.paced = true;
   }
 }
 
 export function isPaced(): boolean {
-  return paced;
+  return pacing.paced;
 }
 
 export const realTimeDelay: DelayProvider = (ms) => {
-  if (!paced) return Promise.resolve();
-  runningDelays++;
+  if (!pacing.paced) return Promise.resolve();
+  delays.running++;
   return new Promise((resolve) =>
     setTimeout(() => {
-      runningDelays--;
+      delays.running--;
       resolve();
-      if (runningDelays === 0)
+      if (delays.running === 0)
         for (const wake of quietWaiters.splice(0)) {
           wake();
         }
@@ -51,15 +51,17 @@ export const realTimeDelay: DelayProvider = (ms) => {
 export async function whenEngineQuiet(maxMs = 30_000): Promise<void> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
-    if (runningDelays > 0) {
+    if (delays.running > 0) {
       await Promise.race([
-        new Promise<void>((resolve) => quietWaiters.push(resolve)),
+        new Promise<void>((resolve) => {
+          quietWaiters.push(resolve);
+        }),
         new Promise((resolve) => setTimeout(resolve, deadline - Date.now())),
       ]);
     }
 
     await new Promise((resolve) => setTimeout(resolve, 0));
-    if (runningDelays === 0) return;
+    if (delays.running === 0) return;
   }
   console.warn(`[Engine] still pacing after ${String(maxMs)} ms; carrying on`);
 }
@@ -72,7 +74,7 @@ export function waitAtMost(
   ms: number
 ): Promise<void> {
   if (delay !== realTimeDelay) return Promise.race([shown, delay(ms)]);
-  if (!paced) return Promise.resolve();
+  if (!pacing.paced) return Promise.resolve();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const guard = new Promise<void>((resolve) => {
     timer = setTimeout(resolve, ms);
@@ -90,7 +92,7 @@ export function waitForCoach(
   ms: number
 ): Promise<void> {
   if (delay !== realTimeDelay) return Promise.race([answered, delay(ms)]);
-  if (!paced) return Promise.resolve();
+  if (!pacing.paced) return Promise.resolve();
   return answered;
 }
 
@@ -146,7 +148,9 @@ export class GameFlowManager {
     if (!this.isProcessing && this.queue.length === 0) {
       return Promise.resolve();
     }
-    return new Promise((resolve) => this.idleResolvers.push(resolve));
+    return new Promise((resolve) => {
+      this.idleResolvers.push(resolve);
+    });
   }
 
   public async runToRest(operation: GameOperation): Promise<void> {

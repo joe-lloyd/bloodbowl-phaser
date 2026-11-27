@@ -179,7 +179,8 @@ function occupiedSquares(
 ): Set<string> {
   const occupied = new Set<string>();
   for (const { teamId } of players) {
-    for (const player of gameService.getTeam(teamId)?.players ?? []) {
+    const teamPlayers = gameService.getTeam(teamId)?.players ?? [];
+    for (const player of teamPlayers) {
       if (player.id !== mover.id && player.gridPosition) {
         occupied.add(
           `${String(player.gridPosition.x)},${String(player.gridPosition.y)}`
@@ -369,7 +370,7 @@ export class PassOperation extends GameOperation {
       return;
     }
 
-    const setPiece =
+    const isSetPiece =
       setPieceOffered(gameService, passer, this.hailMary) &&
       (await offerMeasure(
         context,
@@ -380,7 +381,7 @@ export class PassOperation extends GameOperation {
       ));
 
     const result = await passController.attemptPass(
-      { player: passer,from: passer.gridPosition,to: { x: this.targetX,y: this.targetY },markingOpponents,rerollDeps: { gameService,eventBus },extraModifier: passCtx.modifiers,hailMary: this.hailMary,setPiece }    );
+      { player: passer,from: passer.gridPosition,to: { x: this.targetX,y: this.targetY },markingOpponents,rerollDeps: { gameService,eventBus },extraModifier: passCtx.modifiers,hailMary: this.hailMary,setPiece: isSetPiece }    );
 
     const resultCtx: PassResultContext = {
       player: passer,
@@ -468,7 +469,7 @@ export class PassOperation extends GameOperation {
         this.land(context, passer, landingPos, {
           scatterPath,
           accurate: result.accurate,
-          setPiece,
+          setPiece: isSetPiece,
           opponents,
         });
       }
@@ -642,10 +643,7 @@ export class PassOperation extends GameOperation {
         if (!to) break;
 
         const markers = dodgeMarkers(gameService, reactor, from, to);
-        if (
-          markers !== null &&
-          !(await onTheBallDodge(context, reactor, markers)).success
-        ) {
+        if (await dodgeFails(context, reactor, markers)) {
           fallOnTheBall(context, reactor, from, to);
           return;
         }
@@ -747,4 +745,14 @@ export class PassOperation extends GameOperation {
     }
     return interceptor;
   }
+}
+
+async function dodgeFails(
+  context: Parameters<typeof onTheBallDodge>[0],
+  reactor: Parameters<typeof onTheBallDodge>[1],
+  markers: Parameters<typeof onTheBallDodge>[2] | null
+): Promise<boolean> {
+  if (markers === null) return false;
+  const dodge = await onTheBallDodge(context, reactor, markers);
+  return !dodge.success;
 }

@@ -89,7 +89,7 @@ function ownsSetup(state: GameState, teamId: string): boolean {
   return (
     state.activeTeamId === teamId &&
     (!state.setup?.confirmedTeamIds.includes(teamId) ||
-      !!state.setup.swarming?.teams[teamId]) &&
+      state.setup.swarming?.teams[teamId] !== undefined) &&
     (state.subPhase === SubPhase.SETUP_KICKING ||
       state.subPhase === SubPhase.SETUP_RECEIVING)
   );
@@ -110,7 +110,7 @@ export function computerOwnsDecision(
     return decisionOwner(pending, gateContextOf(game, hostTeamId)) === teamId;
   const state = game.ctx.gameService.getState();
   if (state.pregameInducements && !state.pregameInducements.complete)
-    return !state.pregameInducements.offer?.confirmed[teamId];
+    return state.pregameInducements.offer?.confirmed[teamId] !== true;
   if (state.phase === GamePhase.SETUP) return ownsSetup(state, teamId);
   if (state.phase === GamePhase.KICKOFF && !kickoffTurnOf(state)) return ownsKickoff(state, teamId);
   return isTurnRunning(state) && active === teamId;
@@ -165,7 +165,9 @@ class ComputerCoach {
     const pregame = game.ctx.gameService.getState().pregameInducements;
     if (!pregame || pregame.complete || game.pendingDecision()) return null;
     const command = nextComputerPregameCommand(pregame, computerTeamId, [game.ctx.team1.id, game.ctx.team2.id]);
-    return command ? (await this.options.run(command)).ok : false;
+    if (!command) return false;
+    const result = await this.options.run(command);
+    return result.ok;
   }
 
   private async choose(): Promise<Candidate | null> {

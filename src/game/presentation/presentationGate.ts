@@ -6,11 +6,13 @@ import {
 } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 
-let counter = 0;
+const presentationIds = { counter: 0 };
+
+const ignoreAcknowledgement = (): void => {};
 
 export function nextPresentationId(prefix: string): string {
-  counter += 1;
-  return `${prefix}-${String(counter)}`;
+  presentationIds.counter += 1;
+  return `${prefix}-${String(presentationIds.counter)}`;
 }
 
 export function awaitPresentation(
@@ -19,7 +21,7 @@ export function awaitPresentation(
   presentationId: string,
   timeoutMs: number
 ): Promise<void> {
-  let onAck: (data: { id: string }) => void = () => {};
+  let onAck: (data: { id: string }) => void = ignoreAcknowledgement;
   const shown = new Promise<void>((resolve) => {
     onAck = (data) => {
       if (data?.id === presentationId) resolve();
@@ -37,7 +39,7 @@ export function awaitCoach(
   presentationId: string,
   headlessGuardMs: number
 ): Promise<void> {
-  let onAck: (data: { id: string }) => void = () => {};
+  let onAck: (data: { id: string }) => void = ignoreAcknowledgement;
   const answered = new Promise<void>((resolve) => {
     onAck = (data) => {
       if (data?.id === presentationId) resolve();

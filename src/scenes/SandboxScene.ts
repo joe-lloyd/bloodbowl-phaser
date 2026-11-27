@@ -163,18 +163,17 @@ export class SandboxScene extends GameScene {
 
     const urlParams = new URLSearchParams(location.search);
     const scenarioId = urlParams.get("scenario");
-    if (scenarioId) {
-      const seedParam = urlParams.get("seed");
-      const seed =
-        seedParam !== null && Number.isFinite(Number(seedParam))
-          ? Number(seedParam)
-          : undefined;
-      const outcomeId = urlParams.get("outcome") ?? undefined;
+    if (!scenarioId) return;
+    const seedParam = urlParams.get("seed");
+    const seed =
+      seedParam !== null && Number.isFinite(Number(seedParam))
+        ? Number(seedParam)
+        : undefined;
+    const outcomeId = urlParams.get("outcome") ?? undefined;
 
-      this.time.delayedCall(100, () => {
-        this.loadScenario(scenarioId, seed, outcomeId);
-      });
-    }
+    this.time.delayedCall(100, () => {
+      this.loadScenario(scenarioId, seed, outcomeId);
+    });
   }
 
   private loadScenario(

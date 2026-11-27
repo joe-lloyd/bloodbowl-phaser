@@ -23,31 +23,24 @@ interface CliOptions {
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = { json: false };
   for (let i = 0; i < argv.length; i++) {
-    switch (argv[i]) {
-      case "--scenario":
-        options.scenario = argv[++i];
-        break;
-      case "--seed":
-        options.seed = Number(argv[++i]);
-        break;
-      case "--json":
-        options.json = true;
-        break;
-      case "--script":
-        options.script = argv[++i];
-        break;
-      case "--rule":
-        options.rule = argv[++i];
-        break;
-      case "--config":
-        options.config = argv[++i];
-        break;
-      case "--outcome":
-        options.outcome = argv[++i];
-        break;
-      case "--help":
-        printHelp();
-        process.exit(0);
+    const flag = argv[i];
+    if (flag === "--scenario") {
+      options.scenario = argv[++i];
+    } else if (flag === "--seed") {
+      options.seed = Number(argv[++i]);
+    } else if (flag === "--json") {
+      options.json = true;
+    } else if (flag === "--script") {
+      options.script = argv[++i];
+    } else if (flag === "--rule") {
+      options.rule = argv[++i];
+    } else if (flag === "--config") {
+      options.config = argv[++i];
+    } else if (flag === "--outcome") {
+      options.outcome = argv[++i];
+    } else if (flag === "--help") {
+      printHelp();
+      process.exit(0);
     }
   }
   return options;
@@ -486,7 +479,9 @@ function safeJsonPretty(data: unknown): string {
   }
 }
 
-main().catch((error) => {
-  process.stderr.write(`Fatal: ${String(error?.stack ?? error)}\n`);
+try {
+  await main();
+} catch (error) {
+  process.stderr.write(`Fatal: ${String(error instanceof Error ? error.stack : error)}\n`);
   process.exit(1);
-});
+}

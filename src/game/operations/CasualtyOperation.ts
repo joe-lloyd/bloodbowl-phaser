@@ -173,13 +173,12 @@ export class CasualtyOperation extends InjuryPartiesOperation {
     context: FlowContext,
     player: Player
   ): Promise<RecordedCasualty | null> {
+    const isFrogged = isFrog(context.gameService.getState(), player.id);
     const outcome = await variantCasualty(
       context,
       player,
       casualtyRecordFor(
-        isFrog(context.gameService.getState(), player.id)
-          ? InjuryResult.BADLY_HURT
-          : this.result,
+        isFrogged ? InjuryResult.BADLY_HURT : this.result,
         this.record
       )
     );

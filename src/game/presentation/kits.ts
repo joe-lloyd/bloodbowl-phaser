@@ -15,11 +15,12 @@ export function colorDistance(a: number, b: number): number {
   );
 }
 
+const apart = (shirt: number, from: number) => colorDistance(shirt, from) >= CLASH;
+
 export function matchKits(
   home: TeamColors,
   away: TeamColors
 ): { home: TeamColors; away: TeamColors } {
-  const apart = (shirt: number, from: number) => colorDistance(shirt, from) >= CLASH;
   if (apart(away.primary, home.primary)) return { home, away };
 
   const shirt = [away.secondary, ...CHANGE_SHIRTS].find(

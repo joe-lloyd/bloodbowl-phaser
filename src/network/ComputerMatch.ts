@@ -110,6 +110,8 @@ const progressionOf = (options: ComputerMatchOptions): boolean =>
   false;
 
 
+const noop = () => undefined;
+
 class ComputerSession {
   readonly match: OnlineMatch;
   private readonly options: ComputerMatchOptions;
@@ -235,8 +237,8 @@ class ComputerSession {
         return this.owner(computerTeamId) ? computerTeamId : this.myTeamId;
       },
       run: (command) => this.runAs(this.myTeamId, command),
-      sendChat: () => undefined, onChatMessage: () => () => undefined, chatHistory: () => [],
-      onFatalError: () => () => undefined, saveState: () => undefined, setClockPaused: () => undefined,
+      sendChat: () => undefined, onChatMessage: () => noop, chatHistory: () => [],
+      onFatalError: () => noop, saveState: () => undefined, setClockPaused: () => undefined,
       runProgressionCommand: (command) => this.enqueue(() => this.game.execute(command)), close: () => { this.close(); },
     };
   }
