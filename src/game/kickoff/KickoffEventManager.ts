@@ -17,7 +17,8 @@ import { type Team } from "@/types/Team";
 import {
   everyone,
   opponentsOf,
-  type PairSeating,
+  type Seating,
+  pairSeating,
   pairTeams,
   playerAt,
   seatOf,
@@ -74,7 +75,7 @@ const STEP_READ_MS = 900;
 interface KickoffManagerOptions {
 eventBus: IEventBus;
 state: GameState;
-seating: PairSeating;
+seating: Seating;
 diceController: DiceController;
 weatherManager: WeatherManager;
 flowManager: GameFlowManager;
@@ -108,7 +109,7 @@ export class KickoffEventManager {
 
   private eventBus: IEventBus;
   private state: GameState;
-  private readonly seating: PairSeating;
+  private readonly seating: Seating;
   private diceController: DiceController;
   private readonly delay: DelayProvider;
   private readonly callbacks: KickoffManagerOptions["callbacks"];
@@ -144,7 +145,7 @@ export class KickoffEventManager {
   }
 
   private sides(kick: KickRecord) {
-    const [home, away] = pairTeams(this.seating);
+    const [home, away] = pairTeams(pairSeating(this.seating));
     const isTeam1Kicking = kick.kickingTeamId === home.id;
     return {
       isTeam1Kicking,

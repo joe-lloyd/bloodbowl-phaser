@@ -54,6 +54,31 @@ describe("seatTeams", () => {
     expect(ids(pairTeams(pairSeating(seating)))).toEqual(["home", "away"]);
   });
 
+  it("seats four teams clockwise on the arena, North, East, South, West", () => {
+    const arena = PITCH_LAYOUTS.deathbowl;
+    const seating = seatTeams(
+      [team("north"), team("east"), team("south"), team("west")],
+      arena
+    );
+
+    expect(seating.kind).toBe("four");
+    expect(
+      seating.seats.map(({ index, team, frame }) => [
+        index,
+        team.id,
+        frame.heading,
+      ])
+    ).toEqual([
+      [0, "north", "+y"],
+      [1, "east", "-x"],
+      [2, "south", "-y"],
+      [3, "west", "+x"],
+    ]);
+    expect(() => seatTeams([team("a"), team("b")], arena)).toThrow(
+      "The Deathbowl arena seats 4 teams, not 2."
+    );
+  });
+
   it("refuses a team count that does not match the pitch's frames", () => {
     expect(() => seatTeams([team("home")], stadium)).toThrow(
       "The Sevens stadium seats 2 teams, not 1."

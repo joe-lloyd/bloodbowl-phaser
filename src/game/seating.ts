@@ -1,11 +1,7 @@
 import type { Player } from "@/types/Player";
 import type { Team } from "@/types/Team";
 import type { Frame } from "./rules/frames";
-import {
-  type PitchLayout,
-  type Square,
-  twoTeamFrames,
-} from "./variants/pitchLayouts";
+import type { PitchLayout, Square } from "./variants/pitchLayouts";
 
 type SeatIndex = 0 | 1 | 2 | 3;
 
@@ -44,6 +40,12 @@ export function seatedTeams(teams: readonly Team[]): SeatedTeams {
   );
 }
 
+const seat = (index: SeatIndex, team: Team, frame: Frame): Seat => ({
+  index,
+  team,
+  frame,
+});
+
 function refuseRepeatedTeams(teams: readonly Team[]): void {
   const ids = new Set(teams.map((team) => team.id));
   if (ids.size === teams.length) return;
@@ -53,21 +55,32 @@ function refuseRepeatedTeams(teams: readonly Team[]): void {
 }
 
 export function seatTeams(teams: readonly Team[], layout: PitchLayout): Seating {
-  const [home, away] = twoTeamFrames(layout);
-  const [first, second] = teams;
-  if (teams.length !== layout.frames.length || !first || !second) {
+  if (teams.length !== layout.frames.length) {
     throw new Error(
       `The ${layout.label} seats ${String(layout.frames.length)} teams, not ${String(teams.length)}.`
     );
   }
   refuseRepeatedTeams(teams);
-  return {
-    kind: "pair",
-    seats: [
-      { index: 0, team: first, frame: home },
-      { index: 1, team: second, frame: away },
-    ],
-  };
+  const seated = seatedTeams(teams);
+  const { frames } = layout;
+  if (seated.length === 2 && frames.length === 2) {
+    return {
+      kind: "pair",
+      seats: [seat(0, seated[0], frames[0]), seat(1, seated[1], frames[1])],
+    };
+  }
+  if (seated.length === 4 && frames.length === 4) {
+    return {
+      kind: "four",
+      seats: [
+        seat(0, seated[0], frames[0]),
+        seat(1, seated[1], frames[1]),
+        seat(2, seated[2], frames[2]),
+        seat(3, seated[3], frames[3]),
+      ],
+    };
+  }
+  throw new Error(`The ${layout.label} cannot seat these teams.`);
 }
 
 export function seatOf(seating: Seating, teamId: string): Seat {

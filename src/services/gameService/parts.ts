@@ -1,7 +1,6 @@
 import {
-  activateMatchFormat,
+  activateStateFormat,
   activeLayout,
-  formatOf,
 } from "@/game/variants/activeMatch";
 import {
   everyone,
@@ -133,7 +132,7 @@ function createCore({
   delay,
 }: PartOptions) {
   const state = initialState ?? createInitialState({ teams });
-  activateMatchFormat(formatOf(state));
+  activateStateFormat(state);
   const seating = seatTeams(teams, activeLayout());
 
   if (!initialState) {
@@ -295,7 +294,7 @@ function makeKickoffManagers(
   } = core;
   const playerActionManager = new PlayerActionManager(eventBus, state, seating);
 
-  const kickoffEventManager = new KickoffEventManager({ eventBus: eventBus, state: state, seating: pairSeating(seating), diceController: diceController, weatherManager: weatherService, flowManager: flowManager, callbacks: {
+  const kickoffEventManager = new KickoffEventManager({ eventBus: eventBus, state: state, seating: seating, diceController: diceController, weatherManager: weatherService, flowManager: flowManager, callbacks: {
       getTurnNumber: (teamId) => turnManager.getTurnNumber(teamId),
       moveTurnMarkers: (delta) => {
         turnManager.moveTurnMarkers(delta);

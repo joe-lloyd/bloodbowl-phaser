@@ -268,6 +268,7 @@ export function skipUnaffordableInducements(parts: GameParts): void {
 }
 
 export function restoreMatchInducements(parts: GameParts): void {
+  if (parts.seating.kind !== "pair") return;
   const draftList = draftListInventory(parts);
   if (
     !parts.state.pregameInducements &&

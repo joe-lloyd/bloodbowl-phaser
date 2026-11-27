@@ -171,6 +171,6 @@ describe("two-team code on the plus", () => {
     expect(() => twoTeamFrames(plus)).toThrow(message);
     expect(() =>
       seatTeams([teamWith({ id: "a" }), teamWith({ id: "b" })], plus)
-    ).toThrow(message);
+    ).toThrow("The Deathbowl arena seats 4 teams, not 2.");
   });
 });
