@@ -2,8 +2,9 @@
 
     python3 scripts/sprites/venue_cards.py
 
-For the stadium and every folder in public/venues, this tints the home and
-away kit layers the way Stadium.ts does in the game, crops a 16:9 frame
+For the stadium and every folder in public/venues, this tints the kit
+layers (home and away, or the Deathbowl arena's four seats) the way
+Stadium.ts does in the game, crops a 16:9 frame
 around the pitch from meta.json, and writes card.webp next to the layers.
 Rerun it whenever a venue is rendered again.
 """
@@ -17,7 +18,10 @@ REPO = Path(__file__).resolve().parents[2]
 VENUES = [REPO / "public" / "stadium" / "bloodbowl"] + sorted(
     p for p in (REPO / "public" / "venues").iterdir() if (p / "meta.json").exists()
 )
-KITS = {"home": (178, 34, 34), "away": (40, 90, 170)}
+KITS = {
+    "home": (178, 34, 34), "away": (40, 90, 170),
+    "north": (178, 34, 34), "east": (40, 90, 170), "south": (214, 160, 40), "west": (60, 140, 70),
+}
 SIZE = (640, 360)
 MARGIN = 0.1
 
@@ -25,6 +29,8 @@ MARGIN = 0.1
 def flattened(folder):
     out = Image.open(folder / "base.webp").convert("RGBA")
     for layer, colour in KITS.items():
+        if not (folder / f"{layer}.webp").exists():
+            continue
         kit = Image.open(folder / f"{layer}.webp").convert("RGBA")
         tinted = ImageChops.multiply(kit.convert("RGB"), Image.new("RGB", kit.size, colour))
         tinted.putalpha(kit.getchannel("A"))

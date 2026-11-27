@@ -84,6 +84,31 @@ pitch. `venueSidelines.test.ts`
 checks each venue's `meta.json` against the rules layout, so a change to a
 pitch layout fails the tests until the venue is rendered again.
 
+## Deathbowl arena
+
+`deathbowl.py` builds the four-team plus pitch. It reuses `stadium.py` and
+`venues.py` and reads the same `layouts.json`, whose last entry holds the
+arena's squares, end zones, lines and dugouts. Each seat's dugout is an
+11 by 3 Sevens strip that starts in the corner beside its own arm and runs
+out past that arm's end line. `arenaDugoutStrips` in
+`src/game/presentation/venueSidelines.ts` defines the strips, so the render
+and the game share them. The mask pass paints North red, East green, South
+blue and West white, and meta.json lists those colours under `masks`. A
+render takes about 25 seconds on Jellybingus.
+
+```sh
+pnpm exec tsx scripts/sprites/venue_layouts.ts > layouts.json
+# on the Blender machine; give OUT as an absolute path
+blender -b --factory-startup --python deathbowl.py -- OUT layouts.json
+# back in the repo
+python3 scripts/sprites/build_game_assets.py venues OUT
+python3 scripts/sprites/venue_cards.py
+```
+
+This writes `public/venues/deathbowl/` with `base.webp`, one tint layer
+per seat (`north`, `east`, `south`, `west`) and `card.webp`. The game does
+not load the arena yet: `Stadium.ts` reads only `home` and `away` layers.
+
 ## Into the game
 
 ```sh
