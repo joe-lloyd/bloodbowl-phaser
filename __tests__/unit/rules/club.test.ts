@@ -19,6 +19,14 @@ import type { GameType } from "../../../src/game/variants/gameTypes";
 import { createMatchState } from "../../../src/services/gameService/matchStart";
 import { getTeamById, saveTeam } from "../../../src/game/managers/TeamManager";
 import { matchFormatFor } from "../../../src/game/variants/activeMatch";
+import { recordPendingDevelopment } from "../../../src/game/progression/postMatch";
+import {
+  type JourneymanOffer,
+  hireJourneyman,
+  releaseJourneyman,
+} from "../../../src/game/rules/journeymen";
+import { SkillType } from "../../../src/types/Skills";
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 
 const darkElf = getRosterByRosterName(RosterName.DARK_ELF);
 
@@ -313,5 +321,69 @@ describe("a club in a match", () => {
     expect(friendlyRefusal(team)).toBe(
       "Naggaroth Nightmares is playing a tournament. A club in a tournament plays no other games until the tournament ends."
     );
+  });
+});
+
+const journeymenOf = (team: Team) =>
+  team.players.filter((player) => player.playerKind === "journeyman");
+const offersOf = (team: Team) =>
+  (team.pendingDevelopment ?? []).filter(
+    (entry): entry is JourneymanOffer => entry.kind === "journeyman-offer"
+  );
+
+function shortClub(): Team {
+  const stored = club();
+  const leavers = new Set(["Dark Elf Runner", "Assassin"]);
+  stored.players = stored.players.filter((player) => !leavers.has(player.positionName));
+  stored.players.splice(stored.players.findIndex((player) => player.positionName === "Dark Elf Lineman" && !player.veteran), 1);
+  stored.treasury = 120_000;
+  return stored;
+}
+
+function playSeasonGame(stored: Team): Team {
+  const home = structuredClone(stored);
+  const away = club();
+  away.id = "away";
+  createMatchState({ teams: [home, away], fixture: { paysWinnings: true } });
+  return home;
+}
+
+describe("a club running short of players", () => {
+  it("fills a season game with Loner Journeymen and keeps the one it hires", () => {
+    const stored = shortClub();
+    expect(stored.players).toHaveLength(4);
+
+    const home = playSeasonGame(stored);
+    const journeymen = journeymenOf(home);
+    expect(home.players).toHaveLength(7);
+    expect(journeymen.map((player) => player.positionName)).toEqual([
+      "Dark Elf Lineman",
+      "Dark Elf Lineman",
+      "Dark Elf Lineman",
+    ]);
+    for (const player of journeymen)
+      expect(
+        player.skills.filter((skill) => skill.type === SkillType.LONER).map((skill) => skill.parameter)
+      ).toEqual(["5+"]);
+
+    recordPendingDevelopment(home, "season-game", undefined, {
+      leagueFixture: true,
+      playedIds: new Set(home.players.map((player) => player.id)),
+    });
+    restoreClubHome(home, stored);
+    const [kept, ...rest] = offersOf(home);
+    expect(rest).toHaveLength(2);
+
+    expect(hireJourneyman(home, fixtureValue(kept))).toBe(65_000);
+    for (const offer of rest) releaseJourneyman(home, offer);
+    expect(home.treasury).toBe(55_000);
+    expect(journeymenOf(home)).toEqual([]);
+    expect(home.players).toHaveLength(5);
+    const hired = fixtureValue(home.players.find((player) => player.id === kept?.playerId));
+    expect(hired.skills.some((skill) => skill.type === SkillType.LONER)).toBe(false);
+
+    const next = playSeasonGame(home);
+    expect(next.players.map((player) => player.id)).toContain(hired.id);
+    expect(journeymenOf(next)).toHaveLength(2);
   });
 });
