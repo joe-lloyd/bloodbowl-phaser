@@ -1,3 +1,4 @@
+import { placeBall } from "@/game/rules/balls";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { PassController } from "../../src/game/controllers/PassController";
@@ -253,7 +254,7 @@ describe("action plan review fixes", () => {
       ],
       [{ playerIndex: 0, x: 1, y: 9 }]
     );
-    game.ctx.gameService.getState().ballPosition = { x: 7, y: 6 };
+    placeBall(game.ctx.gameService.getState(), 0, { x: 7, y: 6 });
     const passer = act(0, "pass");
 
     await controller.onSquareClicked(7, 5);

@@ -1,4 +1,4 @@
-import { ballOnSquare } from "@/game/rules/ballInTheAir";
+import { ballOnSquare, restingBall } from "@/game/rules/balls";
 import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
@@ -128,11 +128,12 @@ export class CrowdInjuryOperation extends GameOperation {
 
   private afterCrowd(context: FlowContext, carriedBall: boolean): void {
     const { gameService, flowManager } = context;
+    const ball = restingBall(gameService.getState(), this.exitSquare);
     if (carriedBall && this.trapdoor) {
-      gameService.setBallPosition(this.exitSquare.x, this.exitSquare.y);
-      flowManager.add(new BounceOperation(this.exitSquare), true);
+      gameService.placeBall(ball, this.exitSquare);
+      flowManager.add(new BounceOperation(this.exitSquare, { ball }), true);
     } else if (carriedBall) {
-      gameService.throwInBall(this.exitSquare);
+      gameService.throwInBall(this.exitSquare, { ball });
     }
 
     if (this.isTurnover) {

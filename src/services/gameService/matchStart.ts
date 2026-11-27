@@ -1,3 +1,4 @@
+import { oneBall } from "@/game/rules/balls";
 import {
   activateMatchFormat,
   type MatchFormat,
@@ -80,7 +81,7 @@ export function createInitialState({
     turn: freshTurn(),
     score: Object.fromEntries(teams.map((team) => [team.id, 0])),
     weather: "Nice",
-    ballPosition: null,
+    balls: oneBall(),
     activePlayer: null,
   };
 }

@@ -313,7 +313,7 @@ describe("Discarded Banana Skin on a loose ball", () => {
     await game.execute({ type: "use-reaction", accept: true });
 
     expect(fixtureValue(mover).status).toBe(PlayerStatus.PRONE);
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 4,
       y: 3,
     });
@@ -459,7 +459,7 @@ describe("Set Piece", () => {
     });
     await game.execute({ type: "use-reaction", accept: true });
 
-    expect(game.ctx.gameService.getState().ballPosition).toEqual(
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual(
       fixtureValue(receiver).gridPosition
     );
     expect(game.ctx.gameService.getState().activeTeamId).toBe(

@@ -1,3 +1,4 @@
+import { restingBall } from "../rules/balls";
 import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
@@ -58,7 +59,8 @@ export class HandoffOperation extends GameOperation {
       return;
     }
 
-    gameService.setBallPosition(target.gridPosition.x, target.gridPosition.y);
+    const ball = restingBall(gameService.getState(), passer.gridPosition);
+    gameService.placeBall(ball, target.gridPosition);
 
     flowManager.add(
       new CatchOperation(
@@ -69,9 +71,12 @@ export class HandoffOperation extends GameOperation {
       true
     );
 
-    const giveAndGoExempt = hasSkill(passer.skills, SkillType.GIVE_AND_GO);
     flowManager.add(
-      new FinishPassActivationOperation(this.passerId, giveAndGoExempt)
+      new FinishPassActivationOperation(
+        this.passerId,
+        hasSkill(passer.skills, SkillType.GIVE_AND_GO),
+        ball
+      )
     );
   }
 }

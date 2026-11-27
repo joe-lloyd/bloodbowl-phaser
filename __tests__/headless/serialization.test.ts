@@ -41,11 +41,11 @@ const play = (restoreViaSnapshot: boolean): boolean[] => {
   const results: boolean[] = [];
   for (let i = 0; i < 5; i++) {
     const player = game.teams[0].players[0];
-    const ball = fixtureValue(game.gameService.getState().ballPosition);
+    const ball = fixtureValue(game.gameService.getState().balls[0].at);
     results.push(
       game.gameService.attemptPickup(fixtureValue(player), ball)
     );
-    game.gameService.setBallPosition(ball.x, ball.y);
+    game.gameService.placeBall(0, { x: ball.x, y: ball.y });
   }
   return results;
 };
@@ -191,7 +191,7 @@ describe("game state serialization", () => {
     expect(
       restored.turn.movementUsed.get(fixtureValue(game.teams[0].players[0]).id)
     ).toBe(5);
-    expect(restored.ballPosition).toEqual(state.ballPosition);
+    expect(restored.balls[0].at).toEqual(state.balls[0].at);
   });
 
   it("restores a mid-turn game that continues playing identically", () => {

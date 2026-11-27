@@ -53,8 +53,8 @@ function commandContext(game: HeadlessGame, command: HeadlessCommand) {
       carrying:
         p.status === PlayerStatus.ACTIVE &&
         !!p.gridPosition &&
-        p.gridPosition.x === state.ballPosition?.x &&
-        p.gridPosition.y === state.ballPosition?.y,
+        p.gridPosition.x === state.balls[0].at?.x &&
+        p.gridPosition.y === state.balls[0].at?.y,
       helper:
         p.status === PlayerStatus.ACTIVE &&
         !hasCondition(p, PlayerCondition.DISTRACTED) &&

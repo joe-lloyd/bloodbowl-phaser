@@ -31,6 +31,7 @@ import {
   type BlockDiceRolledContext,
 } from "../skills";
 import { steadyFootingSaves } from "../rules/steadyFooting";
+import { restingBall } from "../rules/balls";
 import { PassController, type PassResult } from "../controllers/PassController";
 import { type FlowContext, GameFlowManager } from "../core/GameFlowManager";
 import { InOrderOperation, driveOver } from "./BlockOperations";
@@ -405,7 +406,7 @@ export class BlockManager extends BlockPushChain {
       ...(scatterPath && { scatterPath }),
     });
 
-    gs.setBallPosition(finalPosition.x, finalPosition.y);
+    gs.placeBall(restingBall(gs.getState(), from), finalPosition);
     const landingPlayer = result.fumbled
       ? undefined
       : gs.getPlayerAt(finalPosition.x, finalPosition.y);

@@ -25,8 +25,8 @@ function endpoints(game: HeadlessGame) {
       carrying:
         p.status === PlayerStatus.ACTIVE &&
         !!p.gridPosition &&
-        p.gridPosition.x === state.ballPosition?.x &&
-        p.gridPosition.y === state.ballPosition?.y,
+        p.gridPosition.x === state.balls[0].at?.x &&
+        p.gridPosition.y === state.balls[0].at?.y,
       injuries: p.injuries.length,
       conditions: p.conditions ?? [],
       acted: p.hasActed,

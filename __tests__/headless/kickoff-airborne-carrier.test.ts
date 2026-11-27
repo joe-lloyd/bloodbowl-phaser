@@ -1,3 +1,4 @@
+import { placeBall } from "@/game/rules/balls";
 import { newKick } from "../../src/game/kickoff/kickRecord";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
@@ -40,7 +41,7 @@ async function charge(
   const state = game.ctx.gameService.getState();
   state.phase = GamePhase.KICKOFF;
   state.kick = newKick(game.ctx.teams[0].id, "coach");
-  state.ballPosition = { ...landing };
+  placeBall(state, 0, { ...landing });
   const ballEvents: string[] = [];
 
   for (const name of [
@@ -68,7 +69,7 @@ describe("a kick still in the air during a Charge! Blitz", () => {
     await settle();
 
     expect(fixtureValue(attacker).gridPosition).toEqual({ x: 8, y: 3 });
-    expect(gs.getState().ballPosition).toEqual(LANDING);
+    expect(gs.getState().balls[0].at).toEqual(LANDING);
     expect(ballEvents).toEqual([]);
   });
 
@@ -97,7 +98,7 @@ describe("a kick still in the air during a Charge! Blitz", () => {
     await settle();
 
     expect(fixtureValue(defender).gridPosition).toEqual({ x: 8, y: 3 });
-    expect(gs.getState().ballPosition).toEqual(LANDING);
+    expect(gs.getState().balls[0].at).toEqual(LANDING);
     expect(ballEvents).toEqual([]);
   });
 
@@ -126,7 +127,7 @@ describe("a kick still in the air during a Charge! Blitz", () => {
     await settle();
 
     expect(fixtureValue(defender).status).not.toBe(PlayerStatus.ACTIVE);
-    expect(gs.getState().ballPosition).toEqual(LANDING);
+    expect(gs.getState().balls[0].at).toEqual(LANDING);
     expect(ballEvents).toEqual([]);
   });
 
@@ -148,7 +149,7 @@ describe("a kick still in the air during a Charge! Blitz", () => {
     await settle();
 
     expect(fixtureValue(attacker).status).not.toBe(PlayerStatus.ACTIVE);
-    expect(gs.getState().ballPosition).toEqual(LANDING);
+    expect(gs.getState().balls[0].at).toEqual(LANDING);
     expect(ballEvents).toEqual([]);
   });
 
@@ -179,7 +180,7 @@ describe("a kick still in the air during a Charge! Blitz", () => {
     await settle();
 
     expect(fixtureValue(defender).gridPosition).toBeFalsy();
-    expect(gs.getState().ballPosition).toEqual(sideline);
+    expect(gs.getState().balls[0].at).toEqual(sideline);
     expect(ballEvents).toEqual([]);
   });
 });

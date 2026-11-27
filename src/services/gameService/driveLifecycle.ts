@@ -1,3 +1,4 @@
+import { placeBall } from "@/game/rules/balls";
 import { freshSpend } from "@/game/rules/turnSpend";
 import type { Team } from "@/types/Team";
 import {
@@ -171,7 +172,7 @@ export function resetDriveState(parts: GameParts): void {
 
   restoreFrogs(state, everyone(parts.seating));
   parts.setupManager.resetForNewDrive();
-  state.ballPosition = null;
+  for (const { id } of state.balls) placeBall(state, id, null);
   state.activePlayer = null;
 
   const driveEffects = getDriveEffects(state);

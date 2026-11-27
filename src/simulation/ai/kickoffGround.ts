@@ -42,7 +42,8 @@ export interface KickoffGroundArgs {
 }
 
 function landingSquare(board: Board): Square | null {
-  const { ballPosition, kick } = board.gs.getState();
+  const { balls, kick } = board.gs.getState();
+  const ballPosition = balls[0].at;
   if (!ballPosition || kick?.touchback || !onPitch(ballPosition)) return null;
   return { ...ballPosition };
 }

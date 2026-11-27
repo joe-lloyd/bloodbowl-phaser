@@ -39,9 +39,9 @@ const sewerPitch = () =>
 const throwInOf = async (format: MatchFormat, dice: number[]) => {
   const { game, rolls } = pitchGame({ format });
   forceDice(game.ctx.rng, dice);
-  game.ctx.gameService.throwInBall({ x: 0, y: 3 }, { x: -1, y: 3 });
+  game.ctx.gameService.throwInBall({ x: 0, y: 3 }, { ball: 0, toward: { x: -1, y: 3 } });
   await game.ctx.gameService.getFlowContext().flowManager.whenIdle();
-  return { at: game.ctx.gameService.getState().ballPosition, rolls };
+  return { at: game.ctx.gameService.getState().balls[0].at, rolls };
 };
 
 const kick = (
@@ -478,7 +478,7 @@ describe("SB-M9 and GB-M10 ricochet passes", () => {
     );
 
     expect(rolls).toContain("Ricochet Pass Distance 3");
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 10,
       y: 1,
     });
@@ -501,7 +501,7 @@ describe("SB-M9 and GB-M10 ricochet passes", () => {
       "Bounce Direction 5",
       "Bounce Direction 5",
     ]);
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 13,
       y: 1,
     });
@@ -526,7 +526,7 @@ describe("SB-M9 and GB-M10 ricochet passes", () => {
     );
 
     expect(rolls).toEqual([]);
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 5,
       y: 3,
     });

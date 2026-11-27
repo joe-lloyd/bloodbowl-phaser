@@ -251,7 +251,7 @@ describe("drive transition: touchdown -> KO recovery -> short-handed setup -> ki
 
     const carrier = game.ctx.teams[0].players[0];
     fixtureValue(carrier).gridPosition = { x: 17, y: 5 };
-    game.ctx.gameService.setBallPosition(17, 5);
+    game.ctx.gameService.placeBall(0, { x: 17, y: 5 });
     game.ctx.gameService.getState().activeTeamId = fixtureValue(team1Id);
     const scored = await scoreTouchdown(game);
     expect(scored.ok).toBe(true);

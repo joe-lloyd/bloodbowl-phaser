@@ -1,4 +1,4 @@
-import { ballOnSquare } from "@/game/rules/ballInTheAir";
+import { ballOnSquare, restingBall } from "@/game/rules/balls";
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
 import { everyone, playerAt, playerById, type Seating } from "../seating";
@@ -77,7 +77,8 @@ export abstract class BlockManagerBase {
     if (hasSkill(player.skills, SkillType.SAFE_PAIR_OF_HANDS)) {
       const spot = this.adjacentEmptySquare(pos);
       if (spot) {
-        flowManager.context.gameService.setBallPosition(spot.x, spot.y);
+        const { gameService } = flowManager.context;
+        gameService.placeBall(restingBall(gameService.getState(), pos), spot);
         this.eventBus.emit(GameEventNames.BallPlaced, spot);
         this.eventBus.emit(GameEventNames.SkillTriggered, {
           playerId: player.id,

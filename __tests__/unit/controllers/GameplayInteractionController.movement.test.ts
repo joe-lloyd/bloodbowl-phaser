@@ -1,3 +1,4 @@
+import { oneBall } from "@/game/rules/balls";
 import { serviceSpies } from "./GameplayInteractionController.setup";
 import { z } from "zod";
 import { playerWith } from "./controllerFixtures";
@@ -197,7 +198,7 @@ describe("GameplayInteractionController", () => {
       const state = mockGameService.getState();
       mockGameService.getState.mockReturnValue(stateWith({
         ...state,
-        ballPosition: { x: 6, y: 5 },
+        balls: oneBall({ x: 6, y: 5 }),
       }));
       const arbiter = mockArbiter;
       arbiter.nextTeamReroll.mockReturnValue("team");
@@ -223,7 +224,7 @@ describe("GameplayInteractionController", () => {
       const state = mockGameService.getState();
       mockGameService.getState.mockReturnValue(stateWith({
         ...state,
-        ballPosition: { x: 6, y: 5 },
+        balls: oneBall({ x: 6, y: 5 }),
       }));
       const pro = { ...player1, skills: [getSkill(SkillType.PRO)] };
       mockGameService.getPlayerById.mockReturnValue(pro);

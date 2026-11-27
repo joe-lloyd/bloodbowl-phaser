@@ -1,4 +1,4 @@
-import { groundBall } from "@/game/rules/ballInTheAir";
+import { groundBall } from "@/game/rules/balls";
 import { type GameOperation, TeamOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { ArmourOperation } from "../operations/ArmourOperation";

@@ -127,7 +127,7 @@ describe("fumbled Throw Team-mate", () => {
   it("keeps the ball with a carrier who lands safely after a fumble", async () => {
     const { mate, game, response } = await fumble([1, 2, 6], { carrier: true });
     expect(fixtureValue(mate).gridPosition).toEqual({ x: 4, y: 4 });
-    expect(game.ctx.gameService.getState().ballPosition).toEqual(
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual(
       fixtureValue(mate).gridPosition
     );
     expect(response.snapshot.activeTeamId).toBe("team1");
@@ -145,7 +145,7 @@ describe("fumbled Throw Team-mate", () => {
       );
       expect(fixtureValue(mate).gridPosition).toEqual({ x: 4, y: 4 });
       expect(fixtureValue(mate).status).toBe(status);
-      expect(game.ctx.gameService.getState().ballPosition).toEqual({
+      expect(game.ctx.gameService.getState().balls[0].at).toEqual({
         x: 5,
         y: 4,
       });
@@ -177,7 +177,7 @@ describe("fumbled Throw Team-mate", () => {
       opponents: [{ playerIndex: 0, x: 4, y: 4, hasBall: true }],
     });
     expect(fixtureValue(mate).gridPosition).toEqual({ x: 4, y: 3 });
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 5,
       y: 4,
     });
@@ -259,7 +259,7 @@ describe("fumbled Throw Team-mate", () => {
     });
     expect(fixtureValue(mate).gridPosition).toEqual({ x: 4, y: 3 });
     expect(fixtureValue(mate).status).toBe(PlayerStatus.PRONE);
-    expect(game.ctx.gameService.getState().ballPosition).not.toEqual(
+    expect(game.ctx.gameService.getState().balls[0].at).not.toEqual(
       fixtureValue(mate).gridPosition
     );
     expect(response.snapshot.activeTeamId).toBe("team1");
@@ -279,7 +279,7 @@ describe("fumbled Throw Team-mate", () => {
       PlayerStatus.DEAD
     );
     expect(fixtureValue(mate).gridPosition).toEqual({ x: 4, y: 4 });
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 5,
       y: 4,
     });
@@ -311,7 +311,7 @@ describe("fumbled Throw Team-mate", () => {
       throwerHasBall: true,
     });
     expect(fixtureValue(mate).gridPosition).toBeUndefined();
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 4,
       y: 0,
     });

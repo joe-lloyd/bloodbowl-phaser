@@ -65,7 +65,7 @@ describe("a Secure the Ball pick-up", () => {
     ]);
     const securer = game.ctx.teams[0].players[0];
     expect(fixtureValue(securer).gridPosition).toEqual({ x: 7, y: 5 });
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 7,
       y: 5,
     });
@@ -139,7 +139,7 @@ describe("a Secure the Ball pick-up in Pouring Rain", () => {
     expect(diceOf(secured.events)).toEqual([
       "Secure the Ball (Human Lineman #1): 2, needs 2+",
     ]);
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 7,
       y: 5,
     });

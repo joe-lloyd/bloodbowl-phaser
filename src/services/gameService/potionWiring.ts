@@ -1,3 +1,4 @@
+import { restingBall } from "@/game/rules/balls";
 import { GameEventNames } from "@/types/events";
 import { GamePhase } from "@/types/GameState";
 import { BounceOperation } from "@/game/operations/BounceOperation";
@@ -16,8 +17,9 @@ function hookServices(parts: GameParts): PotionHookServices {
     eventBus: parts.eventBus,
     carries: (player) => parts.ballManager.hasBall(player.id),
     dropBall: (square) => {
-      parts.game.setBallPosition(square.x, square.y);
-      parts.flowManager.add(new BounceOperation(square), true);
+      const ball = restingBall(parts.state, square);
+      parts.game.placeBall(ball, square);
+      parts.flowManager.add(new BounceOperation(square, { ball }), true);
     },
   };
 }

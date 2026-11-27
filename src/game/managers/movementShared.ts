@@ -1,7 +1,7 @@
 import { activeRules } from "@/game/variants/activeMatch";
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
-import { ballOnSquare, groundBall } from "@/game/rules/ballInTheAir";
+import { type BallId, ballOnSquare, groundBall, placeBall } from "@/game/rules/balls";
 import {
   opponentsOf,
   type Seating,
@@ -181,7 +181,7 @@ export function fallOver(
   fall: {
     player: Player;
     square: Square;
-    ballBounces: boolean;
+    bouncing: BallId | undefined;
     context: FlowContext | undefined;
 
     slip?: ArmourFall;
@@ -191,9 +191,10 @@ export function fallOver(
   const { player, square, context } = fall;
   eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: player.id });
   eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-  if (fall.ballBounces && context?.flowManager) {
-    context.gameService.setBallPosition(square.x, square.y);
-    context.flowManager.add(new BounceOperation(square), true);
+  const ball = fall.bouncing;
+  if (ball !== undefined && context?.flowManager) {
+    context.gameService.placeBall(ball, square);
+    context.flowManager.add(new BounceOperation(square, { ball }), true);
   }
   if (context?.flowManager) {
     context.flowManager.add(
@@ -235,17 +236,17 @@ export function dropThroughTrapdoor(
   { state, eventBus, callbacks }: MovementDeps,
   player: Player,
   square: Square,
-  holdingBall: boolean,
+  carried: BallId | undefined,
   flowManager?: GameFlowManager
 ): void {
-  if (holdingBall) {
-    state.ballPosition = { ...square };
+  if (carried !== undefined) {
+    placeBall(state, carried, square);
     eventBus.emit(GameEventNames.BallPlaced, { ...square });
   }
   delete player.gridPosition;
   flowManager?.add(
     new CrowdInjuryOperation(player.id, { ...square }, false, {
-      carriedBall: holdingBall,
+      carriedBall: carried !== undefined,
     }),
     true
   );

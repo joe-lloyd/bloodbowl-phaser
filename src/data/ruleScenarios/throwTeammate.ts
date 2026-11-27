@@ -381,7 +381,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) => saw(r, "Fumbled throw") && saw(r, "lands safely"),
             verify: (r) => {
               const mate = fixtureValue(playerOf(r, MATE).gridPosition);
-              const ball = r.game.ctx.gameService.getState().ballPosition;
+              const ball = r.game.ctx.gameService.getState().balls[0].at;
               assert(
                 ball?.x === mate.x && ball.y === mate.y,
                 "the safely landed carrier keeps the ball"
@@ -413,7 +413,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) => saw(r, "lands safely"),
             verify: (r) => {
               const mate = playerOf(r, MATE);
-              const ball = r.game.ctx.gameService.getState().ballPosition;
+              const ball = r.game.ctx.gameService.getState().balls[0].at;
               assert(playerStanding(r, MATE), "the Gnoblar lands Standing");
               assert(
                 !!ball &&

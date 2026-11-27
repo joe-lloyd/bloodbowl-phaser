@@ -1,3 +1,4 @@
+import { type BallId, ballAt, placeBall, restingBall } from "../rules/balls";
 import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
@@ -82,7 +83,7 @@ interface MoveRun {
   stepsTaken: number;
   currentPos: Square;
   completedPath: Square[];
-  holdingBall: boolean;
+  ball: BallId | undefined;
 
   ballFrom: Square | null;
   ballJoinStep: number;
@@ -297,7 +298,7 @@ function beginRoute(
 ): MoveRun {
   const { player } = prepared;
   const currentPos = player.gridPosition!;
-  const holdingBall = isBallAt(deps.state, currentPos);
+  const ball = ballAt(deps.state, currentPos);
   return {
     deps,
     player,
@@ -309,8 +310,8 @@ function beginRoute(
     stepsTaken: 0,
     currentPos,
     completedPath: [],
-    holdingBall,
-    ballFrom: holdingBall ? { ...currentPos } : null,
+    ball,
+    ballFrom: ball === undefined ? null : { ...currentPos },
     ballJoinStep: 0,
     shownSteps: 0,
     shownFrom: { ...currentPos },
@@ -352,7 +353,7 @@ function fallInto(
   fallOver(deps, {
     player,
     square: run.currentPos,
-    ballBounces: run.holdingBall || isBallAt(deps.state, run.currentPos),
+    bouncing: run.ball ?? ballAt(deps.state, run.currentPos),
     context: run.context,
     ...fall,
   });
@@ -366,8 +367,8 @@ function fallOnRush(run: MoveRun, step: Square): MoveEnd {
 }
 
 function carryBallOver(run: MoveRun, step: Square): void {
-  if (!run.holdingBall) return;
-  run.deps.state.ballPosition = { ...step };
+  if (run.ball === undefined) return;
+  placeBall(run.deps.state, run.ball, step);
   run.deps.eventBus.emit(GameEventNames.BallPlaced, { ...step });
 }
 
@@ -521,8 +522,8 @@ function bananaSkinOffer(
 }
 
 function slipOnBananaSkin(run: MoveRun, step: Square): MoveEnd {
-  if (run.holdingBall) {
-    run.deps.state.ballPosition = { ...step };
+  if (run.ball !== undefined) {
+    placeBall(run.deps.state, run.ball, step);
     run.deps.eventBus.emit(GameEventNames.BallPlaced, { ...step });
   }
   return "slipped";
@@ -530,7 +531,7 @@ function slipOnBananaSkin(run: MoveRun, step: Square): MoveEnd {
 
 function pickupDue(run: MoveRun): FlowContext | undefined {
   const { context } = run;
-  if (run.holdingBall || !isBallAt(run.deps.state, run.currentPos)) {
+  if (run.ball !== undefined || !isBallAt(run.deps.state, run.currentPos)) {
     return undefined;
   }
   if (context) showWalk(run);
@@ -543,13 +544,13 @@ function takeBall(
 ): "failed" | "secured" | undefined {
   const { deps, currentPos } = run;
 
-  run.holdingBall = success;
+  run.ball = success ? restingBall(deps.state, currentPos) : undefined;
 
-  if (!run.holdingBall) {
+  if (run.ball === undefined) {
     return "failed";
   }
 
-  deps.state.ballPosition = { x: currentPos.x, y: currentPos.y };
+  placeBall(deps.state, run.ball, currentPos);
   run.ballFrom = { ...currentPos };
   run.ballJoinStep = run.completedPath.length;
 
@@ -558,8 +559,8 @@ function takeBall(
 
 function carryBall(run: MoveRun): string | undefined {
   const { deps, player, currentPos } = run;
-  if (!run.holdingBall) return undefined;
-  deps.state.ballPosition = { x: currentPos.x, y: currentPos.y };
+  if (run.ball === undefined) return undefined;
+  placeBall(deps.state, run.ball, currentPos);
   deps.eventBus.emit(GameEventNames.BallPlaced, {
     x: currentPos.x,
     y: currentPos.y,
@@ -600,7 +601,7 @@ function finishMove(run: MoveRun, end: MoveEnd): void {
       deps,
       player,
       currentPos,
-      run.holdingBall,
+      run.ball,
       run.context?.flowManager
     );
     return;
@@ -611,10 +612,10 @@ function finishMove(run: MoveRun, end: MoveEnd): void {
     if (isBallAt(deps.state, currentPos)) {
       run.context?.flowManager?.add(new BounceOperation(currentPos), true);
     }
-    if (run.holdingBall) {
-      deps.callbacks.onTurnover("Slipped on a Banana Skin");
-    } else {
+    if (run.ball === undefined) {
       deps.callbacks.onActivationFinished(player.id);
+    } else {
+      deps.callbacks.onTurnover("Slipped on a Banana Skin");
     }
     return;
   }

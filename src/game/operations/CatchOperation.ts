@@ -4,6 +4,7 @@ import { GameEventNames } from "../../types/events";
 import { type FlowContext } from "../core/GameFlowManager";
 import { type Player, hasTackleZone } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
+import { type BallId, restingBall } from "../rules/balls";
 import { AgilityTestOperation } from "./AgilityTestOperation";
 import { catchModifier } from "../kickoff/ballConditions";
 import {
@@ -91,6 +92,7 @@ export class CatchOperation extends GameOperation {
     landingPosition?: { x: number; y: number };
 
     kickoff?: boolean;
+    ball?: BallId;
   };
   private pass: ({
     passerId: string;
@@ -108,6 +110,7 @@ export class CatchOperation extends GameOperation {
       landingPosition?: { x: number; y: number };
 
       kickoff?: boolean;
+      ball?: BallId;
     } = {},
     pass?: {
       passerId: string;
@@ -123,6 +126,17 @@ export class CatchOperation extends GameOperation {
     this.pass = pass;
   }
 
+  private looseBall(
+    context: FlowContext,
+    player: Player
+  ): { kickoff: boolean; ball: BallId } {
+    const at = this.options.landingPosition ?? player.gridPosition;
+    return {
+      kickoff: !!this.options.kickoff,
+      ball: this.options.ball ?? restingBall(context.gameService.getState(), at),
+    };
+  }
+
   async execute(context: FlowContext): Promise<void> {
     const { gameService, eventBus, flowManager } = context;
 
@@ -134,7 +148,7 @@ export class CatchOperation extends GameOperation {
         `[CatchOperation] Player ${player.playerName} has no Tackle Zone and cannot catch. Bouncing.`
       );
       flowManager.add(
-        new BounceOperation(player.gridPosition, !!this.options.kickoff),
+        new BounceOperation(player.gridPosition, this.looseBall(context, player)),
         true
       );
       return;
@@ -152,9 +166,9 @@ export class CatchOperation extends GameOperation {
 
     if (success) {
       if (this.options.divingCatch && player.gridPosition) {
-        gameService.setBallPosition(
-          player.gridPosition.x,
-          player.gridPosition.y
+        gameService.placeBall(
+          this.looseBall(context, player).ball,
+          player.gridPosition
         );
       }
 
@@ -182,7 +196,7 @@ export class CatchOperation extends GameOperation {
       flowManager.add(
         new BounceOperation(
           this.options.landingPosition ?? player.gridPosition,
-          !!this.options.kickoff
+          this.looseBall(context, player)
         ),
         true
       );

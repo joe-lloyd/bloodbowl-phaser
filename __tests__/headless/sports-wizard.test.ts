@@ -106,7 +106,7 @@ describe("the Sports-Wizard", () => {
     expect(fixtureValue(inSquare).status).toBe(PlayerStatus.STUNNED);
     expect(fixtureValue(prone).status).toBe(PlayerStatus.PRONE);
 
-    expect(game.ctx.gameService.getState().ballPosition).not.toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).not.toEqual({
       x: 11,
       y: 5,
     });
@@ -150,7 +150,7 @@ describe("the Sports-Wizard", () => {
       "Frog",
     ]);
 
-    expect(game.ctx.gameService.getState().ballPosition).not.toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).not.toEqual({
       x: 11,
       y: 5,
     });

@@ -60,7 +60,7 @@ describe("a Jump that lands on the loose ball", () => {
       x: 12,
       y: 5,
     });
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 12,
       y: 5,
     });
@@ -79,7 +79,7 @@ describe("a Jump that lands on the loose ball", () => {
       x: 12,
       y: 5,
     });
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 13,
       y: 5,
     });

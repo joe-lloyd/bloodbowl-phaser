@@ -669,7 +669,7 @@ export class NetworkedGameService implements IGameService {
   kickoffBounceTouchback(): boolean {
     return false;
   }
-  setBallPosition: IGameService["setBallPosition"] = () => undefined;
+  placeBall: IGameService["placeBall"] = () => undefined;
   attemptPickup(): boolean {
     return false;
   }

@@ -65,7 +65,7 @@ export function watchDefence(
   const sideOf = new Map(teams.map((t, i) => [t.id, i as Side]));
   const state = () => game.ctx.gameService.getState();
   const carrier = (): { side: Side; p: Player; at: At } | null => {
-    const at = state().ballPosition;
+    const at = state().balls[0].at;
     if (!at) return null;
     for (const side of [0, 1] as const) {
       const p = teams[side].players.find(

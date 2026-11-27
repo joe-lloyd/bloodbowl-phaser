@@ -1,4 +1,5 @@
-import { ballOnSquare } from "@/game/rules/ballInTheAir";
+import { type BallId, ballOnSquare, placeBall as putBall } from "@/game/rules/balls";
+import { GameEventNames } from "@/types/events";
 import { GamePhase } from "@/types/GameState";
 import { type Player } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
@@ -25,6 +26,11 @@ interface Square {
   x: number;
   y: number;
 }
+export function placeBall(parts: GameParts, ball: BallId, at: Square): void {
+  putBall(parts.state, ball, at);
+  parts.eventBus.emit(GameEventNames.BallPlaced, { x: at.x, y: at.y });
+}
+
 interface ActionStart {
   success: boolean;
   result?: string;

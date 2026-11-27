@@ -1,3 +1,4 @@
+import { ballAt, placeBall } from "../rules/balls";
 import {
   type Player,
   PlayerCondition,
@@ -538,7 +539,7 @@ export abstract class BlockPushChain extends BlockActivation {
   }
 
   private dropIntoPit(player: Player, from: Square, pit: Square): void {
-    const carriedBall = this.ballAt(from);
+    const carriedBall = ballAt(this.state, from);
     delete player.gridPosition;
     player.sewerPit = { ...pit };
     this.eventBus.emit(GameEventNames.PlayerFellIntoPit, {
@@ -547,9 +548,9 @@ export abstract class BlockPushChain extends BlockActivation {
       pit: { ...pit },
     });
     this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-    if (carriedBall) {
-      this.state.ballPosition = { ...pit };
-      this.flow()?.add(new BounceOperation(pit), true);
+    if (carriedBall !== undefined) {
+      placeBall(this.state, carriedBall, pit);
+      this.flow()?.add(new BounceOperation(pit, { ball: carriedBall }), true);
     }
     if (player.teamId === this.state.activeTeamId)
       this.callbacks.onTurnover("Fell into a Sewer Pit");
@@ -628,8 +629,9 @@ export abstract class BlockPushChain extends BlockActivation {
   }
 
   private carryBall(from: Square, to: Square): boolean {
-    if (!this.ballAt(from)) return false;
-    this.state.ballPosition = { ...to };
+    const ball = ballAt(this.state, from);
+    if (ball === undefined) return false;
+    placeBall(this.state, ball, to);
     this.eventBus.emit(GameEventNames.BallPlaced, { ...to });
     return true;
   }

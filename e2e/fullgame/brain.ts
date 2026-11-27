@@ -157,7 +157,7 @@ export async function next(dialogOpen = false) {
       ),
     ]),
     debug: {
-      ball: g.ctx.gameService.getState().ballPosition,
+      ball: g.ctx.gameService.getState().balls[0].at,
       n: point.candidates.length,
       top,
     },
@@ -194,7 +194,7 @@ function runTo(g: HeadlessGame, c: Candidate): Candidate {
     .filter((o) => o.gridPosition && hasTackleZone(o));
   const marked = (sq: Square) =>
     opponents.some((o) => chebyshev(fixtureValue(o.gridPosition), sq) === 1);
-  const ball = state.ballPosition;
+  const ball = state.balls[0].at;
   const onBall = (sq: Square) => !!ball && ball.x === sq.x && ball.y === sq.y;
   const carrying = onBall(at);
   if (marked(fixtureValue(step)) || onBall(fixtureValue(step))) return c;

@@ -1,3 +1,4 @@
+import { placeBall } from "@/game/rules/balls";
 import { freshSpend, spend } from "../../src/game/rules/turnSpend";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
@@ -179,7 +180,7 @@ describe("match information", () => {
     const state = fx.services.gameService.getState();
     state.activePlayer = { id: player.id, action: "move" };
     state.turn.movementUsed.set(player.id, 3);
-    state.ballPosition = { ...player.gridPosition };
+    placeBall(state, 0, { ...player.gridPosition });
     await act(async () => {
       root.render(<PlayerInfoPanel eventBus={fx.bus} />);
     });

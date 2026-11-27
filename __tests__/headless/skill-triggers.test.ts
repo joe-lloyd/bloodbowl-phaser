@@ -225,7 +225,7 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     give(fixtureValue(attacker), SkillType.WRESTLE);
     give(fixtureValue(defender), SkillType.BLOCK);
     const square = { ...fixtureValue(fixtureValue(defender).gridPosition) };
-    game.ctx.gameService.setBallPosition(square.x, square.y);
+    game.ctx.gameService.placeBall(0, { x: square.x, y: square.y });
 
     const resolveDone = game.ctx.gameService.resolveBlock(
       fixtureValue(attacker).id,
@@ -241,7 +241,7 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     await resolveDone;
 
     expect(fixtureValue(defender).status).toBe(PlayerStatus.PRONE);
-    expect(game.ctx.gameService.getState().ballPosition).not.toEqual(square);
+    expect(game.ctx.gameService.getState().balls[0].at).not.toEqual(square);
   });
 
   it.each([

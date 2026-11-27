@@ -1,3 +1,4 @@
+import { ballAt, placeBall } from "../rules/balls";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type ReactionDecisionAnswer } from "../../types/decisions";
@@ -404,9 +405,10 @@ export abstract class BlockActivation extends BlockRerolls {
   private freeMove(player: Player, to: { x: number; y: number }): void {
     const from = { ...player.gridPosition! };
     player.gridPosition = { ...to };
-    const carriedBall = this.ballAt(from);
+    const ball = ballAt(this.state, from);
+    const carriedBall = ball !== undefined;
     if (carriedBall) {
-      this.state.ballPosition = { ...to };
+      placeBall(this.state, ball, to);
       this.eventBus.emit(GameEventNames.BallPlaced, { ...to });
     }
     this.eventBus.emit(GameEventNames.PlayerMoved, {

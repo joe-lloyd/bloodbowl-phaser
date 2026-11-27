@@ -76,7 +76,7 @@ export function canScoreWithoutDice({
   const start = player.gridPosition;
   if (
     !start ||
-    !canRunWithBall({ player, players, ball: state.ballPosition, start })
+    !canRunWithBall({ player, players, ball: state.balls[0].at, start })
   ) {
     return false;
   }

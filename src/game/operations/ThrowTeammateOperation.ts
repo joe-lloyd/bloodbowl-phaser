@@ -1,4 +1,4 @@
-import { groundBall } from "@/game/rules/ballInTheAir";
+import { groundBall, restingBall } from "@/game/rules/balls";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { type IGameService } from "../../services/interfaces/IGameService";
@@ -241,8 +241,9 @@ export class ThrowTeammateOperation extends GameOperation {
     });
     context.eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
     if (carriesBall) {
-      context.gameService.setBallPosition(pit.x, pit.y);
-      context.flowManager.add(new BounceOperation({ ...pit }), true);
+      const ball = restingBall(context.gameService.getState(), from);
+      context.gameService.placeBall(ball, pit);
+      context.flowManager.add(new BounceOperation({ ...pit }, { ball }), true);
     }
     this.finishLanding(
       context.gameService,
@@ -530,7 +531,7 @@ export class ThrowTeammateOperation extends GameOperation {
     const origin = { ...from };
     teammate.gridPosition = { ...landing };
     if (carriesBall) {
-      gameService.setBallPosition(landing.x, landing.y);
+      gameService.placeBall(restingBall(gameService.getState(), from), landing);
     }
     eventBus.emit(GameEventNames.PlayerMoved, {
       playerId: teammate.id,
@@ -608,9 +609,10 @@ export class ThrowTeammateOperation extends GameOperation {
     exitSquare: Square,
     carriesBall: boolean
   ): void {
+    const { gameService } = context;
+    const ball = restingBall(gameService.getState(), teammate.gridPosition);
     delete teammate.gridPosition;
-    if (carriesBall)
-      context.gameService.setBallPosition(exitSquare.x, exitSquare.y);
+    if (carriesBall) gameService.placeBall(ball, exitSquare);
     context.flowManager.add(
       new CrowdInjuryOperation(
         teammate.id,

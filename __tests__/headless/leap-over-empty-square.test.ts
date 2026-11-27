@@ -56,7 +56,7 @@ function canJump(game: HeadlessGame): boolean {
   const player = game.ctx.teams[0].players[0];
   return computeActionAvailability({
     player: fixtureValue(player),
-    ballPosition: gs.getState().ballPosition,
+    ballPosition: gs.getState().balls[0].at,
     opponents: gs.getOpponents(fixtureValue(player).teamId),
     teammates: gs.getTeammates(fixtureValue(player).id),
     reachable: gs.getAvailableMovements(fixtureValue(player).id),

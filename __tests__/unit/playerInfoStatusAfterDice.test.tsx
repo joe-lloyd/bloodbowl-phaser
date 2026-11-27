@@ -1,3 +1,4 @@
+import { placeBall } from "@/game/rules/balls";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -53,7 +54,7 @@ const tray = (thrown: number, landedThrough: number) => {
 
 it("does not say the player holds the ball while a failed pickup waits on its re-roll", async () => {
   const { gameService } = ServiceContainer.getInstance();
-  gameService.getState().ballPosition = { x: 5, y: 5 };
+  placeBall(gameService.getState(), 0, { x: 5, y: 5 });
   void gameService.getDecisionService().request({
     type: "reroll",
     playerId: player.id,

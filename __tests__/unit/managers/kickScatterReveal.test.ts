@@ -1,3 +1,4 @@
+import { placeBall } from "@/game/rules/balls";
 import { seatTeams } from "../../../src/game/seating";
 import { activeLayout } from "../../../src/game/variants/activeMatch";
 import { newKick } from "../../../src/game/kickoff/kickRecord";
@@ -17,7 +18,7 @@ function scatteredKick(from: { x: number; y: number }, seed: number) {
   const { teams, gameService } = new HeadlessGame({ seed: 1 }).ctx;
   const [team1, team2] = teams;
   const state = gameService.getState();
-  state.ballPosition = from;
+  placeBall(state, 0, from);
   const bus = new EventBus();
   const dice = new DiceController(bus, new RNGService(seed));
   DiceWatch.shared(bus);

@@ -1,3 +1,4 @@
+import { restingBall } from "../rules/balls";
 import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { GameOperation } from "../core/GameOperation";
 import type { FlowContext } from "../core/GameFlowManager";
@@ -135,7 +136,10 @@ export class PickupOperation extends GameOperation {
         pickupNotification(securing, true)
       );
 
-      gameService.setBallPosition(player.gridPosition.x, player.gridPosition.y);
+      gameService.placeBall(
+        restingBall(gameService.getState(), player.gridPosition),
+        player.gridPosition
+      );
 
       eventBus.emit(GameEventNames.BallPickup, {
         playerId: this.playerId,

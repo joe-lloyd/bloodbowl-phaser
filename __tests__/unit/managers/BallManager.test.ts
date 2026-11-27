@@ -1,3 +1,5 @@
+import { oneBall } from "@/game/rules/balls";
+import { placeBall } from "@/game/rules/balls";
 import { seatTeams } from "../../../src/game/seating";
 import { activeLayout } from "../../../src/game/variants/activeMatch";
 import { newKick } from "../../../src/game/kickoff/kickRecord";
@@ -28,7 +30,7 @@ describe("BallManager", () => {
     };
 
     mockState = {
-      ballPosition: null,
+      balls: oneBall(),
       phase: GamePhase.SETUP,
     } as GameState;
 
@@ -108,7 +110,7 @@ describe("BallManager", () => {
     it("should update ball position", () => {
       manager.kickBall(true, "p1", 10, 5);
 
-      expect(mockState.ballPosition).toBeDefined();
+      expect(mockState.balls[0].at).toBeDefined();
     });
   });
 
@@ -116,7 +118,7 @@ describe("BallManager", () => {
     it("queues a normal bounce when the landing square is empty", async () => {
       const add = vi.fn();
       mockCallbacks.getFlowManager = () => ({ add });
-      mockState.ballPosition = { x: 10, y: 10 };
+      placeBall(mockState, 0, { x: 10, y: 10 });
       manager = new BallManager(
         mockEventBus,
         mockState,

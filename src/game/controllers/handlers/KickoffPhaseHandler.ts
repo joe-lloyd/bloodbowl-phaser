@@ -6,7 +6,7 @@ import { GameEventNames } from "../../../types/events";
 import { ActionPresentation } from "./actionPresentation";
 import { registerActionCommands } from "./actionCommands";
 import { KickTargetMarker } from "./KickTargetMarker";
-import { ballInTheAir } from "../../rules/ballInTheAir";
+import { ballInTheAir } from "../../rules/balls";
 
 export class KickoffPhaseHandler implements PhaseHandler {
   private handlerRemovers: (() => void)[] = [];
@@ -94,7 +94,7 @@ export class KickoffPhaseHandler implements PhaseHandler {
 
     this.register(GameEventNames.GameStateRestored, (state) => {
       this.ballIsAirborne = ballInTheAir(state);
-      const { ballPosition: square } = state;
+      const square = state.balls[0].at;
       if (!this.ballIsAirborne || !square) {
         this.kickTarget.clear();
         return;

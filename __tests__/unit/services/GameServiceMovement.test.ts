@@ -1,3 +1,4 @@
+import { oneBall } from "@/game/rules/balls";
 import { freshSpend } from "../../../src/game/rules/turnSpend";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameService } from "../../../src/services/GameService";
@@ -37,7 +38,7 @@ describe("GameService Movement Integration", () => {
       },
       score: { t1: 0, t2: 0 },
       weather: "Nice",
-      ballPosition: null,
+      balls: oneBall(),
       activePlayer: null,
     };
 

@@ -32,7 +32,7 @@ describe("where a scenario's ball starts", () => {
       createTestTeam(),
       createTestTeam()
     );
-    expect(state.ballPosition).toEqual({ x: 9, y: 2 });
+    expect(state.balls[0].at).toEqual({ x: 9, y: 2 });
   });
 
   it("is refused in two places at once", () => {
@@ -51,7 +51,7 @@ describe("where a scenario's ball starts", () => {
   it("still sits with the score-run carrier", () => {
     const run = fixtureValue(SCENARIOS.find((s) => s.id === "score-run-dodge-rush"));
     expect(
-      applyScenario(run, createTestTeam(), createTestTeam()).ballPosition
+      applyScenario(run, createTestTeam(), createTestTeam()).balls[0].at
     ).toEqual({ x: 12, y: 5 });
   });
 });

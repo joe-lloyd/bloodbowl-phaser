@@ -85,8 +85,10 @@ function holdsBall(player: Player, state: GameState | null): boolean {
     !pickingUp &&
     player.status === PlayerStatus.ACTIVE &&
     player.gridPosition != null &&
-    state?.ballPosition?.x === player.gridPosition.x &&
-    state?.ballPosition?.y === player.gridPosition.y
+    state?.balls.some(
+      ({ at }) =>
+        at?.x === player.gridPosition?.x && at?.y === player.gridPosition?.y
+    ) === true
   );
 }
 

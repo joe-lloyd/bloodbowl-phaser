@@ -50,7 +50,7 @@ describe("policy-lab drives", () => {
       const result = await game.execute({ type: "end-turn" });
       expect(result.ok).toBe(true);
     }
-    expect(game.ctx.gameService.getState().ballPosition).toBeNull();
+    expect(game.ctx.gameService.getState().balls[0].at).toBeNull();
     watch.finish();
 
     expect(tallies[0]).toMatchObject({

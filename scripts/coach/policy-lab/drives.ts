@@ -75,7 +75,7 @@ export function watchDrives(
   const state = () => game.ctx.gameService.getState();
 
   const holder = (): { side: 0 | 1; toGo: number } | null => {
-    const at = state().ballPosition;
+    const at = state().balls[0].at;
     if (!at) return null;
     for (const side of [0, 1] as const)
       if (
@@ -90,7 +90,7 @@ export function watchDrives(
     return null;
   };
   const markedAt = (side: 0 | 1) => {
-    const at = state().ballPosition!;
+    const at = state().balls[0].at!;
     return teams[otherSide(side)].players.some(
       (p) =>
         p.status === PlayerStatus.ACTIVE &&

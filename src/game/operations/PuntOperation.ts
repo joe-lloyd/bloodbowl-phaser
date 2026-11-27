@@ -1,4 +1,4 @@
-import { ballOnSquare, groundBall } from "@/game/rules/ballInTheAir";
+import { ballOnSquare, groundBall, restingBall } from "@/game/rules/balls";
 import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { isOnPitch } from "../rules/pitchSquares";
@@ -118,6 +118,7 @@ export class PuntOperation extends GameOperation {
     if (!direction)
       throw new Error(`No Punt direction for facing ${String(facing)}`);
     const from = { ...punter.gridPosition };
+    const ball = restingBall(gameService.getState(), from);
     const { landing, intoCrowd } = puntFlight(
       from,
       { direction, distance },
@@ -150,7 +151,7 @@ export class PuntOperation extends GameOperation {
       gameService.triggerTurnover("Punt entered the crowd");
       gameService.throwInBall(
         { x: landing.x - direction.x, y: landing.y - direction.y },
-        landing
+        { ball, toward: landing }
       );
       flowManager.add(new FinishActivationOperation("FinishPunt", punter.id));
       return;
@@ -169,7 +170,7 @@ export class PuntOperation extends GameOperation {
       accurate: false,
       finalPosition: landing,
     });
-    gameService.setBallPosition(landing.x, landing.y);
+    gameService.placeBall(ball, landing);
 
     const landingPlayer = gameService.getPlayerAt(landing.x, landing.y);
     if (landingPlayer) {
@@ -181,7 +182,7 @@ export class PuntOperation extends GameOperation {
         new PuntPossessionCheckOperation(punter.teamId, landingPlayer.id)
       );
     } else {
-      flowManager.add(new BounceOperation(landing), true);
+      flowManager.add(new BounceOperation(landing, { ball }), true);
     }
     flowManager.add(new FinishActivationOperation("FinishPunt", punter.id));
   }

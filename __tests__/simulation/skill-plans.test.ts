@@ -546,7 +546,7 @@ describe("skill-aware tactical choices", () => {
       type: "choose-bite-target",
       playerId: fixtureValue(food).id,
     });
-    expect(subject.ctx.gameService.getState().ballPosition).toEqual(
+    expect(subject.ctx.gameService.getState().balls[0].at).toEqual(
       fixtureValue(carrier).gridPosition
     );
   });

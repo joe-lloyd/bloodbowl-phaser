@@ -1,3 +1,4 @@
+import { restingBall } from "@/game/rules/balls";
 import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
 import { usesBaseMove } from "@/game/rules/actionAvailability";
 import { kickoffTurnAllows } from "@/game/kickoff/kickoffTurn";
@@ -83,7 +84,7 @@ export function dropBallWithFumblerooski(
   ) {
     return false;
   }
-  parts.game.setBallPosition(square.x, square.y);
+  parts.game.placeBall(restingBall(parts.state, player.gridPosition), square);
   parts.eventBus.emit(GameEventNames.SkillTriggered, {
     playerId,
     skill: SkillType.FUMBLEROOSKI,

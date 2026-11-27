@@ -5,6 +5,7 @@ import { CatchOperation } from "./CatchOperation";
 import { d8Offset, settleOffObstacle } from "../rules/ballFlight";
 import { isOnPitch } from "../rules/pitchSquares";
 import { activeRules } from "../variants/activeMatch";
+import { type BallId, restingBall } from "../rules/balls";
 import {
   awaitPresentation,
   nextPresentationId,
@@ -12,23 +13,28 @@ import {
 
 const BOUNCE_PRESENTATION_TIMEOUT_MS = 6000;
 
+interface BounceOptions {
+  kickoff?: boolean;
+  bounces?: number;
+  ball?: BallId;
+}
+
 export class BounceOperation extends GameOperation {
   public readonly name = "BounceOperation";
 
   private startPosition: { x: number; y: number };
   private kickoff: boolean;
   private bounces: number | undefined;
+  private ball: BallId | undefined;
   constructor(
     startPosition: { x: number; y: number },
-
-    kickoff = false,
-
-    bounces?: number
+    { kickoff = false, bounces, ball }: BounceOptions = {}
   ) {
     super();
     this.startPosition = startPosition;
     this.kickoff = kickoff;
     this.bounces = bounces;
+    this.ball = ball;
   }
 
   private bouncesLeft(context: FlowContext): number {
@@ -42,8 +48,9 @@ export class BounceOperation extends GameOperation {
     const { gameService, eventBus, flowManager } = context;
 
     const bounces = this.bouncesLeft(context);
+    const ball = this.ball ?? restingBall(gameService.getState(), this.startPosition);
     if (bounces === 0) {
-      gameService.setBallPosition(this.startPosition.x, this.startPosition.y);
+      gameService.placeBall(ball, this.startPosition);
       eventBus.emit(GameEventNames.BallPlaced, { ...this.startPosition });
       return;
     }
@@ -90,11 +97,15 @@ export class BounceOperation extends GameOperation {
 
     if (!isOnPitch(bounced)) {
       eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
-      gameService.throwInBall(this.startPosition, bounced, this.kickoff);
+      gameService.throwInBall(this.startPosition, {
+        ball,
+        toward: bounced,
+        kickoff: this.kickoff,
+      });
       return;
     }
 
-    gameService.setBallPosition(newX, newY);
+    gameService.placeBall(ball, { x: newX, y: newY });
 
     const playerAtSquare = gameService.getPlayerAt(newX, newY);
 
@@ -104,12 +115,16 @@ export class BounceOperation extends GameOperation {
         new CatchOperation(playerAtSquare.id, {
           origin: "bounce",
           kickoff: this.kickoff,
+          ball,
         }),
         true
       );
     } else if (bounces > 1) {
       flowManager.add(
-        new BounceOperation({ x: newX, y: newY }, this.kickoff, bounces - 1),
+        new BounceOperation(
+          { x: newX, y: newY },
+          { kickoff: this.kickoff, bounces: bounces - 1, ball }
+        ),
         true
       );
     } else {

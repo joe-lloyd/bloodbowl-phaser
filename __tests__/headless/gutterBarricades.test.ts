@@ -220,7 +220,7 @@ describe("GB barricades: a ball carrier going over Recklessly", () => {
     expect(response.pendingDecision?.type).toBe("reroll");
     expect([
       carrier.gridPosition,
-      game.ctx.gameService.getState().ballPosition,
+      game.ctx.gameService.getState().balls[0].at,
     ]).toEqual([
       { x: 11, y: 7 },
       { x: 11, y: 7 },
