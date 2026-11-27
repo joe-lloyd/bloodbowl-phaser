@@ -168,6 +168,21 @@ test.describe("sandbox scenario-case explorer", () => {
     expect(fixtureValue(fixtureValue(snapshot.teams[0]).players[0]).position).toEqual({ x: 5, y: 5 });
   });
 
+  test("loads a scenario picked while the board is still loading", async ({
+    page,
+  }) => {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+    const app = new GameApp(page);
+    await page.goto("/sand-box");
+
+    await app.sandbox.loadCoreScenario("basic-scrimmage");
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+    await app.sandbox.waitForScenarioLoaded(60_000);
+    const snapshot = await app.bridge.snapshot();
+    expect(fixtureValue(fixtureValue(snapshot.teams[0]).players[0]).position).toEqual({ x: 9, y: 5 });
+  });
+
   test("legacy scenario browsing still works", async ({ page }) => {
     const app = new GameApp(page);
     await app.sandbox.open();
