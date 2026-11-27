@@ -2,12 +2,10 @@ import Phaser from "phaser";
 import { type RouteRoll } from "../rules/rollPreview";
 import {
   GameConfig,
-  getSevensSetupZone,
-  getLineOfScrimmageX,
-  SEVENS_GEOMETRY,
   TRAPDOOR_SQUARES,
 } from "../../config/GameConfig";
-import { activeLayout } from "../variants/activeMatch";
+import { pairFrame } from "../variants/activeMatch";
+import { type Frame, type Span, blockOf, noMansLand } from "../rules/frames";
 import {
   gridPointToPixel,
   gridToPixel,
@@ -185,21 +183,20 @@ export class Pitch {
   public highlightSetupZone(isLeft: boolean): void {
     this.clearSetupZone();
 
-    const { minX, maxX } = getSevensSetupZone(isLeft);
+    const frame = pairFrame(isLeft);
     const zone = this.scene.add.graphics();
     zone.setName("setup_zone_highlight");
     zone.fillStyle(0x00ff00, 1);
-    const pts = this.drawBlock(
-      zone,
-      { x: minX, y: 0 },
-      { x: maxX, y: this.height - 1 }
-    );
+    const pts = this.drawLocalBlock(zone, frame, {
+      along: { min: 0, max: frame.arm.scrimmage },
+      across: frame.arm.setupAcross,
+    });
     zone.lineStyle(2, 0x00ff00, 1);
     zone.strokePoints(pts, true);
     zone.setAlpha(0.15);
     this.container.add(zone);
 
-    this.drawSetupMarkings(minX, maxX, isLeft);
+    this.drawSetupMarkings(frame);
 
     this.scene.tweens.add({
       targets: zone,
@@ -211,35 +208,35 @@ export class Pitch {
     });
   }
 
-  private drawSetupMarkings(minX: number, maxX: number, isLeft: boolean): void {
+  private drawLocalBlock(
+    graphics: Phaser.GameObjects.Graphics,
+    frame: Frame,
+    block: { along: Span; across: Span }
+  ): Phaser.Math.Vector2[] {
+    const { min, max } = blockOf(frame, block.along, block.across);
+    return this.drawBlock(graphics, min, max);
+  }
+
+  private drawSetupMarkings(frame: Frame): void {
     const markings = this.scene.add.graphics().setName("setup_zone_markings");
-    const { CENTRE_FIELD_ROWS: centre, WIDE_ZONE_ROWS: wide } = SEVENS_GEOMETRY;
+    const { arm } = frame;
+    const setupAlong = { min: 0, max: arm.scrimmage };
     markings.fillStyle(0xe8bd67, 0.14);
-    const los = getLineOfScrimmageX(isLeft);
-    this.drawBlock(
-      markings,
-      { x: los, y: centre.min },
-      { x: los, y: centre.max }
-    );
+    this.drawLocalBlock(markings, frame, {
+      along: { min: arm.scrimmage, max: arm.scrimmage },
+      across: arm.centre,
+    });
     markings.fillStyle(0x71b9e7, 0.13);
-    this.drawBlock(
-      markings,
-      { x: minX, y: wide.top.min },
-      { x: maxX, y: wide.top.max }
-    );
-    this.drawBlock(
-      markings,
-      { x: minX, y: wide.bottom.min },
-      { x: maxX, y: wide.bottom.max }
-    );
-    const noMansLand = activeLayout().noMansLand;
-    if (noMansLand) {
+    for (const across of arm.wide) {
+      this.drawLocalBlock(markings, frame, { along: setupAlong, across });
+    }
+    const land = noMansLand(frame);
+    if (land) {
       markings.fillStyle(0xa44339, 0.13);
-      this.drawBlock(
-        markings,
-        { x: noMansLand.min, y: 0 },
-        { x: noMansLand.max, y: this.height - 1 }
-      );
+      this.drawLocalBlock(markings, frame, {
+        along: land,
+        across: { min: 0, max: arm.width - 1 },
+      });
     }
     this.container.add(markings);
   }

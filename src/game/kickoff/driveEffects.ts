@@ -24,7 +24,9 @@ export type DriveCondition =
   | "swarm-of-rats"
   | "round-on-us";
 
-export type WideZone = "top" | "bottom";
+export const WIDE_ZONES = ["top", "bottom"] as const;
+
+export type WideZone = (typeof WIDE_ZONES)[number];
 
 export interface DriveEffects {
   freeRerolls: Record<string, number>;

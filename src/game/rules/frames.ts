@@ -1,6 +1,6 @@
 import type { Square } from "../variants/pitchLayouts";
 
-export type Heading = "+x" | "-x";
+type Heading = "+x" | "-x";
 
 export interface Span {
   readonly min: number;
@@ -27,12 +27,12 @@ interface Local {
   readonly across: number;
 }
 
-export type WideZone = 0 | 1;
+type WideZone = 0 | 1;
 
 const within = (value: number, span: Span) =>
   value >= span.min && value <= span.max;
 
-export function toLocal(frame: Frame, square: Square): Local {
+function toLocal(frame: Frame, square: Square): Local {
   const { length, offset } = frame.arm;
   const along = frame.heading === "+x" ? square.x : length - 1 - square.x;
   return { along, across: square.y - offset };

@@ -1,6 +1,7 @@
 import { DEFAULT_GAME_TYPE, type GameType } from "./gameTypes";
 import { gameTypeRules, type GameTypeRules } from "./gameTypeRules";
 import { PITCH_LAYOUTS, type PitchLayout, type Venue } from "./pitchLayouts";
+import type { Frame } from "../rules/frames";
 
 export interface MatchFormat {
   gameType: GameType;
@@ -45,6 +46,11 @@ export function activeMatchFormat(): MatchFormat {
 
 export function activeLayout(): PitchLayout {
   return PITCH_LAYOUTS[session.active.venue];
+}
+
+export function pairFrame(isTeam1: boolean): Frame {
+  const [ahead, behind] = activeLayout().frames;
+  return isTeam1 ? ahead : behind;
 }
 
 export function activeRules(): GameTypeRules {

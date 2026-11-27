@@ -1,8 +1,8 @@
-import { GameConfig, isTrapdoorSquare } from "../../config/GameConfig";
+import { isTrapdoorSquare } from "../../config/GameConfig";
 import { type GameState } from "../../types/GameState";
 import { type Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { isInEndZone } from "../elements/GridUtils";
+import { type Frame, scoresAt } from "./frames";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import { PrayerToNuffle } from "../../types/Inducements";
 import { prayerInPlay } from "../inducements/matchInducements";
@@ -64,14 +64,14 @@ export function canScoreWithoutDice({
   player,
   state,
   players,
-  side,
+  frame,
 }: {
   player: Player;
   state: GameState;
 
   players: Player[];
 
-  side: 1 | 2;
+  frame: Frame;
 }): boolean {
   const start = player.gridPosition;
   if (
@@ -114,7 +114,7 @@ export function canScoreWithoutDice({
       const key = `${String(square.x)},${String(square.y)}`;
       if (blocked(square, key)) continue;
       seen.add(key);
-      if (isInEndZone(square, GameConfig.PITCH_WIDTH, side)) return true;
+      if (scoresAt(frame, square)) return true;
       if (!marked(square.x, square.y)) next.push(square);
     }
     frontier = next;

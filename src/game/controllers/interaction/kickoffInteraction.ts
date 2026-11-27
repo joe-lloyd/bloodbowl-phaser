@@ -3,7 +3,9 @@ import { adjacentSquares } from "./squares";
 import { GameEventNames } from "@/types/events";
 import { SubPhase } from "@/types/GameState";
 import { type Player } from "@/types/Player";
-import { GameConfig, isKickingTeamTerritory } from "@/config/GameConfig";
+import { GameConfig } from "@/config/GameConfig";
+import { inOwnHalf } from "../../rules/frames";
+import { pairFrame } from "../../variants/activeMatch";
 import { GamePhase } from "@/types/GameState";
 import { getActiveOnlineMatch } from "@/network/OnlineMatch";
 import type { KickoffEventStepState } from "../../kickoff/KickoffEventManager";
@@ -125,7 +127,7 @@ function clickKickAim(
 
   const isTeam1Kicking = c.scene.kickingTeam.id === c.scene.team1.id;
   const isOpponentHalf =
-    !isKickingTeamTerritory(x, isTeam1Kicking) && isStandableSquare({ x, y });
+    !inOwnHalf(pairFrame(isTeam1Kicking), { x, y }) && isStandableSquare({ x, y });
 
   if (!isOpponentHalf) {
     if (c.selectedPlayerId) {

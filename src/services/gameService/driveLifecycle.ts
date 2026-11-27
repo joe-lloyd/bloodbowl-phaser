@@ -5,7 +5,7 @@ import {
   type MatchResult,
   SubPhase,
 } from "@/types/GameState";
-import { activeRules } from "@/game/variants/activeMatch";
+import { activeRules, pairFrame } from "@/game/variants/activeMatch";
 import { knockoutRecoveryTarget } from "@/game/rules/injuryTables";
 import { GameEventNames } from "@/types/events";
 import { isLeagueMode } from "@/types/Team";
@@ -22,8 +22,7 @@ import {
   assertSinglePlayerLocation,
   movePlayerToBox,
 } from "@/game/rules/playerLocation";
-import { isInEndZone } from "@/game/elements/GridUtils";
-import { GameConfig } from "@/config/GameConfig";
+import { scoresAt } from "@/game/rules/frames";
 import { BloodlustBiteOperation } from "@/game/operations/BloodlustBiteOperation";
 import { koRecoveryBonus } from "@/game/inducements/inventory";
 import {
@@ -361,8 +360,8 @@ export function checkForTouchdown(parts: GameParts, playerId: string): boolean {
   if (player.status !== PlayerStatus.ACTIVE) return false;
   if (!parts.ballManager.hasBall(playerId)) return false;
 
-  const side = player.teamId === parts.team1.id ? 1 : 2;
-  if (!isInEndZone(player.gridPosition, GameConfig.PITCH_WIDTH, side)) {
+  const frame = pairFrame(player.teamId === parts.team1.id);
+  if (!scoresAt(frame, player.gridPosition)) {
     return false;
   }
   parts.game.addTouchdown(player.teamId, player.id);

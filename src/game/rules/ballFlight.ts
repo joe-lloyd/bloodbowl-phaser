@@ -1,6 +1,6 @@
 import type { DiceController } from "../controllers/DiceController";
-import { isKickingTeamTerritory } from "../../config/GameConfig";
-import { activeLayout } from "../variants/activeMatch";
+import { activeLayout, pairFrame } from "../variants/activeMatch";
+import { inOwnHalf } from "./frames";
 import type { Square } from "../variants/pitchLayouts";
 import {
   edgeCrossed,
@@ -146,7 +146,7 @@ export function settleKick(
     landing = ricochet.landing;
   }
   landing = settleOffObstacle(dice, landing);
-  const touchback = isKickingTeamTerritory(landing.x, isTeam1Kicking);
+  const touchback = inOwnHalf(pairFrame(isTeam1Kicking), landing);
   return { landing: touchback ? null : landing, wallHits };
 }
 

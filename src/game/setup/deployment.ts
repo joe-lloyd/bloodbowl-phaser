@@ -1,4 +1,15 @@
-import { type PitchLayout, isPlayableSquare } from "../variants/pitchLayouts";
+import {
+  type PitchLayout,
+  type Square,
+  isPlayableSquare,
+} from "../variants/pitchLayouts";
+import {
+  type Arm,
+  type Frame,
+  inSetupSection,
+  noMansLand,
+  squareAt,
+} from "../rules/frames";
 import { activeLayout } from "../variants/activeMatch";
 import {
   type DeploymentRole,
@@ -175,16 +186,7 @@ function ring(centre: { x: number; y: number }, reach: number) {
 
 export interface SetupArea {
   readonly layout: PitchLayout;
-  readonly isTeam1: boolean;
-}
-
-function setupColumns({ layout, isTeam1 }: SetupArea) {
-  const los = isTeam1
-    ? layout.lineOfScrimmage.team1
-    : layout.lineOfScrimmage.team2;
-  return isTeam1
-    ? { los, minX: 0, maxX: los }
-    : { los, minX: los, maxX: layout.cols - 1 };
+  readonly frame: Frame;
 }
 
 function nearestFree(
@@ -192,12 +194,10 @@ function nearestFree(
   wanted: { x: number; y: number },
   taken: Set<string>
 ): { x: number; y: number } {
-  const { minX, maxX } = setupColumns(area);
-  const free = ({ x, y }: { x: number; y: number }) =>
-    x >= minX &&
-    x <= maxX &&
-    isPlayableSquare(area.layout, { x, y }) &&
-    !taken.has(squareKey(x, y));
+  const free = (square: Square) =>
+    inSetupSection(area.frame, square) &&
+    isPlayableSquare(area.layout, square) &&
+    !taken.has(squareKey(square.x, square.y));
   for (let reach = 0; reach < area.layout.cols; reach++) {
     const found = ring(wanted, reach).find((element) => free(element));
     if (found) return found;
@@ -217,24 +217,20 @@ export function settleSquares<T extends { x: number; y: number }>(
   });
 }
 
-function slotRow(layout: PitchLayout, slot: Slot): number {
-  const mid = Math.floor(layout.rows / 2);
+function slotAcross(arm: Arm, slot: Slot): number {
+  const mid = Math.floor(arm.width / 2);
   if (slot.wide && Math.abs(slot.lane) === INNER_WIDE) {
-    const { top, bottom } = layout.wideZoneRows;
-    return slot.lane < 0 ? top.max : bottom.min;
+    const [lower, upper] = arm.wide;
+    return slot.lane < 0 ? lower.max : upper.min;
   }
-  const rows = slot.wide ? { min: 0, max: layout.rows - 1 } : layout.centreRows;
-  return Math.min(rows.max, Math.max(rows.min, mid + slot.lane));
+  const across = slot.wide ? { min: 0, max: arm.width - 1 } : arm.centre;
+  return Math.min(across.max, Math.max(across.min, mid + slot.lane));
 }
 
-function slotSquare(area: SetupArea, slot: Slot): { x: number; y: number } {
-  const { layout, isTeam1 } = area;
-  const { los, minX, maxX } = setupColumns(area);
-  const x = isTeam1 ? los - slot.back : los + slot.back;
-  return {
-    x: Math.min(maxX, Math.max(minX, x)),
-    y: slotRow(layout, slot),
-  };
+function slotSquare({ frame }: SetupArea, slot: Slot): Square {
+  const { arm } = frame;
+  const along = Math.min(arm.scrimmage, Math.max(0, arm.scrimmage - slot.back));
+  return squareAt(frame, along, slotAcross(arm, slot));
 }
 
 export function deploymentSquares(
@@ -359,7 +355,7 @@ function roleFit(
   role: DeploymentRole,
   kicking: boolean
 ): number {
-  const contact = role === "line" && activeLayout().noMansLand === null;
+  const contact = role === "line" && noMansLand(activeLayout().frames[0]) === null;
   return kicking && !contact
     ? kickingFit(player, role)
     : receivingFit(player, role);

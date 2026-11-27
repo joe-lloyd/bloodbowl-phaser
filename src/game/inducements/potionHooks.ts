@@ -1,5 +1,4 @@
 import { type IEventBus } from "@/services/EventBus";
-import { GameConfig, getWideZone } from "@/config/GameConfig";
 import { type GameState } from "@/types/GameState";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "@/types/events";
@@ -8,6 +7,8 @@ import { getDriveEffects } from "../kickoff/driveEffects";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { killPlayer } from "./potionShared";
 import { hasPotionEffect } from "./variantState";
+import { scoresAt, wideZoneOf } from "../rules/frames";
+import { activeLayout } from "../variants/activeMatch";
 
 interface Square {
   x: number;
@@ -36,10 +37,10 @@ export function actFirstBlocks(
 }
 
 function inWideOrEndZone(square: Square): boolean {
+  const frames = activeLayout().frames;
   return (
-    getWideZone(square.y) !== null ||
-    square.x === 0 ||
-    square.x === GameConfig.PITCH_WIDTH - 1
+    wideZoneOf(frames[0], square) !== null ||
+    frames.some((frame) => scoresAt(frame, square))
   );
 }
 

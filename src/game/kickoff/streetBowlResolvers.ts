@@ -3,7 +3,6 @@ import { grantFreePotion, type PotionInducement } from "../inducements/inventory
 import { type Team } from "@/types/Team";
 import { type Player } from "@/types/Player";
 import { movePlayerToBox } from "../rules/playerLocation";
-import { activeLayout } from "../variants/activeMatch";
 import { BombBlastOperation } from "../operations/BombardierOperation";
 import { KickoffEvent, grantEffect } from "./kickoffEvents";
 import {
@@ -94,10 +93,9 @@ async function resolveStrayPony(
   deps: ResolverDeps,
   ctx: KickoffEventResolverContext
 ): Promise<void> {
-  const layout = activeLayout();
   const everyone = everyoneOnPitch(ctx);
   const team1Id = team1IdOf(ctx);
-  for (const player of lineOfScrimmagePlayers(layout, everyone, team1Id)) {
+  for (const player of lineOfScrimmagePlayers(everyone, team1Id)) {
     if (!shoveBack(deps, ctx, player)) continue;
     await ponyDodge(deps, ctx, player);
   }

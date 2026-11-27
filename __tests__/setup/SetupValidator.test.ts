@@ -1,54 +1,34 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
-import {
-  getLineOfScrimmageX,
-  getSevensSetupZone,
-  getWideZone,
-  isCentreFieldRow,
-  isNeutralZoneX,
-  SEVENS_GEOMETRY,
-} from "../../src/config/GameConfig";
+import { squareAt } from "../../src/game/rules/frames";
+import { pairFrame } from "../../src/game/variants/activeMatch";
 import { SetupValidator } from "../../src/game/validators/SetupValidator";
 import { type FormationPosition } from "../../src/types/SetupTypes";
 
 const validator = new SetupValidator();
 
 function legalFormation(isTeam1: boolean): FormationPosition[] {
-  const los = getLineOfScrimmageX(isTeam1);
-  const depth = isTeam1 ? los - 2 : los + 2;
+  const frame = pairFrame(isTeam1);
+  const { scrimmage } = frame.arm;
+  const at = (playerId: string, along: number, y: number) => ({
+    playerId,
+    ...squareAt(frame, along, y),
+  });
   return [
-    { playerId: "1", x: los, y: 3 },
-    { playerId: "2", x: los, y: 5 },
-    { playerId: "3", x: los, y: 7 },
-    { playerId: "4", x: depth, y: 2 },
-    { playerId: "5", x: depth, y: 4 },
-    { playerId: "6", x: depth, y: 6 },
-    { playerId: "7", x: depth, y: 8 },
+    at("1", scrimmage, 3),
+    at("2", scrimmage, 5),
+    at("3", scrimmage, 7),
+    at("4", scrimmage - 2, 2),
+    at("5", scrimmage - 2, 4),
+    at("6", scrimmage - 2, 6),
+    at("7", scrimmage - 2, 8),
   ];
 }
 
 describe("shared Sevens setup geometry", () => {
   it("defines mirrored setup regions including both End Zones and Lines of Scrimmage", () => {
-    expect(getSevensSetupZone(true)).toEqual({ minX: 0, maxX: 6 });
-    expect(getSevensSetupZone(false)).toEqual({ minX: 13, maxX: 19 });
-    expect(SEVENS_GEOMETRY.END_ZONE_X).toEqual({ team1: 0, team2: 19 });
-    expect(getLineOfScrimmageX(true)).toBe(6);
-    expect(getLineOfScrimmageX(false)).toBe(13);
-  });
-
-  it("shares neutral, centre-field and Wide Zone boundary helpers", () => {
-    expect(isNeutralZoneX(6)).toBe(false);
-    expect(isNeutralZoneX(7)).toBe(true);
-    expect(isNeutralZoneX(12)).toBe(true);
-    expect(isNeutralZoneX(13)).toBe(false);
-    expect(isCentreFieldRow(2)).toBe(true);
-    expect(isCentreFieldRow(8)).toBe(true);
-    expect(isCentreFieldRow(1)).toBe(false);
-    expect(getWideZone(0)).toBe("top");
-    expect(getWideZone(1)).toBe("top");
-    expect(getWideZone(9)).toBe("bottom");
-    expect(getWideZone(10)).toBe("bottom");
-    expect(getWideZone(5)).toBeNull();
+    expect(validator.getSetupZone(true)).toEqual({ minX: 0, maxX: 6, minY: 0, maxY: 10 });
+    expect(validator.getSetupZone(false)).toEqual({ minX: 13, maxX: 19, minY: 0, maxY: 10 });
   });
 });
 

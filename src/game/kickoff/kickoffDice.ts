@@ -13,7 +13,7 @@ import { ArmourOperation } from "../operations/ArmourOperation";
 import { knockDownPlayer } from "../operations/knockDown";
 import { type KickoffEventOutcome, grantEffect } from "./kickoffEvents";
 import { type WideZone, getDriveEffects } from "./driveEffects";
-import { wideZoneOf } from "./ballConditions";
+import { namedWideZone } from "./ballConditions";
 import { type PitchMove, ownEndZoneStep, shoveChain } from "./kickoffShoves";
 import { activeLayout } from "../variants/activeMatch";
 import { inducementCount } from "../inducements/inventory";
@@ -200,7 +200,7 @@ export function playersInWideZone(
   zone: WideZone
 ): Player[] {
   return everyoneOnPitch(ctx).filter(
-    (player) => !!player.gridPosition && wideZoneOf(player.gridPosition) === zone
+    (player) => !!player.gridPosition && namedWideZone(player.gridPosition) === zone
   );
 }
 

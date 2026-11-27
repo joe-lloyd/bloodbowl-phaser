@@ -34,10 +34,6 @@ export interface PitchLayout {
   cols: number;
   rows: number;
   surface: Surface;
-  lineOfScrimmage: { team1: number; team2: number };
-  noMansLand: Span | null;
-  centreRows: Span;
-  wideZoneRows: { top: Span; bottom: Span };
   frames: readonly [Frame, Frame];
   walledSidelines: boolean;
   obstacles: readonly Obstacle[];
@@ -75,16 +71,12 @@ const GUTTER_BARRICADES: readonly Barricade[] = [
 
 const FULL_LENGTH = {
   cols: 26,
-  lineOfScrimmage: { team1: 12, team2: 13 },
-  noMansLand: null,
   trapdoors: [],
 } as const;
 
 const GUTTER = {
   ...FULL_LENGTH,
   rows: 15,
-  centreRows: { min: 4, max: 10 },
-  wideZoneRows: { top: { min: 0, max: 3 }, bottom: { min: 11, max: 14 } },
   frames: pairFrames({
     cols: 26,
     rows: 15,
@@ -106,10 +98,6 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
     cols: 20,
     rows: 11,
     surface: "grass",
-    lineOfScrimmage: { team1: 6, team2: 13 },
-    noMansLand: { min: 7, max: 12 },
-    centreRows: { min: 2, max: 8 },
-    wideZoneRows: { top: { min: 0, max: 1 }, bottom: { min: 9, max: 10 } },
     frames: pairFrames({
       cols: 20,
       rows: 11,
@@ -134,8 +122,6 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
     label: "Cobbled street",
     rows: 7,
     surface: "cobbles",
-    centreRows: { min: 2, max: 4 },
-    wideZoneRows: { top: { min: 0, max: 1 }, bottom: { min: 5, max: 6 } },
     frames: pairFrames({
       cols: 26,
       rows: 7,
@@ -156,10 +142,6 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
     cols: 20,
     rows: 9,
     surface: "sand",
-    lineOfScrimmage: { team1: 6, team2: 13 },
-    noMansLand: { min: 7, max: 12 },
-    centreRows: { min: 2, max: 6 },
-    wideZoneRows: { top: { min: 0, max: 1 }, bottom: { min: 7, max: 8 } },
     frames: pairFrames({
       cols: 20,
       rows: 9,

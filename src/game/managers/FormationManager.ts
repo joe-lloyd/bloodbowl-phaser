@@ -1,6 +1,6 @@
 import { type Formation, type FormationPosition } from "../../types/SetupTypes";
-import { getLineOfScrimmageX, SEVENS_GEOMETRY } from "../../config/GameConfig";
-import { activeLayout } from "../variants/activeMatch";
+import { activeLayout, pairFrame } from "../variants/activeMatch";
+import { squareAt } from "../rules/frames";
 import { SetupValidator } from "../validators/SetupValidator";
 import {
   DEPLOYMENTS,
@@ -13,7 +13,10 @@ function settleFormation(
   positions: FormationPosition[],
   isTeam1: boolean
 ): FormationPosition[] {
-  return settleSquares({ layout: activeLayout(), isTeam1 }, positions);
+  return settleSquares(
+    { layout: activeLayout(), frame: pairFrame(isTeam1) },
+    positions
+  );
 }
 
 export interface FormationEntry {
@@ -32,7 +35,7 @@ export class FormationManager {
   getBuiltInFormations(
     isTeam1: boolean
   ): { name: string; use: DeploymentUse; positions: FormationPosition[] }[] {
-    const area = { layout: activeLayout(), isTeam1 };
+    const area = { layout: activeLayout(), frame: pairFrame(isTeam1) };
     const validator = new SetupValidator();
     return DEPLOYMENTS.map((deployment) => ({
       name: deployment.name,
@@ -136,23 +139,24 @@ export class FormationManager {
   }
 
   getDefaultFormation(isTeam1: boolean): FormationPosition[] {
-    const losX = getLineOfScrimmageX(isTeam1);
-    const backX = isTeam1
-      ? Math.max(SEVENS_GEOMETRY.END_ZONE_X.team1, losX - 3)
-      : Math.min(SEVENS_GEOMETRY.END_ZONE_X.team2, losX + 3);
-    const { rows, centreRows, wideZoneRows } = activeLayout();
-    const mid = Math.floor(rows / 2);
+    const frame = pairFrame(isTeam1);
+    const { scrimmage, centre, wide, width } = frame.arm;
+    const back = Math.max(0, scrimmage - 3);
+    const mid = Math.floor(width / 2);
+    const at = (playerId: string, along: number, across: number) => ({
+      playerId,
+      ...squareAt(frame, along, across),
+    });
 
     return settleFormation(
       [
-        { playerId: "0", x: losX, y: mid - 1 },
-        { playerId: "1", x: losX, y: centreRows.min },
-        { playerId: "2", x: losX, y: mid + 1 },
-
-        { playerId: "3", x: losX, y: mid },
-        { playerId: "4", x: backX, y: wideZoneRows.top.max },
-        { playerId: "5", x: backX, y: wideZoneRows.bottom.min },
-        { playerId: "6", x: losX - (isTeam1 ? 1 : -1), y: mid },
+        at("0", scrimmage, mid - 1),
+        at("1", scrimmage, centre.min),
+        at("2", scrimmage, mid + 1),
+        at("3", scrimmage, mid),
+        at("4", back, wide[0].max),
+        at("5", back, wide[1].min),
+        at("6", scrimmage - 1, mid),
       ],
       isTeam1
     );

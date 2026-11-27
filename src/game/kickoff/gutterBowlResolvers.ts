@@ -187,10 +187,9 @@ async function becomeCasualty(deps: ResolverDeps, player: Player): Promise<void>
 }
 
 function resolveSuddenStink(deps: ResolverDeps, ctx: KickoffEventResolverContext): void {
-  const layout = activeLayout();
   const everyone = everyoneOnPitch(ctx);
   const team1Id = team1IdOf(ctx);
-  for (const player of lineOfScrimmagePlayers(layout, everyone, team1Id)) {
+  for (const player of lineOfScrimmagePlayers(everyone, team1Id)) {
     shoveBack(deps, ctx, player);
   }
   noteBothTeams(ctx, "the Lines of Scrimmage reel back from the stink");

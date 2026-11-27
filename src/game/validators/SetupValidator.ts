@@ -1,12 +1,14 @@
-import { activeLayout, activeRules } from "../variants/activeMatch";
+import { activeLayout, activeRules, pairFrame } from "../variants/activeMatch";
 import { obstacleAt } from "../variants/pitchLayouts";
 import {
-  getLineOfScrimmageX,
-  getSevensSetupZone,
-  getWideZone,
-  isCentreFieldRow,
-  isNeutralZoneX,
-} from "../../config/GameConfig";
+  blockOf,
+  inCentreStrip,
+  inNoMansLand,
+  inSetupSection,
+  onScrimmage,
+  wideZoneOf,
+} from "../rules/frames";
+import { WIDE_ZONES } from "../kickoff/driveEffects";
 import {
   type SetupZone,
   type ValidationResult,
@@ -56,21 +58,28 @@ export class SetupValidator {
     ) {
       return false;
     }
-    const zone = getSevensSetupZone(isTeam1);
-    return x >= zone.minX && x <= zone.maxX;
+    return inSetupSection(pairFrame(isTeam1), { x, y });
   }
 
   getSetupZone(isTeam1: boolean): SetupZone {
-    const zone = getSevensSetupZone(isTeam1);
+    const frame = pairFrame(isTeam1);
+    const { arm } = frame;
+    const { min, max } = blockOf(
+      frame,
+      { min: 0, max: arm.scrimmage },
+      arm.setupAcross
+    );
     return {
-      ...zone,
+      minX: min.x,
+      maxX: max.x,
       minY: 0,
       maxY: this.config.pitchHeight - 1,
     };
   }
 
   isOnCentreLineOfScrimmage(x: number, y: number, isTeam1: boolean): boolean {
-    return x === getLineOfScrimmageX(isTeam1) && isCentreFieldRow(y);
+    const frame = pairFrame(isTeam1);
+    return onScrimmage(frame, { x, y }) && inCentreStrip(frame, { x, y });
   }
 
   validatePlacement({
@@ -141,15 +150,16 @@ export class SetupValidator {
       (pos) => `${String(pos.x)},${String(pos.y)}`
     );
     const uniquePositionCount = new Set(positionKeys).size;
+    const frame = pairFrame(isTeam1);
     const wideCounts = { top: 0, bottom: 0 };
     for (const pos of positions) {
-      const zone = getWideZone(pos.y);
-      if (zone) wideCounts[zone]++;
+      const zone = wideZoneOf(frame, pos);
+      if (zone !== null) wideCounts[WIDE_ZONES[zone]]++;
     }
     const onCentreLos = positions.filter((pos) =>
       this.isOnCentreLineOfScrimmage(pos.x, pos.y, isTeam1)
     ).length;
-    const inNeutralZone = positions.some((pos) => isNeutralZoneX(pos.x));
+    const inNeutralZone = positions.some((pos) => inNoMansLand(frame, pos));
     const inSetupArea = positions.every((pos) =>
       this.isInSetupZone(pos.x, pos.y, isTeam1)
     );

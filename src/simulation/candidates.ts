@@ -13,7 +13,7 @@ import { type ActionType } from "../types/events";
 import type { DopeStat } from "../types/decisions";
 import { FormationManager } from "../game/managers/FormationManager";
 import { assignPlayers, setupLabel } from "../game/setup/deployment";
-import { GameConfig, getSevensSetupZone } from "../config/GameConfig";
+import { GameConfig } from "../config/GameConfig";
 import { SetupValidator } from "../game/validators/SetupValidator";
 import { isConfinedToReserves } from "../game/kickoff/driveEffects";
 import { decisionOwner } from "../network/OwnershipGate";
@@ -385,8 +385,8 @@ async function setupCandidates(
     const swarm = setup.status.swarming;
     const positions = [...setup.placements];
     const commands: HeadlessCommand[] = [];
-    const zone = getSevensSetupZone(isTeam1);
     const validator = new SetupValidator();
+    const zone = validator.getSetupZone(isTeam1);
     const limits = {
       minimum: setup.status.requiredPlayerCount,
       maximum:
