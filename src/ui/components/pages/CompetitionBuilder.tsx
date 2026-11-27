@@ -274,11 +274,12 @@ function LocalCompetitionBuilder({
                 const nextBuild = teamBuildType(nextInvolved);
                 setGameFormat(next);
                 setInvolved(nextInvolved);
+                if (nextBuild === gameType) return;
                 setProfileChoice((choice) => ({
                   ...choice,
                   draftBudget: draftRulesFor(nextBuild).budget,
                 }));
-                if (nextBuild !== gameType) setComputerRows([]);
+                setComputerRows([]);
               }}
             />
           </div>

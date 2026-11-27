@@ -39,6 +39,17 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+const valueSetter = fixtureValue(
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")
+);
+
+function typeInto(input: HTMLInputElement, value: string) {
+  act(() => {
+    Reflect.apply(fixtureValue(valueSetter.set), input, [value]);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
 async function openBuilder(type: "league" | "tournament" = "league") {
   const path = type === "league" ? "/leagues" : "/tournaments";
   await act(async () => {
@@ -54,14 +65,7 @@ async function openBuilder(type: "league" | "tournament" = "league") {
       </MemoryRouter>
     );
   });
-  await act(async () => {
-    const input = fixtureValue(container.querySelector("input"));
-    fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value"
-    )).set).call(input, "Solo season");
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  typeInto(fixtureValue(container.querySelector("input")), "Solo season");
 }
 
 async function generatedLeague() {
@@ -96,15 +100,7 @@ it("creates a league of my team and two computer teams", async () => {
     );
   });
 
-  const name = fixtureValue(container.querySelector("input"));
-  await act(async () => {
-    const setValue = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value"
-    )).set);
-    setValue.call(name, "Sunday League");
-    name.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  typeInto(fixtureValue(container.querySelector("input")), "Sunday League");
   await act(async () => {
     button("My Team").click();
   });
@@ -349,12 +345,15 @@ it("plays a set-order tournament in the order the organizer picked", async () =>
   await openFourTeamTournament();
   click(gameTypeToggle("Beach Bowl"));
   click(button("Set order"));
+  click(fixtureValue(container.querySelector<HTMLInputElement>('input[type="checkbox"]')));
+  typeInto(fixtureValue(container.querySelector<HTMLInputElement>('input[type="number"]')), "800000");
   click(roundChoice(1, "Beach Bowl"));
   click(roundChoice(2, "Sevens"));
 
   const tournament = await generatedTournament();
   expect(tournament.entrants).toHaveLength(4);
   expect(tournament.gameTypePool).toBeUndefined();
+  expect(tournament.rosterProfile?.draftBudget).toBe(800_000);
   expect(tournament.fixtures.map((game) => [game.round, game.gameType])).toEqual([
     [1, "beach-bowl"],
     [1, "beach-bowl"],

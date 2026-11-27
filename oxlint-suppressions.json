@@ -474,10 +474,10 @@
       "count": 1
     },
     "typescript/require-await": {
-      "count": 22
+      "count": 20
     },
     "typescript/unbound-method": {
-      "count": 2
+      "count": 1
     }
   },
   "__tests__/unit/competitionLegacyRead.test.ts": {
