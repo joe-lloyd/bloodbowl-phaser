@@ -1,6 +1,6 @@
 ## 0. The lever
 
-- [ ] 0.1 `pnpm parity` records and compares the final-state hashes of 330 planner matches; the rules spec and this change land with it.
+- [x] 0.1 `pnpm parity` records and compares the final-state hashes of 330 planner matches; the rules spec and this change land with it.
 
 ## 1. The engine becomes N-seat (two-team results unchanged; every PR passes parity)
 

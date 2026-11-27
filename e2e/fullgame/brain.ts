@@ -12,7 +12,8 @@ import { GameConfig } from "../../src/config/GameConfig";
 import { getActiveOnlineMatch } from "../../src/network/OnlineMatch";
 import { hasTackleZone } from "../../src/types/Player";
 import { withDriveModifiers } from "../../src/game/kickoff/driveEffects";
-import { isInEndZone } from "../../src/game/elements/GridUtils";
+import { scoresAt } from "../../src/game/rules/frames";
+import { pairFrame } from "../../src/game/variants/activeMatch";
 
 let game: HeadlessGame | null = null;
 let kickingTeamId: string | null = null;
@@ -199,9 +200,8 @@ function runTo(g: HeadlessGame, c: Candidate): Candidate {
 
   const left =
     withDriveModifiers(player, state).stats.MA - gs.getMovementUsed(player.id);
-  const side = player.teamId === g.ctx.team1.id ? 1 : 2;
-  const scores = (sq: Square) =>
-    carrying && isInEndZone(sq, GameConfig.PITCH_WIDTH, side);
+  const frame = pairFrame(player.teamId === g.ctx.team1.id);
+  const scores = (sq: Square) => carrying && scoresAt(frame, sq);
   const reach = gs
     .getAvailableMovements(player.id)
     .filter((sq) => (sq.cost ?? 99) <= left || scores(sq));

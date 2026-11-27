@@ -1,5 +1,7 @@
 import { type Player } from "@/types/Player";
 import { type PitchLayout, type Square, isPlayableSquare } from "../variants/pitchLayouts";
+import { onScrimmage } from "../rules/frames";
+import { pairFrame } from "../variants/activeMatch";
 
 export interface PitchMove {
   player: Player;
@@ -54,17 +56,14 @@ export function shoveChain(
 }
 
 export function lineOfScrimmagePlayers(
-  layout: PitchLayout,
   players: readonly Player[],
   team1Id: string
 ): Player[] {
-  return players.filter((player) => {
-    const column =
-      player.teamId === team1Id
-        ? layout.lineOfScrimmage.team1
-        : layout.lineOfScrimmage.team2;
-    return player.gridPosition?.x === column;
-  });
+  return players.filter(
+    (player) =>
+      !!player.gridPosition &&
+      onScrimmage(pairFrame(player.teamId === team1Id), player.gridPosition)
+  );
 }
 
 export function washedTo(square: Square, step: Square, distance: number): Square {

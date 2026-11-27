@@ -4,8 +4,8 @@ import { PickupOperation } from "../operations/PickupOperation";
 import { type IGameService } from "@/services/interfaces/IGameService";
 import { type FlowContext } from "../core/GameFlowManager";
 import { steadyFootingSaves } from "../rules/steadyFooting";
-import { isInEndZone } from "../elements/GridUtils";
-import { GameConfig } from "../../config/GameConfig";
+import { scoresAt } from "../rules/frames";
+import { pairFrame } from "../variants/activeMatch";
 import { withRerollOffer, foldTrigger, adjacentStanding } from "../skills";
 import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
@@ -295,8 +295,8 @@ function carriedBallScores(jump: JumpRun, destination: Square): boolean {
   jump.gameService?.setBallPosition(destination.x, destination.y);
   deps.state.ballPosition = { ...destination };
   deps.eventBus.emit(GameEventNames.BallPlaced, { ...destination });
-  const side = player.teamId === deps.team1.id ? 1 : 2;
-  if (!isInEndZone(destination, GameConfig.PITCH_WIDTH, side)) return false;
+  const frame = pairFrame(player.teamId === deps.team1.id);
+  if (!scoresAt(frame, destination)) return false;
   deps.callbacks.onTouchdown?.(player.teamId, player.id);
   return true;
 }

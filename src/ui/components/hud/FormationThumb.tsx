@@ -1,11 +1,16 @@
-import { activeLayout } from "../../../game/variants/activeMatch";
+import { activeLayout, pairFrame } from "../../../game/variants/activeMatch";
 import { isPlayableSquare } from "../../../game/variants/pitchLayouts";
-import { getSevensSetupZone } from "../../../config/GameConfig";
+import { blockOf } from "../../../game/rules/frames";
 import type { FormationPosition } from "../../../types/SetupTypes";
 
 function setupHalf(isTeam1: boolean) {
   const layout = activeLayout();
-  const { minX, maxX } = getSevensSetupZone(isTeam1);
+  const frame = pairFrame(isTeam1);
+  const setupAlong = { min: 0, max: frame.arm.scrimmage };
+  const [lower, upper] = frame.arm.wide;
+  const { min, max } = blockOf(frame, setupAlong, frame.arm.setupAcross);
+  const minX = min.x;
+  const maxX = max.x;
   const inHalf = ({ x }: { x: number }) => x >= minX && x <= maxX;
   return {
     layout,
@@ -15,20 +20,23 @@ function setupHalf(isTeam1: boolean) {
     cols: maxX - minX + 1,
     rows: layout.rows,
     lineX: isTeam1 ? maxX + 1 : minX,
+    wideEdges: {
+      top: blockOf(frame, setupAlong, lower).max.y + 1,
+      bottom: blockOf(frame, setupAlong, upper).min.y,
+    },
     obstacles: layout.obstacles.filter((element) => inHalf(element)),
   };
 }
 
 function HalfPitch({ half }: { half: ReturnType<typeof setupHalf> }) {
-  const { minX, maxX, cols, rows, lineX, layout } = half;
-  const { top, bottom } = layout.wideZoneRows;
+  const { minX, maxX, cols, rows, lineX, wideEdges } = half;
   return (
     <>
       <rect x={minX} y={0} width={cols} height={rows} className="fill-hud-good/35" />
       <path
         d={[
-          `M${String(minX)} ${String(top.max + 1)}H${String(maxX + 1)}`,
-          `M${String(minX)} ${String(bottom.min)}H${String(maxX + 1)}`,
+          `M${String(minX)} ${String(wideEdges.top)}H${String(maxX + 1)}`,
+          `M${String(minX)} ${String(wideEdges.bottom)}H${String(maxX + 1)}`,
         ].join("")}
         className="fill-none stroke-hud-bone"
         strokeOpacity={0.35}

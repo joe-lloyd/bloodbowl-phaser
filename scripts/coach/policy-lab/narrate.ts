@@ -3,6 +3,7 @@ import { PlayerStatus } from "../../../src/types/Player";
 import type { Player } from "../../../src/types/Player";
 import { GameConfig } from "../../../src/config/GameConfig";
 import { activeLayout } from "../../../src/game/variants/activeMatch";
+import { squareAt } from "../../../src/game/rules/frames";
 import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { openTrace } from "../catalogue-study/replay";
@@ -151,7 +152,10 @@ function pitchNote(): string {
     ({ afterColumn, rows }) =>
       `between x=${String(afterColumn)} and ${String(afterColumn + 1)} on rows ${String(rows.min)}-${String(rows.max)}`
   );
-  return `${layout.label}, ${String(layout.cols)} x ${String(layout.rows)}, Lines of Scrimmage at x=${String(layout.lineOfScrimmage.team1)} and x=${String(layout.lineOfScrimmage.team2)}${layout.walledSidelines ? ", walled sidelines" : ""}${barricades.length > 0 ? `, barricades ${barricades.join("; ")}` : ""}`;
+  const lines = layout.frames
+    .map((frame) => `x=${String(squareAt(frame, frame.arm.scrimmage, 0).x)}`)
+    .join(" and ");
+  return `${layout.label}, ${String(layout.cols)} x ${String(layout.rows)}, Lines of Scrimmage at ${lines}${layout.walledSidelines ? ", walled sidelines" : ""}${barricades.length > 0 ? `, barricades ${barricades.join("; ")}` : ""}`;
 }
 
 async function narrate(file: string): Promise<string> {

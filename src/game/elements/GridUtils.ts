@@ -61,11 +61,3 @@ export function areAdjacent(pos1: GridPosition, pos2: GridPosition): boolean {
   const dy = Math.abs(pos2.y - pos1.y);
   return dx <= 1 && dy <= 1 && dx + dy > 0;
 }
-
-export function isInEndZone(
-  pos: GridPosition,
-  width: number,
-  scoringTeamSide: 1 | 2
-): boolean {
-  return pos.x === (scoringTeamSide === 1 ? width - 1 : 0);
-}

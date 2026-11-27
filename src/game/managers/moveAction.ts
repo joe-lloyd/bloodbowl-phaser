@@ -7,8 +7,8 @@ import { type ArmourFall } from "../operations/ArmourOperation";
 import { type IGameService } from "@/services/interfaces/IGameService";
 import { type FlowContext } from "../core/GameFlowManager";
 import { steadyFootingSaves } from "../rules/steadyFooting";
-import { isInEndZone } from "../elements/GridUtils";
-import { GameConfig } from "../../config/GameConfig";
+import { scoresAt } from "../rules/frames";
+import { pairFrame } from "../variants/activeMatch";
 import {
   withRerollOffer,
   foldTrigger,
@@ -567,8 +567,8 @@ function carryBall(run: MoveRun): string | undefined {
     y: currentPos.y,
   });
 
-  const side = player.teamId === deps.team1.id ? 1 : 2;
-  if (!isInEndZone(currentPos, GameConfig.PITCH_WIDTH, side)) return undefined;
+  const frame = pairFrame(player.teamId === deps.team1.id);
+  if (!scoresAt(frame, currentPos)) return undefined;
   player.gridPosition = currentPos;
   deps.state.turn.movementUsed.set(player.id, run.preUsed + run.stepsTaken);
 

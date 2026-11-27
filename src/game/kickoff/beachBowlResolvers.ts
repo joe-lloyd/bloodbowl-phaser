@@ -47,10 +47,10 @@ export function beachBowlResolvers(deps: ResolverDeps) {
 }
 
 function wadeTarget(square: Square, zone: WideZone, taken: (square: Square) => boolean): Square | null {
-  const { centreRows } = activeLayout();
+  const { centre } = activeLayout().frames[0].arm;
   const step = zone === "top" ? 1 : -1;
-  const first = zone === "top" ? centreRows.min : centreRows.max;
-  for (let y = first; y >= centreRows.min && y <= centreRows.max; y += step) {
+  const first = zone === "top" ? centre.min : centre.max;
+  for (let y = first; y >= centre.min && y <= centre.max; y += step) {
     const candidate = { x: square.x, y };
     if (!taken(candidate)) return candidate;
   }

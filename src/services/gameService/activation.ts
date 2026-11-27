@@ -13,6 +13,7 @@ import { FinishBallAndChainSquare } from "@/game/operations/BallAndChainOperatio
 import { BloodlustBiteOperation } from "@/game/operations/BloodlustBiteOperation";
 import { CrowdTakesActionOperation } from "@/game/operations/CrowdTakesActionOperation";
 import { canScoreWithoutDice } from "@/game/rules/stalling";
+import { pairFrame } from "@/game/variants/activeMatch";
 import { moveAllowance } from "@/game/skills/movement";
 import {
   holdsMeasure,
@@ -195,7 +196,7 @@ export function couldScoreWithoutDice(
     player,
     state: parts.state,
     players: [...parts.team1.players, ...parts.team2.players],
-    side: player.teamId === parts.team1.id ? 1 : 2,
+    frame: pairFrame(player.teamId === parts.team1.id),
   });
 }
 

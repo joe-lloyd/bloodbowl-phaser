@@ -7,7 +7,8 @@ import {
 } from "../rules/weather";
 import { activeLayout } from "../variants/activeMatch";
 import type { Square } from "../variants/pitchLayouts";
-import { type WideZone, hasDriveCondition } from "./driveEffects";
+import { wideZoneOf } from "../rules/frames";
+import { type WideZone, WIDE_ZONES, hasDriveCondition } from "./driveEffects";
 
 export type LostBall = "conch" | "beach-ball";
 
@@ -55,11 +56,9 @@ export function teamRerollBarred(
   return roll !== "other" && hasDriveCondition(state, "loose-dogs");
 }
 
-export function wideZoneOf(square: Square): WideZone | null {
-  const { top, bottom } = activeLayout().wideZoneRows;
-  if (square.y >= top.min && square.y <= top.max) return "top";
-  if (square.y >= bottom.min && square.y <= bottom.max) return "bottom";
-  return null;
+export function namedWideZone(square: Square): WideZone | null {
+  const zone = wideZoneOf(activeLayout().frames[0], square);
+  return zone === null ? null : WIDE_ZONES[zone];
 }
 
 export function kickLandsAsTouchback(
@@ -69,6 +68,6 @@ export function kickLandsAsTouchback(
   const flooded = state.driveEffects?.floodedZone;
   return (
     weatherEffects(state.weather).kickoffTouchback ||
-    (flooded !== undefined && wideZoneOf(landing) === flooded)
+    (flooded !== undefined && namedWideZone(landing) === flooded)
   );
 }

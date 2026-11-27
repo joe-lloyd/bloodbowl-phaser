@@ -19,7 +19,6 @@ import { KickoffController } from "../controllers/KickoffController";
 import { PickupController } from "../controllers/PickupController";
 import { BallMovementController } from "../controllers/BallMovementController";
 import { DiceController } from "../controllers/DiceController";
-import { isKickingTeamTerritory } from "../../config/GameConfig";
 import { CatchOperation } from "../operations/CatchOperation";
 import {
   kickoffOnTheBallReactor,
@@ -35,7 +34,8 @@ import {
   settleOffObstacle,
 } from "../rules/ballFlight";
 import { edgeCrossed, isOnPitch } from "../rules/pitchSquares";
-import { activeRules } from "../variants/activeMatch";
+import { activeRules, pairFrame } from "../variants/activeMatch";
+import { inOwnHalf } from "../rules/frames";
 import { BounceOperation } from "../operations/BounceOperation";
 import { type ReactionDecisionAnswer } from "../../types/decisions";
 import {
@@ -427,7 +427,7 @@ export class BallManager {
 
   public kickoffBounceTouchback(to: { x: number; y: number }): boolean {
     const touchback = isOnPitch(to)
-      ? isKickingTeamTerritory(to.x, this.isTeam1Kicking())
+      ? inOwnHalf(pairFrame(this.isTeam1Kicking()), to)
       : edgeCrossed(to) === "crowd";
     if (!touchback) return false;
     this.touchback();
