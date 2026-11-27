@@ -14,7 +14,7 @@ import { createCoachRng } from "../rng";
 import { buildMatchDump, renderIndexHtml, renderMatchHtml } from "../viewer";
 import { type CoachName, makeCoach } from "./shared";
 
-const BLOCKING: ReadonlySet<FindingKind> = new Set([
+export const BLOCKING: ReadonlySet<FindingKind> = new Set([
   "invariant",
   "engine-error",
   "no-candidates",

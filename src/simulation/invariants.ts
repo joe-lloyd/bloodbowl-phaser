@@ -6,6 +6,7 @@ import { type HeadlessCommand } from "../headless/protocol";
 import { GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { GameConfig } from "../config/GameConfig";
+import { activeRules } from "../game/variants/activeMatch";
 import { isOnPitch, obstacleKindAt } from "../game/rules/pitchSquares";
 
 const ON_PITCH_STATUSES = new Set<PlayerStatus>([
@@ -78,7 +79,7 @@ function teamChecks(
     const count = team.players.filter((p) => p.position).length;
 
     const swarmed = after.setup?.swarming?.teams[team.id]?.roll ?? 0;
-    if (count > 7 + swarmed)
+    if (count > activeRules().setup.maxOnPitch + swarmed)
       fail(
         "seven-a-side",
         `${team.name} has ${String(count)} players on the pitch`

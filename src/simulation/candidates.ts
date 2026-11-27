@@ -12,7 +12,14 @@ import { type Player, PlayerStatus } from "../types/Player";
 import { type ActionType } from "../types/events";
 import type { DopeStat } from "../types/decisions";
 import { FormationManager } from "../game/managers/FormationManager";
-import { assignPlayers, setupLabel } from "../game/setup/deployment";
+import {
+  assignPlayers,
+  seatFormation,
+  setupLabel,
+} from "../game/setup/deployment";
+import { type Seat, seatOf } from "../game/seating";
+import type { FormationPosition } from "../types/SetupTypes";
+import { activeLayout, pairFrame } from "../game/variants/activeMatch";
 import { GameConfig } from "../config/GameConfig";
 import { SetupValidator } from "../game/validators/SetupValidator";
 import { isConfinedToReserves } from "../game/kickoff/driveEffects";
@@ -379,6 +386,9 @@ async function setupCandidates(
   }
 
   const gs = game.ctx.gameService;
+  const seating = gs.getSeating();
+  if (seating.kind === "four")
+    return seatSetupCandidates(game, seatOf(seating, teamId), setup?.placements ?? []);
   const team = gs.getTeam(teamId)!;
   const isTeam1 = teamId === game.ctx.teams[0].id;
   if (setup?.status.swarming) {
@@ -407,7 +417,7 @@ async function setupCandidates(
           validator.validatePlacement({
             candidate: candidate,
             currentPositions: positions,
-            isTeam1: isTeam1,
+            frame: pairFrame(isTeam1),
             availablePlayerCount: setup.status.availablePlayerCount,
             limits: limits,
           }).valid
@@ -456,18 +466,42 @@ async function setupCandidates(
             players: eligible,
             kicking,
             mustField,
-          }).map(
-            (pos): HeadlessCommand => ({
-              type: "place-player",
-              playerId: pos.playerId,
-              x: pos.x,
-              y: pos.y,
-            })
-          ),
+          }).map((pos) => placeCommand(pos)),
         ],
         teamId
       ),
     }));
+}
+
+const placeCommand = ({ playerId, x, y }: FormationPosition): HeadlessCommand => ({
+  type: "place-player",
+  playerId,
+  x,
+  y,
+});
+
+function seatSetupCandidates(
+  game: HeadlessGame,
+  seat: Seat,
+  placed: readonly { playerId: string }[]
+): Candidate[] {
+  const gs = game.ctx.gameService;
+  const eligible = seat.team.players.filter((player) =>
+    gs.isSetupEligible(player.id)
+  );
+  const placements = seatFormation(seat, activeLayout(), eligible).map((pos) =>
+    placeCommand(pos)
+  );
+  const clear = placed.map(
+    ({ playerId }): HeadlessCommand => ({ type: "remove-player", playerId })
+  );
+  return [
+    {
+      kind: "setup",
+      label: setupLabel("Arena"),
+      commands: setupCommands([...clear, ...placements], seat.team.id),
+    },
+  ];
 }
 
 function setupCommands(

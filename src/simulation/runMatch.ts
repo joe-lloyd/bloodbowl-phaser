@@ -150,7 +150,7 @@ function countRoll(side: TeamPlayStats, rollType: string, failed: boolean) {
   }
 }
 
-function refusalFinding(
+export function refusalFinding(
   command: HeadlessCommand,
   refusal: string | undefined,
   label: string
@@ -322,7 +322,7 @@ async function commitSimInducements(
   for (let i = 0; i < 20; i++) await tick();
 }
 
-function finding(
+export function finding(
   kind: FindingKind,
   key: string,
   message: string,
