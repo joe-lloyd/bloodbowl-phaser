@@ -88,12 +88,21 @@ Tests in `__tests__` are linted with the same rules as the source, except
 fixtures use `any`. Split a test file that passes 800 lines by `describe` block,
 and put the setup the parts share in a helper module beside them.
 
-Code written before these rules is recorded in `eslint-suppressions.json`, as a
-count per file and rule. New violations fail. When you split a long file or
-simplify a complex function, lint fails until you shrink the baseline:
+`pnpm lint` runs two linters. oxlint runs the core ESLint and typescript-eslint
+rules, including the ones that need type information, configured in
+`.oxlintrc.json`. ESLint runs the plugin rules oxlint does not have: unicorn,
+sonarjs, react-hooks, eslint-plugin-n, the comment rules and
+`no-restricted-syntax`, configured in `eslint.config.mjs`. ESLint runs without
+type information, which is what makes it fast.
+
+Code written before these rules is recorded in `oxlint-suppressions.json` and
+`eslint-suppressions.json`, as a count per file and rule. New violations fail.
+When you split a long file or simplify a complex function, lint fails until you
+shrink the baseline:
 
 ```bash
-pnpm lint --prune-suppressions
+pnpm exec oxlint --type-aware --prune-suppressions
+pnpm exec eslint . --prune-suppressions
 ```
 
 Commit the smaller file with the change. Do not add entries to it by hand.

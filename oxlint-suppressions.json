@@ -1,0 +1,5582 @@
+{
+  "__tests__/campaign/campaign.test.ts": {
+    "max-params": {
+      "count": 3
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 10
+    }
+  },
+  "__tests__/headless/sevens-setup.test.ts": {
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "__tests__/integration/charge-click-to-move.test.ts": {
+    "no-empty-function": {
+      "count": 3
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 4
+    }
+  },
+  "__tests__/integration/developmentSeed.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "__tests__/integration/kickoff-ball-in-the-air.test.ts": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "__tests__/integration/local-kickoff-flow.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 16
+    },
+    "typescript/no-explicit-any": {
+      "count": 9
+    },
+    "typescript/no-floating-promises": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 6
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 17
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 10
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "__tests__/integration/sandbox-seed-replay.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "__tests__/integration/secure-ball-click-to-move.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/integration/teamAdvancementModes.journey.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 10
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 5
+    }
+  },
+  "__tests__/integration/teamLifecycleJourneys.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 7
+    }
+  },
+  "__tests__/network/computerMatch.test.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "__tests__/network/kickoffOpening.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/switch-exhaustiveness-check": {
+      "count": 1
+    }
+  },
+  "__tests__/network/lockstep-reload-midmove.test.ts": {
+    "no-unused-expressions": {
+      "count": 1
+    }
+  },
+  "__tests__/network/lockstep-resync-open-decision.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "__tests__/network/lockstep.test.ts": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "no-unused-expressions": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "__tests__/network/networkedKickoffStep.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 10
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "__tests__/network/onlineComputerCoach.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "__tests__/network/onlineHostResume.test.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "__tests__/network/onlineHudCards.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 4
+    }
+  },
+  "__tests__/network/otherCoachPrompt.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 5
+    }
+  },
+  "__tests__/network/pregame-purchases.test.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "__tests__/network/sessions.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/network/sessionsHarness.ts": {
+    "max-params": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 5
+    },
+    "typescript/switch-exhaustiveness-check": {
+      "count": 1
+    }
+  },
+  "__tests__/network/waitingLabel.test.ts": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "__tests__/rules/firestoreRules.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 11
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/dot-notation": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 6
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 22
+    },
+    "typescript/no-unsafe-call": {
+      "count": 13
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 34
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "__tests__/setup/FormationManager.test.ts": {
+    "typescript/no-dynamic-delete": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 3
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 6
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/setup/PlayerPlacementController.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 21
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    },
+    "typescript/unbound-method": {
+      "count": 8
+    }
+  },
+  "__tests__/setup/vitest-setup.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/no-extraneous-class": {
+      "count": 6
+    }
+  },
+  "__tests__/unit/PlayerInfoPanel.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 5
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 9
+    }
+  },
+  "__tests__/unit/Presence.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/TeamPersistence.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 7
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/announcer.test.tsx": {
+    "no-unused-expressions": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 6
+    }
+  },
+  "__tests__/unit/ballMovementLog.test.tsx": {
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/biteTargetPrompt.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 9
+    }
+  },
+  "__tests__/unit/blockCardViewer.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/blockDialogsCloseForOtherCoach.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 4
+    },
+    "typescript/require-await": {
+      "count": 7
+    }
+  },
+  "__tests__/unit/blockDiceDialogBrawler.test.tsx": {
+    "typescript/require-await": {
+      "count": 6
+    }
+  },
+  "__tests__/unit/cardAndLogLandTogether.test.tsx": {
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 5
+    }
+  },
+  "__tests__/unit/careerStats.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/competitionActiveMembership.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 6
+    }
+  },
+  "__tests__/unit/competitionBuilderComputer.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 22
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/competitionLegacyRead.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 4
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/competitionLobby.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/competitionResultRecording.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/competitionTeamRefs.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 3
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/competitionViewAllLink.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 6
+    }
+  },
+  "__tests__/unit/competitionViewComputer.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 4
+    },
+    "typescript/require-await": {
+      "count": 8
+    }
+  },
+  "__tests__/unit/competitionViewLaunch.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/competitionViewLeagueRounds.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 8
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/competitionViewPenalties.test.tsx": {
+    "typescript/require-await": {
+      "count": 7
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/competitionWithdrawal.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/computerCompetitions.test.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/computerTeamTemplates.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/connectionSlow.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/controllers/CameraController.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/controllers/DiceController.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 6
+    }
+  },
+  "__tests__/unit/controllers/GameplayInteractionController.movement.test.ts": {
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/controllers/GameplayInteractionController.order.test.ts": {
+    "no-empty-function": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/controllers/GameplayInteractionController.selection.test.ts": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/controllers/PickupController.test.ts": {
+    "no-empty-function": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/controllers/controllerFixtures.ts": {
+    "typescript/no-invalid-void-type": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/controllers/rendererFixtures.ts": {
+    "typescript/no-invalid-void-type": {
+      "count": 14
+    }
+  },
+  "__tests__/unit/core/GameFlowManager.test.ts": {
+    "no-empty-function": {
+      "count": 5
+    },
+    "typescript/no-explicit-any": {
+      "count": 4
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 12
+    }
+  },
+  "__tests__/unit/decisionDialogsClose.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/decisionDock.test.tsx": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 26
+    }
+  },
+  "__tests__/unit/decisionDockInterception.test.tsx": {
+    "typescript/require-await": {
+      "count": 5
+    }
+  },
+  "__tests__/unit/decisionsWaitForDice.test.tsx": {
+    "typescript/require-await": {
+      "count": 24
+    }
+  },
+  "__tests__/unit/diceLogLanding.test.tsx": {
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 7
+    }
+  },
+  "__tests__/unit/diceStoppedEarly.test.ts": {
+    "no-empty-function": {
+      "count": 4
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 5
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/diceTrayArmourInjury.test.tsx": {
+    "no-empty-function": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/diceTrayClear.test.tsx": {
+    "no-empty-function": {
+      "count": 5
+    },
+    "typescript/require-await": {
+      "count": 10
+    }
+  },
+  "__tests__/unit/diceTrayEarlyBlockChoice.test.tsx": {
+    "no-empty-function": {
+      "count": 5
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 5
+    }
+  },
+  "__tests__/unit/diceTrayEarlyMark.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 9
+    }
+  },
+  "__tests__/unit/diceTrayFallPace.test.tsx": {
+    "no-empty-function": {
+      "count": 5
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/diceTrayFallback.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 7
+    }
+  },
+  "__tests__/unit/diceTrayLaterDrive.test.tsx": {
+    "no-empty-function": {
+      "count": 5
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 5
+    }
+  },
+  "__tests__/unit/diceTrayQueueFull.test.tsx": {
+    "no-empty-function": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/diceTrayQueuedBlockChoice.test.tsx": {
+    "no-empty-function": {
+      "count": 5
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 9
+    }
+  },
+  "__tests__/unit/disconnectOneBanner.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 7
+    }
+  },
+  "__tests__/unit/docs-check.test.ts": {
+    "typescript/no-dynamic-delete": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/elements/Dugout.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 18
+    }
+  },
+  "__tests__/unit/elements/InteractiveHitArea.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 4
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/elements/Pitch.crowdHighlight.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/elements/ballSprite.test.ts": {
+    "no-empty-function": {
+      "count": 11
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/elements/ballTrail.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 8
+    }
+  },
+  "__tests__/unit/elements/pitchExits.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 17
+    },
+    "typescript/no-explicit-any": {
+      "count": 1
+    },
+    "typescript/no-unsafe-call": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/foulAssistsDialog.test.tsx": {
+    "typescript/require-await": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/gameHudMatchOptions.test.tsx": {
+    "no-empty-function": {
+      "count": 3
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-explicit-any": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 3
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 22
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/halfTimeCard.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 7
+    }
+  },
+  "__tests__/unit/hotkeys.test.tsx": {
+    "typescript/require-await": {
+      "count": 6
+    }
+  },
+  "__tests__/unit/hudRects.test.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/hudTabs.test.tsx": {
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/kickoffEventOverlay.test.tsx": {
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/kickoffSandboxOverlay.test.tsx": {
+    "typescript/require-await": {
+      "count": 5
+    }
+  },
+  "__tests__/unit/kickoffTableDialog.test.tsx": {
+    "typescript/require-await": {
+      "count": 8
+    }
+  },
+  "__tests__/unit/leagueTreasury.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/leagueWinnings.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 8
+    },
+    "typescript/no-floating-promises": {
+      "count": 6
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/lobbyConnectionState.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/lobbyPersistence.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/mainMenuSignIn.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-extraneous-class": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 17
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/managers/BallManager.test.ts": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 5
+    },
+    "typescript/no-explicit-any": {
+      "count": 4
+    },
+    "typescript/no-floating-promises": {
+      "count": 3
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 8
+    },
+    "typescript/no-unsafe-call": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 10
+    }
+  },
+  "__tests__/unit/managers/BlockManager.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 7
+    },
+    "typescript/no-explicit-any": {
+      "count": 3
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 3
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/managers/TurnManager.test.ts": {
+    "no-empty-function": {
+      "count": 2
+    },
+    "typescript/no-invalid-void-type": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/managers/WeatherManager.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/matchAutosave.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 15
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/matchInformation.test.tsx": {
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 18
+    }
+  },
+  "__tests__/unit/matchOptionsMenuComponent.test.tsx": {
+    "typescript/no-unnecessary-condition": {
+      "count": 3
+    },
+    "typescript/require-await": {
+      "count": 38
+    }
+  },
+  "__tests__/unit/matchOptionsMenuVisualBaseline.test.tsx": {
+    "no-empty-function": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 7
+    }
+  },
+  "__tests__/unit/matchResultsScreen.test.tsx": {
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/matchResultsScreenFixtures.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 8
+    },
+    "typescript/require-await": {
+      "count": 12
+    }
+  },
+  "__tests__/unit/matchResultsScreenHarness.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/matchResultsScreenLeaving.test.tsx": {
+    "no-empty-function": {
+      "count": 4
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 4
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 8
+    },
+    "typescript/require-await": {
+      "count": 11
+    }
+  },
+  "__tests__/unit/matchResultsScreenProgression.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 9
+    },
+    "typescript/require-await": {
+      "count": 8
+    }
+  },
+  "__tests__/unit/matchSaveRepository.test.ts": {
+    "no-empty-function": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/matchStyle.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/network/firestoreTransport.test.ts": {
+    "no-empty-function": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/noOdds.test.tsx": {
+    "typescript/no-invalid-void-type": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/onlineCoinFlip.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 10
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 7
+    },
+    "typescript/require-await": {
+      "count": 21
+    }
+  },
+  "__tests__/unit/onlineDialogVisibility.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 19
+    }
+  },
+  "__tests__/unit/onlineLobbySettingsPanel.test.tsx": {
+    "no-empty-function": {
+      "count": 4
+    },
+    "typescript/await-thenable": {
+      "count": 5
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-confusing-void-expression": {
+      "count": 5
+    },
+    "typescript/require-await": {
+      "count": 2
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/onlineWaitingSide.test.tsx": {
+    "no-empty-function": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 9
+    }
+  },
+  "__tests__/unit/ownConnection.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/persistence/teamLibraryGuards.test.ts": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/persistence/teamLibraryPending.test.ts": {
+    "no-empty-function": {
+      "count": 5
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/persistence/teamPersistence.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 4
+    },
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/playerActionMenuTurnover.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 6
+    }
+  },
+  "__tests__/unit/playerInfoStatusAfterDice.test.tsx": {
+    "typescript/require-await": {
+      "count": 18
+    }
+  },
+  "__tests__/unit/pregameInducements.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 8
+    }
+  },
+  "__tests__/unit/presentation/carrierMarkerDriveReset.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/no-explicit-any": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    },
+    "typescript/no-unsafe-call": {
+      "count": 6
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 7
+    },
+    "typescript/no-unsafe-return": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/presentation/dropAwaitsEngine.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-explicit-any": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-call": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 21
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/progression/randomSkillReroll.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/progression/savedAdvancementRoll.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/purchasePlanner.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/purchasePlannerAfterFixture.test.ts": {
+    "max-params": {
+      "count": 3
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/rerollDialogTeamButton.test.tsx": {
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/rollBanner.test.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/rollBannerMoment.test.tsx": {
+    "typescript/require-await": {
+      "count": 7
+    }
+  },
+  "__tests__/unit/rules/actionAvailability.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/rules/ballInTheAir.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/rules/expensiveMistakes.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/rules/insignificant.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/rules/jumpGeometry.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/rules/plagueRidden.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/scenes/boardInput.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/scenes/matchCamera.test.ts": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/seeding/competitionFixtures.test.ts": {
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/seeding/validateSeeds.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/selfManagedSeason.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/sentOffCard.test.tsx": {
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/services/GameService.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-explicit-any": {
+      "count": 5
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 7
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/services/GameServiceMovement.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/no-explicit-any": {
+      "count": 6
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 5
+    }
+  },
+  "__tests__/unit/services/GameServiceSetupSwitch.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/services/KickoffVerification.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-explicit-any": {
+      "count": 3
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 3
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/sevensRuleset.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/sidelineLayout.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/sidelineStaff.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/skill-catalog.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/soundTeardown.test.ts": {
+    "no-empty": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 27
+    },
+    "typescript/no-explicit-any": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 7
+    }
+  },
+  "__tests__/unit/soundTestPageNavigation.test.tsx": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/teamManagementComputer.test.tsx": {
+    "no-empty-function": {
+      "count": 3
+    },
+    "typescript/no-floating-promises": {
+      "count": 3
+    },
+    "typescript/require-await": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/testing/coverage.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/testing/scenarioCase.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/turnCatchUpCard.test.tsx": {
+    "typescript/require-await": {
+      "count": 12
+    }
+  },
+  "__tests__/unit/turnClockNoTimeLimit.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 7
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 11
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/turnClockOwnDecision.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 17
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 12
+    }
+  },
+  "__tests__/unit/turnClockPauses.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 37
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 53
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/turnClockStrip.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 6
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/turnClockTimeUp.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 5
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/turnIndicator.test.tsx": {
+    "typescript/require-await": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/turnoverPace.test.tsx": {
+    "no-empty-function": {
+      "count": 4
+    },
+    "typescript/require-await": {
+      "count": 4
+    }
+  },
+  "__tests__/unit/ui/AvailableHires.test.tsx": {
+    "no-empty-function": {
+      "count": 6
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 7
+    }
+  },
+  "__tests__/unit/ui/KickoffEventOverlay.test.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 3
+    }
+  },
+  "__tests__/unit/ui/LeagueTeamProgress.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 8
+    }
+  },
+  "__tests__/unit/ui/PlayerDevelopment.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 3
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/ui/PlayerPage.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/ui/PlayerPageSprite.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/ui/TeamBuilder.test.tsx": {
+    "no-empty-function": {
+      "count": 8
+    },
+    "typescript/no-floating-promises": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 4
+    },
+    "typescript/require-await": {
+      "count": 13
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/ui/TeamBuilderLibraryFailure.test.tsx": {
+    "no-empty-function": {
+      "count": 3
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-misused-spread": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 10
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/ui/TeamBuilderRouteLoad.test.tsx": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 8
+    }
+  },
+  "__tests__/unit/ui/TeamManagement.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    },
+    "typescript/require-await": {
+      "count": 5
+    }
+  },
+  "__tests__/unit/ui/TeamRoster.test.tsx": {
+    "no-empty-function": {
+      "count": 19
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 14
+    }
+  },
+  "__tests__/unit/ui/TeamSelect.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    },
+    "typescript/require-await": {
+      "count": 8
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/ui/TeamStatsOverview.test.tsx": {
+    "typescript/require-await": {
+      "count": 2
+    }
+  },
+  "__tests__/unit/useTeamLibrary.test.tsx": {
+    "no-empty-function": {
+      "count": 4
+    },
+    "typescript/require-await": {
+      "count": 5
+    }
+  },
+  "__tests__/unit/validators/FoulValidator.test.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-explicit-any": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "__tests__/unit/waitingBanner.test.tsx": {
+    "typescript/require-await": {
+      "count": 6
+    }
+  },
+  "__tests__/unit/wordingSlips.test.tsx": {
+    "typescript/require-await": {
+      "count": 5
+    }
+  },
+  "__tests__/utils/inducement-helpers.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 2
+    }
+  },
+  "__tests__/utils/seed-finder.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "__tests__/utils/test-builders.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/no-redundant-type-constituents": {
+      "count": 1
+    }
+  },
+  "__tests__/utils/test-helpers.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "e2e/browser/armour-injury-throws.e2e.ts": {
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "e2e/browser/bloodlust-bite-reaction.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 6
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "e2e/browser/camera-framing.e2e.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 4
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 10
+    }
+  },
+  "e2e/browser/computer-dice-log.e2e.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 2
+    }
+  },
+  "e2e/browser/computer-match-save.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "e2e/browser/computer-team-templates.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "e2e/browser/crowd-push-highlight.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "e2e/browser/decision-dock.e2e.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "e2e/browser/friendly-short-team.e2e.ts": {
+    "no-unsafe-optional-chaining": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    }
+  },
+  "e2e/browser/kickoff-ball-in-the-air.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "e2e/browser/later-drive-kickoff.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "e2e/browser/match-strip.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "e2e/browser/opening.e2e.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-unsafe-optional-chaining": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 7
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "e2e/browser/other-coach-move.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "e2e/browser/phone-layout.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "e2e/browser/pitch-exits.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 4
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "e2e/browser/pitch-geometry.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 6
+    }
+  },
+  "e2e/browser/player-sprite.e2e.ts": {
+    "typescript/no-non-null-assertion": {
+      "count": 10
+    }
+  },
+  "e2e/browser/post-match-management.e2e.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 5
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 4
+    }
+  },
+  "e2e/browser/score-run-prompts.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 6
+    }
+  },
+  "e2e/browser/secure-the-ball.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "e2e/browser/sent-off-card.e2e.ts": {
+    "no-unsafe-optional-chaining": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "e2e/browser/setup-drop-no-flashback.e2e.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 9
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 6
+    }
+  },
+  "e2e/browser/setup-grid-pick.e2e.ts": {
+    "no-unsafe-optional-chaining": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    }
+  },
+  "e2e/browser/sevens-ruleset.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "e2e/browser/sports-wizard.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "e2e/browser/stalling.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "e2e/browser/team-builder-layout.e2e.ts": {
+    "typescript/no-deprecated": {
+      "count": 1
+    }
+  },
+  "e2e/browser/team-edit-refresh.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "e2e/engine/full-match.e2e.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/switch-exhaustiveness-check": {
+      "count": 1
+    }
+  },
+  "e2e/engine/scenario-cases.e2e.ts": {
+    "no-empty-pattern": {
+      "count": 1
+    }
+  },
+  "e2e/engine/smoke.e2e.ts": {
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "e2e/fullgame/brain.ts": {
+    "no-unused-expressions": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 14
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/use-unknown-in-catch-callback-variable": {
+      "count": 1
+    }
+  },
+  "e2e/fullgame/driver.ts": {
+    "max-params": {
+      "count": 3
+    },
+    "no-empty-function": {
+      "count": 4
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 16
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 4
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    },
+    "typescript/no-unsafe-call": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    },
+    "typescript/no-unsafe-return": {
+      "count": 2
+    },
+    "typescript/unbound-method": {
+      "count": 3
+    }
+  },
+  "e2e/fullgame/fullgame.e2e.ts": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 6
+    },
+    "typescript/no-extra-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    },
+    "typescript/use-unknown-in-catch-callback-variable": {
+      "count": 1
+    }
+  },
+  "e2e/fullgame/uxProbe.ts": {
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "e2e/house-bot/houseBot.e2e.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "e2e/kickoff-table/kickoff-table.e2e.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    }
+  },
+  "e2e/online-match/twoCoaches.e2e.ts": {
+    "max-params": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 8
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 7
+    },
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 7
+    },
+    "typescript/restrict-template-expressions": {
+      "count": 3
+    },
+    "typescript/use-unknown-in-catch-callback-variable": {
+      "count": 4
+    }
+  },
+  "e2e/support/browserAdapter.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/switch-exhaustiveness-check": {
+      "count": 1
+    }
+  },
+  "e2e/support/browserRunner.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "e2e/support/camera.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "e2e/support/engineTest.ts": {
+    "no-empty-pattern": {
+      "count": 3
+    },
+    "no-unused-expressions": {
+      "count": 3
+    }
+  },
+  "e2e/support/pages/bridge.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 17
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 8
+    }
+  },
+  "e2e/support/pages/game.ts": {
+    "no-empty-function": {
+      "count": 1
+    }
+  },
+  "e2e/support/pages/pitch.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 4
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "e2e/support/seedTeams.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "e2e/support/visual.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "no-empty": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "scripts/coach/advanced-study/probes.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "scripts/coach/advanced-study/run.ts": {
+    "no-unused-expressions": {
+      "count": 1
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    },
+    "typescript/restrict-plus-operands": {
+      "count": 2
+    }
+  },
+  "scripts/coach/advanced-study/schedule.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/restrict-plus-operands": {
+      "count": 2
+    }
+  },
+  "scripts/coach/advanced-study/teams.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "scripts/coach/catalogue-study.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "scripts/coach/catalogue-study/audit.ts": {
+    "max-depth": {
+      "count": 2
+    }
+  },
+  "scripts/coach/catalogue-study/play.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "scripts/coach/catalogue-study/repair.ts": {
+    "no-unused-expressions": {
+      "count": 1
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 5
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 5
+    }
+  },
+  "scripts/coach/catalogue-study/replay.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "scripts/coach/catalogue-study/rules.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "scripts/coach/catalogue-study/schedule.ts": {
+    "max-depth": {
+      "count": 1
+    }
+  },
+  "scripts/coach/catalogue-study/telemetry.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "scripts/coach/fit-evaluation.ts": {
+    "max-depth": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    }
+  },
+  "scripts/coach/policy-lab/defence.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/consistent-type-definitions": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/restrict-template-expressions": {
+      "count": 2
+    }
+  },
+  "scripts/coach/policy-lab/drama.ts": {
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "scripts/coach/policy-lab/drives.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-conversion": {
+      "count": 2
+    }
+  },
+  "scripts/coach/policy-lab/evidence.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "scripts/coach/policy-lab/fouls.ts": {
+    "max-depth": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "scripts/coach/policy-lab/gate.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 3
+    },
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 3
+    }
+  },
+  "scripts/coach/policy-lab/moments.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "scripts/coach/policy-lab/nailbiters.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "scripts/coach/policy-lab/outcomes.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "scripts/coach/policy-lab/recover.ts": {
+    "max-params": {
+      "count": 3
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 6
+    }
+  },
+  "scripts/coach/policy-lab/scorecard.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "scripts/coach/policy-lab/teams.ts": {
+    "max-params": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "scripts/coach/policy-lab/usage.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "scripts/coach/policy-study/pool.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "no-unused-expressions": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-parameters": {
+      "count": 1
+    }
+  },
+  "scripts/coach/policy-study/run.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 2
+    },
+    "max-nested-callbacks": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    },
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "scripts/coach/policy-study/schedule.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "scripts/coach/positions.ts": {
+    "no-empty-function": {
+      "count": 4
+    }
+  },
+  "scripts/coach/race-rates.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "scripts/dice-audit/audit.ts": {
+    "max-depth": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "scripts/e2e-coverage.ts": {
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    }
+  },
+  "scripts/e2e-replay.ts": {
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "scripts/e2e-seeds.ts": {
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "scripts/hud-shots/hud-shots.e2e.ts": {
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "scripts/page-shots/page-shots.e2e.ts": {
+    "max-statements": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "scripts/perf/bench.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 2
+    },
+    "no-unused-expressions": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 6
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "scripts/perf/verifyRender.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/competition/computerTeamTemplates.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "src/competition/computerTeams.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 7
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/competition/simulateFixture.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "src/competition/teamRefs.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/data/RosterTemplates.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/data/computerTeamCatalogue.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/data/kickoffScenarios.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/data/persistence/teamPersistence.ts": {
+    "complexity": {
+      "count": 5
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 11
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-base-to-string": {
+      "count": 3
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 14
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 6
+    }
+  },
+  "src/data/scenarios.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/data/skillCatalog.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/gallery/fixtures.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/gallery/variantHelpers.tsx": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/game/TeamFactory.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/game/applyScenario.ts": {
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/game/controllers/PlayerPlacementController.ts": {
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "src/game/core/GameFlowManager.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 3
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/game/elements/BallTrail.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/elements/pitchExits.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/inducements/InducementSession.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/inducements/apothecary.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 3
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/game/inducements/computerPurchases.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 2
+    }
+  },
+  "src/game/inducements/desperateMeasures.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/inducements/masterChef.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/inducements/matchInducements.ts": {
+    "complexity": {
+      "count": 4
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 6
+    },
+    "max-statements": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/inducements/prayersToNuffle.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/inducements/regeneration.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "src/game/inducements/sportsWizard.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 6
+    }
+  },
+  "src/game/managers/BallManager.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 5
+    }
+  },
+  "src/game/managers/BlockActivation.ts": {
+    "complexity": {
+      "count": 6
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 5
+    }
+  },
+  "src/game/managers/BlockManager.ts": {
+    "complexity": {
+      "count": 5
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 5
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 4
+    }
+  },
+  "src/game/managers/BlockManagerBase.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 6
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "src/game/managers/BlockOperations.ts": {
+    "max-params": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 2
+    }
+  },
+  "src/game/managers/BlockPushChain.ts": {
+    "complexity": {
+      "count": 4
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 6
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 5
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "src/game/managers/BlockRerolls.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 7
+    }
+  },
+  "src/game/managers/FormationManager.ts": {
+    "typescript/no-dynamic-delete": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "src/game/managers/MovementManager.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/game/managers/PlayerActionManager.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    },
+    "typescript/switch-exhaustiveness-check": {
+      "count": 3
+    }
+  },
+  "src/game/managers/SetupManager.ts": {
+    "complexity": {
+      "count": 4
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 5
+    },
+    "typescript/consistent-type-imports": {
+      "count": 3
+    },
+    "typescript/no-floating-promises": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 7
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "src/game/managers/TeamManager.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/prefer-promise-reject-errors": {
+      "count": 1
+    }
+  },
+  "src/game/managers/TurnManager.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 3
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 6
+    }
+  },
+  "src/game/managers/WeatherManager.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/game/managers/ballPaths.ts": {
+    "typescript/no-non-null-assertion": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/game/managers/blockSteps.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 3
+    }
+  },
+  "src/game/managers/jumpAction.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 3
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/game/managers/moveAction.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/game/managers/movementShared.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 4
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/game/managers/setupStatus.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/operations/ActivationGateOperation.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/operations/AgilityTestOperation.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/game/operations/ArmourOperation.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 3
+    }
+  },
+  "src/game/operations/BallAndChainOperation.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 2
+    }
+  },
+  "src/game/operations/BloodlustBiteOperation.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 5
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "src/game/operations/BombardierOperation.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 7
+    }
+  },
+  "src/game/operations/BounceOperation.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "src/game/operations/CasualtyOperation.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    }
+  },
+  "src/game/operations/CatchOperation.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/game/operations/CrowdInjuryOperation.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "src/game/operations/EndDriveOperations.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/operations/FoulOperation.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "src/game/operations/InjuryOperation.ts": {
+    "max-params": {
+      "count": 2
+    }
+  },
+  "src/game/operations/PassOperation.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 3
+    },
+    "max-params": {
+      "count": 7
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 6
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 12
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "src/game/operations/PickupOperation.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "src/game/operations/PileDriverOperation.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/operations/PuntOperation.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/require-await": {
+      "count": 1
+    }
+  },
+  "src/game/operations/ThrowTeammateOperation.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-params": {
+      "count": 11
+    },
+    "max-statements": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/game/operations/refereeCall.ts": {
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "src/game/persistence/DiceLog.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/game/persistence/MatchAutosave.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "src/game/presentation/boardState.ts": {
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/game/presentation/hudRects.ts": {
+    "no-empty-function": {
+      "count": 2
+    }
+  },
+  "src/game/presentation/momentQueue.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/game/presentation/motion.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-conversion": {
+      "count": 1
+    }
+  },
+  "src/game/presentation/playerArt.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/presentation/presentationGate.ts": {
+    "max-params": {
+      "count": 2
+    },
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/game/presentation/renderOnChange.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "src/game/presentation/sidelineStaff.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 6
+    }
+  },
+  "src/game/progression/MatchStats.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/progression/MatchStats.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/game/progression/advancementModes.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 7
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 4
+    }
+  },
+  "src/game/progression/matchHistory.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-params": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/no-base-to-string": {
+      "count": 1
+    }
+  },
+  "src/game/progression/postMatch.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "src/game/progression/progression.test.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/progression/progression.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 5
+    }
+  },
+  "src/game/rules/actionAvailability.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 6
+    }
+  },
+  "src/game/rules/blockReplacements.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/game/rules/expensiveMistakes.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/game/rules/extraTime.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/rules/journeymen.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/game/rules/jump.ts": {
+    "max-params": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/game/rules/plagueRidden.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "src/game/rules/playerLocation.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-boolean-literal-compare": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 4
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    },
+    "typescript/switch-exhaustiveness-check": {
+      "count": 1
+    }
+  },
+  "src/game/rules/purchasePlanner.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/game/rules/rollPreview.ts": {
+    "max-params": {
+      "count": 9
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/game/rules/secureBall.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/game/rules/stalling.ts": {
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "src/game/rules/steadyFooting.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/rules/teamLifecycle.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 3
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/game/rules/teamPricing.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/game/rules/winnings.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/game/skills/RerollArbiter.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/game/skills/SkillRule.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 5
+    }
+  },
+  "src/game/skills/index.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "src/game/skills/movement.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/game/skills/rerolls.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-params": {
+      "count": 3
+    }
+  },
+  "src/game/skills/rules/ArmBarRule.ts": {
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/BreakTackleRule.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/DivingTackleRule.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/HatredRule.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/LethalFlightRule.ts": {
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/ShadowingRule.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/SidestepRule.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/StandFirmRule.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/TauntRule.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/TentaclesRule.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/TricksterRule.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/game/skills/rules/WrestleRule.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/game/skills/rules/keywords.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/headless/HeadlessGame.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/no-explicit-any": {
+      "count": 3
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "src/headless/checksum.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/headless/cli.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-redundant-type-constituents": {
+      "count": 1
+    }
+  },
+  "src/headless/commandHandlers.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "typescript/await-thenable": {
+      "count": 3
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "typescript/require-await": {
+      "count": 31
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "src/headless/commandShape.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/headless/createHeadlessGame.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/headless/legalActions.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/non-nullable-type-assertion-style": {
+      "count": 1
+    }
+  },
+  "src/headless/pendingDecisions.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/no-explicit-any": {
+      "count": 1
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 10
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 12
+    }
+  },
+  "src/headless/protocol.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/headless/serialization.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 3
+    }
+  },
+  "src/main.ts": {
+    "typescript/use-unknown-in-catch-callback-variable": {
+      "count": 1
+    }
+  },
+  "src/network/LockstepSession.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/network/NetworkedGameService.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 9
+    }
+  },
+  "src/network/OwnershipGate.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/network/computerCoach.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/scenes/BootScene.ts": {
+    "no-empty-function": {
+      "count": 1
+    }
+  },
+  "src/scenes/GameScene.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 3
+    },
+    "typescript/consistent-type-imports": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 26
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "src/scenes/SandboxScene.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "src/scenes/boardEvents.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/scenes/boardInput.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/scenes/boardSprites.ts": {
+    "max-params": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 4
+    }
+  },
+  "src/scenes/matchCamera.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/scenes/matchStart.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/scenes/setupPlacement.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "src/seeding/competitionFixtures.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/seeding/playerLifecycle.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/seeding/runner.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/seeding/seedMeta.ts": {
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/seeding/validateSeeds.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "src/services/EventBus.ts": {
+    "typescript/no-unnecessary-type-parameters": {
+      "count": 1
+    }
+  },
+  "src/services/GameService.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 14
+    }
+  },
+  "src/services/gameService/decisionAnswers.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/services/gameService/parts.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 2
+    }
+  },
+  "src/services/gameService/specialActions.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/services/interfaces/IGameService.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 21
+    }
+  },
+  "src/services/rng/RNGService.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/simulation/ai/board.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 2
+    }
+  },
+  "src/simulation/bench.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/simulation/candidates.ts": {
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 4
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    },
+    "typescript/switch-exhaustiveness-check": {
+      "count": 1
+    }
+  },
+  "src/simulation/cli.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-params": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "src/simulation/coach.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/simulation/coaches/heuristic.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/simulation/commands/bench.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 3
+    },
+    "typescript/use-unknown-in-catch-callback-variable": {
+      "count": 1
+    }
+  },
+  "src/simulation/commands/replay.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "src/simulation/commands/run.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/simulation/commands/tune.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 5
+    },
+    "typescript/use-unknown-in-catch-callback-variable": {
+      "count": 1
+    }
+  },
+  "src/simulation/invariants.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 5
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/simulation/lineups.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/simulation/puzzles.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/simulation/replay.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/simulation/runMatch.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 5
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "src/simulation/stepCandidates.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/simulation/tune.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "src/simulation/viewer.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-base-to-string": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/testing/browserBridge.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 6
+    },
+    "typescript/no-dynamic-delete": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-boolean-literal-compare": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "src/testing/cases/decisions.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/testing/cases/drive-transition.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/testing/cases/fromRuleConfigs.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/testing/cases/helpers.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/testing/cases/movement.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/testing/cases/reroll-decisions.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/testing/cases/secure-the-ball.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/testing/cases/sevens-setup.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/testing/cases/stalling.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/testing/cases/team-special-rules.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 3
+    }
+  },
+  "src/testing/diagnostics/bundle.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "src/testing/fixtures/describeFixture.ts": {
+    "max-params": {
+      "count": 1
+    }
+  },
+  "src/testing/fixtures/rosterFixtures.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 9
+    }
+  },
+  "src/testing/fixtures/validateFixtures.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/testing/scenarioCase/legacy.ts": {
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/testing/scenarioCase/registry.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/testing/scenarioCase/types.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 2
+    }
+  },
+  "src/testing/scenarioCase/validate.ts": {
+    "max-params": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "src/testing/seeds/findVariantSeed.ts": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/types/GameState.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 5
+    }
+  },
+  "src/types/Player.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/types/Scenario.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 4
+    }
+  },
+  "src/types/Skills.ts": {
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/types/Team.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/types/gameEvents/block.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 5
+    },
+    "typescript/no-invalid-void-type": {
+      "count": 1
+    }
+  },
+  "src/types/gameEvents/kickoff.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 6
+    },
+    "typescript/no-invalid-void-type": {
+      "count": 4
+    }
+  },
+  "src/types/gameEvents/match.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 7
+    },
+    "typescript/no-invalid-void-type": {
+      "count": 3
+    }
+  },
+  "src/types/gameEvents/network.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-invalid-void-type": {
+      "count": 1
+    }
+  },
+  "src/types/gameEvents/pass.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 2
+    }
+  },
+  "src/types/gameEvents/ui.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 11
+    },
+    "typescript/no-invalid-void-type": {
+      "count": 14
+    }
+  },
+  "src/ui/App.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/ui/components/TeamBuilder/AdvancementModePanel.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 4
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/ui/components/TeamBuilder/AvailableHires.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/ui/components/TeamBuilder/MainChoicesSection.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/ui/components/TeamBuilder/SidelineStaffSection.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/ui/components/TeamBuilder/TeamDetailsSection.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/ui/components/TeamBuilder/TeamRoster.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 3
+    },
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "src/ui/components/TeamManagement/ComputerTeamBrowser.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "typescript/no-misused-promises": {
+      "count": 2
+    }
+  },
+  "src/ui/components/TeamManagement/PendingDevelopmentPanel.tsx": {
+    "max-lines-per-function": {
+      "count": 5
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/ui/components/TeamManagement/TeamLibraryGate.tsx": {
+    "typescript/no-misused-promises": {
+      "count": 1
+    }
+  },
+  "src/ui/components/common/PlayerPortrait.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/no-confusing-void-expression": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 3
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "src/ui/components/common/SignInDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/ui/components/componentWarehouse/HudDialog.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/ui/components/componentWarehouse/HudPanel.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "src/ui/components/componentWarehouse/Tooltip.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/BlockDiceDialog.tsx": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 3
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/CoinFlipOverlay.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "src/ui/components/hud/DiceLog.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/EndTurnButton.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/no-confusing-void-expression": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "src/ui/components/hud/FollowUpDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/GameHUD.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-misused-promises": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/HalfTimeCard.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/InducementChoiceDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/InducementSelectionPanel.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/InterceptionDialog.tsx": {
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/KickoffEventOverlay.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/MatchOptionsMenu.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 6
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/MatchResultsScreen.tsx": {
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 2
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 4
+    },
+    "typescript/use-unknown-in-catch-callback-variable": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/MatchResultsSections.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/ui/components/hud/MatchStrip.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/MvpAwardCard.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/PlayerDevelopment.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/no-confusing-void-expression": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/PlayerInfoPanel.tsx": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/PregameInducements.tsx": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/RerollDialog.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/RollPreviews.tsx": {
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "src/ui/components/hud/SandboxOverlay.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 2
+    },
+    "typescript/no-confusing-void-expression": {
+      "count": 1
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/ScenarioCasePanel.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/ScoreBoard.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/SentOffCard.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/SetupChecklist.tsx": {
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/SetupControls.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/TurnCatchUpCard.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/ballMovementLog.ts": {
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/computeMatchOptionsMenu.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/ui/components/hud/turnSummary.ts": {
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "src/ui/components/pages/CompetitionBuilder.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    }
+  },
+  "src/ui/components/pages/CompetitionHub.tsx": {
+    "typescript/no-misused-promises": {
+      "count": 3
+    }
+  },
+  "src/ui/components/pages/LeagueRounds.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/ui/components/pages/LeagueTeamProgress.tsx": {
+    "typescript/no-misused-promises": {
+      "count": 1
+    }
+  },
+  "src/ui/components/pages/MainMenu.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 3
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    }
+  },
+  "src/ui/components/pages/OnlineLobby.tsx": {
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 2
+    },
+    "typescript/no-misused-promises": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 5
+    }
+  },
+  "src/ui/components/pages/PlayerPage.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/no-misused-promises": {
+      "count": 2
+    }
+  },
+  "src/ui/components/pages/SharedTeamBrowser.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "typescript/no-misused-promises": {
+      "count": 2
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "src/ui/components/pages/SoundTest.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/ui/components/pages/TeamBuilder.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 4
+    },
+    "typescript/no-misused-promises": {
+      "count": 3
+    }
+  },
+  "src/ui/components/pages/TeamManagement.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 3
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    }
+  },
+  "src/ui/components/pages/TeamSelect.tsx": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/ui/components/pages/TournamentBracket.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/ui/components/shared/AdvancementForm.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 3
+    },
+    "no-nested-ternary": {
+      "count": 3
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 4
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-confusing-void-expression": {
+      "count": 2
+    },
+    "typescript/no-non-null-assertion": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "src/ui/dice/animation.test.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/ui/hotkeys.ts": {
+    "max-params": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "src/ui/pages/ComputerPlayPage.tsx": {
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    }
+  },
+  "src/ui/pages/GamePage.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "typescript/consistent-type-assertions": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/ui/pages/OnlineCoinFlip.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 3
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 4
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "src/ui/pages/OnlinePlayPage.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "max-params": {
+      "count": 1
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "no-empty-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-confusing-void-expression": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 2
+    },
+    "typescript/no-misused-promises": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "src/ui/pages/TurnClock.tsx": {
+    "complexity": {
+      "count": 6
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "max-statements": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 4
+    },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-condition": {
+      "count": 2
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "src/ui/sound/SoundSuite.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 1
+    }
+  },
+  "src/vite-env.d.ts": {
+    "typescript/consistent-type-imports": {
+      "count": 2
+    }
+  }
+}
