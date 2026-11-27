@@ -260,7 +260,7 @@ export class KickoffEventManager {
   }
 
   private highKickChoice(kick: KickRecord): KickoffChoice | null {
-    const landing = this.state.ballPosition;
+    const landing = this.state.balls[0].at;
     if (kick.resolution?.event !== KickoffEvent.HIGH_KICK || !landing) return null;
 
     const { x, y } = landing;

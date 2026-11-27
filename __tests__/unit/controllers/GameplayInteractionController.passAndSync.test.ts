@@ -1,3 +1,4 @@
+import { oneBall } from "@/game/rules/balls";
 import { serviceSpies } from "./GameplayInteractionController.setup";
 import { eventBusSpies, mockEventBus } from "./GameplayInteractionController.setup";
 import { playerWith } from "./controllerFixtures";
@@ -33,7 +34,7 @@ describe("GameplayInteractionController", () => {
       mockGameService.getState.mockReturnValue(stateWith({
         activeTeamId: team1Id,
         weather: "Nice",
-        ballPosition: { x: 5, y: 5 },
+        balls: oneBall({ x: 5, y: 5 }),
       }));
       mockGameService.getPlayerById.mockReturnValue(player1);
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);

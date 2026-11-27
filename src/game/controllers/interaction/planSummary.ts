@@ -9,7 +9,7 @@ import { routeSquares } from "../../rules/jump";
 import { activeRules } from "../../variants/activeMatch";
 import { requiredRoll } from "../../rules/rollTargets";
 import { weatherEffects } from "../../rules/weather";
-import { ballInTheAir } from "../../rules/ballInTheAir";
+import { groundBall } from "../../rules/balls";
 import { PassController } from "../PassController";
 import {
   ROUTE_ROLL_NAMES,
@@ -193,9 +193,9 @@ function finishStages(c: GameplayInteractionController, actor: Player, finish: P
 
 function endsWithBall(c: GameplayInteractionController): boolean {
   const state = c.gameService.getState();
-  const ball = state.ballPosition;
+  const ball = groundBall(state);
   const from = selectedPlayer(c)?.gridPosition;
-  if (!ball || !from || ballInTheAir(state)) return false;
+  if (!ball || !from) return false;
   if (from.x === ball.x && from.y === ball.y) return true;
   if (c.getPlayerAt(ball.x, ball.y)) return false;
   return c.waypoints.some((square) => square.x === ball.x && square.y === ball.y);

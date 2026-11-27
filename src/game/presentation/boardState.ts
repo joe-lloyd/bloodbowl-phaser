@@ -29,10 +29,10 @@ export type BallRepresentation =
     };
 
 export function resolveBallRepresentation(
-  state: Pick<GameState, "ballPosition">,
+  state: Pick<GameState, "balls">,
   players: Player[]
 ): BallRepresentation {
-  const ball = state.ballPosition;
+  const ball = state.balls[0].at;
   if (!ball) return { kind: "none" };
 
   const carrier = players.find((player) => {
@@ -57,7 +57,7 @@ export function isActivatedThisTurn(
 }
 
 export function findBoardStateConflicts(
-  state: Pick<GameState, "ballPosition">,
+  state: Pick<GameState, "balls">,
   players: Player[]
 ): string[] {
   const conflicts = findPlayerLocationViolations(players);

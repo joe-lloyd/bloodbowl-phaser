@@ -1,3 +1,4 @@
+import { placeBall } from "@/game/rules/balls";
 import { describe, expect, it } from "vitest";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -227,9 +228,11 @@ describe("computer inducement choices", () => {
     });
     const noCarrier = choose(game, wizard);
     const carrier = fixtureValue(game.ctx.teams[1].players[0]);
-    game.ctx.gameService.getState().ballPosition = {
-      ...fixtureValue(carrier.gridPosition),
-    };
+    placeBall(
+      game.ctx.gameService.getState(),
+      0,
+      fixtureValue(carrier.gridPosition)
+    );
     expect([noCarrier, choose(game, wizard)]).toEqual([
       "keep",
       `${carrier.id} Transmutation`,

@@ -395,9 +395,9 @@ export function stepCandidates(
       opponents,
       adjacent: opponents.filter((o) => chebyshev(o.gridPosition!, at) === 1),
       carrying:
-        !!state.ballPosition &&
-        state.ballPosition.x === at.x &&
-        state.ballPosition.y === at.y,
+        !!state.balls[0].at &&
+        state.balls[0].at.x === at.x &&
+        state.balls[0].at.y === at.y,
       replacementPending:
         !!active.blockReplacement && !active.blockReplacementUsed,
       step: (command, label) => {

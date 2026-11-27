@@ -374,7 +374,7 @@ function blockDieScore(
 function readBoard(context: CoachContext): Board {
   const gs = context.game.ctx.gameService;
   const state = gs.getState();
-  const ball = state.ballPosition ? { ...state.ballPosition } : null;
+  const ball = state.balls[0].at ? { ...state.balls[0].at } : null;
   const carrier = ball
     ? context.game.ctx.teams
         .flatMap((team) => team.players)

@@ -140,6 +140,7 @@
       }
     ],
     "house/no-comments": "error",
+    "house/no-ball-writes": "error",
     "no-restricted-globals": [
       "error",
       {
@@ -1293,6 +1294,14 @@
     "typescript/consistent-type-imports": "error"
   },
   "overrides": [
+    {
+      "files": [
+        "src/game/rules/balls.ts"
+      ],
+      "rules": {
+        "house/no-ball-writes": "off"
+      }
+    },
     {
       "files": [
         "src/boundary/**",

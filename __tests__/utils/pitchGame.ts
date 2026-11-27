@@ -49,11 +49,11 @@ export async function bounceFrom(
   game: HeadlessGame,
   square: { x: number; y: number }
 ) {
-  game.ctx.gameService.setBallPosition(square.x, square.y);
+  game.ctx.gameService.placeBall(0, { x: square.x, y: square.y });
   await game.ctx.gameService
     .getFlowContext()
     .flowManager.runToRest(new BounceOperation(square));
-  return game.ctx.gameService.getState().ballPosition;
+  return game.ctx.gameService.getState().balls[0].at;
 }
 
 export async function blockAndPush(

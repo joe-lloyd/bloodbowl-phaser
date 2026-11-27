@@ -1,3 +1,4 @@
+import { ballsFromWire, ballsToWire } from "@/game/rules/balls";
 import { type KickRecord, type KickResolution, newKick } from "../game/kickoff/kickRecord";
 import type { GameType } from "../game/variants/gameTypes";
 import type { Venue } from "../game/variants/pitchLayouts";
@@ -88,6 +89,7 @@ export interface GameSnapshot {
   venue?: Venue;
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
+  extraBalls?: ({ x: number; y: number } | null)[];
   activePlayer: GameState["activePlayer"];
   setup?: SetupState | null;
 
@@ -252,7 +254,7 @@ export function serializeGameState(
     ...(state.competition && { competition: true }),
     ...formatFields(state),
     weather: state.weather,
-    ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
+    ...ballsToWire(state.balls),
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
     setup: state.setup ? structuredClone(state.setup) : null,
     teams: teams.map((team) => ({
@@ -345,7 +347,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
 
     ...matchFlags(snapshot),
     weather: snapshot.weather,
-    ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
+    balls: ballsFromWire(snapshot),
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
     ...(snapshot.setup && { setup: structuredClone(snapshot.setup) }),
   };

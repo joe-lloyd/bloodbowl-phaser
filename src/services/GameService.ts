@@ -7,7 +7,6 @@ import { assertPregamePurchasesComplete } from "@/game/inducements/pregame";
 import { type IGameService } from "./interfaces/IGameService.js";
 import { type IEventBus } from "./EventBus.js";
 import { type GameState, GamePhase, SubPhase } from "@/types/GameState";
-import { GameEventNames } from "../types/events";
 import { type Team } from "@/types/Team";
 import { type Player } from "@/types/Player";
 import {
@@ -48,6 +47,7 @@ import * as moves from "./gameService/moveActions";
 import * as specials from "./gameService/specialActions";
 import type { MoveStep } from "../headless/protocol";
 import * as seating from "../game/seating";
+import type { BallId, ThrowInFlight } from "@/game/rules/balls";
 
 export class GameService implements IGameService {
   private readonly parts: GameParts;
@@ -592,9 +592,8 @@ export class GameService implements IGameService {
     return seating.teammatesOf(this.parts.seating, playerId);
   }
 
-  setBallPosition(x: number, y: number): void {
-    this.parts.state.ballPosition = { x, y };
-    this.parts.eventBus.emit(GameEventNames.BallPlaced, { x, y });
+  placeBall(ball: BallId, at: { x: number; y: number }): void {
+    ballActions.placeAndShowBall(this.parts, ball, at);
   }
 
   addTouchdown(scorerId: string): void {
@@ -693,12 +692,8 @@ export class GameService implements IGameService {
     return this.parts.ballManager.attemptPickup(player, position);
   }
 
-  throwInBall(
-    from: { x: number; y: number },
-    toward?: { x: number; y: number },
-    kickoff?: boolean
-  ): void {
-    this.parts.ballManager.throwIn(from, toward, kickoff);
+  throwInBall(from: { x: number; y: number }, flight: ThrowInFlight): void {
+    this.parts.ballManager.throwIn(from, flight);
   }
 
   public getTeam(teamId: string): Team | undefined {

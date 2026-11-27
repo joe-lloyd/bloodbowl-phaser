@@ -1,5 +1,5 @@
 import { activeRules } from "@/game/variants/activeMatch";
-import { groundBall } from "@/game/rules/ballInTheAir";
+import { groundBall } from "@/game/rules/balls";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";

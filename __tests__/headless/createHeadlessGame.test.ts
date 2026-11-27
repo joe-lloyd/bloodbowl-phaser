@@ -13,10 +13,10 @@ const runPickups = (): boolean[] => {
   const results: boolean[] = [];
   for (let i = 0; i < 10; i++) {
     const player = game.teams[0].players[0];
-    const ball = fixtureValue(game.gameService.getState().ballPosition);
+    const ball = fixtureValue(game.gameService.getState().balls[0].at);
     results.push(game.gameService.attemptPickup(fixtureValue(player), ball));
 
-    game.gameService.setBallPosition(ball.x, ball.y);
+    game.gameService.placeBall(0, { x: ball.x, y: ball.y });
   }
   return results;
 };
@@ -33,7 +33,7 @@ describe("createHeadlessGame", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 42 });
     const state = game.gameService.getState();
     expect(state.phase).toBe(scrimmage.setup.phase);
-    expect(state.ballPosition).toEqual(scrimmage.setup.ballPosition);
+    expect(state.balls[0].at).toEqual(scrimmage.setup.ballPosition);
     const placed = game.teams[0].players[0];
     expect(fixtureValue(placed).gridPosition).toEqual({
       x: fixtureValue(scrimmage.setup.team1Placements[0]).x,
@@ -53,11 +53,11 @@ describe("createHeadlessGame", () => {
     const a = createHeadlessGame({ scenario: scrimmage, seed: 7 });
     const b = createHeadlessGame({ scenario: scrimmage, seed: 7 });
 
-    a.gameService.setBallPosition(0, 0);
+    a.gameService.placeBall(0, { x: 0, y: 0 });
     const playerA = a.teams[0].players[0];
     a.gameService.getState().score[a.teams[0].id] = 3;
 
-    expect(b.gameService.getState().ballPosition).toEqual(
+    expect(b.gameService.getState().balls[0].at).toEqual(
       scrimmage.setup.ballPosition
     );
     expect(b.gameService.getState().score[b.teams[0].id]).toBe(0);

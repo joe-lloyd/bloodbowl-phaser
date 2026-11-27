@@ -73,8 +73,8 @@ function outcomeTracker(game: HeadlessGame) {
           turn,
           at: { ...player.gridPosition },
           carrying:
-            state.ballPosition?.x === player.gridPosition.x &&
-            state.ballPosition?.y === player.gridPosition.y,
+            state.balls[0].at?.x === player.gridPosition.x &&
+            state.balls[0].at?.y === player.gridPosition.y,
         });
     }
     transfer(step, context);

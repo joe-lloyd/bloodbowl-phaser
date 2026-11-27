@@ -107,7 +107,7 @@ describe("ball possession has one synchronized representation", () => {
 
     expect(fixtureValue(runner).gridPosition).toEqual({ x: 12, y: 5 });
     expect(ball.square).toEqual({ x: 12, y: 5 });
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 12,
       y: 5,
     });
@@ -123,7 +123,7 @@ describe("ball possession has one synchronized representation", () => {
 
     expect(fixtureValue(runner).gridPosition).toEqual({ x: 10, y: 5 });
     const state = game.ctx.gameService.getState();
-    expect(state.ballPosition).not.toEqual(fixtureValue(runner).gridPosition);
+    expect(state.balls[0].at).not.toEqual(fixtureValue(runner).gridPosition);
     expect(resolveBallRepresentation(state, allPlayers(game)).kind).not.toBe(
       "carried"
     );
@@ -393,7 +393,7 @@ describe("Punt declares a kick presentation event", () => {
     if (!declared.intoCrowd) {
       const { conflicts } = boardOf(game);
       expect(conflicts).toEqual([]);
-      const ball = fixtureValue(game.ctx.gameService.getState().ballPosition);
+      const ball = fixtureValue(game.ctx.gameService.getState().balls[0].at);
       expect(Math.abs(ball.x - declared.landing.x)).toBeLessThanOrEqual(1);
       expect(Math.abs(ball.y - declared.landing.y)).toBeLessThanOrEqual(1);
     }
@@ -445,8 +445,8 @@ describe("Punt declares a kick presentation event", () => {
     });
 
     const resumed = createHeadlessGame({ matchSave: save });
-    expect(resumed.gameService.getState().ballPosition).toEqual(
-      game.ctx.gameService.getState().ballPosition
+    expect(resumed.gameService.getState().balls[0].at).toEqual(
+      game.ctx.gameService.getState().balls[0].at
     );
   });
 });

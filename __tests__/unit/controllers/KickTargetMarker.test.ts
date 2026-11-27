@@ -1,3 +1,4 @@
+import { placeBall } from "@/game/rules/balls";
 import { GamePhase } from "../../../src/types/GameState";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { KickoffEvent } from "../../../src/game/kickoff/kickoffEvents";
@@ -75,7 +76,7 @@ describe("the landing square marker", () => {
   it("comes back on a board restored mid-Charge, and goes with the landing", async () => {
     const state = new HeadlessGame({ seed: 1 }).ctx.gameService.getState();
     state.phase = GamePhase.KICKOFF;
-    state.ballPosition = { x: 14, y: 4 };
+    placeBall(state, 0, { x: 14, y: 4 });
     state.kick = newKick("team1", "coach");
     eventBus.emit(GameEventNames.GameStateRestored, state);
     await settled();

@@ -1520,11 +1520,6 @@
       "count": 1
     }
   },
-  "__tests__/unit/rules/ballInTheAir.test.ts": {
-    "typescript/consistent-type-assertions": {
-      "count": 1
-    }
-  },
   "__tests__/unit/rules/expensiveMistakes.test.ts": {
     "typescript/consistent-type-assertions": {
       "count": 2
@@ -4017,7 +4012,7 @@
       "count": 1
     },
     "no-implicit-coercion": {
-      "count": 3
+      "count": 2
     },
     "typescript/no-unnecessary-condition": {
       "count": 1
@@ -4360,11 +4355,6 @@
   "src/game/rules/awaitingDeclaration.ts": {
     "no-implicit-coercion": {
       "count": 3
-    }
-  },
-  "src/game/rules/ballInTheAir.ts": {
-    "no-implicit-coercion": {
-      "count": 4
     }
   },
   "src/game/rules/blockReplacements.ts": {
@@ -6282,15 +6272,12 @@
   },
   "src/ui/components/hud/PlayerInfoPanel.tsx": {
     "complexity": {
-      "count": 2
+      "count": 1
     },
     "max-lines-per-function": {
       "count": 2
     },
     "react/jsx-key": {
-      "count": 1
-    },
-    "typescript/no-unnecessary-condition": {
       "count": 1
     },
     "typescript/prefer-nullish-coalescing": {

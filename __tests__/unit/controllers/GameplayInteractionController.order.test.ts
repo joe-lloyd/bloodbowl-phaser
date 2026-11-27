@@ -1,3 +1,4 @@
+import { oneBall } from "@/game/rules/balls";
 import { serviceSpies } from "./GameplayInteractionController.setup";
 import { eventHandler } from "./GameplayInteractionController.setup";
 import { playerWith } from "./controllerFixtures";
@@ -158,7 +159,7 @@ describe("GameplayInteractionController", () => {
     });
 
     it("keeps the board busy through a Hand-off and lets the player go once it resolves", async () => {
-      mockGameService.getState.mockReturnValue(stateWith({ activeTeamId: team1Id, ballPosition: { x: 5, y: 5 } }));
+      mockGameService.getState.mockReturnValue(stateWith({ activeTeamId: team1Id, balls: oneBall({ x: 5, y: 5 }) }));
       const mate = playerWith({
         ...player1,
         id: "p3",

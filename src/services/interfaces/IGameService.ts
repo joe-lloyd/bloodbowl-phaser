@@ -1,5 +1,6 @@
 import type { KickoffRehearsal } from "@/game/kickoff/kickRecord";
 import type { MoveReach } from "../../game/validators/jumpReach";
+import type { BallId, ThrowInFlight } from "@/game/rules/balls";
 import type * as SetupTypes from "@/types/SetupTypes";
 import type * as InducementTypes from "@/types/Inducements";
 import { GamePhase, type GameState, SubPhase } from "@/types/GameState";
@@ -275,11 +276,7 @@ export interface IGameService {
   ): Promise<boolean>;
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean;
-  throwInBall(
-    from: { x: number; y: number },
-    toward?: { x: number; y: number },
-    kickoff?: boolean
-  ): void;
+  throwInBall(from: { x: number; y: number }, flight: ThrowInFlight): void;
 
   followUpPush(
     attackerId: string,
@@ -325,6 +322,6 @@ export interface IGameService {
     playerId: string,
     reach?: MoveReach
   ): { x: number; y: number; cost?: number }[];
-  setBallPosition(x: number, y: number): void;
+  placeBall(ball: BallId, at: { x: number; y: number }): void;
   finishActivation(playerId: string): void;
 }

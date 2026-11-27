@@ -1,5 +1,6 @@
 import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
 import { isBallAt } from "@/game/managers/movementShared";
+import { ballAt, placeBall } from "@/game/rules/balls";
 import { GameEventNames } from "@/types/events";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { BounceOperation } from "@/game/operations/BounceOperation";
@@ -207,9 +208,10 @@ export async function followUpPush(
   const from = { ...attacker.gridPosition };
   attacker.gridPosition = { ...targetSquare };
 
-  const carriedBall = isBallAt(state, from);
+  const ball = ballAt(state, from);
+  const carriedBall = ball !== undefined;
   if (carriedBall) {
-    state.ballPosition = { ...targetSquare };
+    placeBall(state, ball, targetSquare);
     eventBus.emit(GameEventNames.BallPlaced, { ...targetSquare });
   }
 

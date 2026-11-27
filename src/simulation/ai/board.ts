@@ -93,7 +93,7 @@ export function readBoard(game: HeadlessGame, us: string): Board {
 
   const { marks, occupant } = fieldMaps(theirs, everyone);
 
-  const ball = ballOn(state.ballPosition, occupant);
+  const ball = ballOn(state.balls[0].at, occupant);
 
   const turn = state.turn;
   const ourTeam = gs.getTeam(us);

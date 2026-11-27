@@ -1,5 +1,5 @@
 import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
-import { ballOnSquare } from "@/game/rules/ballInTheAir";
+import { ballOnSquare } from "@/game/rules/balls";
 import { type GameState } from "@/types/GameState";
 import { type ActionType, GameEventNames } from "@/types/events";
 import {
@@ -344,7 +344,8 @@ function moveRefused(
   const others = everyone(parts.seating).filter(
     (p) => p.id !== activating.id && p.gridPosition
   );
-  if (canSecureBall(activating, parts.state.ballPosition, others)) return false;
+  if (parts.state.balls.some(({ at }) => canSecureBall(activating, at, others)))
+    return false;
   parts.eventBus.emit(
     GameEventNames.UI_Notification,
     "Secure the Ball needs a loose ball with no Standing opponent within 2 squares"

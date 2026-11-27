@@ -47,7 +47,7 @@ export function subscribeBoardEvents(scene: GameScene): void {
     }
     if (data?.positions) {
       scene.refreshDugouts();
-      const ball = gameService().getState().ballPosition;
+      const ball = gameService().getState().balls[0].at;
       if (ball) scene.placeBallVisual(ball.x, ball.y);
     }
     scene.syncPlayerStatuses();

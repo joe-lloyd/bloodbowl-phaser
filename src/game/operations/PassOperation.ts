@@ -8,6 +8,7 @@ import { chooseInterceptor } from "./interceptionChoice";
 import { type Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GamePhase } from "../../types/GameState";
 import { BounceOperation } from "./BounceOperation";
+import { type BallId, ballSquare, restingBall } from "../rules/balls";
 import { CatchOperation } from "./CatchOperation";
 import { lostBallHandling, passModifier } from "../kickoff/ballConditions";
 import { interceptModifiers } from "../rules/rollPreview";
@@ -32,17 +33,19 @@ export class FinishPassActivationOperation extends GameOperation {
 
   private passerId: string;
   private giveAndGoExempt: boolean;
-  constructor(passerId: string, giveAndGoExempt: boolean) {
+  private ball: BallId;
+  constructor(passerId: string, giveAndGoExempt: boolean, ball: BallId) {
     super();
     this.passerId = passerId;
     this.giveAndGoExempt = giveAndGoExempt;
+    this.ball = ball;
   }
 
   async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService;
     const eventBus = context.eventBus;
     const passer = gameService.getPlayerById(this.passerId);
-    const ball = gameService.getState().ballPosition;
+    const ball = ballSquare(gameService.getState(), this.ball);
     const holder = ball ? gameService.getPlayerAt(ball.x, ball.y) : undefined;
     if (
       passer &&
@@ -116,7 +119,8 @@ function safePass(context: FlowContext, passer: Player): void {
   const { gameService, eventBus } = context;
   eventBus.emit(GameEventNames.UI_Notification, "Safe Pass! Ball held.");
   if (passer.gridPosition) {
-    gameService.setBallPosition(passer.gridPosition.x, passer.gridPosition.y);
+    const ball = restingBall(gameService.getState(), passer.gridPosition);
+    gameService.placeBall(ball, passer.gridPosition);
   }
   gameService.finishActivation(passer.id);
 }
@@ -126,8 +130,9 @@ function fumble(context: FlowContext, passer: Player): void {
   eventBus.emit(GameEventNames.UI_Notification, "FUMBLE!");
 
   if (passer.gridPosition) {
-    gameService.setBallPosition(passer.gridPosition.x, passer.gridPosition.y);
-    context.flowManager.add(new BounceOperation(passer.gridPosition), true);
+    const ball = restingBall(gameService.getState(), passer.gridPosition);
+    gameService.placeBall(ball, passer.gridPosition);
+    context.flowManager.add(new BounceOperation(passer.gridPosition, { ball }), true);
   }
   gameService.triggerTurnover("Fumbled Pass");
 }
@@ -278,6 +283,7 @@ export class PassOperation extends GameOperation {
   private targetX: number;
   private targetY: number;
   private hailMary: boolean;
+  private ball: BallId = 0;
   constructor(
     passerId: string,
     targetX: number,
@@ -297,6 +303,7 @@ export class PassOperation extends GameOperation {
 
     const passer = gameService.getPlayerById(this.passerId);
     if (!passer?.gridPosition) return;
+    this.ball = restingBall(gameService.getState(), passer.gridPosition);
 
     gameService.commitAction(this.passerId);
 
@@ -433,7 +440,7 @@ export class PassOperation extends GameOperation {
       if (interceptor?.gridPosition) {
         const at = { ...interceptor.gridPosition };
         await fly(at);
-        gameService.setBallPosition(at.x, at.y);
+        gameService.placeBall(this.ball, at);
         eventBus.emit(GameEventNames.PassIntercepted, {
           passerId: passer.id,
           interceptorId: interceptor.id,
@@ -473,7 +480,8 @@ export class PassOperation extends GameOperation {
     context.flowManager.add(
       new FinishPassActivationOperation(
         this.passerId,
-        giveAndGoExempt(passer, result.passType)
+        giveAndGoExempt(passer, result.passType),
+        this.ball
       )
     );
   }
@@ -496,7 +504,7 @@ export class PassOperation extends GameOperation {
     if (await this.catchOnTheWay(context, passer, path)) return;
     const scattered = ricochetDrop(dice, flight);
     if (!isOnPitch(scattered)) {
-      gameService.throwInBall(last, scattered);
+      gameService.throwInBall(last, { ball: this.ball, toward: scattered });
       return;
     }
     this.land(context, passer, settleOffObstacle(dice, scattered), {
@@ -517,8 +525,7 @@ export class PassOperation extends GameOperation {
       .map((square) => gameService.getPlayerAt(square.x, square.y))
       .find((player) => !!player && hasTackleZone(player));
     if (!catcher?.gridPosition) return false;
-    const { x, y } = catcher.gridPosition;
-    gameService.setBallPosition(x, y);
+    gameService.placeBall(this.ball, catcher.gridPosition);
     await context.flowManager.runToRest(
       new CatchOperation(
         catcher.id,
@@ -549,7 +556,7 @@ export class PassOperation extends GameOperation {
     }
 
     if (isOnPitch(landingPos)) {
-      gameService.setBallPosition(landingPos.x, landingPos.y);
+      gameService.placeBall(this.ball, landingPos);
 
       const playerAtLanding = gameService.getPlayerAt(
         landingPos.x,
@@ -605,7 +612,10 @@ export class PassOperation extends GameOperation {
       const lastInBounds = path.at(-2);
       eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
       if (!lastInBounds) throw new Error("Pass left the pitch without a path");
-      gameService.throwInBall(lastInBounds, landingPos);
+      gameService.throwInBall(lastInBounds, {
+        ball: this.ball,
+        toward: landingPos,
+      });
     }
   }
 

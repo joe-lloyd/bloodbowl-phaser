@@ -148,7 +148,7 @@ describe("Stalling: the Crowd Takes Action", () => {
       } else {
         missed++;
         expect(fixtureValue(carrier).status).toBe(PlayerStatus.ACTIVE);
-        expect(game.ctx.gameService.getState().ballPosition).toEqual({
+        expect(game.ctx.gameService.getState().balls[0].at).toEqual({
           x: 15,
           y: 5,
         });

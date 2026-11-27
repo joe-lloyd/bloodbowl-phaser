@@ -1,4 +1,4 @@
-import { ballOnSquare } from "@/game/rules/ballInTheAir";
+import { ballOnSquare } from "@/game/rules/balls";
 import { GameEventNames } from "../../types/events";
 import { type Player, PlayerStatus } from "../../types/Player";
 import { type FlowContext } from "../core/GameFlowManager";

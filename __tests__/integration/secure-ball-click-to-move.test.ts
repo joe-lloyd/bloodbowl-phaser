@@ -139,7 +139,7 @@ describe("Secure the Ball on the board", () => {
           );
         });
         expect(fixtureValue(player).gridPosition).toEqual({ x: 7, y: 5 });
-        expect(gameService.getState().ballPosition).toEqual({ x: 7, y: 5 });
+        expect(gameService.getState().balls[0].at).toEqual({ x: 7, y: 5 });
         expect(dice).toEqual([
           `Secure the Ball (Human Lineman #1): ${String(target)}, needs ${String(target)}+`,
         ]);

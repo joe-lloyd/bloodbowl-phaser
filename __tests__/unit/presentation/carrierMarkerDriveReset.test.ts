@@ -1,3 +1,5 @@
+import { oneBall, placeBall } from "@/game/rules/balls";
+import type { GameState } from "@/types/GameState";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { GameScene } from "../../../src/scenes/GameScene";
 import { EventBus } from "../../../src/services/EventBus";
@@ -37,13 +39,13 @@ const player = (id: string, teamId: string, x: number, y: number) => ({
 describe("carrier marker across the touchdown reset", () => {
   const eventBus = new EventBus();
   let scene: any;
-  let state: { ballPosition: { x: number; y: number } | null };
+  let state: Pick<GameState, "balls">;
   let ballSprite: { destroy: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     const scorer = player("scorer", "team1", 19, 5);
     const defender = player("defender", "team2", 15, 6);
-    state = { ballPosition: { x: 19, y: 5 } };
+    state = { balls: oneBall({ x: 19, y: 5 }) };
     ballSprite = { destroy: vi.fn() };
 
     scene = Object.create(GameScene.prototype);
@@ -85,7 +87,7 @@ describe("carrier marker across the touchdown reset", () => {
     scene.reconcileBallVisual();
     expect(marked()).toEqual(["scorer"]);
 
-    state.ballPosition = null;
+    placeBall(state, 0, null);
     eventBus.emit(GameEventNames.RefreshBoard, undefined);
 
     expect(marked()).toEqual([]);
@@ -95,11 +97,11 @@ describe("carrier marker across the touchdown reset", () => {
 
   it("marks the new carrier again once the ball is back in someone's hands", () => {
     scene.reconcileBallVisual();
-    state.ballPosition = null;
+    placeBall(state, 0, null);
     eventBus.emit(GameEventNames.RefreshBoard, undefined);
     expect(marked()).toEqual([]);
 
-    state.ballPosition = { x: 15, y: 6 };
+    placeBall(state, 0, { x: 15, y: 6 });
     scene.reconcileBallVisual();
     expect(marked()).toEqual(["defender"]);
   });

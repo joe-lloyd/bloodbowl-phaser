@@ -1,3 +1,4 @@
+import { oneBall } from "@/game/rules/balls";
 import { freshSpend, spend } from "../../src/game/rules/turnSpend.js";
 import { RosterName, type Team, createTeam } from "../../src/types/Team.js";
 import {
@@ -206,7 +207,7 @@ export class GameStateBuilder {
       },
       score: {},
       weather: "Nice",
-      ballPosition: null,
+      balls: oneBall(null),
       activePlayer: null,
     };
   }

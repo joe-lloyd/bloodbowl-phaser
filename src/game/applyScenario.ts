@@ -1,3 +1,4 @@
+import { oneBall } from "./rules/balls";
 import { freshSpend } from "./rules/turnSpend";
 import { type Scenario, type PlayerPlacement } from "../types/Scenario";
 import { type Team } from "../types/Team";
@@ -187,7 +188,7 @@ export function applyScenario(
     },
     score: Object.fromEntries(sides.map(({ team }) => [team.id, 0])),
     weather: scenario.setup.weather ?? "Nice",
-    ballPosition: ballSquare(scenario),
+    balls: oneBall(ballSquare(scenario)),
     activePlayer: null,
     ...scenarioOptionalFields(scenario, sides),
   };

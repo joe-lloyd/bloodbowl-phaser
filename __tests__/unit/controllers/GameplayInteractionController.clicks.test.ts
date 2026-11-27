@@ -1,3 +1,4 @@
+import { oneBall } from "@/game/rules/balls";
 import { eventBusSpies } from "./GameplayInteractionController.setup";
 import { serviceSpies } from "./GameplayInteractionController.setup";
 import { whenFlowIdle } from "./GameplayInteractionController.setup";
@@ -46,7 +47,7 @@ describe("GameplayInteractionController", () => {
       controller.currentActionMode = "handoff";
       controller.currentStepId = "handoff";
       controller.selectedPlayerId = "p1";
-      mockGameService.getState.mockReturnValue(stateWith({ ballPosition: { x: 5, y: 5 } }));
+      mockGameService.getState.mockReturnValue(stateWith({ balls: oneBall({ x: 5, y: 5 }) }));
 
       const teammate = playerWith({
         id: "p3",
@@ -84,7 +85,7 @@ describe("GameplayInteractionController", () => {
       controller.currentActionMode = "handoff";
       controller.currentStepId = "handoff";
       controller.selectedPlayerId = "p1";
-      mockGameService.getState.mockReturnValue(stateWith({ ballPosition: { x: 5, y: 5 } }));
+      mockGameService.getState.mockReturnValue(stateWith({ balls: oneBall({ x: 5, y: 5 }) }));
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
       mockGameService.isTouchbackPending.mockReturnValue(false);
       mockGameService.getPlayerById.mockImplementation((id: string) =>
@@ -119,7 +120,7 @@ describe("GameplayInteractionController", () => {
       controller.currentActionMode = "handoff";
       controller.currentStepId = "handoff";
       controller.selectedPlayerId = "p1";
-      mockGameService.getState.mockReturnValue(stateWith({ ballPosition: { x: 5, y: 5 } }));
+      mockGameService.getState.mockReturnValue(stateWith({ balls: oneBall({ x: 5, y: 5 }) }));
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
       mockGameService.isTouchbackPending.mockReturnValue(false);
       mockGameService.getPlayerById.mockImplementation((id: string) =>
@@ -237,7 +238,7 @@ describe("GameplayInteractionController", () => {
     Object.assign(mockGameService, { throwTeammate });
     mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
     mockGameService.isTouchbackPending.mockReturnValue(false);
-    mockGameService.getState.mockReturnValue(stateWith({ ballPosition: null }));
+    mockGameService.getState.mockReturnValue(stateWith({ balls: oneBall(null) }));
     mockGameService.getPlayerById.mockImplementation((id: string) => playerWith({ id, teamId: "team1", gridPosition: { x: id === "p1" ? 5 : mateX, y: id === "p1" ? 5 : 6 }, status: "Active", skills: [] }));
     controller.getPlayerAt = vi.fn().mockReturnValue(null);
     controller.currentActionMode = "throwTeamMate";

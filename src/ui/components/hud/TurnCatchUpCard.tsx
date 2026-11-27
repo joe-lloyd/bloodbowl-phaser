@@ -104,7 +104,7 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
             incidents: incidents.current,
             teamId: teamId,
             players: game.getTeams().flatMap((team) => team.players),
-            ball: game.getState().ballPosition,
+            ball: game.getState().balls[0].at,
           })
         : null;
     clear();

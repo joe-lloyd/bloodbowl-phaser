@@ -120,7 +120,7 @@ describe("a plan with a jump in it", () => {
     await set.controller.onSquareClicked(15, 5);
     go(set);
     await vi.waitFor(() => {
-      expect(set.game.ctx.gameService.getState().ballPosition).toEqual({ x: 15, y: 5 });
+      expect(set.game.ctx.gameService.getState().balls[0].at).toEqual({ x: 15, y: 5 });
     });
     expect(set.seen.dice[0]).toContain("Jump");
     expect(set.game.ctx.gameService.hasPlayerActed(fixtureValue(set.game.ctx.teams[0].players[0]).id)).toBe(true);
@@ -134,7 +134,7 @@ describe("a plan with a jump in it", () => {
     await set.controller.onSquareClicked(13, 5);
     go(set);
     await vi.waitFor(() => {
-      expect(set.game.ctx.gameService.getState().ballPosition).toEqual({ x: 13, y: 5 });
+      expect(set.game.ctx.gameService.getState().balls[0].at).toEqual({ x: 13, y: 5 });
     });
   });
 

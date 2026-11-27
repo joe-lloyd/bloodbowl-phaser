@@ -1,3 +1,4 @@
+import { placeBall } from "@/game/rules/balls";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -45,9 +46,9 @@ async function kickedIntoCharge() {
     const rolled = kicked.events.find((e) => e.name === "kickoffResult")
       ?.data as { event?: KickoffEvent } | undefined;
     const state = game.ctx.gameService.getState();
-    if (rolled?.event !== KickoffEvent.CHARGE || !state.ballPosition) continue;
+    if (rolled?.event !== KickoffEvent.CHARGE || !state.balls[0].at) continue;
 
-    state.ballPosition = { ...LANDING };
+    placeBall(state, 0, { ...LANDING });
     return game;
   }
   throw new Error("no seed rolls Charge! without a Touchback");
@@ -161,7 +162,7 @@ describe("Moving under a kicked ball that is still in the air", () => {
       fixtureValue(gs.getPlayerById(fixtureValue(charger).id)).gridPosition
     ).toEqual(LANDING);
     expect(gs.getPhase()).toBe(GamePhase.KICKOFF);
-    expect(gs.getState().ballPosition).toEqual(LANDING);
+    expect(gs.getState().balls[0].at).toEqual(LANDING);
     expect(seen.plannedRolls).not.toContain("pickup");
     expect(seen.prompts.join(" | ")).not.toMatch(/pick ?up/i);
     expect(pickupRolls(seen.dice)).toEqual([]);
@@ -240,7 +241,7 @@ describe("Moving under a kicked ball that is still in the air", () => {
       expect(gs.getPhase()).toBe(GamePhase.PLAY);
       expect(catchRolls(seen.dice, fixtureValue(down).playerName)).toEqual([]);
       expect(pickupRolls(seen.dice)).toEqual([]);
-      expect(gs.getState().ballPosition).not.toEqual(LANDING);
+      expect(gs.getState().balls[0].at).not.toEqual(LANDING);
     }
   );
 });

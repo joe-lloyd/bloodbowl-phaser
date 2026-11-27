@@ -20,7 +20,7 @@ import {
 } from "../../rules/rollPreview";
 import type { PlanRollKind } from "../../rules/actionPlan";
 import { isSecuringBall } from "../../rules/secureBall";
-import { ballInTheAir } from "../../rules/ballInTheAir";
+import { groundBall } from "../../rules/balls";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { climbRequest } from "./Confirmations";
 import { plannedActionFor } from "./plan";
@@ -121,13 +121,12 @@ function planLegs(
   const securing = isSecuringBall(state, player.id);
   const start = player.gridPosition;
   if (!start) return [];
+  const ball = groundBall(state);
   const pickup =
-      state.ballPosition &&
-      !ballInTheAir(state) &&
-      !c.getPlayerAt(state.ballPosition.x, state.ballPosition.y)
+      ball && !c.getPlayerAt(ball.x, ball.y)
         ? {
-            square: state.ballPosition,
-            target: (securing ? secureBallTarget : pickupTarget)(mover, state.ballPosition, c.getOpposingPlayers(player.teamId), state),
+            square: ball,
+            target: (securing ? secureBallTarget : pickupTarget)(mover, ball, c.getOpposingPlayers(player.teamId), state),
             ...(securing && { securing: true }),
           }
         : undefined;

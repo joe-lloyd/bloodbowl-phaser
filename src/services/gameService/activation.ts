@@ -2,7 +2,7 @@ import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
 import { activationRolling, awaitingDeclaration } from "@/game/rules/awaitingDeclaration";
 import { actFirstBlocks } from "@/game/inducements/potionHooks";
 import type { Team } from "@/types/Team";
-import { groundBall } from "@/game/rules/ballInTheAir";
+import { groundBall } from "@/game/rules/balls";
 import { whenMomentsComplete } from "@/game/presentation/momentQueue";
 import { type GameState, GamePhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";

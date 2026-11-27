@@ -66,8 +66,8 @@ export class ScenarioLoader {
     this.emitPlacements(this.team1);
     this.emitPlacements(this.team2);
 
-    if (initialState.ballPosition) {
-      this.eventBus.emit(GameEventNames.BallPlaced, initialState.ballPosition);
+    for (const { at } of initialState.balls) {
+      if (at) this.eventBus.emit(GameEventNames.BallPlaced, at);
     }
   }
 

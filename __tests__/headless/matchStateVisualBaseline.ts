@@ -14,7 +14,7 @@ const S = GameConfig.SQUARE_SIZE;
 const centre = (n: number) => n * S + S / 2;
 
 export interface BaselineInput {
-  state: Pick<GameState, "ballPosition" | "turn">;
+  state: Pick<GameState, "balls" | "turn">;
   players: Player[];
 
   team1Id: string;

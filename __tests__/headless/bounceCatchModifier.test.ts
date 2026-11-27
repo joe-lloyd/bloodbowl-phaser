@@ -128,7 +128,7 @@ describe("catching a bounced ball", () => {
   it("takes no -1 from a pass", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
     const catcher = game.ctx.teams[0].players[1];
-    game.ctx.gameService.setBallPosition(9, 4);
+    game.ctx.gameService.placeBall(0, { x: 9, y: 4 });
     const rolls: string[] = [];
     game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) => {
       rolls.push(roll.description);

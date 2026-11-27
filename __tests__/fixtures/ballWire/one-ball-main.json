@@ -1,0 +1,344 @@
+{
+  "phase": "PLAY",
+  "subPhase": "TURN_RECEIVING",
+  "activeTeamId": "team1",
+  "turn": {
+    "teamId": "team1",
+    "turnNumber": 2,
+    "isHalf2": false,
+    "activatedPlayerIds": [],
+    "hasBlitzed": false,
+    "hasPassed": false,
+    "hasHandedOff": false,
+    "hasFouled": false,
+    "hasThrownTeamMate": false,
+    "hasKickedTeamMate": false,
+    "hasThrownBomb": false,
+    "movementUsed": {}
+  },
+  "score": {
+    "team1": 0,
+    "team2": 0
+  },
+  "leaderRerolls": {
+    "half": "h1",
+    "teamIds": []
+  },
+  "weather": "Nice",
+  "ballPosition": {
+    "x": 7,
+    "y": 3
+  },
+  "activePlayer": null,
+  "setup": null,
+  "teams": [
+    {
+      "id": "team1",
+      "name": "Home Team",
+      "rerolls": 0,
+      "players": [
+        {
+          "id": "team1-player-1",
+          "name": "Human Lineman #1",
+          "teamId": "team1",
+          "number": 1,
+          "positionName": "Human Lineman",
+          "position": {
+            "x": 9,
+            "y": 5
+          },
+          "status": "Active",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team1-player-2",
+          "name": "Human Lineman #2",
+          "teamId": "team1",
+          "number": 2,
+          "positionName": "Human Lineman",
+          "position": {
+            "x": 9,
+            "y": 4
+          },
+          "status": "Active",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team1-player-3",
+          "name": "Human Lineman #3",
+          "teamId": "team1",
+          "number": 3,
+          "positionName": "Human Lineman",
+          "position": {
+            "x": 9,
+            "y": 6
+          },
+          "status": "Active",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team1-player-4",
+          "name": "Human Lineman #4",
+          "teamId": "team1",
+          "number": 4,
+          "positionName": "Human Lineman",
+          "position": null,
+          "status": "Reserve",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team1-player-5",
+          "name": "Human Lineman #5",
+          "teamId": "team1",
+          "number": 5,
+          "positionName": "Human Lineman",
+          "position": null,
+          "status": "Reserve",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team1-player-6",
+          "name": "Human Lineman #6",
+          "teamId": "team1",
+          "number": 6,
+          "positionName": "Human Lineman",
+          "position": null,
+          "status": "Reserve",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team1-player-7",
+          "name": "Human Lineman #7",
+          "teamId": "team1",
+          "number": 7,
+          "positionName": "Human Lineman",
+          "position": null,
+          "status": "Reserve",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        }
+      ]
+    },
+    {
+      "id": "team2",
+      "name": "Away Team",
+      "rerolls": 0,
+      "players": [
+        {
+          "id": "team2-player-1",
+          "name": "Human Lineman #1",
+          "teamId": "team2",
+          "number": 1,
+          "positionName": "Human Lineman",
+          "position": {
+            "x": 10,
+            "y": 5
+          },
+          "status": "Active",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team2-player-2",
+          "name": "Human Lineman #2",
+          "teamId": "team2",
+          "number": 2,
+          "positionName": "Human Lineman",
+          "position": {
+            "x": 10,
+            "y": 4
+          },
+          "status": "Active",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team2-player-3",
+          "name": "Human Lineman #3",
+          "teamId": "team2",
+          "number": 3,
+          "positionName": "Human Lineman",
+          "position": {
+            "x": 10,
+            "y": 6
+          },
+          "status": "Active",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team2-player-4",
+          "name": "Human Lineman #4",
+          "teamId": "team2",
+          "number": 4,
+          "positionName": "Human Lineman",
+          "position": null,
+          "status": "Reserve",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team2-player-5",
+          "name": "Human Lineman #5",
+          "teamId": "team2",
+          "number": 5,
+          "positionName": "Human Lineman",
+          "position": null,
+          "status": "Reserve",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team2-player-6",
+          "name": "Human Lineman #6",
+          "teamId": "team2",
+          "number": 6,
+          "positionName": "Human Lineman",
+          "position": null,
+          "status": "Reserve",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        },
+        {
+          "id": "team2-player-7",
+          "name": "Human Lineman #7",
+          "teamId": "team2",
+          "number": 7,
+          "positionName": "Human Lineman",
+          "position": null,
+          "status": "Reserve",
+          "stats": {
+            "MA": 6,
+            "ST": 3,
+            "AG": 3,
+            "PA": 4,
+            "AV": 9
+          },
+          "skills": [],
+          "conditions": [],
+          "movementUsed": 0
+        }
+      ]
+    }
+  ],
+  "turnManager": {
+    "turnCounts": {
+      "team1": 0,
+      "team2": 0
+    },
+    "driveKickingTeamId": null,
+    "firstHalfKickingTeamId": null,
+    "turnoverInProgress": false,
+    "stunnedAtTurnStart": []
+  }
+}

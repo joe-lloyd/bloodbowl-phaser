@@ -1,4 +1,4 @@
-import { ballOnSquare } from "@/game/rules/ballInTheAir";
+import { ballOnSquare } from "@/game/rules/balls";
 import { type HeadlessGameContext } from "./createHeadlessGame";
 import {
   type GridPosition,
@@ -115,7 +115,7 @@ function playerActions({
     .filter((id) => id !== teamId);
   const availability = computeActionAvailability({
     player,
-    ballPosition: state.ballPosition,
+    ballPosition: state.balls[0].at,
     opponents,
     teammates: gs.getTeammates(player.id),
     reachable,

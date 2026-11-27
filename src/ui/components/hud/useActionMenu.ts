@@ -14,7 +14,7 @@ import {
   type TurnFlags,
 } from "../../../game/rules/actionAvailability";
 import { kickoffTurnAllows } from "../../../game/kickoff/kickoffTurn";
-import { groundBall } from "../../../game/rules/ballInTheAir";
+import { groundBall } from "../../../game/rules/balls";
 import { holdsMeasure, spendFor } from "../../../game/inducements/matchInducements";
 import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
 import { freshSpend, type TurnSpend } from "../../../game/rules/turnSpend";

@@ -51,7 +51,7 @@ function onPitch(x: number, y: number): boolean {
 }
 
 function cell(game: HeadlessGame, player: Player, side: number): string {
-  const ball = game.ctx.gameService.getState().ballPosition;
+  const ball = game.ctx.gameService.getState().balls[0].at;
   const at = player.gridPosition;
   const carrying = !!ball && ball.x === at?.x && ball.y === at.y;
   const mark = STATUS_MARK[player.status] ?? (carrying ? "@" : " ");
@@ -68,7 +68,7 @@ function placePlayers(game: HeadlessGame, grid: string[][]): void {
 }
 
 function placeBall(game: HeadlessGame, grid: string[][]): void {
-  const ball = game.ctx.gameService.getState().ballPosition;
+  const ball = game.ctx.gameService.getState().balls[0].at;
   const row = ball ? grid[ball.y] : undefined;
   if (ball && row?.[ball.x] === EMPTY) row[ball.x] = " *";
 }

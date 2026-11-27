@@ -69,7 +69,7 @@ describe("Trapdoors", () => {
     forceDice(game.ctx.rng, [1, 1, 1]);
     const { carrier } = await walkOntoTrapdoor(game);
     expect(fixtureValue(carrier).gridPosition).toEqual({ x: 6, y: 1 });
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 6,
       y: 1,
     });
@@ -92,7 +92,7 @@ describe("Trapdoors", () => {
 
     expect(fixtureValue(carrier).gridPosition).toBeUndefined();
     expect(fixtureValue(carrier).status).toBe(PlayerStatus.RESERVE);
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 5,
       y: 2,
     });

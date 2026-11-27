@@ -86,7 +86,7 @@ const availabilityFor = (r: ScriptResult, hasMovedInAction: boolean) => {
   const state = gs.getState();
   return computeActionAvailability({
     player,
-    ballPosition: state.ballPosition ?? null,
+    ballPosition: state.balls[0].at,
     opponents: gs.getOpponents(player.teamId),
     teammates: gs.getTeammates(player.id),
     reachable: gs.getAvailableMovements(player.id, "jump"),

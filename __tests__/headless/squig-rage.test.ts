@@ -1,3 +1,4 @@
+import { placeBall } from "@/game/rules/balls";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { fixtureValue } from "../../src/testing/fixtureValue";
@@ -73,7 +74,7 @@ async function ragedHopper() {
   const receiver = fixtureValue(game.ctx.teams[0].players[5]);
   game.ctx.teams[0].rerolls = 0;
   const gs = game.ctx.gameService;
-  gs.getState().ballPosition = { ...fixtureValue(hopper.gridPosition) };
+  placeBall(gs.getState(), 0, { ...fixtureValue(hopper.gridPosition) });
   let response = await game.execute({
     type: "declare-action",
     playerId: hopper.id,
@@ -386,7 +387,7 @@ describe("Squig Rage", () => {
       [{ ...OPPONENT, x: 18 }]
     );
     const carrier = fixtureValue(game.ctx.teams[0].players[4]);
-    game.ctx.gameService.getState().ballPosition = { x: 9, y: 5 };
+    placeBall(game.ctx.gameService.getState(), 0, { x: 9, y: 5 });
     game.ctx.teams[0].rerolls = 1;
     const turnovers: string[] = [];
     game.ctx.eventBus.on(GameEventNames.Turnover, ({ teamId }) => {
@@ -477,7 +478,7 @@ describe("Squig Rage", () => {
     const mate = fixtureValue(game.ctx.teams[0].players[5]);
     const gs = game.ctx.gameService;
     hopper.skills.push(getSkill(SkillType.PUNT));
-    gs.getState().ballPosition = { x: 15, y: 8 };
+    placeBall(gs.getState(), 0, { x: 15, y: 8 });
     game.ctx.teams[0].rerolls = 1;
     forceDice(game.ctx.rng, [1]);
     const declare = () =>
@@ -490,7 +491,7 @@ describe("Squig Rage", () => {
     await gs.puntBall(hopper.id, 1, 0);
     await game.execute({ type: "use-reroll", accept: false });
     await game.execute({ type: "choose-bite-target", playerId: mate.id });
-    expect(gs.getState().ballPosition).toEqual({ x: 15, y: 8 });
+    expect(gs.getState().balls[0].at).toEqual({ x: 15, y: 8 });
     const declaredAgain = await declare();
     expect(declaredAgain.ok).toBe(true);
   });
@@ -531,7 +532,7 @@ describe("Squig Rage", () => {
     );
     const carrier = fixtureValue(game.ctx.teams[0].players[4]);
     const { gameService } = game.ctx;
-    gameService.getState().ballPosition = { x: 9, y: 5 };
+    placeBall(gameService.getState(), 0, { x: 9, y: 5 });
     game.ctx.teams[0].rerolls = 0;
     forceDice(game.ctx.rng, [1, 6]);
     const turnovers: string[] = [];
@@ -543,7 +544,7 @@ describe("Squig Rage", () => {
       await game.execute({ type: "choose-bite-target", playerId: carrier.id });
     }
     expect(carrier.status).toBe(PlayerStatus.ACTIVE);
-    expect(gameService.getState().ballPosition).toEqual({ x: 9, y: 5 });
+    expect(gameService.getState().balls[0].at).toEqual({ x: 9, y: 5 });
     expect(turnovers).toEqual([]);
     expect(gameService.getState().activePlayer).toMatchObject({
       id: wrangler.id,

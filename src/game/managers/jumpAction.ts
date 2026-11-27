@@ -1,3 +1,4 @@
+import { type BallId, ballAt, placeBall } from "../rules/balls";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 import { PickupOperation } from "../operations/PickupOperation";
@@ -43,7 +44,7 @@ interface JumpRun {
 
   opponents: Player[];
   preUsed: number;
-  holdingBall: boolean;
+  ball: BallId | undefined;
 }
 
 export async function jumpPlayer(
@@ -173,7 +174,7 @@ function prepareJump(
       (p) => p.status === PlayerStatus.ACTIVE && p.gridPosition
     ),
     preUsed,
-    holdingBall: isBallAt(state, from),
+    ball: ballAt(state, from),
   };
   return { ok: true, jump };
 }
@@ -196,7 +197,7 @@ function fallOnRush(jump: JumpRun): void {
   fallOver(deps, {
     player,
     square: jump.from,
-    ballBounces: jump.holdingBall,
+    bouncing: jump.ball,
     context: jump.context,
     slip: { cause: "rush" },
     reason: "Failed Rush",
@@ -255,7 +256,7 @@ function landJump(
   success: boolean,
   roll: number
 ): FlowContext | undefined {
-  const { deps, player, from, holdingBall, context } = jump;
+  const { deps, player, from, ball, context } = jump;
   const destination = success || roll !== 1 ? jump.target : from;
   player.gridPosition = { ...destination };
   deps.eventBus.emit(GameEventNames.PlayerMoved, {
@@ -263,7 +264,7 @@ function landJump(
     from,
     to: { ...destination },
     path: [from, { ...destination }],
-    ...(holdingBall && { ballFrom: from, ballPath: [from, { ...destination }] }),
+    ...(ball !== undefined && { ballFrom: from, ballPath: [from, { ...destination }] }),
     ballJoinStep: 0,
   });
   if (
@@ -274,13 +275,13 @@ function landJump(
       deps,
       player,
       destination,
-      holdingBall,
+      ball,
       context?.flowManager
     );
     return undefined;
   }
-  if (holdingBall) {
-    if (carriedBallScores(jump, destination)) return undefined;
+  if (ball !== undefined) {
+    if (carriedBallScores(jump, ball, destination)) return undefined;
   } else if (context && isBallAt(deps.state, destination)) {
     return context;
   }
@@ -288,10 +289,14 @@ function landJump(
   return undefined;
 }
 
-function carriedBallScores(jump: JumpRun, destination: Square): boolean {
+function carriedBallScores(
+  jump: JumpRun,
+  ball: BallId,
+  destination: Square
+): boolean {
   const { deps, player } = jump;
-  jump.gameService?.setBallPosition(destination.x, destination.y);
-  deps.state.ballPosition = { ...destination };
+  jump.gameService?.placeBall(ball, destination);
+  placeBall(deps.state, ball, destination);
   deps.eventBus.emit(GameEventNames.BallPlaced, { ...destination });
   const { frame } = seatOf(deps.seating, player.teamId);
   if (!scoresAt(frame, destination)) return false;
@@ -324,7 +329,7 @@ function fallFromJump(jump: JumpRun, roll: number): void {
   fallOver(deps, {
     player,
     square: fallSquare,
-    ballBounces: jump.holdingBall || isBallAt(deps.state, fallSquare),
+    bouncing: jump.ball ?? ballAt(deps.state, fallSquare),
     context: jump.context,
     reason: "Failed Jump",
   });

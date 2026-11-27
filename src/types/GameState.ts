@@ -4,6 +4,7 @@ import type { Weather } from "../game/rules/weather";
 import type { LostBall } from "../game/kickoff/ballConditions";
 import type { MatchFormat } from "../game/variants/activeMatch";
 import type { TurnSpend } from "../game/rules/turnSpend";
+import type { Balls } from "../game/rules/balls";
 export const SubPhase = {
   INTRO: "INTRO",
   WEATHER: "WEATHER",
@@ -90,7 +91,7 @@ export interface GameState {
 
   venue?: MatchFormat["venue"];
   weather: Weather;
-  ballPosition: { x: number; y: number } | null;
+  balls: Balls;
   activePlayer: {
     id: string;
     action: ActionType | null;

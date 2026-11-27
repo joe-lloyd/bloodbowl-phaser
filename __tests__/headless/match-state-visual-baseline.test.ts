@@ -1,3 +1,4 @@
+import { oneBall } from "@/game/rules/balls";
 import { freshSpend } from "../../src/game/rules/turnSpend";
 import { createTestPlayer } from "../fixtures/players";
 import { shouldUpdateVisualBaselines } from "../../src/boundary/testEnvironment";
@@ -34,9 +35,9 @@ function player({
 function stateWith(
   ballPosition: { x: number; y: number } | null,
   activated: string[] = []
-): Pick<GameState, "ballPosition" | "turn"> {
+): Pick<GameState, "balls" | "turn"> {
   return {
-    ballPosition,
+    balls: oneBall(ballPosition),
     turn: {
       teamId: TEAM1,
       turnNumber: 1,

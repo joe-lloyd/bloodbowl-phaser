@@ -59,7 +59,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     expect(rolls).toEqual([6]);
     expect(fixtureValue(attacker).status).toBe(PlayerStatus.ACTIVE);
     expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.teams[0].id);
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+    expect(game.ctx.gameService.getState().balls[0].at).toEqual({
       x: 5,
       y: 5,
     });
@@ -435,7 +435,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
       expect(fixtureValue(attacker).gridPosition).toEqual(square);
       expect(fixtureValue(attacker).status).toBe(PlayerStatus.ACTIVE);
       expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.teams[0].id);
-      expect(game.ctx.gameService.getState().ballPosition).toEqual(square);
+      expect(game.ctx.gameService.getState().balls[0].at).toEqual(square);
     }
   );
 });
