@@ -593,7 +593,7 @@ export class GameService implements IGameService {
   }
 
   placeBall(ball: BallId, at: { x: number; y: number }): void {
-    ballActions.placeBall(this.parts, ball, at);
+    ballActions.placeAndShowBall(this.parts, ball, at);
   }
 
   addTouchdown(scorerId: string): void {
