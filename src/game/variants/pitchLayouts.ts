@@ -29,7 +29,7 @@ export interface Barricade {
   rows: Span;
 }
 
-export interface Area {
+interface Area {
   readonly columns: Span;
   readonly rows: Span;
 }
