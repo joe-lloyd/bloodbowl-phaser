@@ -40,7 +40,7 @@ def install(source, manifest):
         shutil.copytree(source / body, dest / body)
     flatten_model(SPRITES / model)
     write_model(SPRITES / model)
-    subprocess.run(["pnpm", "exec", "tsx", "scripts/sprites/packLayers.ts", model], cwd=ROOT, check=True)
+    subprocess.run(["pnpm", "sprites:pack-layers", model], cwd=ROOT, check=True)
     for layer in ("base", "kit1", "kit2"):
         for ext in ("png", "json"):
             (SPRITES / model / f"{layer}.{ext}").unlink(missing_ok=True)
