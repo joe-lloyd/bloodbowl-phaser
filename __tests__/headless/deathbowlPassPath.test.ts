@@ -1,3 +1,4 @@
+import { oneBall } from "../../src/game/rules/balls";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { stabilizeIds } from "../../src/headless/createHeadlessGame";
@@ -40,7 +41,7 @@ function arenaGame(others: readonly Placement[]) {
     ...DEATHBOWL_FORMAT,
     subPhase: SubPhase.TURN_RECEIVING,
     activeTeamId: "seat0",
-    ballPosition: { x: PASSER.x, y: PASSER.y },
+    balls: oneBall(PASSER),
   };
   return new HeadlessGame({ teams, initialState, seed: 5 });
 }
