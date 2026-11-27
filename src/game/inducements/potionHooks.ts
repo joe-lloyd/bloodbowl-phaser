@@ -9,6 +9,7 @@ import { killPlayer } from "./potionShared";
 import { hasPotionEffect } from "./variantState";
 import { scoresAt, wideZoneOf } from "../rules/frames";
 import { activeLayout } from "../variants/activeMatch";
+import { twoTeamFrames } from "../variants/pitchLayouts";
 
 interface Square {
   x: number;
@@ -37,7 +38,7 @@ export function actFirstBlocks(
 }
 
 function inWideOrEndZone(square: Square): boolean {
-  const frames = activeLayout().frames;
+  const frames = twoTeamFrames(activeLayout());
   return (
     wideZoneOf(frames[0], square) !== null ||
     frames.some((frame) => scoresAt(frame, square))
