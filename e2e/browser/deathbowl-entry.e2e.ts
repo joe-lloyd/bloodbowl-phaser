@@ -113,6 +113,7 @@ test("an admin plays a Deathbowl round against three computer teams, saves and r
   await humanTurnAtRest(page, bridge, humanId);
   const after = snapshotHash(await bridge.snapshot());
   expect(after).toBe(before);
+  await expect(page.getByTestId("match-loading")).toHaveCount(0, { timeout: 120_000 });
   await shoot(page, "resumed");
 
   await page.goto("/");
