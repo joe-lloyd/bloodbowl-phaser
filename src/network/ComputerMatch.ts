@@ -228,7 +228,7 @@ class ComputerSession {
     const { team1, team2, computerTeamId } = this.options;
     return {
       kind: "computer", role: "host", code: "computer", myTeamId: this.myTeamId, opponentName: COMPUTER_NAME,
-      coachName: (teamId) => teamId === computerTeamId ? COMPUTER_NAME : "You", teams: { team1, team2 },
+      coachName: (teamId) => teamId === computerTeamId ? COMPUTER_NAME : "You", teams: [team1, team2],
       mayAct: () => !this.computerCoach.isThinking() && this.owner(this.myTeamId), waitingLabel: () => this.waitingLabel(),
       pendingDecision: () => this.game.pendingDecision(), decidingTeamId: () => {
         if (!this.game.pendingDecision()) return null;

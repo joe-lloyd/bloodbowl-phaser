@@ -8,7 +8,7 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { seatOf } from "../../seating";
 import { sceneSeating } from "../sceneSeating";
 
-type PlacementScene = Pick<GameScene, "team1" | "team2" | "disableSetupInteraction" | "highlightSetupZone" | "enablePlacement">;
+type PlacementScene = Pick<GameScene, "teams" | "disableSetupInteraction" | "highlightSetupZone" | "enablePlacement">;
 
 export function showSetupPlacement(context: {
   scene: PlacementScene;

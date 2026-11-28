@@ -142,7 +142,7 @@ describe("online host resume", () => {
       seed: 1,
     });
     try {
-      expect(match.teams.team1.players.find((p) => p.id === raised.id)).toEqual(
+      expect(match.teams[0].players.find((p) => p.id === raised.id)).toEqual(
         {
           ...raised,
           conditions: [],

@@ -75,7 +75,7 @@ function OnlineWeather({
   eventBus,
   onRead,
 }: Props & { onRead: () => void }) {
-  const { team1, team2 } = match.teams;
+  const [team1, team2] = match.teams;
   const myTeamId = match.myTeamId;
   const amHost = match.role === "host";
   const readyNow = () => engineState()?.weatherReady ?? [];
@@ -156,7 +156,7 @@ function OnlineWeather({
 function OnlineToss({ code, lobby, match, eventBus }: Props) {
   const pregame = usePregameInducements(eventBus);
   const amHost = match.role === "host";
-  const { team1, team2 } = match.teams;
+  const [team1, team2] = match.teams;
   const myTeamId = match.myTeamId;
   const cf = lobby.coinFlip ?? {};
 

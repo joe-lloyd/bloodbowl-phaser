@@ -38,8 +38,7 @@ export function sceneWith(teams: { team1?: Partial<Team>; team2?: Partial<Team> 
   const team2 = teamWith(teams.team2 ?? { id: "t2", name: "Gouged Eye" });
   let ball: ReturnType<typeof ballWith> | null = null;
   const scene = {
-    team1,
-    team2,
+    teams: [team1, team2] as const,
     kickingTeam: team1,
     receivingTeam: team2,
     isSetupActive: false,

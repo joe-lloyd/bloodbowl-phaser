@@ -97,7 +97,7 @@ const LOADING = rows({ ...SHARED, section: "Loading the stadium" }, [
     view: (fx) => (
       <LoadingScreen
         eventBus={fx.bus}
-        teams={{ team1: fx.team1, team2: fx.team2 }}
+        teams={[fx.team1, fx.team2]}
       />
     ),
     drive: soon((fx) => {

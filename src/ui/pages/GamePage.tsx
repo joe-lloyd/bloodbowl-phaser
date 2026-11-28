@@ -26,6 +26,7 @@ import { SoundManager } from "../sound/SoundManager";
 import { SoundSuite } from "../sound/SoundSuite";
 import type { GameType } from "../../game/variants/gameTypes";
 import type { Venue } from "../../game/variants/pitchLayouts";
+import { type SeatedTeams } from "../../game/seating";
 
 type GameMode = "normal" | "sandbox" | "playground";
 
@@ -33,7 +34,7 @@ interface GamePageProps {
   eventBus: EventBus;
   mode?: GameMode;
 
-  teams?: { team1: Team; team2: Team };
+  teams?: SeatedTeams;
   progressionEnabled?: boolean | undefined;
   competitionContext?: CompetitionContext | undefined;
 
@@ -81,11 +82,10 @@ function fixtureContextFor(
 function savedOrRoutedTeams(
   resumeSave: MatchSave | undefined,
   routeState: RouteState
-): { team1: Team; team2: Team } | undefined {
-  if (resumeSave)
-    return { team1: resumeSave.teams[0], team2: resumeSave.teams[1] };
+): SeatedTeams | undefined {
+  if (resumeSave) return resumeSave.teams;
   return routeState.team1 && routeState.team2
-    ? { team1: routeState.team1, team2: routeState.team2 }
+    ? [routeState.team1, routeState.team2]
     : undefined;
 }
 
@@ -129,7 +129,6 @@ export function GamePage({
   }, [eventBus]);
 
   useEffect(() => {
-    const { team1, team2 } = matchTeams ?? {};
     const enableProgression =
       progressionEnabled ?? routeState.progressionEnabled ?? false;
 
@@ -171,10 +170,9 @@ export function GamePage({
     game.events.once("ready", () => {
       if (mode !== "normal") {
         game.scene.start(FREE_SCENES[mode], {});
-      } else if (team1 && team2) {
+      } else if (matchTeams) {
         game.scene.start("GameScene", {
-          team1,
-          team2,
+          teams: matchTeams,
           progressionEnabled: enableProgression,
           competitionContext: fixtureContext ?? undefined,
           gameType: routeState.gameType,

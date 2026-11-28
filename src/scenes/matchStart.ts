@@ -16,10 +16,10 @@ import { getActiveOnlineMatch } from "../network/OnlineMatch";
 import type { GameType } from "../game/variants/gameTypes";
 import type { Venue } from "../game/variants/pitchLayouts";
 import { startingFormat } from "../game/variants/startingFormat";
+import { type SeatedTeams } from "../game/seating";
 
 export interface GameSceneData {
-  team1: Team;
-  team2: Team;
+  teams: SeatedTeams;
   progressionEnabled?: boolean;
   competitionContext?: CompetitionContext;
   gameType?: GameType;
@@ -35,11 +35,11 @@ export type MatchStart = ReturnType<typeof resolveMatchStart>;
 export function resolveMatchStart(data: GameSceneData, sceneKey: string) {
   const restored = data.resumeSave ? restoreMatchSave(data.resumeSave) : null;
   const save = restored?.save;
-  const [team1, team2] = restored?.teams ?? [data.team1, data.team2];
+  const teams = restored?.teams ?? data.teams;
+  const [team1, team2] = teams;
   return {
     restored,
-    team1,
-    team2,
+    teams,
     competitionContext: save?.competition ?? data.competitionContext,
     gameType: data.gameType,
     venue: data.venue,
@@ -65,10 +65,10 @@ export function ensureMatchServices(
   progressionEnabled: boolean | undefined
 ): void {
   if (ServiceContainer.isInitialized()) return;
-  const { restored, team1, team2, competitionContext } = start;
+  const { restored, teams, competitionContext } = start;
   const initialState =
     restored?.state ??
-    GameService.createMatchState({ teams: [team1, team2], startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
+    GameService.createMatchState({ teams, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
         paysWinnings: fixturePaysWinnings(competitionContext),
         competition: !!competitionContext,
         pregameInducements: true,
@@ -85,7 +85,7 @@ export function ensureMatchServices(
   const save = restored?.save;
   ServiceContainer.initialize({
     eventBus: globalThis.eventBus,
-    teams: [team1, team2],
+    teams,
     initialState,
     progressionEnabled:
       save?.matchStats.progressionEnabled ?? progressionEnabled ?? false,
@@ -102,7 +102,7 @@ export function startAutosave(scene: GameScene): MatchAutosave {
     () =>
       createMatchSave({
         state: scene.gameService.getState(),
-        teams: [scene.team1, scene.team2],
+        teams: scene.teams,
         drive: {
           kickingTeamId: scene.kickingTeam.id,
           receivingTeamId: scene.receivingTeam.id,
@@ -129,7 +129,7 @@ export function startDiceLog(
     getState: () => container.gameService.getState(),
     mode: getActiveOnlineMatch()?.kind ?? "local",
     seed: container.rngService.getInitialSeed(),
-    teams: [start.team1, start.team2],
+    teams: [...start.teams],
     resumed: start.resumed,
   });
 }

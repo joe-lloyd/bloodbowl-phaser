@@ -23,6 +23,7 @@ import {
 } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { type Team } from "../types/Team";
+import { type SeatedTeams } from "../game/seating";
 import { type Player } from "../types/Player";
 import { LockstepSession } from "./LockstepSession";
 import { FirestoreTransport } from "./FirestoreTransport";
@@ -68,7 +69,7 @@ export interface OnlineMatch {
   opponentName: string;
 
   coachName(teamId: string): string | undefined;
-  teams: { team1: Team; team2: Team };
+  teams: SeatedTeams;
 
   mayAct(): boolean;
 
@@ -573,7 +574,7 @@ class OnlineSession {
     const { isHost, myTeamId, opponentName, team1, team2, coachNames } = this.sides;
     return {
       kind: "online", role: isHost ? "host" : "guest", code: this.options.lobby.code,
-      myTeamId, opponentName, coachName: (id) => coachNames[id], teams: { team1, team2 },
+      myTeamId, opponentName, coachName: (id) => coachNames[id], teams: [team1, team2],
       pendingDecision: () => this.game.pendingDecision(), decidingTeamId: () => this.decidingTeamId(),
       run: (command) => this.runOwn(command), mayAct: () => this.mayAct(), waitingLabel: () => this.waitingLabel(),
       sendChat: (text) => { this.sendChat(text); }, chatHistory: () => [...this.chatLog],

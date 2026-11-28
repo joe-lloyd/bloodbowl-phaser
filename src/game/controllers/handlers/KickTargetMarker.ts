@@ -9,11 +9,11 @@ import { sceneSeating } from "../sceneSeating";
 
 export class KickTargetMarker {
   private latest = 0;
-  private readonly scene: Pick<KickoffScene, "pitch" | "team1" | "team2">;
+  private readonly scene: Pick<KickoffScene, "pitch" | "teams">;
   private readonly eventBus: IEventBus;
 
   constructor(
-    scene: Pick<KickoffScene, "pitch" | "team1" | "team2">,
+    scene: Pick<KickoffScene, "pitch" | "teams">,
     eventBus: IEventBus
   ) {
     this.scene = scene;

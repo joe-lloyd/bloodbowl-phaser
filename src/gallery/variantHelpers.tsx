@@ -152,7 +152,7 @@ export function onlineMatch(
 ) {
   return {
     role: "guest",
-    teams: { team1: fx.team1, team2: fx.team2 },
+    teams: [fx.team1, fx.team2],
     myTeamId: fx.team1.id,
     opponentName: "Grimgutz",
     mayAct: () => true,

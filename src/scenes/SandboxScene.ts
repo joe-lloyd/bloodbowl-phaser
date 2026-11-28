@@ -1,6 +1,7 @@
 import { kickoffTurnOf } from "../game/kickoff/kickRecord";
 import Phaser from "phaser";
 import { GameScene } from "./GameScene";
+import type { GameSceneData } from "./matchStart";
 import { GamePhase } from "../types/GameState";
 import { arenaTeam, sandboxTeam } from "./sandboxTeam";
 import { RosterName } from "../types/Team";
@@ -146,10 +147,6 @@ export class SandboxScene extends GameScene {
     super("SandboxScene");
   }
 
-  override get teams(): readonly Team[] {
-    return this.arena ?? super.teams;
-  }
-
   private initArena(): void {
     const teams = seatedTeams(
       ARENA_TEAMS.map(({ roster, name, colour }) =>
@@ -170,22 +167,22 @@ export class SandboxScene extends GameScene {
     });
     setUpSeats(gameService.getSeating(), activeLayout());
     this.arena = teams;
-    super.init({ team1: teams[0], team2: teams[1] });
+    super.init({ teams });
   }
 
   private getBrowserEventBus(): IEventBus {
     return (globalThis as unknown as { eventBus: IEventBus }).eventBus;
   }
 
-  override init(data: { team1?: Team; team2?: Team }): void {
+  override init(data: Partial<GameSceneData>): void {
     this.arena = null;
     if (scenarioFromUrl()?.scenarioId === ARENA_SCENARIO_ID) {
       this.initArena();
-    } else if (data?.team1 && data.team2) {
-      const initialState = GameService.createInitialState({ teams: [data.team1, data.team2], startingPhase: GamePhase.SANDBOX_IDLE }
+    } else if (data.teams) {
+      const initialState = GameService.createInitialState({ teams: data.teams, startingPhase: GamePhase.SANDBOX_IDLE }
       );
-      ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), teams: [data.team1, data.team2], initialState: initialState });
-      super.init(data as { team1: Team; team2: Team });
+      ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), teams: data.teams, initialState: initialState });
+      super.init({ teams: data.teams });
     } else {
       const { team1, team2 } = defaultSandboxTeams();
 
@@ -193,7 +190,7 @@ export class SandboxScene extends GameScene {
       );
       ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), teams: [team1, team2], initialState: initialState });
 
-      super.init({ team1, team2 });
+      super.init({ teams: [team1, team2] });
     }
 
     this.listenForScenarios();
