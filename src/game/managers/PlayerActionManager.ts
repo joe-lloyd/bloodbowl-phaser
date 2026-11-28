@@ -15,6 +15,7 @@ import { foulSpent, spendMeasure } from "../inducements/matchInducements";
 import { mustRedeclare } from "../rules/awaitingDeclaration";
 import { DesperateMeasure } from "../inducements/desperateMeasures";
 import { activeRules } from "../variants/activeMatch";
+import { teamMateThrowSpent } from "../rules/actionAvailability";
 
 export type CommitReason =
   | "movement"
@@ -191,7 +192,7 @@ export class PlayerActionManager {
     const turn = this.state.turn;
     if (
       hasSkill(player.skills, SkillType.THROW_TEAM_MATE) &&
-      !turn.hasThrownTeamMate
+      !teamMateThrowSpent(turn)
     ) {
       return "hasThrownTeamMate";
     }

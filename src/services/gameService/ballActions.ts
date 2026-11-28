@@ -8,6 +8,7 @@ import {
   PassController,
   type PassType,
 } from "@/game/controllers/PassController";
+import { type GameOperation } from "@/game/core/GameOperation";
 import { PassOperation } from "@/game/operations/PassOperation";
 import { HandoffOperation } from "@/game/operations/HandoffOperation";
 import { PuntOperation } from "@/game/operations/PuntOperation";
@@ -78,17 +79,9 @@ export function throwBall({
   });
   if (refusal) return { success: false, result: refusal };
 
-  recordMovedBall(parts, "pass", carrier.ball);
   const pass = new PassOperation(passerId, target.x, target.y, hailMary);
-  if (takeUnsatedBloodlust(parts, passerId)) {
-    biteBeforeBallAction(parts, passerId, () => {
-      parts.flowManager.add(pass, true);
-    });
-    return { success: true, result: "Bloodlust: bite before the pass" };
-  }
-  parts.flowManager.add(pass);
-
-  return { success: true, result: "Pass Started" };
+  const bites = startTransfer(parts, { passerId, transfer: "pass", ball: carrier.ball }, pass);
+  return { success: true, result: bites ? "Bloodlust: bite before the pass" : "Pass Started" };
 }
 
 function holdsBall(parts: GameParts, passerId: string, square: Square) {
@@ -175,16 +168,9 @@ export function handOffBall(
     return { success: false, result: "Illegal hand-off target" };
   }
 
-  recordMovedBall(parts, "handoff", carrier.ball);
   const handoff = new HandoffOperation(passerId, targetPlayerId);
-  if (takeUnsatedBloodlust(parts, passerId)) {
-    biteBeforeBallAction(parts, passerId, () => {
-      parts.flowManager.add(handoff, true);
-    });
-    return { success: true, result: "Bloodlust: bite before the hand-off" };
-  }
-  parts.flowManager.add(handoff);
-  return { success: true, result: "Hand-off Started" };
+  const bites = startTransfer(parts, { passerId, transfer: "handoff", ball: carrier.ball }, handoff);
+  return { success: true, result: bites ? "Bloodlust: bite before the hand-off" : "Hand-off Started" };
 }
 
 export function puntBall({
@@ -238,6 +224,21 @@ function transferCarrier(
   return { ok: true, player, position: player.gridPosition, ball };
 }
 
-function recordMovedBall(parts: GameParts, transfer: Transfer, ball: BallId): void {
-  parts.state.turn.spend = moveBall(parts.state.turn.spend, transfer, ball);
+function startTransfer(
+  parts: GameParts,
+  { passerId, transfer, ball }: { passerId: string; transfer: Transfer; ball: BallId },
+  operation: GameOperation
+): boolean {
+  const start = (next: boolean) => {
+    parts.state.turn.spend = moveBall(parts.state.turn.spend, transfer, ball);
+    parts.flowManager.add(operation, next);
+  };
+  if (!takeUnsatedBloodlust(parts, passerId)) {
+    start(false);
+    return false;
+  }
+  biteBeforeBallAction(parts, passerId, () => {
+    start(true);
+  });
+  return true;
 }

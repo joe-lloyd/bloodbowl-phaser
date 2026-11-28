@@ -61,6 +61,14 @@ export interface TurnFlags {
   hasPunted?: boolean;
 }
 
+export function teamMateThrowSpent(
+  turn: Pick<TurnFlags, "spend" | "hasThrownTeamMate">
+): boolean {
+  return activeRules().format.teamMateThrowUsesPass
+    ? !maySpend(turn.spend, { kind: "pass" })
+    : turn.hasThrownTeamMate;
+}
+
 const UNSPENT_FLAGS: TurnFlags = {
   spend: freshSpend(),
   hasThrownTeamMate: false,
@@ -392,15 +400,16 @@ function skillActions(board: ActingBoard) {
     hasSkill(player.skills, SkillType.HYPNOTIC_GAZE) &&
     board.standingEnemies.some((e) => board.canEndAdjacentTo(e.gridPosition!));
 
+  const { thrownIds } = input.turn.spend;
   const adjacentEligibleMate = board.standingMates.some(
-    (t) => chebyshev(here, t.gridPosition!) === 1 && isRightStuffEligible(t)
+    (t) =>
+      chebyshev(here, t.gridPosition!) === 1 &&
+      isRightStuffEligible(t) &&
+      !thrownIds.includes(t.id)
   );
-  const throwSpent = activeRules().format.teamMateThrowUsesPass
-    ? !maySpend(input.turn.spend, { kind: "pass" })
-    : input.turn.hasThrownTeamMate;
   const throwTeammate =
     hasSkill(player.skills, SkillType.THROW_TEAM_MATE) &&
-    !throwSpent &&
+    !teamMateThrowSpent(input.turn) &&
     adjacentEligibleMate;
   const kickTeammate =
     hasSkill(player.skills, SkillType.KICK_TEAM_MATE) &&

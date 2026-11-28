@@ -44,6 +44,7 @@ export function crossAssistOffers(
   contact: Contact
 ): { teamId: string; offers: CrossAssistOffer[] }[] {
   const { attacker, defender } = contact;
+  if (attacker.teamId === defender.teamId) return [];
   const allPlayers = everyone(seating);
   return rivalsOf(seating, attacker.teamId)
     .filter(({ team }) => team.id !== defender.teamId)
