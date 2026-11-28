@@ -15,6 +15,7 @@ import { CrossAssistPrompt } from "../../src/ui/components/hud/CrossAssistPrompt
 import { ReserveMovePrompt } from "../../src/ui/components/hud/ReserveMovePrompt";
 import { PlacingsScreen } from "../../src/ui/components/hud/PlacingsScreen";
 import { DiceLog } from "../../src/ui/components/hud/DiceLog";
+import { placeBall } from "../../src/game/rules/balls";
 import { northWithBallsAside, play, stand, stateOf } from "../utils/deathbowlGame";
 import { buttonLabel } from "../utils/test-helpers";
 
@@ -154,6 +155,40 @@ describe("Blitz against each opposing team (DB-A1, DB-A2)", () => {
       button("action-blitz-seat2").click();
     });
     expect(chosen).toEqual([{ action: "blitz", playerId: second.id, against: "seat2" }]);
+  });
+});
+
+function menuFor(game: HeadlessGame, player: Player) {
+  const bus = mount(game, (eventBus) => (
+    <PlayerActionMenu
+      eventBus={eventBus}
+      turnData={{ phase: GamePhase.PLAY, activeTeamId: "seat0", spend: stateOf(game).turn.spend }}
+    />
+  ));
+  act(() => {
+    bus.emit(GameEventNames.PlayerSelected, { player });
+  });
+}
+
+describe("the second ball in the action menu (DB-A1, DB-B1)", () => {
+  it("lets the carrier of the second ball Pass or Hand it off", async () => {
+    const game = await northWithBallsAside();
+    const carrier = stand(game, ["seat0", 0], { at: { x: 10, y: 8 }, ball: 1 });
+    stand(game, ["seat0", 1], { at: { x: 10, y: 9 } });
+    placeBall(stateOf(game), 0, { x: 10, y: 20 });
+    menuFor(game, carrier);
+
+    expect(button("action-pass").disabled).toBe(false);
+    expect(button("action-handoff").disabled).toBe(false);
+  });
+
+  it("offers Secure the Ball beside the second ball", async () => {
+    const game = await northWithBallsAside();
+    const player = stand(game, ["seat0", 0], { at: { x: 13, y: 1 } });
+    placeBall(stateOf(game), 0, { x: 10, y: 20 });
+    menuFor(game, player);
+
+    expect(button("action-secureBall").disabled).toBe(false);
   });
 });
 

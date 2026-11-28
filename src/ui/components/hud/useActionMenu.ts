@@ -16,7 +16,7 @@ import {
   type TurnFlags,
 } from "../../../game/rules/actionAvailability";
 import { kickoffTurnAllows } from "../../../game/kickoff/kickoffTurn";
-import { groundBall } from "../../../game/rules/balls";
+import { ballInReach, groundBall } from "../../../game/rules/balls";
 import { holdsMeasure, spendFor } from "../../../game/inducements/matchInducements";
 import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
 import {
@@ -129,13 +129,15 @@ export function readMenuAvailability({
     if (!ServiceContainer.isInitialized()) return EMPTY_AVAILABILITY;
     const gs = ServiceContainer.getInstance().gameService;
     const live = gs.getPlayerById(selectedPlayer.id) ?? selectedPlayer;
+    const reachable = gs.getAvailableMovements(selectedPlayer.id, "jump");
+    const here = live.gridPosition;
     const normal = computeActionAvailability({
       player: live,
 
-      ballPosition: groundBall(gs.getState()),
+      ballPosition: (here && ballInReach(gs.getState(), here, reachable)) ?? groundBall(gs.getState()),
       opponents: gs.getOpponents(selectedPlayer.teamId),
       teammates: gs.getTeammates(selectedPlayer.id),
-      reachable: gs.getAvailableMovements(selectedPlayer.id, "jump"),
+      reachable,
       turn: menuTurnFlags({
         turnData: turnData,
         state: gs.getState(),

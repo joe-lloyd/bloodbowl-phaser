@@ -52,6 +52,17 @@ export function groundBalls(state: BallState): readonly BallSlot[] {
   );
 }
 
+export function ballInReach(
+  state: BallState,
+  here: Readonly<Square>,
+  reachable: readonly Readonly<Square>[]
+): Readonly<Square> | null {
+  const lying = groundBalls(state).flatMap(({ at }) => (at ? [at] : []));
+  const held = lying.find((ball) => sameSquare(ball, here));
+  const near = lying.find((ball) => reachable.some((square) => sameSquare(square, ball)));
+  return held ?? near ?? null;
+}
+
 export function groundBall(state: BallState): Readonly<Square> | null {
   return ballInTheAir(state) ? null : state.balls[0].at;
 }
