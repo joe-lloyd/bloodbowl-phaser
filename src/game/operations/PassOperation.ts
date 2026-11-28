@@ -529,7 +529,7 @@ export class PassOperation extends GameOperation {
     await context.flowManager.runToRest(
       new CatchOperation(
         catcher.id,
-        { origin: "pass" },
+        { origin: "pass", ball: this.ball },
         { passerId: passer.id, passerTeamId: passer.teamId, accurate: false }
       )
     );
@@ -569,6 +569,7 @@ export class PassOperation extends GameOperation {
             playerAtLanding.id,
             {
               origin: "pass",
+              ball: this.ball,
               isPassTarget:
                 landingPos.x === this.targetX && landingPos.y === this.targetY,
             },
@@ -594,6 +595,7 @@ export class PassOperation extends GameOperation {
           context.flowManager.add(
             new CatchOperation(divingCatcher.id, {
               origin: "pass",
+              ball: this.ball,
               divingCatch: true,
               landingPosition: landingPos,
             }),
@@ -604,7 +606,7 @@ export class PassOperation extends GameOperation {
             GameEventNames.UI_Notification,
             "Ball Lands in Empty Square"
           );
-          context.flowManager.add(new BounceOperation(landingPos), true);
+          context.flowManager.add(new BounceOperation(landingPos, { ball: this.ball }), true);
         }
       }
     } else {
