@@ -11,6 +11,7 @@ import { DEATHBOWL_FORMAT } from "../../src/game/variants/activeMatch";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { GamePhase } from "../../src/types/GameState";
 import { RosterName } from "../../src/types/Team";
+import { RNGService } from "../../src/services/rng/RNGService";
 
 const ROSTERS = [
   RosterName.HUMAN,
@@ -18,6 +19,14 @@ const ROSTERS = [
   RosterName.SKAVEN,
   RosterName.DWARF,
 ];
+
+export function rollOffWith(rolls: readonly number[]): HeadlessGame {
+  const spy = vi.spyOn(RNGService.prototype, "rollDie");
+  for (const roll of rolls) spy.mockReturnValueOnce(roll);
+  const game = deathbowlGame();
+  spy.mockRestore();
+  return game;
+}
 
 export function deathbowlGame(): HeadlessGame {
   const teams = ROSTERS.map((roster, index) =>
@@ -65,9 +74,9 @@ export interface Square {
 const PARKED = { x: 10, y: 12 };
 
 export async function northToPlay(): Promise<HeadlessGame> {
-  const game = deathbowlGame();
+  const game = rollOffWith([6, 1, 1, 1]);
   for (let seat = 0; seat < 3; seat++) await setUpSeat(game);
-  rig(game, [7, 2, 6, 1, 1, 1]);
+  rig(game, [7, 2]);
   await setUpSeat(game);
   placeBall(game.ctx.gameService.getState(), 1, PARKED);
   return game;

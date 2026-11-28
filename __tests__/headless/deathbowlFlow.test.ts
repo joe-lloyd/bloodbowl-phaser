@@ -10,7 +10,13 @@ import { snapshotHash } from "../../src/simulation/runMatch";
 import { GamePhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { getSkill, SkillType } from "../../src/types/Skills";
-import { deathbowlGame, rig, setUpAll, setUpSeat } from "../utils/deathbowlGame";
+import {
+  deathbowlGame,
+  rig,
+  rollOffWith,
+  setUpAll,
+  setUpSeat,
+} from "../utils/deathbowlGame";
 
 const turnLabel = (game: HeadlessGame) => {
   const { turn } = game.ctx.gameService.getState();
@@ -32,12 +38,12 @@ async function endTurnsUntil(game: HeadlessGame, stop: () => boolean) {
 }
 
 describe("set-up in turn order (DB-S1)", () => {
-  it("sets the four seats up North, East, South, West", async () => {
-    expect(await setUpAll(deathbowlGame())).toEqual([
-      "seat0",
+  it("rolls off first, then sets up clockwise from the winner", async () => {
+    expect(await setUpAll(rollOffWith([2, 5, 1, 3]))).toEqual([
       "seat1",
       "seat2",
       "seat3",
+      "seat0",
     ]);
   });
 
@@ -83,7 +89,7 @@ describe("opening balls (DB-S2)", () => {
   it("puts two balls on distinct squares around the centre, rolling a repeat again", async () => {
     const fresh = deathbowlGame();
     for (let seat = 0; seat < 3; seat++) await setUpSeat(fresh);
-    rig(fresh, [2, 2, 8, 6, 3, 1, 1]);
+    rig(fresh, [2, 2, 8]);
     await setUpSeat(fresh);
 
     const { balls } = fresh.ctx.gameService.getState();
@@ -96,10 +102,8 @@ describe("opening balls (DB-S2)", () => {
 
 describe("roll-off and turn order (DB-S3)", () => {
   it("re-rolls a tie among the highest and starts with the winner", async () => {
-    const game = deathbowlGame();
-    for (let seat = 0; seat < 3; seat++) await setUpSeat(game);
-    rig(game, [1, 2, 6, 3, 6, 2, 4, 5]);
-    await setUpSeat(game);
+    const game = rollOffWith([1, 2, 6, 3, 6, 2, 4, 5]);
+    await setUpAll(game);
 
     const state = game.ctx.gameService.getState();
     expect(state.phase).toBe(GamePhase.PLAY);
@@ -107,10 +111,8 @@ describe("roll-off and turn order (DB-S3)", () => {
   });
 
   it("goes clockwise from the winner, then anticlockwise from the last mover", async () => {
-    const game = deathbowlGame();
-    for (let seat = 0; seat < 3; seat++) await setUpSeat(game);
-    rig(game, [1, 2, 6, 3, 6, 2, 4, 5]);
-    await setUpSeat(game);
+    const game = rollOffWith([1, 2, 6, 3, 6, 2, 4, 5]);
+    await setUpAll(game);
     const turns = await endTurnsUntil(
       game,
       () => game.ctx.gameService.getState().turn.isHalf2 &&
@@ -135,10 +137,8 @@ describe("roll-off and turn order (DB-S3)", () => {
   });
 
   it("sets up again at half time starting with the last mover, then anticlockwise", async () => {
-    const game = deathbowlGame();
-    for (let seat = 0; seat < 3; seat++) await setUpSeat(game);
-    rig(game, [1, 2, 6, 3, 6, 2, 4, 5]);
-    await setUpSeat(game);
+    const game = rollOffWith([1, 2, 6, 3, 6, 2, 4, 5]);
+    await setUpAll(game);
     await endTurnsUntil(
       game,
       () => game.ctx.gameService.getPhase() === GamePhase.SETUP

@@ -30,6 +30,7 @@ export function deathbowlFlow(
       parts.state.points ??= Object.fromEntries(
         teamsOf(seating).map(({ id }) => [id, 0])
       );
+      parts.state.turn.teamId = rollOff(parts.diceController, teamsOf(seating)).id;
       setUpNextSeat(parts, seating);
     },
     seatSetUp: () => {
@@ -68,15 +69,10 @@ function turnOrderFrom(
   return [teamId, ...after.slice(0, -1)];
 }
 
-function setupOrder(parts: GameParts, seating: FourSeating): string[] {
-  const { turn } = parts.state;
-  if (!turn.isHalf2) return teamsOf(seating).map(({ id }) => id);
-  return turnOrderFrom(parts, seating, turn.teamId);
-}
-
 function setUpNextSeat(parts: GameParts, seating: FourSeating): void {
   const done = parts.state.setup?.confirmedTeamIds ?? [];
-  const next = setupOrder(parts, seating).find((id) => !done.includes(id));
+  const order = turnOrderFrom(parts, seating, parts.state.turn.teamId);
+  const next = order.find((id) => !done.includes(id));
   if (next) parts.setupManager.startSeatSetup(next);
   else startHalf(parts, seating);
 }
@@ -87,12 +83,8 @@ function startHalf(parts: GameParts, seating: FourSeating): void {
     count: activeRules().format.ballCount,
     rollD8: (ball) => diceController.rollD8(`Opening ball ${String(ball + 1)}`),
   });
-  const secondHalf = state.turn.isHalf2;
-  const first = secondHalf
-    ? state.turn.teamId
-    : rollOff(diceController, teamsOf(seating)).id;
   parts.rerollArbiter.beginHalf(teamsOf(seating).map(({ id }) => id));
-  parts.turnManager.beginHalf(first, secondHalf ? -1 : 1);
+  parts.turnManager.beginHalf(state.turn.teamId, state.turn.isHalf2 ? -1 : 1);
 }
 
 function halfTime(parts: GameParts, seating: FourSeating): void {
