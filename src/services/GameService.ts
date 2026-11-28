@@ -3,8 +3,7 @@ import { invokeCommand } from "./gameService/commandPromise";
 import type * as SetupTypes from "@/types/SetupTypes";
 import type * as InducementTypes from "@/types/Inducements";
 import { assertPregamePurchasesComplete } from "@/game/inducements/pregame";
-
-import { type IGameService } from "./interfaces/IGameService.js";
+import { type CrossAssistLoan, type IGameService, type ReserveMove } from "./interfaces/IGameService.js";
 import { type IEventBus } from "./EventBus.js";
 import { type GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { type Team } from "@/types/Team";
@@ -51,7 +50,6 @@ import type { BallId, ThrowInFlight } from "@/game/rules/balls";
 
 export class GameService implements IGameService {
   private readonly parts: GameParts;
-
 
   public static createMatchState = createMatchState;
 
@@ -177,6 +175,11 @@ export class GameService implements IGameService {
   public answerFoulAssists(count: number): boolean {
     return answers.answerFoulAssists(this.parts.decisionService, count);
   }
+
+  public answerReserveMove = (move: ReserveMove): boolean =>
+    answers.answerReserveMove(this.parts.decisionService, move);
+  public answerCrossAssists = (lend: CrossAssistLoan): boolean =>
+    answers.answerCrossAssists(this.parts.decisionService, lend);
 
   public commitInducements(
     profile: InducementTypes.InducementRuleProfile,

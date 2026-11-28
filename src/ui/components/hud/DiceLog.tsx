@@ -28,6 +28,7 @@ import {
   ballMovementText,
   type BallMovement,
 } from "./ballMovementLog";
+import { pointsLine } from "./pointsLogText";
 
 interface DiceLogProps {
   eventBus: EventBus;
@@ -290,6 +291,10 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     if (/^Ball (lands in empty square|hits player|Out of Bounds)/i.test(text))
       return;
     pushLogEntry({ category: "info", headline: text });
+  });
+
+  useEventBus(eventBus, GameEventNames.PointsAwarded, (award) => {
+    pushLogEntry({ category: "score", teamId: award.teamId, ...pointsLine(award) });
   });
 
   useEventBus(eventBus, GameEventNames.SkillTriggered, (data) => {

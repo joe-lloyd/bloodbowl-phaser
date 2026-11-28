@@ -16,6 +16,14 @@ import { ArmourController } from "@/game/controllers/ArmourController";
 import { InjuryController } from "@/game/controllers/InjuryController";
 import type { NextHalf } from "../gameService/matchFlow";
 import type { MoveStep } from "../../headless/protocol";
+import type { ReserveMoveDecisionAnswer } from "@/types/decisions";
+
+export type ReserveMove = ReserveMoveDecisionAnswer["move"];
+
+export interface CrossAssistLoan {
+  toAttacker: readonly string[];
+  toDefender: readonly string[];
+}
 
 export interface IGameService {
   getState(): GameState;
@@ -62,6 +70,10 @@ export interface IGameService {
   ): boolean;
 
   answerFoulAssists(count: number): boolean;
+
+  answerReserveMove(move: ReserveMove): boolean;
+
+  answerCrossAssists(lend: CrossAssistLoan): boolean;
 
   commitInducements(
     profile: InducementTypes.InducementRuleProfile,

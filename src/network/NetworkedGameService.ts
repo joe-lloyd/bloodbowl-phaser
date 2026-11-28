@@ -1,5 +1,9 @@
 import type { MoveReach } from "../game/validators/jumpReach";
-import { type IGameService } from "../services/interfaces/IGameService";
+import {
+  type CrossAssistLoan,
+  type IGameService,
+  type ReserveMove,
+} from "../services/interfaces/IGameService";
 import { GameService } from "../services/GameService";
 import {
   type HeadlessCommand,
@@ -181,6 +185,26 @@ export class NetworkedGameService implements IGameService {
     if (!Number.isSafeInteger(count) || count < 0 || count > pending.available)
       return false;
     this.send({ type: "choose-foul-assists", count });
+    return true;
+  }
+  answerReserveMove(move: ReserveMove): boolean {
+    if (this.pendingDecision()?.type !== "reserve-move") return false;
+    this.send(
+      move
+        ? { type: "move-reserve", playerId: move.playerId, ...move.square }
+        : { type: "keep-reserves" }
+    );
+    return true;
+  }
+  answerCrossAssists(
+    lend: CrossAssistLoan
+  ): boolean {
+    if (this.pendingDecision()?.type !== "cross-assist") return false;
+    this.send({
+      type: "lend-assists",
+      toAttacker: [...lend.toAttacker],
+      toDefender: [...lend.toDefender],
+    });
     return true;
   }
   commitInducements: IGameService["commitInducements"] = () => undefined;
