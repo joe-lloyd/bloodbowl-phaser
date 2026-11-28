@@ -7,7 +7,7 @@ import {
   type SetupPlayerLimits,
 } from "../../types/SetupTypes";
 import type { Pitch } from "../elements/Pitch";
-import { pairFrame } from "../variants/activeMatch";
+import type { Frame } from "../rules/frames";
 import {
   playerHitArea,
   replaceHitArea,
@@ -24,7 +24,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   private pitch: Pitch;
 
   private currentTeam: Team | null = null;
-  private isTeam1 = false;
+  private frame: Frame | null = null;
   private selectedPlayerId: string | null = null;
   private dugoutSprites = new Map<string, Phaser.GameObjects.Container>();
   private placedPlayers = new Map<string, FormationPosition>();
@@ -48,17 +48,17 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
   enablePlacement(
     team: Team,
-    isTeam1: boolean,
+    frame: Frame,
     dugoutSprites: Map<string, Phaser.GameObjects.Container>
   ): void {
     this.currentTeam = team;
-    this.isTeam1 = isTeam1;
+    this.frame = frame;
     this.dugoutSprites = dugoutSprites;
 
     this.syncFromTeam();
 
     console.log(
-      `[PlayerPlacementController] enablePlacement: team=${team.id}, isTeam1=${String(isTeam1)}, spriteCount=${String(dugoutSprites.size)}`
+      `[PlayerPlacementController] enablePlacement: team=${team.id}, spriteCount=${String(dugoutSprites.size)}`
     );
 
     this.dugoutSprites.forEach((sprite, playerId) => {
@@ -172,7 +172,8 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   }
 
   placePlayer(playerId: string, gridX: number, gridY: number): boolean {
-    if (!this.currentTeam) return false;
+    const { frame } = this;
+    if (!this.currentTeam || !frame) return false;
 
     if (!this.isAvailable(playerId)) {
       this.emit(GameEventNames.PlacementInvalid, {
@@ -194,7 +195,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
           !UNAVAILABLE_STATUSES.has(player.status)
       ).length
     );
-    const validation = this.validator.validatePlacement({ candidate: { playerId, x: gridX, y: gridY }, currentPositions: current, frame: pairFrame(this.isTeam1), availablePlayerCount: availablePlayerCount, limits: this.getPlayerLimits(this.currentTeam.id) });
+    const validation = this.validator.validatePlacement({ candidate: { playerId, x: gridX, y: gridY }, currentPositions: current, frame, availablePlayerCount: availablePlayerCount, limits: this.getPlayerLimits(this.currentTeam.id) });
     if (!validation.valid) {
       this.emit(GameEventNames.PlacementInvalid, {
         playerId,
@@ -231,7 +232,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   }
 
   isInSetupZone(gridX: number, gridY: number): boolean {
-    return this.validator.isInSetupZone(gridX, gridY, this.isTeam1);
+    return this.frame !== null && this.validator.isInSetupZone(gridX, gridY, this.frame);
   }
 
   removePlayer(playerId: string): void {

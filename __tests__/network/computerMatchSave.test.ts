@@ -55,7 +55,7 @@ describe("saving a match against the computer", () => {
     await live.run({ type: "coin-flip" });
     const end = Date.now() + 2000;
     while (!latest && Date.now() < end) await ms(10);
-    expect(latest?.computer?.computerTeamId).toBe("team2");
+    expect(latest?.computer).toMatchObject({ computerTeamId: "team2" });
   });
 
   it.each([

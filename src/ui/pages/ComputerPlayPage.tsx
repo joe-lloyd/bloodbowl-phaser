@@ -39,11 +39,14 @@ function difficultyOf(id: string | undefined): Difficulty {
   return DIFFICULTIES.find((level) => level.id === id)?.id ?? "standard";
 }
 
+const humanAgainst = (teams: readonly Team[], computerTeamId: string) =>
+  teams.find(({ id }) => id !== computerTeamId)?.id ?? computerTeamId;
+
 function startFrom(state: ComputerPlayState | null) {
   const save = readMatchSave();
-  if (save?.computer) {
-    const { computerTeamId, difficulty: savedDifficulty } = save.computer;
-    const difficulty = difficultyOf(savedDifficulty);
+  const computer = save?.computer;
+  if (save && computer && "computerTeamId" in computer) {
+    const difficulty = difficultyOf(computer.difficulty);
     const competitionContext = save.competition;
     return {
       resumed: true,
@@ -53,9 +56,8 @@ function startFrom(state: ComputerPlayState | null) {
         const restored = restoreMatchSave(save);
         return {
           eventBus,
-          team1: restored.teams[0],
-          team2: restored.teams[1],
-          computerTeamId,
+          teams: restored.teams,
+          humanTeamId: humanAgainst(restored.teams, computer.computerTeamId),
           coach: coachFor(difficulty),
           resume: restored,
           autosave: { difficulty },
@@ -72,9 +74,8 @@ function startFrom(state: ComputerPlayState | null) {
     competitionContext: state.competitionContext,
     options: (eventBus: EventBus) => ({
       eventBus,
-      team1: structuredClone(state.team1),
-      team2: structuredClone(state.team2),
-      computerTeamId: state.computerTeamId,
+      teams: [structuredClone(state.team1), structuredClone(state.team2)] as const,
+      humanTeamId: humanAgainst([state.team1, state.team2], state.computerTeamId),
       coach: coachFor(difficulty),
       ...(state.progressionEnabled !== undefined && { progressionEnabled: state.progressionEnabled }),
       autosave: { difficulty },

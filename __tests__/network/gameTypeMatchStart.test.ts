@@ -30,6 +30,11 @@ const teams = () => ({
   team2: stabilizeIds(createLineupTeam(RosterName.ORC, "O", 2), "team2"),
 });
 
+const seated = () => {
+  const { team1, team2 } = teams();
+  return [team1, team2] as const;
+};
+
 const format = () => {
   const state = ServiceContainer.getInstance().gameService.getState();
   return [state.gameType, state.venue];
@@ -39,7 +44,7 @@ describe("a friendly match on the local screen", () => {
   it("starts on the Beach Bowl sand when the coaches pick Beach Bowl", () => {
     vi.stubGlobal("eventBus", new EventBus());
     ensureMatchServices(
-      resolveMatchStart({ ...teams(), gameType: "beach-bowl" }, "GameScene"),
+      resolveMatchStart({ teams: seated(), gameType: "beach-bowl" }, "GameScene"),
       false
     );
     expect(format()).toEqual(["beach-bowl", "beach"]);
@@ -50,7 +55,7 @@ describe("a friendly match on the local screen", () => {
     ensureMatchServices(
       resolveMatchStart(
         {
-          ...teams(),
+          teams: seated(),
           gameType: "beach-bowl",
           competitionContext: {
             gameType: "street-bowl",
@@ -68,7 +73,7 @@ describe("a friendly match on the local screen", () => {
 
   it("keeps Sevens on the stadium with no format fields", () => {
     vi.stubGlobal("eventBus", new EventBus());
-    ensureMatchServices(resolveMatchStart(teams(), "GameScene"), false);
+    ensureMatchServices(resolveMatchStart({ teams: seated() }, "GameScene"), false);
     expect(format()).toEqual([undefined, undefined]);
   });
 });
@@ -77,8 +82,8 @@ describe("a match against the computer", () => {
   it("plays the chosen game type", () => {
     const match = createComputerMatch({
       eventBus: new EventBus(),
-      ...teams(),
-      computerTeamId: "team2",
+      teams: seated(),
+      humanTeamId: "team1",
       gameType: "street-bowl",
     });
     matches.push(match);

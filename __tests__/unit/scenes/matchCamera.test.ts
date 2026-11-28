@@ -32,8 +32,7 @@ function setup() {
     subscribe: game.ctx.eventBus.on.bind(game.ctx.eventBus),
     cameraController: camera,
     gameService: service,
-    team1: game.ctx.teams[0],
-    team2: game.ctx.teams[1],
+    teams: game.ctx.teams,
     isSetupActive: false,
   };
   followMatchWithCamera(scene as unknown as GameScene);

@@ -192,7 +192,7 @@ function resumeOrBegin(
     options.startingPhase === GamePhase.SETUP &&
     gameService.getSeating().kind === "four"
   )
-    gameService.beginCoinFlip();
+    gameService.beginMatch();
 }
 
 export function createHeadlessGame(

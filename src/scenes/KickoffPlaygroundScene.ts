@@ -38,7 +38,7 @@ export class KickoffPlaygroundScene extends GameScene {
       teams: [team1, team2],
       initialState,
     });
-    super.init({ ...data, team1, team2, autosaveEnabled: false });
+    super.init({ ...data, teams: [team1, team2], autosaveEnabled: false });
     this.kickingTeam = kicking === "team1" ? team1 : team2;
     this.receivingTeam = kicking === "team1" ? team2 : team1;
     this.config = config;

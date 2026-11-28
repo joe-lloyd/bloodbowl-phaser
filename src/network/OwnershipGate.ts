@@ -264,6 +264,7 @@ export function gateContextOf(
   hostTeamId: string
 ): GateContext {
   const gameService = game.ctx.gameService;
+  const seating = gameService.getSeating();
   return {
     activeTeamId: gameService.getState().activeTeamId,
     pendingDecision: game.pendingDecision(),
@@ -272,10 +273,12 @@ export function gateContextOf(
     phase: gameService.getState().phase,
     kickUnderWay: gameService.isKickUnderWay(),
     ...(gameService.getState().weatherReady !== undefined && { weatherReady: gameService.getState().weatherReady }),
-    inducementShopper: shoppingTeamId(
-      gameService.getState().pregameInducements,
-      pairIds(gameService.getSeating())
-    ),
+    ...(seating.kind === "pair" && {
+      inducementShopper: shoppingTeamId(
+        gameService.getState().pregameInducements,
+        pairIds(seating)
+      ),
+    }),
   };
 }
 

@@ -21,6 +21,8 @@ import { decisionOwner, gateContextOf } from "./OwnershipGate";
 import { pairIds } from "../game/seating";
 
 const DECLARE_ACTION = "declare-action";
+
+const candidateKey = ({ commands }: Candidate) => JSON.stringify(commands);
 const END_ACTIVATION = "end-activation";
 
 export interface ComputerCoachOptions {
@@ -128,6 +130,7 @@ class ComputerCoach {
   private readonly coach: Coach & { close?(): void };
   private readonly pace: number;
   private readonly rng = createCoachRng(Math.floor(Math.random() * 2 ** 31));
+  private readonly refused = new Set<string>();
   private readonly options: ComputerCoachOptions;
 
   constructor(options: ComputerCoachOptions) {
@@ -174,13 +177,15 @@ class ComputerCoach {
   private async choose(): Promise<Candidate | null> {
     const { game, computerTeamId } = this.options;
     const snapshot = game.snapshot();
-    const teamIds = pairIds(game.ctx.gameService.getSeating());
-    const point = await enumerateDecision(game, kickingTeamOf(snapshot, ...teamIds));
+    const seating = game.ctx.gameService.getSeating();
+    const kicking = seating.kind === "pair" ? kickingTeamOf(snapshot, ...pairIds(seating)) : null;
+    const point = await enumerateDecision(game, kicking);
     if (point.teamId !== computerTeamId) return null;
-    const [first] = point.candidates;
+    const candidates = point.candidates.filter((option) => !this.refused.has(candidateKey(option)));
+    const [first] = candidates;
     if (!first) return null;
-    const { index, note } = await this.coach.choose({ game, snapshot, point, rng: this.rng });
-    const candidate = point.candidates[index] ?? first;
+    const { index, note } = await this.coach.choose({ game, snapshot, point: { ...point, candidates }, rng: this.rng });
+    const candidate = candidates[index] ?? first;
     logChoice(snapshot, candidate.label, note);
     return candidate;
   }
@@ -213,8 +218,10 @@ class ComputerCoach {
       const response = await this.options.run(command);
       if (!response.ok) {
         console.warn(`[Computer] ${command.type} refused: ${String(response.reason)}`);
+        this.refused.add(candidateKey(candidate));
         break;
       }
+      this.refused.clear();
       this.moveResolved(command);
     }
     return true;

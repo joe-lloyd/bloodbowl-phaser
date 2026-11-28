@@ -12,8 +12,7 @@ import { noDelay } from "../../src/game/core/GameFlowManager.js";
 
 function makeMockScene(team1: any, team2: any) {
   const scene: any = {
-    team1,
-    team2,
+    teams: [team1, team2],
     kickingTeam: team1,
     receivingTeam: team2,
     isSetupActive: false,

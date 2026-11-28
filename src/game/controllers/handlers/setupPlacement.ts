@@ -8,7 +8,7 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { seatOf } from "../../seating";
 import { sceneSeating } from "../sceneSeating";
 
-type PlacementScene = Pick<GameScene, "team1" | "team2" | "disableSetupInteraction" | "highlightSetupZone" | "enablePlacement">;
+type PlacementScene = Pick<GameScene, "teams" | "disableSetupInteraction" | "highlightSetupZone" | "enablePlacement">;
 
 export function showSetupPlacement(context: {
   scene: PlacementScene;
@@ -24,9 +24,9 @@ export function showSetupPlacement(context: {
     eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
     return;
   }
-  const isTeam1 = seatOf(sceneSeating(scene), activeTeam.id).index === 0;
+  const { frame } = seatOf(sceneSeating(scene), activeTeam.id);
   const status = gameService.getSetupStatus(activeTeam.id);
   eventBus.emit(GameEventNames.UI_ShowSetupControls, { subPhase, activeTeam, ...(status !== undefined && { status }) });
-  scene.highlightSetupZone(isTeam1);
-  scene.enablePlacement(activeTeam, isTeam1);
+  scene.highlightSetupZone(frame);
+  scene.enablePlacement(activeTeam, frame);
 }

@@ -288,7 +288,7 @@ export interface IGameService {
 
   readyForWeather(teamId: string): boolean;
 
-  beginCoinFlip(): void;
+  beginMatch(): void;
 
   checkForTouchdown(playerId: string): boolean;
   endDrive(reason: "touchdown" | "halftime", next: NextHalf): void;

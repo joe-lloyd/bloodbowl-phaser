@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import Phaser from "phaser";
 import { PlayerPlacementController } from "../../src/game/controllers/PlayerPlacementController";
 import { SetupValidator } from "../../src/game/validators/SetupValidator";
+import { pairFrame } from "../../src/game/variants/activeMatch";
 import { Pitch } from "../../src/game/elements/Pitch";
 import { type Team, RosterName } from "../../src/types/Team";
 import { PositionKeyWord } from "../../src/types/Player";
@@ -162,7 +163,7 @@ describe("PlayerPlacementController", () => {
 
   describe("enablePlacement", () => {
     it("should enable interactivity for team players", () => {
-      controller.enablePlacement(team, true, dugoutSprites);
+      controller.enablePlacement(team, pairFrame(true), dugoutSprites);
 
       const sprite1 = dugoutSprites.get("p1");
 
@@ -180,18 +181,18 @@ describe("PlayerPlacementController", () => {
     });
 
     it("should clear placed players for new session", () => {
-      controller.enablePlacement(team, true, dugoutSprites);
+      controller.enablePlacement(team, pairFrame(true), dugoutSprites);
       controller.placePlayer("p1", 1, 1);
       expect(controller.getPlacedCount()).toBe(1);
 
-      controller.enablePlacement(team, true, dugoutSprites);
+      controller.enablePlacement(team, pairFrame(true), dugoutSprites);
       expect(controller.getPlacedCount()).toBe(0);
     });
   });
 
   describe("setup hit areas", () => {
     it("gives a sprite the dugout adds during setup the square hit area", () => {
-      controller.enablePlacement(team, true, dugoutSprites);
+      controller.enablePlacement(team, pairFrame(true), dugoutSprites);
 
       const added = figureSprite();
       dugoutSprites.set("p2", added);
@@ -210,7 +211,7 @@ describe("PlayerPlacementController", () => {
     it("picks dugout sprites by their figure again once setup ends", () => {
       const reserve = figureSprite();
       dugoutSprites.set("p1", reserve);
-      controller.enablePlacement(team, true, dugoutSprites);
+      controller.enablePlacement(team, pairFrame(true), dugoutSprites);
       expect(fixtureValue(reserve.input).hitAreaCallback).toBe(
         squareHitAreaContains
       );
@@ -234,7 +235,7 @@ describe("PlayerPlacementController", () => {
       const reserve = figureSprite();
       dugoutSprites.set("p1", reserve);
       dugoutSprites.set("p2", figureSprite());
-      controller.enablePlacement(team, true, dugoutSprites);
+      controller.enablePlacement(team, pairFrame(true), dugoutSprites);
 
       controller.disablePlacement();
 
@@ -257,7 +258,7 @@ describe("PlayerPlacementController", () => {
 
   describe("placePlayer", () => {
     beforeEach(() => {
-      controller.enablePlacement(team, true, dugoutSprites);
+      controller.enablePlacement(team, pairFrame(true), dugoutSprites);
     });
 
     it("should place player if position is valid", () => {
@@ -335,7 +336,7 @@ describe("PlayerPlacementController", () => {
 
   describe("loadFormation", () => {
     beforeEach(() => {
-      controller.enablePlacement(team, true, dugoutSprites);
+      controller.enablePlacement(team, pairFrame(true), dugoutSprites);
     });
 
     it("should load valid formation", () => {
@@ -371,7 +372,7 @@ const dropOn = (
   } as unknown as Team;
   controller.enablePlacement(
     team,
-    true,
+    pairFrame(true),
     new Map([["p1", sprite as unknown as Phaser.GameObjects.Container]])
   );
   sprite.fire("dragstart");

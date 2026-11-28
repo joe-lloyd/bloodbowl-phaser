@@ -55,12 +55,12 @@ describe("the match style", () => {
       { ...save, presentation: { pitchThemeId: "neon" } }
     ) as MatchSave;
     const start = resolveMatchStart(
-      { team1: game.teams[0], team2: game.teams[1], resumeSave: legacy },
+      { teams: [game.teams[0], game.teams[1]], resumeSave: legacy },
       "GameScene"
     );
 
     expect(start.resumed).toBe(true);
-    expect(start.team1.id).toBe(game.teams[0].id);
+    expect(start.teams[0].id).toBe(game.teams[0].id);
     expect(start.kickingTeam.id).toBe(game.teams[1].id);
     expect(start).not.toHaveProperty("pitchThemeId");
   });

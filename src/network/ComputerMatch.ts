@@ -1,15 +1,18 @@
 import { kickoffTurnOf } from "../game/kickoff/kickRecord";
 import { devVenueFormat } from "../testing/devVenue";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
-import { clearMatchSave } from "../game/persistence/MatchSaveRepository";
+import {
+  clearMatchSave,
+  type MatchSaveRepository,
+} from "../game/persistence/MatchSaveRepository";
 import { type IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { scopeEventBus } from "../services/scopedEventBus";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import {
+  type ComputerMatchSave,
   type RestoredMatchSave,
-  createMatchSave,
 } from "../headless/serialization";
 import {
   type CommandResponse,
@@ -18,7 +21,6 @@ import {
 } from "../headless/protocol";
 import { GameEventNames } from "../types/events";
 import { GamePhase, type GameState, SubPhase } from "../types/GameState";
-import { type Team } from "../types/Team";
 import { type CompetitionContext } from "../competition/types";
 import { type Coach } from "../simulation/coach";
 import { NetworkedGameService } from "./NetworkedGameService";
@@ -30,6 +32,8 @@ import { fixturePaysWinnings } from "../game/rules/winnings";
 import type { GameType } from "../game/variants/gameTypes";
 import type { Venue } from "../game/variants/pitchLayouts";
 import { startingFormat } from "../game/variants/startingFormat";
+import { DEATHBOWL_FORMAT } from "../game/variants/activeMatch";
+import { type SeatedTeams } from "../game/seating";
 
 class ComputerGameService extends NetworkedGameService {
   private readonly engine: GameService;
@@ -45,8 +49,8 @@ class ComputerGameService extends NetworkedGameService {
   override readyForWeather(teamId: string): boolean {
     return this.engine.readyForWeather(teamId);
   }
-  override beginCoinFlip = (): void => {
-    this.engine.beginCoinFlip();
+  override beginMatch = (): void => {
+    this.engine.beginMatch();
   };
   override tossCoin(): string {
     return this.engine.tossCoin();
@@ -61,10 +65,9 @@ const COMPUTER_NAME = "Computer";
 
 export interface ComputerMatchOptions {
   eventBus: IEventBus;
-  team1: Team;
-  team2: Team;
+  teams: SeatedTeams;
 
-  computerTeamId: string;
+  humanTeamId: string;
   progressionEnabled?: boolean;
 
   coach?: Coach & { close?(): void };
@@ -73,7 +76,7 @@ export interface ComputerMatchOptions {
 
   resume?: Pick<RestoredMatchSave, "save" | "state">;
 
-  autosave?: { difficulty: string };
+  autosave?: { difficulty: string; slot?: MatchSaveRepository };
 
   competitionContext?: CompetitionContext;
 
@@ -82,19 +85,27 @@ export interface ComputerMatchOptions {
   venue?: Venue;
 }
 
+function pairFormat(options: ComputerMatchOptions) {
+  return {
+    ...devVenueFormat(),
+    ...startingFormat(
+      options.competitionContext
+        ? { gameType: options.competitionContext.gameType }
+        : { gameType: options.gameType, venue: options.venue }
+    ),
+  };
+}
+
 function computerMatchState(options: ComputerMatchOptions): GameState {
-  const { team1, team2 } = options;
+  const { teams } = options;
+  const fourSeats = teams.length === 4;
   const initialState =
     options.resume?.state ??
-    GameService.createMatchState({ teams: [team1, team2], startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
+    GameService.createMatchState({ teams, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
         paysWinnings: fixturePaysWinnings(options.competitionContext),
         competition: !!options.competitionContext,
-        pregameInducements: true,
-      }, ...devVenueFormat(), ...startingFormat(
-        options.competitionContext
-          ? { gameType: options.competitionContext.gameType }
-          : { gameType: options.gameType, venue: options.venue }
-      ) }
+        pregameInducements: !fourSeats,
+      }, ...(fourSeats ? { format: DEATHBOWL_FORMAT } : pairFormat(options)) }
     );
   if (options.competitionContext) initialState.competition = true;
   if (!options.resume && options.competitionContext?.knockout)
@@ -110,6 +121,16 @@ const progressionOf = (options: ComputerMatchOptions): boolean =>
 
 const noop = () => undefined;
 
+const seatPlanOf = (
+  teams: SeatedTeams,
+  humanTeamId: string,
+  difficulty: string
+): ComputerMatchSave => {
+  if (teams.length === 4) return { humanTeamId, difficulty };
+  const computer = teams.find(({ id }) => id !== humanTeamId) ?? teams[1];
+  return { computerTeamId: computer.id, difficulty };
+};
+
 class ComputerSession {
   readonly match: OnlineMatch;
   private readonly options: ComputerMatchOptions;
@@ -119,41 +140,58 @@ class ComputerSession {
   private readonly game: HeadlessGame;
   private readonly myTeamId: string;
   private readonly autosave: MatchAutosave | null;
-  private readonly computerCoach: ReturnType<typeof createComputerCoach>;
+  private readonly computerCoaches: ReadonlyMap<string, ReturnType<typeof createComputerCoach>>;
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(options: ComputerMatchOptions) {
     this.options = options;
     this.eventBus = scopeEventBus(options.eventBus);
-    this.myTeamId = options.computerTeamId === options.team1.id ? options.team2.id : options.team1.id;
+    this.myTeamId = options.humanTeamId;
     this.container = this.initializeServices();
     this.engine = this.container.engineGameService;
     this.game = new HeadlessGame({
       ctx: { eventBus: this.eventBus, gameService: this.engine, rng: this.container.rngService,
-        teams: [options.team1, options.team2], seed: 0, matchStats: this.container.matchStats },
+        teams: options.teams, seed: 0, matchStats: this.container.matchStats },
       kickingTeamId: options.resume?.save.drive.kickingTeamId ?? null,
     });
+    const fourSeats = options.teams.length === 4;
+    if (fourSeats && !options.resume) this.engine.beginMatch();
     this.autosave = this.createAutosave();
-    if (options.resume) this.autosave?.start();
-    this.computerCoach = createComputerCoach({
-      game: this.game, eventBus: this.eventBus, computerTeamId: options.computerTeamId,
-      mayAct: () => this.owner(options.computerTeamId), run: (command) => this.runAs(options.computerTeamId, command),
-      ...(options.coach !== undefined && { coach: options.coach }),
-      ...(options.pace !== undefined && { pace: options.pace }),
-    });
-    if (options.resume) this.eventBus.once(GameEventNames.GameStateRestored, this.computerCoach.start);
-    else this.computerCoach.start();
+    if (options.resume || fourSeats) this.autosave?.start();
+    this.computerCoaches = new Map(this.computerTeamIds().map((teamId) => [teamId, this.coachFor(teamId)]));
+    this.startCoaches();
     if (import.meta.env.DEV) globalThis.__computerMatch = { game: this.game, run: (command) => this.runAs(this.myTeamId, command) };
     this.match = this.finishMatch();
   }
 
+  private startCoaches(): void {
+    for (const coach of this.computerCoaches.values()) {
+      if (this.options.resume) this.eventBus.once(GameEventNames.GameStateRestored, coach.start);
+      else coach.start();
+    }
+  }
+
+  private computerTeamIds(): string[] {
+    return this.options.teams.flatMap(({ id }) => (id === this.myTeamId ? [] : [id]));
+  }
+
+  private coachFor(teamId: string) {
+    const { coach, pace } = this.options;
+    return createComputerCoach({
+      game: this.game, eventBus: this.eventBus, computerTeamId: teamId,
+      mayAct: () => this.owner(teamId), run: (command) => this.runAs(teamId, command),
+      ...(coach !== undefined && { coach }),
+      ...(pace !== undefined && { pace }),
+    });
+  }
+
   private initializeServices(): ServiceContainer {
-    const { team1, team2 } = this.options;
+    const { teams } = this.options;
     const rngState = this.options.resume?.save.rng;
     const matchStatsState = this.options.resume?.save.matchStats;
     const turnManagerState = this.options.resume?.save.turnManager;
     return ServiceContainer.initialize({
-      eventBus: this.eventBus, teams: [team1, team2], initialState: computerMatchState(this.options),
+      eventBus: this.eventBus, teams, initialState: computerMatchState(this.options),
       seed: Math.floor(Math.random() * 2 ** 31), progressionEnabled: progressionOf(this.options),
       gameServiceFactory: (engine) => new ComputerGameService({ engine,
         forward: (command) => this.runAs(this.myTeamId, command), pendingDecision: () => this.game.pendingDecision(), eventBus: this.eventBus }),
@@ -185,20 +223,27 @@ class ComputerSession {
   private createAutosave(): MatchAutosave | null {
     const settings = this.options.autosave;
     if (!settings) return null;
-    return new MatchAutosave(this.eventBus, this.engine, () => this.captureSave(settings.difficulty), { choiceOpen: () => this.game.pendingDecision() !== null });
+    return new MatchAutosave(this.eventBus, this.engine, () => this.captureSave(settings.difficulty), {
+      choiceOpen: () => this.game.pendingDecision() !== null,
+      ...(settings.slot !== undefined && { repository: settings.slot }),
+    });
   }
 
   private captureSave(difficulty: string) {
-    const { team1, team2, computerTeamId } = this.options;
-    const kickingTeamId = this.game.driveKickingTeamId() ?? team1.id;
-    return createMatchSave({
-      state: this.engine.getState(), teams: [team1, team2],
-      drive: { kickingTeamId, receivingTeamId: kickingTeamId === team1.id ? team2.id : team1.id },
-      rng: this.container.rngService.captureState(), matchStats: this.container.matchStats.captureState(),
-      turnManager: this.engine.captureTurnManagerState(),
-      computer: { computerTeamId, difficulty },
-      ...(this.options.competitionContext !== undefined && { competition: this.options.competitionContext }),
-    });
+    const { teams, competitionContext } = this.options;
+    return {
+      ...this.game.matchSave(),
+      computer: seatPlanOf(teams, this.myTeamId, difficulty),
+      ...(competitionContext !== undefined && { competition: competitionContext }),
+    };
+  }
+
+  private computerOwner(): string | undefined {
+    return this.computerTeamIds().find((teamId) => this.owner(teamId));
+  }
+
+  private computerThinking(): boolean {
+    return [...this.computerCoaches.values()].some((coach) => coach.isThinking());
   }
 
   private owner(teamId: string): boolean {
@@ -210,33 +255,38 @@ class ComputerSession {
     if (this.engine.getPhase() === GamePhase.SETUP) return `${COMPUTER_NAME} is setting up…`;
     const { teamId } = this.engine.getState().turn;
     const kickoff = kickoffTurnOf(this.engine.getState());
-    if (kickoff && teamId === this.options.computerTeamId) return `${COMPUTER_NAME} is playing ${kickoff.event}…`;
+    if (kickoff && this.computerCoaches.has(teamId)) return `${COMPUTER_NAME} is playing ${kickoff.event}…`;
     if (this.engine.getPhase() === GamePhase.KICKOFF) return `${COMPUTER_NAME} is kicking off…`;
     const active = this.engine.getActiveTeamId();
-    const teamName = (active === this.options.team1.id ? this.options.team1 : this.options.team2).name;
-    return active === this.options.computerTeamId ? `${possessive(COMPUTER_NAME)} turn (${teamName})…` : "Waiting…";
+    const team = this.options.teams.find(({ id }) => id === active);
+    return team && this.computerCoaches.has(team.id) ? `${possessive(COMPUTER_NAME)} turn (${team.name})…` : "Waiting…";
   }
 
   private close(): void {
-    this.computerCoach.close();
+    for (const coach of this.computerCoaches.values()) coach.close();
     this.autosave?.dispose();
-    if (this.autosave && this.engine.getPhase() === GamePhase.GAME_OVER) clearMatchSave();
+    const slot = this.options.autosave?.slot;
+    if (this.autosave && this.engine.getPhase() === GamePhase.GAME_OVER) {
+      if (slot) slot.clear();
+      else clearMatchSave();
+    }
     this.eventBus.dispose();
   }
 
   private finishMatch(): OnlineMatch {
-    const { team1, team2, computerTeamId } = this.options;
+    const { teams } = this.options;
     return {
       kind: "computer", role: "host", code: "computer", myTeamId: this.myTeamId, opponentName: COMPUTER_NAME,
-      coachName: (teamId) => teamId === computerTeamId ? COMPUTER_NAME : "You", teams: { team1, team2 },
-      mayAct: () => !this.computerCoach.isThinking() && this.owner(this.myTeamId), waitingLabel: () => this.waitingLabel(),
+      coachName: (teamId) => this.computerCoaches.has(teamId) ? COMPUTER_NAME : "You", teams,
+      mayAct: () => !this.computerThinking() && this.owner(this.myTeamId), waitingLabel: () => this.waitingLabel(),
       pendingDecision: () => this.game.pendingDecision(), decidingTeamId: () => {
         if (!this.game.pendingDecision()) return null;
-        return this.owner(computerTeamId) ? computerTeamId : this.myTeamId;
+        return this.computerOwner() ?? this.myTeamId;
       },
       run: (command) => this.runAs(this.myTeamId, command),
       sendChat: () => undefined, onChatMessage: () => noop, chatHistory: () => [],
-      onFatalError: () => noop, saveState: () => undefined, setClockPaused: () => undefined,
+      onFatalError: () => noop,
+      saveState: () => undefined, setClockPaused: () => undefined,
       runProgressionCommand: (command) => this.enqueue(() => this.game.execute(command)), close: () => { this.close(); },
     };
   }

@@ -8,8 +8,9 @@ import {
 import { type StorageLike, browserStorage } from "./browserStorage";
 
 export const MATCH_SAVE_STORAGE_KEY = "bloodbowl_local_match_save";
-export const MATCH_SAVE_FALLBACK_KEY =
-  "bloodbowl_local_match_save_snapshot_fallback";
+const fallbackKeyOf = (key: string) => `${key}_snapshot_fallback`;
+export const MATCH_SAVE_FALLBACK_KEY = fallbackKeyOf(MATCH_SAVE_STORAGE_KEY);
+export const DEATHBOWL_SAVE_STORAGE_KEY = "bloodbowl_deathbowl_match_save";
 
 export interface MatchSaveDescription {
   savedAt: number;
@@ -75,7 +76,7 @@ export class LocalStorageMatchSaveRepository implements MatchSaveRepository {
     const fits = () => {
       try {
         storage.setItem(this.key, raw);
-        storage.removeItem(MATCH_SAVE_FALLBACK_KEY);
+        storage.removeItem(fallbackKeyOf(this.key));
         return true;
       } catch (error) {
         failure = error;
@@ -100,7 +101,7 @@ export class LocalStorageMatchSaveRepository implements MatchSaveRepository {
     };
     try {
       storage.removeItem(this.key);
-      storage.setItem(MATCH_SAVE_FALLBACK_KEY, JSON.stringify(fallback));
+      storage.setItem(fallbackKeyOf(this.key), JSON.stringify(fallback));
     } catch (fallbackError) {
       console.warn(
         "Failed to write snapshot-only match fallback:",
@@ -112,7 +113,7 @@ export class LocalStorageMatchSaveRepository implements MatchSaveRepository {
   clear(): void {
     if (!this.storage) return;
     this.storage.removeItem(this.key);
-    this.storage.removeItem(MATCH_SAVE_FALLBACK_KEY);
+    this.storage.removeItem(fallbackKeyOf(this.key));
   }
 
   describe(): MatchSaveDescription | null {
@@ -122,6 +123,12 @@ export class LocalStorageMatchSaveRepository implements MatchSaveRepository {
 }
 
 const localRepository = new LocalStorageMatchSaveRepository();
+
+export const deathbowlSaveSlot: MatchSaveRepository =
+  new LocalStorageMatchSaveRepository(
+    browserStorage(),
+    DEATHBOWL_SAVE_STORAGE_KEY
+  );
 const repositoryState: { active: MatchSaveRepository } = {
   active: localRepository,
 };

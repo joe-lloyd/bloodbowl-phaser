@@ -28,6 +28,7 @@ import type { DiceController } from "../controllers/DiceController";
 import type { WeatherManager } from "../managers/WeatherManager";
 import { isStandableSquare } from "../rules/pitchSquares";
 import { SetupValidator } from "../validators/SetupValidator";
+import { pairFrame } from "../variants/activeMatch";
 import {
   INTERACTIVE_KICKOFF_EVENTS,
   KICKOFF_TABLE_ROLL,
@@ -265,7 +266,7 @@ export class KickoffEventManager {
 
     const { x, y } = landing;
     const { isTeam1Kicking, receivingTeam } = this.sides(kick);
-    if (!this.setupValidator.isInSetupZone(x, y, !isTeam1Kicking)) {
+    if (!this.setupValidator.isInSetupZone(x, y, pairFrame(!isTeam1Kicking))) {
       this.eventBus.emit(
         GameEventNames.UI_GameLog,
         "High Kick: the ball lands in No Man's Land, so no player may be placed under it."

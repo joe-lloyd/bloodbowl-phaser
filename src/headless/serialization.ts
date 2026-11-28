@@ -161,11 +161,9 @@ export interface MatchSave {
   computer?: ComputerMatchSave;
 }
 
-export interface ComputerMatchSave {
-  computerTeamId: string;
-
-  difficulty: string;
-}
+export type ComputerMatchSave =
+  | { computerTeamId: string; difficulty: string }
+  | { humanTeamId: string; difficulty: string };
 
 export interface CreateMatchSaveInput {
   state: GameState;

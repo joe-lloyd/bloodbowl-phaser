@@ -17,7 +17,7 @@ type Graphics = Commands<Pick<Phaser.GameObjects.Graphics, "destroy" | "setDepth
   "fillPoints" | "fillCircle" | "setPosition" | "setScale">>;
 type SceneTweens = Commands<Pick<Phaser.Tweens.TweenManager, "add" | "addCounter">>;
 
-export type KickoffScene = Pick<GameScene, "team1" | "team2" | "kickingTeam" | "placeBallVisual" | "refreshDugouts" | "animateBallAlong"> & {
+export type KickoffScene = Pick<GameScene, "teams" | "kickingTeam" | "placeBallVisual" | "refreshDugouts" | "animateBallAlong"> & {
   ballSprite: BallVisual | null;
   playerSprites: ReadonlyMap<string, PlayerVisual>;
   pitch: PhasePitch & Pick<Pitch, "markKickTarget" | "clearKickTarget">;
@@ -35,7 +35,7 @@ export type PlayScene = Pick<GameScene, "startPlayPhase" | "placeBallVisual" | "
   createBombSprite(x: number, y: number): { x: number; y: number; rotation: number; destroy(): void };
 };
 
-export type SetupScene = Pick<GameScene, "team1" | "team2" | "kickingTeam" | "receivingTeam" |
+export type SetupScene = Pick<GameScene, "teams" | "kickingTeam" | "receivingTeam" |
   "celebrateDugout" | "disableSetupInteraction" | "enablePlacement" | "highlightSetupZone" | "refreshDugouts"> & {
   formationManager: Pick<FormationManager, "isBuiltIn" | "deleteFormation" | "saveFormation" | "getFormation" | "listAllFormations">;
   placementController: Pick<PlayerPlacementController, "clearPlacements" | "syncFromTeam">;

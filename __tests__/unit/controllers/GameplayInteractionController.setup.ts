@@ -37,7 +37,7 @@ function mockFunction<Fn extends (...args: never[]) => unknown>() {
 }
 export const mockScene = {
   team1, team2, kickingTeam: team1,
-  get teams(): readonly Team[] { return [mockScene.team1, mockScene.team2]; },
+  get teams(): readonly [Team, Team] { return [mockScene.team1, mockScene.team2]; },
   cameras: { main: {worldView:{x:0,y:0},zoom:1} }, scale: {width:1600,height:900},
   events: { on: vi.fn(), off: vi.fn() },
   highlightPlayer: vi.fn(),

@@ -3,6 +3,7 @@ import type { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 
 import { SubPhase } from "../../../types/GameState";
+import { activeLayout } from "../../../game/variants/activeMatch";
 import { GameEventNames } from "../../../types/events";
 import type { FormationEntry } from "../../../game/managers/FormationManager";
 import { FormationPicker } from "./FormationPicker";
@@ -277,6 +278,9 @@ function FormationSelect({
   );
 }
 
+const listsFormations = (compact: boolean) =>
+  compact || activeLayout().frames.length !== 2;
+
 function FormationTools({
   formations,
   isTeam1,
@@ -303,7 +307,7 @@ function FormationTools({
   const selected = formations.find((f) => f.name === selectedFormation);
   return (
     <>
-      {compact ? (
+      {listsFormations(compact) ? (
         <FormationSelect
           formations={formations}
           selected={selectedFormation}

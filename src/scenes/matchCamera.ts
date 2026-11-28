@@ -168,7 +168,7 @@ export function followMatchWithCamera(scene: GameScene): void {
 
 function teamSquares(scene: GameScene, teamId?: string, eligibleOnly = false) {
   const state = scene.gameService.getState();
-  return [...scene.team1.players, ...scene.team2.players].flatMap((p) => {
+  return scene.teams.flatMap((team) => team.players).flatMap((p) => {
     const square = p.gridPosition;
     return square &&
       isInsideLayout(activeLayout(), square) &&

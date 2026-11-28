@@ -656,7 +656,7 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "ready-weather", teamId });
     return true;
   }
-  beginCoinFlip: IGameService["beginCoinFlip"] = () => undefined;
+  beginMatch: IGameService["beginMatch"] = () => undefined;
   startGame: IGameService["startGame"] = () => undefined;
   startTurn: IGameService["startTurn"] = () => undefined;
   triggerTurnover: IGameService["triggerTurnover"] = () => undefined;

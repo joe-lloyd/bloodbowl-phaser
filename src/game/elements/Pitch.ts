@@ -4,7 +4,6 @@ import {
   GameConfig,
   TRAPDOOR_SQUARES,
 } from "../../config/GameConfig";
-import { pairFrame } from "../variants/activeMatch";
 import { isOnPitch } from "../rules/pitchSquares";
 import { type Frame, type Span, blockOf, noMansLand } from "../rules/frames";
 import {
@@ -175,10 +174,9 @@ export class Pitch {
     return pts;
   }
 
-  public highlightSetupZone(isLeft: boolean): void {
+  public highlightSetupZone(frame: Frame): void {
     this.clearSetupZone();
 
-    const frame = pairFrame(isLeft);
     const zone = this.scene.add.graphics();
     zone.setName("setup_zone_highlight");
     zone.fillStyle(0x00ff00, 1);
