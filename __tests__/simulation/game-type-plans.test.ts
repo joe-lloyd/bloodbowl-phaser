@@ -106,10 +106,10 @@ describe("game type rules in the planner's prices", () => {
       gutter: await foulValue(GUTTER_STREET),
     };
     expect(values).toEqual({
-      sevens: 1.574,
-      street: 5.833,
+      sevens: 3.744,
+      street: 8.003,
       beach: null,
-      gutter: 7.5,
+      gutter: 9.67,
     });
   });
 
@@ -501,7 +501,7 @@ describe("a carrier's Blitz on a marker", () => {
       fresh: await stationaryBlitzValues(() => 0),
       rushToHit: await stationaryBlitzValues((ma) => ma),
       noMovementLeft: await stationaryBlitzValues((ma) => ma + 2),
-    }).toEqual({ fresh: [16], rushToHit: [], noMovementLeft: [] });
+    }).toEqual({ fresh: [44], rushToHit: [22], noMovementLeft: [] });
   });
 });
 

@@ -51,8 +51,10 @@ export function targetValue(
 ): number {
   const { board, w } = c;
   const carrier = carrierOf(board);
-  if (carrier?.id === target.id)
-    return w.carrierKnockdown + casualtyChance(attacker, target) * c.casualty;
+  const { scorer, stopper } = c.removal(target);
+  const out =
+    casualtyChance(attacker, target) * (c.casualty + w.scorerOut * scorer);
+  if (carrier?.id === target.id) return w.carrierKnockdown + out;
   const near = carrier
     ? distance(target.gridPosition, carrier.gridPosition)
     : 99;
@@ -63,8 +65,10 @@ export function targetValue(
   return (
     w.knockdown +
     bonus +
-    target.stats.ST +
-    casualtyChance(attacker, target) * c.casualty
+    w.targetStrength * target.stats.ST +
+    w.scorerDown * scorer +
+    w.stopperDown * stopper +
+    out
   );
 }
 

@@ -7,6 +7,7 @@ import { type Route, routesFor, withTeamReroll } from "./routes";
 import { type Weights } from "./weights";
 import type { Available, Tier } from "./activations";
 import { canStillScore } from "./latePlans";
+import { type Removal, removalOf } from "./threatTargets";
 
 export interface Context {
   goal: "attack" | "finish" | "protect";
@@ -25,6 +26,8 @@ export interface Context {
   routes: (p: Player) => Map<number, Route>;
 
   plainRoutes: (p: Player) => Map<number, Route>;
+
+  removal: (target: Player) => Removal;
 }
 
 interface ContextArgs {
@@ -61,6 +64,12 @@ export function context({
       );
     return routes;
   };
+  const removals = new Map<string, Removal>();
+  const removal = (target: Player) => {
+    let found = removals.get(target.id);
+    if (!found) removals.set(target.id, (found = removalOf(board, w, target)));
+    return found;
+  };
   const ball = firstBall(board);
   const ballAt = ball.kind === "none" ? null : ball.at;
   const pace = ballAt ? toGoal(board, ballAt) / (board.turnsLeft + 1) : 0;
@@ -84,6 +93,7 @@ export function context({
       w.turnoverBase + w.turnoverPerPlayer * Math.max(0, available.size - 1),
     routes: teamReroll ? rerollRoutes : plainRoutes,
     plainRoutes,
+    removal,
   };
 }
 

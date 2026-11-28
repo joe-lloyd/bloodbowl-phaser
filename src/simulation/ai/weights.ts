@@ -56,6 +56,14 @@ export const DEFAULT_WEIGHTS = {
 
   cageBreak: 20,
 
+  targetStrength: 1,
+
+  scorerDown: 40,
+  scorerOut: 50,
+  scorerNearBall: 0.5,
+
+  stopperDown: 12,
+
   freeCarrier: 12,
 
   lane: 0,
@@ -166,6 +174,7 @@ export function weightBounds(name: keyof Weights): [number, number] {
     pickupMin: [0.2, 0.99],
     kickDepth: [2, 6],
     kickWide: [0, 1],
+    targetStrength: [0, 4],
     touchdown: [value, value],
   };
   return fixed[name] ?? [value / 4, value * 4];

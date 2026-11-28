@@ -169,7 +169,7 @@ describe("who fouls", () => {
     }).filter((a) => a.action === "foul");
 
     expect(fouls).toHaveLength(1);
-    expect(fixtureValue(fouls[0]).value).toBeCloseTo(1.574, 3);
+    expect(fixtureValue(fouls[0]).value).toBeCloseTo(3.744, 3);
   });
 
   it("fouls with a held Bribe, which keeps both the player and the turn", async () => {
@@ -219,6 +219,6 @@ describe("who fouls", () => {
     );
 
     expect(fouls).toHaveLength(1);
-    expect(fixtureValue(fouls[0]).value).toBeCloseTo(0.1502, 4);
+    expect(fixtureValue(fouls[0]).value).toBeCloseTo(1.597, 3);
   });
 });

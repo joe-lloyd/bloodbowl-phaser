@@ -173,7 +173,7 @@ describe("two-step pass", () => {
     const { declared } = await playTurn(subject);
 
     expect(declared.filter((d) => d.endsWith("moves to deep"))).toEqual([
-      `${fixtureValue(first).id}: moves to deep`,
+      `${fixtureValue(second).id}: moves to deep`,
     ]);
     expect(declared.map((d) => d.split(":", 1)[0])).toEqual([
       fixtureValue(first).id,

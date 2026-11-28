@@ -140,9 +140,11 @@ function foulAt({ c, fouler, target, at }: FoulAtArgs) {
     none: offensiveAssists.length === 0 && defensiveAssists.length === 0,
   });
   const spotted = spottedChances(c, fouler);
+  const offPitch = (odds.casualty + odds.ko) * c.w.scorerOut;
   const value =
     odds.casualty * c.casualty +
-    odds.ko * c.w.foulKnockOut -
+    odds.ko * c.w.foulKnockOut +
+    offPitch * c.removal(target).scorer -
     odds.spotted *
       (spotted.sentOff * sendOffCost(c, fouler) +
         spotted.turnover * lostActivations(c));
