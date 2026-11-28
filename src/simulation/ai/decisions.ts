@@ -1,4 +1,4 @@
-import { type HeadlessCommand, type PendingDecision } from "../../headless/protocol";
+import { type PendingDecision } from "../../headless/protocol";
 import { type BlockResultType } from "../../services/BlockResolutionService";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type Candidate } from "../candidates";
