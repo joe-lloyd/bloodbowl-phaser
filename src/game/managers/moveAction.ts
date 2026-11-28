@@ -1,4 +1,4 @@
-import { type BallId, ballAt, placeBall, restingBall } from "../rules/balls";
+import { type BallId, ballAt, placeBall } from "../rules/balls";
 import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
@@ -543,12 +543,13 @@ function takeBall(
   success: boolean
 ): "failed" | "secured" | undefined {
   const { deps, currentPos } = run;
-
-  run.ball = success ? restingBall(deps.state, currentPos) : undefined;
-
-  if (run.ball === undefined) {
+  if (!success) {
+    run.ball = undefined;
     return "failed";
   }
+
+  run.ball = ballAt(deps.state, currentPos);
+  if (run.ball === undefined) return undefined;
 
   placeBall(deps.state, run.ball, currentPos);
   run.ballFrom = { ...currentPos };
