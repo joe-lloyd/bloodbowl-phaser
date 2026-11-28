@@ -15,6 +15,7 @@ type Go = (path: string) => void;
 
 interface MenuGroupsProps {
   admin: boolean;
+  deathbowlSaved: boolean;
   uid: string | null;
   onlineAvailable: boolean;
   onlineDisabled: boolean;
@@ -63,9 +64,19 @@ function MenuRow({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function AdminRows({ go }: { go: Go }) {
+function AdminRows({ go, deathbowlSaved }: { go: Go; deathbowlSaved: boolean }) {
   return (
     <>
+      <MenuRow title="Deathbowl Sevens">
+        <MenuButton path="/deathbowl" go={go}>
+          New Match
+        </MenuButton>
+        {deathbowlSaved && (
+          <MenuButton path="/deathbowl/play" go={go}>
+            Resume Match
+          </MenuButton>
+        )}
+      </MenuRow>
       <MenuRow title="Club">
         <MenuButton path="/clubs" go={go}>
           My Clubs
@@ -89,7 +100,7 @@ function AdminRows({ go }: { go: Go }) {
   );
 }
 
-function OnlineRow(props: MenuGroupsProps) {
+function OnlineRow(props: Omit<MenuGroupsProps, "deathbowlSaved">) {
   const { onOnline, onlineDisabled } = props;
   const hint = props.onlineAvailable ? undefined : ONLINE_HINT;
   return (
@@ -156,7 +167,9 @@ export function MenuGroups(props: MenuGroupsProps) {
         </MenuButton>
       </MenuRow>
       <OnlineRow {...props} />
-      {props.admin && <AdminRows go={go} />}
+      {props.admin && (
+        <AdminRows go={go} deathbowlSaved={props.deathbowlSaved} />
+      )}
     </nav>
   );
 }

@@ -10,6 +10,9 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { CAMERA_INTRO_MS } from "../CameraController";
 import { pairSeating, pairTeams, seatOf } from "../../seating";
 import { sceneSeating } from "../sceneSeating";
+import { type FormationEntry } from "../../managers/FormationManager";
+import { seatFormation } from "../../setup/deployment";
+import { activeLayout } from "../../variants/activeMatch";
 
 const BANNER_MS = 2300;
 
@@ -197,6 +200,13 @@ export class SetupPhaseHandler implements PhaseHandler {
 
   private saveFormation(
 { rawName,activeTeam,key,isTeam1 }: { rawName: string|undefined; activeTeam: Team; key: string; isTeam1: boolean; }  ): void {
+    if (this.arenaFormations()) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Formations are not saved on the Deathbowl arena."
+      );
+      return;
+    }
     const name = rawName?.trim();
     if (!name) {
       this.eventBus.emit(
@@ -241,7 +251,9 @@ export class SetupPhaseHandler implements PhaseHandler {
 { rawName: name = "Balanced",activeTeam,key,isTeam1 }: { rawName: string|undefined; activeTeam: Team; key: string; isTeam1: boolean; }  ): void {
     const placementController =
       this.scene.placementController;
-    const positions = this.scene.formationManager.getFormation(key, name, isTeam1);
+    const positions =
+      this.arenaFormations()?.[0]?.positions ??
+      this.scene.formationManager.getFormation(key, name, isTeam1);
     if (!positions || positions.length === 0) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
@@ -277,9 +289,19 @@ export class SetupPhaseHandler implements PhaseHandler {
 
   private emitFormationList(key: string, isTeam1: boolean): void {
     this.eventBus.emit(GameEventNames.UI_FormationsUpdated, {
-      formations: this.scene.formationManager.listAllFormations(key, isTeam1),
+      formations:
+        this.arenaFormations() ??
+        this.scene.formationManager.listAllFormations(key, isTeam1),
       isTeam1,
     });
+  }
+
+  private arenaFormations(): FormationEntry[] | null {
+    const seating = sceneSeating(this.scene);
+    const teamId = this.gameService.getState().activeTeamId;
+    if (seating.kind !== "four" || !teamId) return null;
+    const positions = seatFormation(seatOf(seating, teamId), activeLayout());
+    return [{ name: "Arena", builtIn: true, use: "any", positions }];
   }
 
   private formationKey(

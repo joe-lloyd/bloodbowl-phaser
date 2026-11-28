@@ -20,6 +20,7 @@ import { renderOnlyOnChange } from "../../game/presentation/renderOnChange";
 import { type MatchSave } from "../../headless/serialization";
 import {
   clearMatchSave,
+  type MatchSaveRepository,
   readMatchSave,
 } from "../../game/persistence/MatchSaveRepository";
 import { SoundManager } from "../sound/SoundManager";
@@ -43,6 +44,8 @@ interface GamePageProps {
   resumed?: boolean;
 
   panel?: ReactNode;
+
+  saveSlot?: MatchSaveRepository | undefined;
 }
 
 interface RouteState {
@@ -98,6 +101,7 @@ export function GamePage({
   onlineMenu,
   resumed,
   panel,
+  saveSlot,
 }: GamePageProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const location = useLocation();
@@ -238,6 +242,7 @@ export function GamePage({
         mode={mode === "normal" ? "normal" : "sandbox"}
         {...(panel === undefined ? {} : { sandboxPanel: panel })}
         {...(onlineMenu === undefined ? {} : { onlineMenu })}
+        saveSlot={saveSlot}
         {...(fixtureContext
           ? { leaveTo: competitionPath(fixtureContext), fixtureContext }
           : {})}

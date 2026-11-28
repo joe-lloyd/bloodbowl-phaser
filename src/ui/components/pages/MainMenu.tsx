@@ -24,6 +24,7 @@ import { MenuGroups, MenuLayout } from "./MenuBoard";
 import { isAdminUser } from "../../../firebase/admin";
 import {
   clearMatchSave,
+  deathbowlSaveSlot,
   getMatchSaveDescription,
   type MatchSaveDescription,
   readMatchSave,
@@ -72,6 +73,7 @@ export function MainMenu() {
   const [localMatch, setLocalMatch] = useState<MatchSaveDescription | null>(
     () => getMatchSaveDescription()
   );
+  const [deathbowlSaved] = useState(() => deathbowlSaveSlot.read() !== null);
 
   useEffect(() => {
     const refresh = () => {
@@ -143,6 +145,7 @@ export function MainMenu() {
   const menu = (
     <MenuGroups
       admin={admin}
+      deathbowlSaved={deathbowlSaved}
       uid={user?.uid ?? null}
       onlineAvailable={onlineAvailable}
       onlineDisabled={onlineDisabled}

@@ -1,10 +1,4 @@
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useParams,
-} from "react-router-dom";
+import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
 import { MainMenu } from "./components/pages/MainMenu";
 import { TeamManagement } from "./components/pages/TeamManagement";
 import { TeamBuilder } from "./components/pages/TeamBuilder";
@@ -32,18 +26,13 @@ import { OfflineArtKeeper } from "./components/common/OfflineArtKeeper";
 import { isHouseBotBrowser } from "../firebase/houseBot";
 import { HouseBotSocial } from "./components/social/HouseBotSocial";
 import { TeamLibraryGate } from "./components/TeamManagement/TeamLibraryGate";
-import { isAdminUser } from "../firebase/admin";
+import { AdminRoute } from "./AdminRoute";
+import { deathbowlRoutes } from "./deathbowlRoutes";
 import "./styles/fonts.css";
 import "./styles/global.css";
 
 interface AppProps {
   eventBus: EventBus;
-}
-
-function AdminRoute({ children }: { children: ReactElement }) {
-  const { user, ready } = useAuth();
-  if (!ready) return null;
-  return isAdminUser(user) ? children : <Navigate to="/" replace />;
 }
 
 function CoachPresence() {
@@ -168,6 +157,7 @@ export function App({ eventBus }: AppProps) {
             </AdminRoute>
           }
         />
+        {deathbowlRoutes(eventBus)}
         <Route
           path="/music"
           element={

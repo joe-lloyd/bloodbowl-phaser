@@ -7,6 +7,7 @@ import { teamRerollsLeft } from "../../../game/teamRerolls";
 import { kitOf } from "../../../game/presentation/kits";
 import { GameConfig } from "../../../config/GameConfig";
 import { activeLayout } from "../../../game/variants/activeMatch";
+import { possessive } from "../../../game/managers/TurnManager";
 
 interface TeamRow {
   id: string;
@@ -24,6 +25,19 @@ interface TeamRow {
 }
 
 const hexColor = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
+
+function SeatTurnBanner({ row }: { row: TeamRow | undefined }) {
+  if (!row) return null;
+  return (
+    <div
+      data-testid="seat-turn-banner"
+      className="hud-slab pointer-events-auto px-3 py-1.5 font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone animate-hud-in"
+      style={{ borderLeft: `4px solid ${row.color}` }}
+    >
+      {possessive(row.name)} turn{row.isMe ? " · you" : ""}
+    </div>
+  );
+}
 
 export function ScoreBoard({
   eventBus,
@@ -92,7 +106,9 @@ export function ScoreBoard({
     };
   }, [eventBus]);
 
-  if (rows.length === 0 || activeLayout().frames.length !== 2) return null;
+  if (rows.length === 0) return null;
+  if (activeLayout().frames.length !== 2)
+    return <SeatTurnBanner row={rows.find(({ id }) => id === activeTeamId)} />;
 
   if (compact) {
     const slim = (row: TeamRow, mirrored: boolean) => (
