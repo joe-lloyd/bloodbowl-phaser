@@ -68,6 +68,21 @@ async function humanTurnAtRest(page: Page, bridge: GameBridge, humanId: string) 
   }).toPass({ timeout: 600_000, intervals: [500] });
 }
 
+async function settledHumanTurn(page: Page, bridge: GameBridge, humanId: string) {
+  let settled: Awaited<ReturnType<GameBridge["snapshot"]>> | undefined;
+  await expect(async () => {
+    await humanTurnAtRest(page, bridge, humanId);
+    const first = snapshotHash(await bridge.snapshot());
+    await page.waitForTimeout(1500);
+    const snapshot = await bridge.snapshot();
+    expect(snapshot.activeTeamId).toBe(humanId);
+    expect(snapshotHash(snapshot)).toBe(first);
+    settled = snapshot;
+  }).toPass({ timeout: 600_000, intervals: [500] });
+  if (!settled) throw new Error("The human turn never settled.");
+  return settled;
+}
+
 test("an admin plays a Deathbowl round against three computer teams, saves and resumes", async ({ page }) => {
   test.setTimeout(1_200_000);
   const errors: string[] = [];
@@ -104,9 +119,7 @@ test("an admin plays a Deathbowl round against three computer teams, saves and r
   await shoot(page, "phone-landscape");
   await page.setViewportSize({ width: 1280, height: 800 });
 
-  await humanTurnAtRest(page, bridge, humanId);
-  await page.waitForTimeout(1500);
-  const before = snapshotHash(await bridge.snapshot());
+  const before = snapshotHash(await settledHumanTurn(page, bridge, humanId));
   const saved = await page.evaluate((key) => localStorage.getItem(key), SLOT);
   expect(saved).not.toBeNull();
 
