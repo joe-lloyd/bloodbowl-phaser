@@ -6,36 +6,36 @@ interface ModelContextTool {
   name: string;
   description: string;
   inputSchema: object;
-  execute: (
-    input: unknown
-  ) => Promise<{ content: { type: "text"; text: string }[] }>;
+  execute: (input: unknown) => Promise<unknown>;
 }
 
 interface ModelContext {
-  registerTool: (tool: ModelContextTool) => void;
-  unregisterTool?: (name: string) => void;
+  registerTool: (
+    tool: ModelContextTool,
+    options: { signal: AbortSignal }
+  ) => Promise<void>;
 }
 
 declare global {
-  interface Navigator {
+  interface Document {
     readonly modelContext?: ModelContext;
   }
 }
 
-export function registerWebMcp(context = navigator.modelContext): () => void {
+export function registerWebMcp(context = document.modelContext): () => void {
   if (!context) return () => undefined;
+  const registered = new AbortController();
   for (const name of TOOL_NAMES)
-    context.registerTool({
-      name,
-      description: TOOLS[name].description,
-      inputSchema: z.toJSONSchema(TOOLS[name].input, { io: "input" }),
-      execute: async (input) => ({
-        content: [
-          { type: "text", text: JSON.stringify(await callTool(name, input)) },
-        ],
-      }),
-    });
+    void context.registerTool(
+      {
+        name,
+        description: TOOLS[name].description,
+        inputSchema: z.toJSONSchema(TOOLS[name].input, { io: "input" }),
+        execute: (input) => callTool(name, input),
+      },
+      { signal: registered.signal }
+    );
   return () => {
-    for (const name of TOOL_NAMES) context.unregisterTool?.(name);
+    registered.abort();
   };
 }

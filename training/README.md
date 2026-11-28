@@ -41,7 +41,7 @@ Vite serves the page on port 3300 and passes `/api` and `/mcp` to the server.
 - `POST /api/tools/<name>` with the input as JSON. `GET /api/tools` lists
   the tools with their input schemas.
 - MCP over Streamable HTTP at `/mcp`, without sessions.
-- WebMCP: the page registers the same tools through `navigator.modelContext`
+- WebMCP: the page registers the same tools through `document.modelContext`
   when the browser has it.
 
 The tools are `list_weights`, `list_teams`, `get_team`, `list_candidates`,

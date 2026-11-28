@@ -23,7 +23,6 @@ const screenAt = (hash: string) =>
 export function TrainingApp() {
   const [id, setId] = useState<ScreenId>(() => screenAt(location.hash).id);
   useEffect(() => registerWebMcp(), []);
-  const { show: Screen } = screenAt(`#${id}`);
   return (
     <PageShell width="wide">
       <PageHeader
@@ -44,7 +43,11 @@ export function TrainingApp() {
         }
       />
       <div id="screen-panel" role="tabpanel">
-        <Screen />
+        {SCREENS.map(({ id: screen, show: Screen }) => (
+          <div key={screen} hidden={screen !== id}>
+            <Screen />
+          </div>
+        ))}
       </div>
     </PageShell>
   );
