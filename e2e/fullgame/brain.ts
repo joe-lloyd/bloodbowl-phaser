@@ -20,7 +20,7 @@ import { twoBallViolations } from "../../src/simulation/ballInvariants";
 import { placings } from "../../src/game/deathbowl/placings";
 import { GameEventNames } from "../../src/types/events";
 import type { GameSnapshot } from "../../src/headless/serialization";
-import type { EmittedEvent, PendingDecision } from "../../src/headless/protocol";
+import type { PendingDecision } from "../../src/headless/protocol";
 import type { Candidate as PlannedCandidate } from "../../src/simulation/candidates";
 
 let game: HeadlessGame | null = null;
@@ -397,6 +397,7 @@ export async function seatNext(difficulty: Difficulty): Promise<SeatNext> {
   const online = getActiveOnlineMatch();
   if (!match || !online) return { over: false, waiting: true, board: "" };
   const g = match.game;
+  countSeats(g);
   const snapshot = g.snapshot();
   if (snapshot.phase === GamePhase.GAME_OVER) return { over: true };
   const board = seatBoard(snapshot, g.pendingDecision()?.type);
@@ -419,38 +420,32 @@ export async function seatNext(difficulty: Difficulty): Promise<SeatNext> {
   };
 }
 
-const awardOf = (event: EmittedEvent) =>
-  event.name === GameEventNames.PointsAwarded &&
-  typeof event.data === "object" &&
-  event.data !== null &&
-  "teamId" in event.data &&
-  "points" in event.data &&
-  typeof event.data.teamId === "string" &&
-  typeof event.data.points === "number"
-    ? { teamId: event.data.teamId, points: event.data.points }
-    : null;
+interface SeatCounts {
+  watched: HeadlessGame | null;
+  awarded: Record<string, number>;
+  turns: Record<string, number>;
+}
 
-const turnOf = (event: EmittedEvent) =>
-  event.name === GameEventNames.TurnStarted &&
-  typeof event.data === "object" &&
-  event.data !== null &&
-  "teamId" in event.data &&
-  typeof event.data.teamId === "string"
-    ? event.data.teamId
-    : null;
+const seatCounts: SeatCounts = { watched: null, awarded: {}, turns: {} };
+
+function countSeats(g: HeadlessGame) {
+  if (seatCounts.watched === g) return;
+  seatCounts.watched = g;
+  seatCounts.awarded = {};
+  seatCounts.turns = {};
+  g.ctx.eventBus.on(GameEventNames.PointsAwarded, ({ teamId, points }) => {
+    seatCounts.awarded[teamId] = (seatCounts.awarded[teamId] ?? 0) + points;
+  });
+  g.ctx.eventBus.on(GameEventNames.TurnStarted, ({ teamId }) => {
+    seatCounts.turns[teamId] = (seatCounts.turns[teamId] ?? 0) + 1;
+  });
+}
 
 export function seatTally() {
   const match = globalThis.__computerMatch;
   if (!match) return null;
   const snapshot = match.game.snapshot();
-  const awarded: Record<string, number> = {};
-  const turns: Record<string, number> = {};
-  for (const event of match.game.events()) {
-    const award = awardOf(event);
-    if (award) awarded[award.teamId] = (awarded[award.teamId] ?? 0) + award.points;
-    const turn = turnOf(event);
-    if (turn) turns[turn] = (turns[turn] ?? 0) + 1;
-  }
+  const { awarded, turns } = seatCounts;
   const tallies = snapshot.teams.map(({ id }) => ({
     teamId: id,
     points: snapshot.points?.[id] ?? 0,
