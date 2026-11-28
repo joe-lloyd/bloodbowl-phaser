@@ -1,7 +1,6 @@
 import { outsideTarget } from "@/game/rules/turnSpend";
 import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
-import { isBallAt } from "@/game/managers/movementShared";
-import { ballAt, placeBall } from "@/game/rules/balls";
+import { type BallId, ballAt, placeBall } from "@/game/rules/balls";
 import { GameEventNames } from "@/types/events";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { BounceOperation } from "@/game/operations/BounceOperation";
@@ -211,6 +210,7 @@ export async function followUpPush(
 
   const ball = ballAt(state, from);
   const carriedBall = ball !== undefined;
+  const lying = ballAt(state, targetSquare);
   if (carriedBall) {
     placeBall(state, ball, targetSquare);
     eventBus.emit(GameEventNames.BallPlaced, { ...targetSquare });
@@ -227,15 +227,26 @@ export async function followUpPush(
 
   if (fallThroughFollowUp(parts, { attacker, targetSquare, carriedBall }))
     return;
-
-  const looseBallHere = !carriedBall && isBallAt(state, targetSquare);
-  if (looseBallHere) {
-    const pickup = new PickupOperation(attackerId);
-    await pickup.execute(parts.game.getFlowContext());
-    if (!pickup.success) return;
-  }
+  if (!(await meetLooseBall(parts, attackerId, { lying, carriedBall, targetSquare })))
+    return;
 
   parts.game.checkForTouchdown(attackerId);
+}
+
+async function meetLooseBall(
+  parts: GameParts,
+  attackerId: string,
+  { lying, carriedBall, targetSquare }: { lying: BallId | undefined; carriedBall: boolean; targetSquare: { x: number; y: number } }
+): Promise<boolean> {
+  if (lying === undefined) return true;
+  const context = parts.game.getFlowContext();
+  if (carriedBall) {
+    await context.flowManager.runToRest(new BounceOperation(targetSquare, { ball: lying, bounces: 1 }));
+    return true;
+  }
+  const pickup = new PickupOperation(attackerId);
+  await pickup.execute(context);
+  return pickup.success;
 }
 
 function blockDeclarationRefuses(
