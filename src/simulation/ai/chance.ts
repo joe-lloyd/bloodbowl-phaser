@@ -282,6 +282,24 @@ export function casualtyChance(attacker: Player, defender: Player): Chance {
   return p * regenerated(defender, rules);
 }
 
+export interface ArmourHit {
+  breaks: Chance;
+  casualty: Chance;
+}
+
+export function armourHit(defender: Player, modifier: number): ArmourHit {
+  const rules = injuryRules();
+  const locked = has(defender, SkillType.IRON_HARD_SKIN);
+  const breaks = twoD6(defender.stats.AV - (locked ? 0 : modifier));
+  return {
+    breaks,
+    casualty:
+      breaks *
+      twoD6(casualtyTarget(defender, rules)) *
+      regenerated(defender, rules),
+  };
+}
+
 export function fallCasualtyChance(player: Player): Chance {
   const rules = injuryRules();
   return (

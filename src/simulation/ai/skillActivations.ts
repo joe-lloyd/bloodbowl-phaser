@@ -17,6 +17,7 @@ import {
 import { feedingCost, unfedChance } from "./feeding";
 import { movesLeft, routesFor, withTeamReroll } from "./routes";
 import { gazeActivations } from "./gazeActivations";
+import { REPLACEMENT_PLANS } from "./replacementActivations";
 import { throwTeammateActivations } from "./teammateActivations";
 import { pickupPace } from "./pickupActivations";
 import type { ActionType } from "../../types/events";
@@ -32,6 +33,7 @@ export const SKILL_PLANS: Partial<
   gaze: gazeActivations,
   multipleBlock: multipleBlockActivations,
   throwTeamMate: throwTeammateActivations,
+  ...REPLACEMENT_PLANS,
 };
 
 function pickupScoreValue(c: Context, player: Player): number {

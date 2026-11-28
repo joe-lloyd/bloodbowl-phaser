@@ -1,6 +1,7 @@
 import { type FieldPlayer as Player } from "./board";
 
 import { type ActionType } from "../../types/events";
+import { type BlockReplacement } from "../../types/BlockReplacement";
 import { byCodeUnit } from "../../game/core/order";
 import {
   type Board,
@@ -37,6 +38,10 @@ import { foulActivations } from "./foulActivations";
 import { gatePriced } from "./gateActivations";
 import { puntActivations } from "./puntActivations";
 import { pickupActivation } from "./pickupActivations";
+import {
+  pendingReplacement,
+  replacementBlitzes,
+} from "./replacementActivations";
 import {
   feedActivations,
   feedingSupportActivations,
@@ -84,6 +89,12 @@ export type Intent =
   | { kind: "block"; target: Player }
   | { kind: "foul"; target: Player; route: Route | null }
   | { kind: "blitz"; target: Player; route: Route | null }
+  | {
+      kind: "replacement";
+      replacement: BlockReplacement;
+      target: Player;
+      route: Route | null;
+    }
   | { kind: "reposition"; role: Role; route: Route }
   | { kind: "punt"; aim: Square }
   | { kind: "stand-up" };
@@ -151,7 +162,8 @@ function fieldOptions(
   const out: Activation[] = [...pickupOptions(c, player, actions)];
   if (actions.has("block")) out.push(...blockActivations(c, player));
   out.push(...skillOptions(c, player, actions));
-  if (actions.has("blitz")) out.push(...blitzActivations(c, player));
+  if (actions.has("blitz"))
+    out.push(...blitzActivations(c, player), ...replacementBlitzes(c, player));
   if (actions.has("foul")) out.push(...foulActivations(c, player));
   if (actions.has("move"))
     out.push(...repositionActivation(c, player, roleSquares(c)));
@@ -284,6 +296,8 @@ function blitzContinuation(
   player: Player,
   used: boolean
 ): Activation[] {
+  const declared = pendingReplacement(c.board, player);
+  if (declared) return replacementBlitzes(c, player, declared);
   const carrying = carrierOf(c.board)?.id === player.id;
   if (!used && carrying) return carrierBlitzActivations(c, player);
   if (!used)

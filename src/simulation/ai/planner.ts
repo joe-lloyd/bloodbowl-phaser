@@ -56,6 +56,11 @@ import {
 } from "./gamePlans";
 import type { CoachRng } from "../rng";
 import { seatOf } from "../../game/seating";
+import {
+  declaredReplacement,
+  isReplacementStep,
+  replacementNote,
+} from "./replacementActivations";
 
 const END_ACTIVATION = "end-activation";
 
@@ -94,6 +99,7 @@ export function noteFor(a: Activation): string {
       a.intent.kind === "reposition" ? `moves to ${a.intent.role}` : "moves",
     punt: "punts",
     "stand-up": "stands up",
+    replacement: replacementNote(a),
   }[a.intent.kind];
   const rolls = a.rolls.map((r) => rollLabel(ROLL_NAMES[r.kind], r.target));
   return rolls.length > 0 ? `${what} (${rolls.join(", ")})` : what;
@@ -103,7 +109,7 @@ export function availableActions(candidates: readonly Candidate[]): Available {
   const out = new Map<string, Set<ActionType>>();
   for (const c of candidates) {
     const command = c.commands[0];
-    if (command.type !== "declare-action" || command.blockReplacement) continue;
+    if (command.type !== "declare-action") continue;
     const set = out.get(command.playerId) ?? new Set<ActionType>();
     set.add(command.action);
     out.set(command.playerId, set);
@@ -204,6 +210,8 @@ function targetedStep(
       c.action === "gaze" &&
       c.attackerId === id &&
       c.defenderId === target.id,
+    replacement: (c: HeadlessCommand) =>
+      intent.kind === "replacement" && isReplacementStep(c, id, intent),
     foul: (c: HeadlessCommand) =>
       c.type === "foul" &&
       c.playerId === id &&
@@ -751,7 +759,7 @@ export function declarationIndex(
     const command = candidate.commands[0];
     return (
       command.type === "declare-action" &&
-      !command.blockReplacement &&
+      command.blockReplacement === declaredReplacement(activation) &&
       command.playerId === activation.player.id &&
       command.action === activation.action &&
       aimsAt(command.against, activation)
