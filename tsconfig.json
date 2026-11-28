@@ -49,12 +49,14 @@
     "scripts",
     "gallery",
     "studio",
+    "training",
     "*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "dist-gallery",
+    "dist-training",
     "dist-perf",
     "dist-e2e-online",
     "functions/lib"

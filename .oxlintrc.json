@@ -1305,7 +1305,8 @@
     {
       "files": [
         "src/boundary/**",
-        "studio/boundary/**"
+        "studio/boundary/**",
+        "training/boundary/**"
       ],
       "rules": {
         "no-restricted-globals": "off",
