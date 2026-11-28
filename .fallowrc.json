@@ -42,6 +42,7 @@
     "vite.gallery.config.ts",
     "studio/app/main.tsx"
   ],
+  "supportEntry": ["training/server/main.ts"],
   "ignoreExportsUsedInFile": false,
   "rules": {
     "unused-dev-dependencies": "error",

@@ -15,6 +15,7 @@
     "gallery": "vite -c vite.gallery.config.ts",
     "gallery:build": "vite build -c vite.gallery.config.ts",
     "studio": "pnpm --filter studio dev",
+    "training:serve": "tsx training/server/main.ts",
     "sprites:roster-cards": "tsx scripts/sprites/roster_picker_cards.ts",
     "sprites:portrait-check": "tsx scripts/sprites/portrait_check.ts",
     "sprites:pack-layers": "tsx scripts/sprites/packLayers.ts",
@@ -79,6 +80,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@playwright/test": "1.62.0",
     "@types/node": "^20.10.5",
     "@types/react": "^19.2.7",
