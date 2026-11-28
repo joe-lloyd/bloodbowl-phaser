@@ -137,6 +137,32 @@ characteristics that set the odds of each roll:
 - A Brawlin' Brutes team earns 3 SPP for a Casualty and 2 for a Touchdown,
   so it values a casualty 2.25 times as much as other teams do.
 
+### Who to hit
+
+`threatTargets.ts` rates every opposing player at every decision by how much
+his team needs him. His ball-handler quality comes from his pace, his pick-up
+and dodge rolls, his passing and his ball skills: Sure Hands, Catch, Extra
+Arms, Big Hand, Dodge, Sprint, Sure Feet, Stunty and Titchy. No Ball makes it
+zero, and Really Stupid, Bone Head, Unchannelled Fury and Animal Savagery cut
+it. A loose ball within his reach raises it. His removal value is how far his
+team's chance that someone can still carry the ball drops without him, so the
+last fast handler is worth nearly his whole quality and one of five is worth
+almost nothing. While we hold the ball the same sum runs over the players who
+could reach and knock down our carrier.
+
+Blocks, blitzes, Multiple Block, kick-off blitzes and fouls add these values
+through `scorerDown`, `scorerOut` (when he leaves the pitch), `scorerNearBall`
+and `stopperDown`, on top of the carrier, cage-break and casualty terms. The
+target's Strength still adds a point per ST through `targetStrength`: a study
+of 1,200 paired games without it took 49.2% of the points, with a 95%
+interval of 47.5 to 50.8. Nothing here is fixed for the match, so as a
+Snotling team loses its Snotlings the coach turns on the ones left, and
+leaves the Trolls and Pump Wagons, who rarely score.
+
+Over 5,376 paired games against the coach before it, on fresh seeds, the
+change took 50.5% of the points, with a 95% interval of 49.7 to 51.2. No
+roster's change lay wholly below zero.
+
 ### Setups
 
 `setupChoice.ts` holds the touchdowns a drive each setup was worth over or
