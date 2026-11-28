@@ -18,6 +18,7 @@ import { context } from "../../src/simulation/ai/activationContext";
 import { roleSquares } from "../../src/simulation/ai/repositionActivations";
 import { routesFor } from "../../src/simulation/ai/routes";
 import { decide } from "../../src/simulation/ai/decisions";
+import { features } from "../../src/simulation/ai/evaluate";
 import { key, readBoard, sidelineGap } from "../../src/simulation/ai/board";
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 import { createCoachRng } from "../../src/simulation/rng";
@@ -283,5 +284,26 @@ describe("the crowd on the plus (DB-P1)", () => {
     ];
 
     expect(squares.map((at) => sidelineGap(board, at))).toEqual([2, 2, 1, 0, 1, 0, 0]);
+  });
+});
+
+describe("the Deathbowl evaluation features", () => {
+  it("reads the gap to the points leader and who holds the centre", () => {
+    const game = plusGame({
+      squads: [
+        [{ x: 10, y: 9 }, { x: 9, y: 11 }],
+        [{ x: 12, y: 10 }],
+        [{ x: 10, y: 15 }],
+        [{ x: 8, y: 8 }, { x: 11, y: 12 }],
+      ],
+      balls: [{ x: 5, y: 5 }, { x: 15, y: 15 }],
+      points: { seat0: 4, seat1: 9, seat2: 14 },
+    });
+
+    const f = features(readBoard(game, "seat0"));
+
+    expect(f.leaderGap).toBe(-1);
+    expect(f.lead).toBe(-1);
+    expect(f.centre).toBe(1);
   });
 });

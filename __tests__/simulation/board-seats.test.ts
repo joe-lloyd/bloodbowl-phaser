@@ -137,6 +137,8 @@ const ZERO: Record<Feature, number> = {
   outTheirs: 0,
   rerollsOurs: 0,
   rerollsTheirs: 0,
+  leaderGap: 0,
+  centre: 0,
 };
 
 const TWO_THIRDS = 0.6666666666666666;
@@ -386,6 +388,7 @@ describe("the coach's board from each seat of the Deathbowl arena", () => {
       looseNearer: 0.1,
       standingOurs: 1,
       standingTheirs: 1,
+      centre: 1,
     });
   });
 
