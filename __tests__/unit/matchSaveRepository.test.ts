@@ -9,6 +9,7 @@ import {
 import { SCENARIOS } from "../../src/data/scenarios";
 import {
   chooseNewestMatchSave,
+  DEATHBOWL_SAVE_STORAGE_KEY,
   LocalStorageMatchSaveRepository,
   MATCH_SAVE_FALLBACK_KEY,
 } from "../../src/game/persistence/MatchSaveRepository";
@@ -110,6 +111,25 @@ describe("match save repository", () => {
     );
     expect(warning).toHaveBeenCalled();
     warning.mockRestore();
+  });
+
+  it("keeps the Sevens save and its fallback when the Deathbowl slot saves, falls back and clears", () => {
+    const storage = new MemoryStorage();
+    const sevens = new LocalStorageMatchSaveRepository(storage);
+    const deathbowl = new LocalStorageMatchSaveRepository(storage, DEATHBOWL_SAVE_STORAGE_KEY);
+    sevens.write(matchSave(10));
+    storage.setItem(MATCH_SAVE_FALLBACK_KEY, "sevens fallback");
+    deathbowl.write(matchSave(20));
+    storage.failFullWrite = true;
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    deathbowl.write(matchSave(30));
+    warning.mockRestore();
+    storage.failFullWrite = false;
+    expect(storage.getItem(`${DEATHBOWL_SAVE_STORAGE_KEY}_snapshot_fallback`)).toContain('"savedAt":30');
+    deathbowl.clear();
+    expect(deathbowl.read()).toBeNull();
+    expect(sevens.read()?.savedAt).toBe(10);
+    expect(storage.getItem(MATCH_SAVE_FALLBACK_KEY)).toBe("sevens fallback");
   });
 
   it("drops old dice logs before giving up the resumable save", () => {

@@ -51,7 +51,11 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { MatchResultsScreen } from "./MatchResultsScreen";
 import { useNavigate } from "react-router-dom";
 import { type CompetitionContext } from "../../../competition/types";
-import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
+import {
+  clearMatchSave,
+  type MatchSaveRepository,
+} from "../../../game/persistence/MatchSaveRepository";
+import { activeLayout } from "../../../game/variants/activeMatch";
 import { KickoffEventOverlay } from "./KickoffEventOverlay";
 import { MatchOptionsMenu } from "./MatchOptionsMenu";
 import {
@@ -100,6 +104,8 @@ interface GameHUDProps {
 
   leaveTo?: string;
   fixtureContext?: CompetitionContext;
+
+  saveSlot?: MatchSaveRepository | undefined;
 }
 
 interface TurnData {
@@ -124,6 +130,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onlineMenu,
   leaveTo,
   fixtureContext,
+  saveSlot,
 }) => {
   const navigate = useNavigate();
   const phone = useMediaQuery(PHONE_QUERY);
@@ -265,7 +272,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     "return-to-menu": () => navigate("/"),
     "abandon-match": () => {
       navigate("/");
-      clearMatchSave();
+      if (saveSlot) saveSlot.clear();
+      else clearMatchSave();
     },
     "save-and-exit": () => onlineMenu?.onSaveAndExit(),
     "leave-match": () => onlineMenu?.onSaveAndExit(),
@@ -308,7 +316,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       {!phone && <TargetRollPreview eventBus={eventBus} />}
       <TurnoverOverlay eventBus={eventBus} />
       <MatchResultsScreen
-        visible={turnData.phase === GamePhase.GAME_OVER}
+        visible={
+          turnData.phase === GamePhase.GAME_OVER &&
+          activeLayout().frames.length === 2
+        }
         {...(leaveTo === undefined ? {} : { leaveTo: leaveTo })}
         {...(fixtureContext === undefined
           ? {}
