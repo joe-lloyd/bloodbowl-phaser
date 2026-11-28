@@ -170,7 +170,9 @@ export class GameFlowManager {
     if (this.isProcessing) return;
     const { epoch } = this;
     this.isProcessing = true;
-    await this.drain(epoch);
+    do {
+      await this.drain(epoch);
+    } while (this.epoch === epoch && this.queue.length > 0);
     if (this.epoch !== epoch) return;
     this.isProcessing = false;
 
