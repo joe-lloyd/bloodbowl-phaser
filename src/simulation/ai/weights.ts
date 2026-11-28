@@ -1,5 +1,5 @@
 import { RosterName } from "../../types/Team";
-import { type GameType, isGameType } from "../../game/variants/gameTypes";
+import { type MatchType, isGameType } from "../../game/variants/gameTypes";
 
 export const DEFAULT_WEIGHTS = {
   touchdown: 100,
@@ -90,7 +90,7 @@ export type Weights = { readonly [K in keyof typeof DEFAULT_WEIGHTS]: number };
 
 export type RosterWeights = Partial<Record<RosterName, Partial<Weights>>>;
 
-export type GameTypeWeights = Partial<Record<GameType, Partial<Weights>>>;
+export type GameTypeWeights = Partial<Record<MatchType, Partial<Weights>>>;
 
 export const GAME_TYPE_WEIGHTS: GameTypeWeights = {};
 

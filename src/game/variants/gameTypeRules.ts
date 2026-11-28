@@ -1,4 +1,4 @@
-import type { GameType } from "./gameTypes";
+import type { GameType, MatchType } from "./gameTypes";
 import type { Venue } from "./pitchLayouts";
 
 export type KickoffTableId =
@@ -56,9 +56,26 @@ type SecretWeaponsAfterDrive =
 
 export type StallingPenalty = "crowd" | "bottle";
 
+export interface FormatRules {
+  ballCount: 1 | 2;
+  rerollsRefillAtHalf: boolean;
+  teamMateThrowUsesPass: boolean;
+  passesMayTargetRivals: boolean;
+  result: "touchdowns" | "points";
+}
+
+const ONE_BALL_FORMAT: FormatRules = {
+  ballCount: 1,
+  rerollsRefillAtHalf: true,
+  teamMateThrowUsesPass: false,
+  passesMayTargetRivals: true,
+  result: "touchdowns",
+};
+
 export interface GameTypeRules {
-  gameType: GameType;
+  gameType: MatchType;
   venues: readonly [Venue, ...Venue[]];
+  format: FormatRules;
   turnsPerHalf: number;
   draft: DraftRules;
   setup: SetupRules;
@@ -115,6 +132,7 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
   [SEVENS]: {
     gameType: SEVENS,
     venues: ["stadium"],
+    format: ONE_BALL_FORMAT,
     turnsPerHalf: 6,
     draft: SEVENS_DRAFT,
     setup: { maxOnPitch: 7, minOnLineOfScrimmage: 3, maxPerWideZone: 1 },
@@ -134,6 +152,7 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
   [STREET_BOWL]: {
     gameType: STREET_BOWL,
     venues: ["street"],
+    format: ONE_BALL_FORMAT,
     turnsPerHalf: 6,
     draft: {
       ...SEVENS_DRAFT,
@@ -160,6 +179,7 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
   [BEACH_BOWL]: {
     gameType: BEACH_BOWL,
     venues: ["beach"],
+    format: ONE_BALL_FORMAT,
     turnsPerHalf: 6,
     draft: {
       ...SEVENS_DRAFT,
@@ -189,6 +209,7 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
   "gutter-bowl": {
     gameType: "gutter-bowl",
     venues: ["gutter-street", "gutter-sewer"],
+    format: ONE_BALL_FORMAT,
     turnsPerHalf: 6,
     draft: {
       ...SEVENS_DRAFT,
@@ -215,6 +236,35 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
   },
 };
 
+const DEATHBOWL_RULES: GameTypeRules = {
+  ...GAME_TYPE_RULES.sevens,
+  gameType: "deathbowl",
+  venues: ["deathbowl"],
+  format: {
+    ballCount: 2,
+    rerollsRefillAtHalf: false,
+    teamMateThrowUsesPass: true,
+    passesMayTargetRivals: false,
+    result: "points",
+  },
+  turnsPerHalf: 8,
+  draft: {
+    ...SEVENS_DRAFT,
+    budget: 700_000,
+    minPlayers: 8,
+    maxNonLinemen: Infinity,
+    assistantCoaches: false,
+    cheerleaders: false,
+  },
+  setup: { maxOnPitch: 8, minOnLineOfScrimmage: 3, maxPerWideZone: 0 },
+};
+
 export function gameTypeRules(gameType: GameType): GameTypeRules {
   return GAME_TYPE_RULES[gameType];
+}
+
+export function matchTypeRules(matchType: MatchType): GameTypeRules {
+  return matchType === "deathbowl"
+    ? DEATHBOWL_RULES
+    : GAME_TYPE_RULES[matchType];
 }

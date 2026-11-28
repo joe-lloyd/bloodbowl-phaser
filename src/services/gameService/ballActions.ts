@@ -21,6 +21,9 @@ import {
   takeUnsatedBloodlust,
 } from "./activation";
 import { isWallSquare } from "../../game/rules/pitchSquares";
+import { pathCrossesOffPitch } from "../../game/rules/passPath";
+import { activeLayout, activeRules } from "../../game/variants/activeMatch";
+import { playerAt } from "../../game/seating";
 
 interface Square {
   x: number;
@@ -91,19 +94,32 @@ function holdsBall(parts: GameParts, passerId: string, square: Square) {
   return ballOnSquare(parts.state, square);
 }
 
-function passTargetRefusal({
-  parts,
-  passer,
-  from,
-  target,
-  hailMary,
-}: {
+interface PassAttempt {
   parts: GameParts;
   passer: Player;
   from: Square;
   target: Square;
   hailMary: boolean;
-}): string | null {
+}
+
+function passPathRefusal({
+  parts,
+  passer,
+  from,
+  target,
+}: PassAttempt): string | null {
+  if (pathCrossesOffPitch(activeLayout(), from, target)) {
+    return "The pass would cross a corner of the pitch";
+  }
+  if (activeRules().format.passesMayTargetRivals) return null;
+  const occupant = playerAt(parts.seating, target);
+  return occupant && occupant.teamId !== passer.teamId
+    ? "A pass cannot target an opposing player"
+    : null;
+}
+
+function passTargetRefusal(attempt: PassAttempt): string | null {
+  const { parts, passer, from, target, hailMary } = attempt;
   if (hailMary && !hasSkill(passer.skills, SkillType.HAIL_MARY_PASS)) {
     return "Player does not have Hail Mary Pass";
   }
@@ -113,6 +129,8 @@ function passTargetRefusal({
   if (!pitchSquare(target) && !isWallSquare(target)) {
     return "Target is off the pitch";
   }
+  const pathRefusal = passPathRefusal(attempt);
+  if (pathRefusal) return pathRefusal;
 
   if (hailMary) return weatherRefusal(parts, "Long Bomb");
   if (PassController.rangeValue(from, { x: target.x, y: target.y }) === null) {

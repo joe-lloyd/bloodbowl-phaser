@@ -1,6 +1,6 @@
 import { ballsFromWire, ballsToWire } from "@/game/rules/balls";
 import { type KickRecord, type KickResolution, newKick } from "../game/kickoff/kickRecord";
-import type { GameType } from "../game/variants/gameTypes";
+import type { MatchType } from "../game/variants/gameTypes";
 import type { Venue } from "../game/variants/pitchLayouts";
 import { parseMatchSave, normalizeMatchSave } from "../boundary/matchSave";
 import type { Weather } from "../game/rules/weather";
@@ -84,7 +84,7 @@ export interface GameSnapshot {
 
   competition?: boolean;
 
-  gameType?: GameType;
+  gameType?: MatchType;
 
   venue?: Venue;
   weather: Weather;

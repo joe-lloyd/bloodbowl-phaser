@@ -1,6 +1,6 @@
 import { shoppingTeamId } from "./pregame";
 import { activeMatchFormat } from "../variants/activeMatch";
-import { type GameType } from "../variants/gameTypes";
+import { type MatchType } from "../variants/gameTypes";
 import {
   Inducement,
   type InducementCatalogEntry,
@@ -12,7 +12,7 @@ type Wish = readonly [Inducement, number];
 
 const ALL_ALLOWED = Number.MAX_SAFE_INTEGER;
 
-const SHOPPING_LISTS: Record<GameType, readonly Wish[]> = {
+const SHOPPING_LISTS: Record<MatchType, readonly Wish[]> = {
   sevens: [
     [Inducement.EXTRA_TEAM_TRAINING, ALL_ALLOWED],
     [Inducement.BLITZERS_BEST_KEGS, ALL_ALLOWED],
@@ -35,6 +35,7 @@ const SHOPPING_LISTS: Record<GameType, readonly Wish[]> = {
     [Inducement.NOVICE_WIZARD, 1],
     [Inducement.LESSER_MAGIC_POTION, 3],
   ],
+  deathbowl: [],
 };
 
 function shoppingList(catalog: readonly InducementCatalogEntry[]) {

@@ -35,7 +35,7 @@ function arenaMatch() {
   );
   const initialState = {
     ...GameService.createInitialState({ teams }),
-    venue: DEATHBOWL_FORMAT.venue,
+    ...DEATHBOWL_FORMAT,
   };
   return createHeadlessGame({ teams, initialState }).gameService;
 }

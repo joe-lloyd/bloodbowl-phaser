@@ -7,6 +7,10 @@ export const GAME_TYPES = [
 
 export type GameType = (typeof GAME_TYPES)[number];
 
+export const EXPERIMENTAL_MATCH_TYPES = ["deathbowl"] as const;
+
+export type MatchType = GameType | (typeof EXPERIMENTAL_MATCH_TYPES)[number];
+
 export const DEFAULT_GAME_TYPE = "sevens" satisfies GameType;
 
 export const GAME_TYPE_LABELS: Record<GameType, string> = {
