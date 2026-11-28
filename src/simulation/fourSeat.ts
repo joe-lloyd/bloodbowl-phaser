@@ -22,11 +22,12 @@ import {
 } from "./runMatch";
 
 export type FourRosters = readonly [RosterName, RosterName, RosterName, RosterName];
+export type FourCoaches = readonly [Coach, Coach, Coach, Coach];
 
 export interface FourSeatSpec {
   readonly seed: number;
   readonly rosters: FourRosters;
-  readonly coach: Coach;
+  readonly coaches: FourCoaches;
   readonly maxCommands?: number;
   readonly saveAt?: number;
 }
@@ -155,7 +156,11 @@ async function play(run: Run, candidate: Candidate): Promise<void> {
   }
 }
 
-async function step(run: Run, coach: Coach): Promise<boolean> {
+function coachOf(coaches: FourCoaches, snapshot: GameSnapshot, teamId: string): Coach {
+  return coaches[snapshot.teams.findIndex(({ id }) => id === teamId)] ?? coaches[0];
+}
+
+async function step(run: Run, coaches: FourCoaches): Promise<boolean> {
   const { game } = run;
   const snapshot = game.snapshot();
   const point = await enumerateDecision(game, null);
@@ -168,6 +173,7 @@ async function step(run: Run, coach: Coach): Promise<boolean> {
     });
     return false;
   }
+  const coach = coachOf(coaches, snapshot, point.teamId);
   const choice = await coach.choose({ game, snapshot, point: { ...point, candidates }, rng: run.rng });
   const candidate = candidates[choice.index] ?? candidates[0];
   if (candidate) await play(run, candidate);
@@ -219,7 +225,7 @@ export async function runFourSeatMatch(spec: FourSeatSpec): Promise<FourSeatRun>
     keepMatchFormat(DEATHBOWL_FORMAT);
     if (!run.resume && spec.saveAt !== undefined && run.steps >= spec.saveAt)
       run.resume = resumeCheck(game, run.steps);
-    going = await step(run, spec.coach);
+    going = await step(run, spec.coaches);
   }
   const replayed = await replayHash(spec, run.commands);
   closingFindings(run, replayed);

@@ -14,6 +14,7 @@
     "src/gallery/cloud/firebaseFirestore.ts",
     "scripts/coach/catalogue-study.ts",
     "scripts/coach/fit-evaluation.ts",
+    "scripts/coach/four-seat-bench.ts",
     "scripts/coach/positions.ts",
     "scripts/coach/race-rates.ts",
     "scripts/page-shots/playwright.config.ts",
