@@ -77,6 +77,13 @@ export function requestedDecision(
         ...(request.position !== undefined && { position: request.position }),
         ...(request.casualtyType !== undefined && { casualtyType: request.casualtyType }),
       };
+    case "reserve-move":
+      return {
+        type: "reserve-move",
+        chooserTeamId: request.chooserTeamId,
+        playerIds: [...request.playerIds],
+        squares: request.squares.map((square) => ({ ...square })),
+      };
     default:
       return unsurfaced(request);
   }

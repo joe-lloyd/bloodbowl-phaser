@@ -341,6 +341,7 @@ function otherDecision(
     | "foul-assists"
     | "inducement-choice"
     | "kickoff-event"
+    | "reserve-move"
   >,
   candidates: readonly Candidate[]
 ): number | null {
@@ -360,6 +361,7 @@ function otherDecision(
       return inducementChoice(board, pending, candidates);
     case "kickoff-event":
     case "foul-assists":
+    case "reserve-move":
       return null;
   }
 }
@@ -372,12 +374,14 @@ function isOtherDecision(
   | "foul-assists"
   | "inducement-choice"
   | "kickoff-event"
+  | "reserve-move"
 > {
   return (
     pending.type === "interception" ||
     pending.type === "apothecary" ||
     pending.type === "foul-assists" ||
     pending.type === "inducement-choice" ||
-    pending.type === "kickoff-event"
+    pending.type === "kickoff-event" ||
+    pending.type === "reserve-move"
   );
 }

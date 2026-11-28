@@ -24,5 +24,6 @@ export const turnSnapshotSchema: z.ZodType<TurnSnapshot> = z.looseObject({
   hasThrownBomb: z.boolean().default(false),
   hasPunted: z.boolean().exactOptional(),
   endsAfterActivation: z.literal(true).exactOptional(),
+  scoringTeamIds: z.string().array().exactOptional(),
   movementUsed: z.record(z.string(), z.number()),
 });

@@ -4,7 +4,7 @@ import { GameEventNames } from "../../types/events";
 import { type FlowContext } from "../core/GameFlowManager";
 import { type Player, hasTackleZone } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
-import { type BallId, restingBall } from "../rules/balls";
+import { type BallId, otherBallSquare, restingBall } from "../rules/balls";
 import { AgilityTestOperation } from "./AgilityTestOperation";
 import { catchModifier } from "../kickoff/ballConditions";
 import {
@@ -137,15 +137,26 @@ export class CatchOperation extends GameOperation {
     };
   }
 
+  private mayCatch(context: FlowContext, player: Player): boolean {
+    const { ball } = this.options;
+    const other =
+      ball === undefined
+        ? null
+        : otherBallSquare(context.gameService.getState(), ball);
+    const at = player.gridPosition;
+    const holdsOther = other !== null && other.x === at?.x && other.y === at.y;
+    return hasTackleZone(player) && !holdsOther;
+  }
+
   async execute(context: FlowContext): Promise<void> {
     const { gameService, eventBus, flowManager } = context;
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player?.gridPosition) return;
 
-    if (!hasTackleZone(player)) {
+    if (!this.mayCatch(context, player)) {
       console.log(
-        `[CatchOperation] Player ${player.playerName} has no Tackle Zone and cannot catch. Bouncing.`
+        `[CatchOperation] Player ${player.playerName} has no Tackle Zone or holds the other ball and cannot catch. Bouncing.`
       );
       flowManager.add(
         new BounceOperation(player.gridPosition, this.looseBall(context, player)),

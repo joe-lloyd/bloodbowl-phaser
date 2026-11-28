@@ -2,6 +2,7 @@ import { DecisionService } from "@/game/skills";
 import {
   type InducementChoiceDecisionAnswer,
   type RerollSource,
+  type ReserveMoveDecisionAnswer,
   canChooseBiteTarget,
 } from "@/types/decisions";
 import { validChoiceAnswer } from "@/game/inducements/matchInducements";
@@ -73,4 +74,19 @@ export function answerFoulAssists(
   if (!Number.isSafeInteger(count) || count < 0 || count > pending.available)
     return false;
   return decisions.answer({ count });
+}
+
+export function answerReserveMove(
+  decisions: DecisionService,
+  move: ReserveMoveDecisionAnswer["move"]
+): boolean {
+  const pending = decisions.pending();
+  if (pending?.type !== "reserve-move") return false;
+  const offered =
+    move === null ||
+    (pending.playerIds.includes(move.playerId) &&
+      pending.squares.some(
+        ({ x, y }) => x === move.square.x && y === move.square.y
+      ));
+  return offered && decisions.answer({ move });
 }

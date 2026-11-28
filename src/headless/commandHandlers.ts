@@ -13,9 +13,13 @@ import { type Player, PlayerStatus } from "../types/Player";
 import { BlockValidator } from "../game/validators/BlockValidator";
 import { isBlockReplacement } from "../types/BlockReplacement";
 import { Inducement } from "../types/Inducements";
-import { canChooseBiteTarget } from "../types/decisions";
+import {
+  type ReserveMoveDecisionAnswer,
+  canChooseBiteTarget,
+} from "../types/decisions";
 import { isStandableSquare } from "../game/rules/pitchSquares";
 import { pairSeating, pairTeams } from "../game/seating";
+import { answerReserveMove } from "../services/gameService/decisionAnswers";
 
 type QueryCommand = Extract<
   HeadlessCommand,
@@ -228,6 +232,17 @@ async function chooseInducement(
       }),
     "invalid-inducement-choice"
   );
+}
+
+function answerReserve(
+  host: CommandHost,
+  move: ReserveMoveDecisionAnswer["move"]
+): Promise<void> {
+  const pending = host.takePending("reserve-move");
+  const decisions = host.ctx.gameService.getDecisionService();
+  const answered = answerReserveMove(decisions, move);
+  refuseUnless(host, pending, answered, "invalid-reserve-move");
+  return Promise.resolve();
 }
 
 async function specialAction(
@@ -580,6 +595,10 @@ const COMMAND_HANDLERS: CommandHandlers = {
       "invalid-foul-assists"
     );
   },
+
+  "move-reserve": (host, { playerId, x, y }) =>
+    answerReserve(host, { playerId, square: { x, y } }),
+  "keep-reserves": (host) => answerReserve(host, null),
 
   "select-inducement": async ({ ctx }, cmd) => {
     assertTeam(ctx, cmd.teamId);

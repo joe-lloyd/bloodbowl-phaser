@@ -90,8 +90,9 @@ export function turnEndHazards(
     parts.state.phase === GamePhase.PLAY && weatherActsAtTurnEnd(parts.state);
   if (weather) parts.flowManager.add(new WeatherTurnEndOperation());
   const pits = rollSewerPits(parts);
+  const scored = parts.flow.turnEnding(endingTeamId);
   const wizards = castSportsWizards(parts, endingTeamId);
-  if (wizards || !(weather || pits)) return wizards;
+  if (wizards || !(weather || pits || scored)) return wizards;
   return whenSettled(parts).then(() => undefined);
 }
 

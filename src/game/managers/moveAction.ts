@@ -1,4 +1,4 @@
-import { type BallId, ballAt, placeBall, restingBall } from "../rules/balls";
+import { type BallId, ballAt, placeBall } from "../rules/balls";
 import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
@@ -247,9 +247,7 @@ export async function movePlayer(
       break;
     }
 
-    const presentationId = carryBall(run);
-
-    if (presentationId) return scoreRun(run, presentationId);
+    if (await carryBall(run)) return;
     if (picked === "secured") {
       end = "securedBall";
       break;
@@ -350,13 +348,19 @@ function fallInto(
   run.currentPos = step;
   player.gridPosition = run.currentPos;
   player.status = PlayerStatus.PRONE;
+  const lying = ballAt(deps.state, run.currentPos);
   fallOver(deps, {
     player,
     square: run.currentPos,
-    bouncing: run.ball ?? ballAt(deps.state, run.currentPos),
+    bouncing: run.ball ?? lying,
     context: run.context,
     ...fall,
   });
+  if (run.ball === undefined || lying === undefined || lying === run.ball) return;
+  run.context?.flowManager.add(
+    new BounceOperation(run.currentPos, { ball: lying, bounces: 1 }),
+    true
+  );
 }
 
 function fallOnRush(run: MoveRun, step: Square): MoveEnd {
@@ -543,12 +547,15 @@ function takeBall(
   success: boolean
 ): "failed" | "secured" | undefined {
   const { deps, currentPos } = run;
-
-  run.ball = success ? restingBall(deps.state, currentPos) : undefined;
-
-  if (run.ball === undefined) {
+  if (!success) {
+    run.ball = undefined;
     return "failed";
   }
+
+  run.ball = deps.state.balls.find(
+    ({ at }) => at?.x === currentPos.x && at.y === currentPos.y
+  )?.id;
+  if (run.ball === undefined) return undefined;
 
   placeBall(deps.state, run.ball, currentPos);
   run.ballFrom = { ...currentPos };
@@ -557,9 +564,19 @@ function takeBall(
   return isSecuringBall(deps.state, run.player.id) ? "secured" : undefined;
 }
 
-function carryBall(run: MoveRun): string | undefined {
+async function knockAsideOtherBall(run: MoveRun, carried: BallId): Promise<void> {
+  const { deps, context, currentPos } = run;
+  const other = ballAt(deps.state, currentPos);
+  if (other === undefined || other === carried || !context) return;
+  showWalk(run);
+  context.flowManager.add(new BounceOperation(currentPos, { ball: other, bounces: 1 }));
+  await context.flowManager.whenIdle();
+}
+
+async function carryBall(run: MoveRun): Promise<boolean> {
   const { deps, player, currentPos } = run;
-  if (run.ball === undefined) return undefined;
+  if (run.ball === undefined) return false;
+  await knockAsideOtherBall(run, run.ball);
   placeBall(deps.state, run.ball, currentPos);
   deps.eventBus.emit(GameEventNames.BallPlaced, {
     x: currentPos.x,
@@ -567,13 +584,27 @@ function carryBall(run: MoveRun): string | undefined {
   });
 
   const { frame } = seatOf(deps.seating, player.teamId);
-  if (!scoresAt(frame, currentPos)) return undefined;
+  if (!scoresAt(frame, currentPos)) return false;
   player.gridPosition = currentPos;
   deps.state.turn.movementUsed.set(player.id, run.preUsed + run.stepsTaken);
+  if (deps.callbacks.scoreRun() === "continue") {
+    await scoreAndWalkOn(run);
+    return false;
+  }
 
   const presentationId = nextPresentationId("score-run");
   deps.eventBus.emit(GameEventNames.PlayerMoved, walk(run, presentationId));
-  return presentationId;
+  await scoreRun(run, presentationId);
+  return true;
+}
+
+async function scoreAndWalkOn(run: MoveRun): Promise<void> {
+  const { deps, player, context } = run;
+  showWalk(run);
+  deps.callbacks.onTouchdown?.(player.teamId, player.id);
+  if (context) await context.flowManager.whenIdle();
+  run.ball = ballAt(deps.state, run.currentPos);
+  if (run.ball === undefined) run.ballFrom = null;
 }
 
 async function scoreRun(run: MoveRun, presentationId: string): Promise<void> {

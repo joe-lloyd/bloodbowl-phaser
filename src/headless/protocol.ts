@@ -7,6 +7,7 @@ import type {
   FoulAssistsDecisionRequest,
   InducementChoiceDecisionRequest,
   RerollSource,
+  ReserveMoveDecisionRequest,
   WizardSpell,
 } from "../types/decisions";
 import { type GameSnapshot } from "./serialization";
@@ -148,6 +149,8 @@ export type HeadlessCommand =
       y?: number;
     }
   | { type: "choose-foul-assists"; count: number }
+  | { type: "move-reserve"; playerId: string; x: number; y: number }
+  | { type: "keep-reserves" }
   | { type: "offer-inducements" }
   | {
       type: "select-inducement";
@@ -161,7 +164,7 @@ export type HeadlessCommand =
   | { type: "legal-actions"; playerId?: string };
 
 export type PendingDecision =
-  BiteTargetDecisionRequest | InducementChoiceDecisionRequest | FoulAssistsDecisionRequest | {
+  BiteTargetDecisionRequest | InducementChoiceDecisionRequest | FoulAssistsDecisionRequest | ReserveMoveDecisionRequest | {
       type: "kickoff-event";
       chooserTeamId: string;
       event: KickoffEventStepState["event"];
@@ -314,6 +317,8 @@ export const DECISION_REPLIES: Partial<
   "use-apothecary": "apothecary",
   "choose-inducement": "inducement-choice",
   "choose-foul-assists": "foul-assists",
+  "move-reserve": "reserve-move",
+  "keep-reserves": "reserve-move",
   "kickoff-select-player": "kickoff-event",
   "kickoff-place-player": "kickoff-event",
   "kickoff-confirm": "kickoff-event",

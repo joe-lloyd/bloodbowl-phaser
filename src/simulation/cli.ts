@@ -284,7 +284,7 @@ function parseTuneOptions(argv: string[]): TuneOptions {
 }
 
 const FOUR_SEAT_HELP = `Usage: pnpm sim four-seat [options]
-  --games <n>          Deathbowl matches with four random coaches (default 50)
+  --games <n>          Deathbowl matches with four random coaches who lean towards scoring (default 50)
   --seed <n>           first seed; match i uses seed+i (default 1)
   --out <file>         report path (default sim-results/four-seat-<timestamp>.json)
 Each match saves once at a seeded step and checks the save resumes to the same hash.`;

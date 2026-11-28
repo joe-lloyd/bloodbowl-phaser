@@ -381,6 +381,7 @@ function makeActionControllers(
       onTouchdown: (_teamId: string, scorerId: string) => {
         game.addTouchdown(scorerId);
       },
+      scoreRun: () => game.scoreRun(),
     }
   );
 

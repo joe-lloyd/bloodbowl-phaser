@@ -88,6 +88,21 @@ function playerTargetCandidates(
   return [...candidates, one({ type: "choose-bite-target" }, decline)];
 }
 
+function reserveCandidates(
+  pending: Extract<PendingDecision, { type: "reserve-move" }>,
+  name: (id: string) => string
+): Candidate[] {
+  const moves = pending.playerIds.flatMap((playerId) =>
+    pending.squares.map(({ x, y }) =>
+      one(
+        { type: "move-reserve", playerId, x, y },
+        `Bring ${name(playerId)} on at ${square({ x, y })}`
+      )
+    )
+  );
+  return [...moves, one({ type: "keep-reserves" }, "Keep the rest in reserve")];
+}
+
 export async function enumerateDecision(
   game: HeadlessGame,
   kickingTeamId: string | null
@@ -316,6 +331,8 @@ function decisionCandidates(
       });
     case "kickoff-event":
       return kickoffChoiceCandidates(game, pending);
+    case "reserve-move":
+      return reserveCandidates(pending, name);
   }
 }
 
