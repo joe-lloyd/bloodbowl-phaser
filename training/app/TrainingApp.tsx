@@ -7,6 +7,7 @@ import {
 import { CandidatesScreen } from "./CandidatesScreen";
 import { TeamsScreen } from "./TeamsScreen";
 import { WeightsScreen } from "./WeightsScreen";
+import { ScreenVisit } from "./screenVisit";
 import { registerWebMcp } from "./webMcp";
 
 const SCREENS = [
@@ -22,6 +23,7 @@ const screenAt = (hash: string) =>
 
 export function TrainingApp() {
   const [id, setId] = useState<ScreenId>(() => screenAt(location.hash).id);
+  const [visits, setVisits] = useState(0);
   useEffect(() => registerWebMcp(), []);
   return (
     <PageShell width="wide">
@@ -38,6 +40,7 @@ export function TrainingApp() {
             onChange={(next) => {
               history.replaceState(null, "", `#${next}`);
               setId(next);
+              setVisits((n) => n + 1);
             }}
           />
         }
@@ -45,7 +48,9 @@ export function TrainingApp() {
       <div id="screen-panel" role="tabpanel">
         {SCREENS.map(({ id: screen, show: Screen }) => (
           <div key={screen} hidden={screen !== id}>
-            <Screen />
+            <ScreenVisit.Provider value={screen === id ? visits : null}>
+              <Screen />
+            </ScreenVisit.Provider>
           </div>
         ))}
       </div>

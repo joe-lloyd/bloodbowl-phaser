@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { HudButton } from "../../src/ui/components/componentWarehouse/HudButton";
 import {
   EmptyState,
@@ -15,6 +15,7 @@ import type {
 import { diffLayers } from "../catalogue/layers";
 import { CandidateEditor, type Draft } from "./CandidateEditor";
 import { Loaded } from "./Loaded";
+import { ScreenVisit } from "./screenVisit";
 import { useLoad } from "./useLoad";
 
 type Status =
@@ -181,6 +182,11 @@ function useDraft(view: WeightsView, saved: () => void) {
 
 function Workbench({ view }: { view: WeightsView }) {
   const saved = useLoad(loadCandidates);
+  const visit = useContext(ScreenVisit);
+  const { reload } = saved;
+  useEffect(() => {
+    if (visit !== null) reload();
+  }, [visit, reload]);
   const { draft, setDraft, status, save, edit, remove, reset } = useDraft(
     view,
     saved.reload
