@@ -21,7 +21,7 @@ import { TeamFactory } from "../game/TeamFactory";
 import { createLineupTeam } from "./lineups";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { RosterName } from "../types/Team";
-import { type ActionType, GameEventNames } from "../types/events";
+import { type ActionType } from "../types/events";
 import {
   type Candidate,
   type DecisionPoint,
@@ -36,6 +36,7 @@ import {
 } from "../types/Inducements";
 import { startingFreeInducements } from "../game/inducements/catalog";
 import { createCoachRng } from "./rng";
+import { type TeamTelemetry, watchMatch } from "./telemetry";
 
 export type Lineup = "test-team" | "sevens-lineup";
 
@@ -88,6 +89,8 @@ export interface MatchRecording {
   findings: Finding[];
 
   stats?: [TeamPlayStats, TeamPlayStats];
+
+  telemetry?: [TeamTelemetry, TeamTelemetry];
 }
 
 export interface TeamPlayStats {
@@ -107,47 +110,19 @@ export interface TeamPlayStats {
   actions: Partial<Record<ActionType, number>>;
 }
 
-const emptyStats = (): TeamPlayStats => ({
-  turns: 0,
-  turnovers: 0,
-  dodges: 0,
-  failedDodges: 0,
-  rushes: 0,
-  failedRushes: 0,
-  casualties: 0,
-  completions: 0,
-  blocks: 0,
-  actions: {},
-});
-
-function countEvents(
-  stats: [TeamPlayStats, TeamPlayStats],
-  events: CommandResponse["events"],
-  team: 0 | 1,
-  teamIndex: (teamId: string) => 0 | 1
-): void {
-  for (const event of events) {
-    const data = event.data as
-      | { teamId?: string; rollType?: string; resultState?: string }
-      | undefined;
-    if (event.name === GameEventNames.TurnStarted && data?.teamId)
-      stats[teamIndex(data.teamId)].turns++;
-    if (event.name === GameEventNames.Turnover && data?.teamId)
-      stats[teamIndex(data.teamId)].turnovers++;
-    if (event.name !== GameEventNames.DiceRoll || !data?.rollType) continue;
-    const side = stats[data.teamId ? teamIndex(data.teamId) : team];
-    countRoll(side, data.rollType, data.resultState === "failure");
-  }
-}
-
-function countRoll(side: TeamPlayStats, rollType: string, failed: boolean) {
-  if (rollType.startsWith("Dodge (")) {
-    side.dodges++;
-    if (failed) side.failedDodges++;
-  } else if (rollType.startsWith("Rush (")) {
-    side.rushes++;
-    if (failed) side.failedRushes++;
-  }
+function playStats({ tallies, actions }: TeamTelemetry): TeamPlayStats {
+  return {
+    turns: tallies.turns,
+    turnovers: tallies.turnovers,
+    dodges: tallies.dodges,
+    failedDodges: tallies.failedDodges,
+    rushes: tallies.rushes,
+    failedRushes: tallies.failedRushes,
+    casualties: 0,
+    completions: 0,
+    blocks: 0,
+    actions: { ...actions },
+  };
 }
 
 export function refusalFinding(
@@ -339,11 +314,6 @@ export function finding(
   };
 }
 
-function countDeclaration(side: TeamPlayStats, command: HeadlessCommand): void {
-  if (command.type !== "declare-action") return;
-  side.actions[command.action] = (side.actions[command.action] ?? 0) + 1;
-}
-
 function uncreditedTouchdowns(
   final: GameSnapshot,
   playerStats: PlayerMatchStats
@@ -429,7 +399,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   let kickingTeamId: string | null = null;
 
   const monitor = createRuleMonitor();
-  const stats: [TeamPlayStats, TeamPlayStats] = [emptyStats(), emptyStats()];
+  const telemetry = watchMatch(game);
   let refused = new Set<string>();
 
   const teamIndex = (teamId: string): 0 | 1 =>
@@ -478,13 +448,13 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
         });
     const candidate = candidates[choice.index] ?? candidates[0];
     if (!candidate) break;
+    telemetry.decided(narrowed, candidate);
 
     for (const command of candidate.commands) {
       const before = game.snapshot();
       keepMatchFormat(format);
       const response = await game.execute(command);
       keepMatchFormat(format);
-      countEvents(stats, response.events, team, teamIndex);
       steps.push(
         recordedStep(command, response, team, candidate.label, choice.note)
       );
@@ -499,7 +469,6 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
         break;
       }
       kickingTeamId = kickerAfter(command, point.teamId, kickingTeamId);
-      countDeclaration(stats[team], command);
       refused = new Set();
       const violations = monitor.observe(
         command,
@@ -523,6 +492,11 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   }
 
   const playerStats = game.ctx.matchStats.captureState().players;
+  const sides: [TeamTelemetry, TeamTelemetry] = [
+    telemetry.team(game.ctx.teams[0].id),
+    telemetry.team(game.ctx.teams[1].id),
+  ];
+  const stats: [TeamPlayStats, TeamPlayStats] = [playStats(sides[0]), playStats(sides[1])];
   addPlayerStats(stats, playerStats, teamIndex);
   for (const message of uncreditedTouchdowns(final, playerStats))
     report("invariant", "touchdowns-credited", message, final);
@@ -543,6 +517,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     final: summarize(final),
     findings,
     stats,
+    telemetry: sides,
   };
 }
 

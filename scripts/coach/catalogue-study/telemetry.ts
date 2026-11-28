@@ -3,7 +3,6 @@ import type {
   CommandResponse,
   HeadlessCommand,
 } from "../../../src/headless/protocol";
-import type { Coach, CoachContext } from "../../../src/simulation/coach";
 import { GameEventNames } from "../../../src/types/events";
 import {
   PlayerStatus,
@@ -14,6 +13,7 @@ import {
 import { SkillType, hasSkill } from "../../../src/types/Skills";
 import type { RollTally, SkillObservation } from "./model";
 import { GameConfig } from "../../../src/config/GameConfig";
+import { optionKey } from "../../../src/simulation/telemetry";
 
 type Data = Record<string, unknown>;
 const increment = (tally: Record<string, number>, key: string) => {
@@ -26,10 +26,6 @@ const third = (at: { x: number } | null) =>
   at
     ? (THIRDS[Math.floor((3 * at.x) / GameConfig.PITCH_WIDTH)] ?? "right-third")
     : "off-pitch";
-const typeOf = (command: HeadlessCommand) =>
-  command.type === "declare-action"
-    ? `declare:${command.action}${command.blockReplacement ? `:${command.blockReplacement}` : ""}`
-    : command.type;
 
 function commandContext(game: HeadlessGame, command: HeadlessCommand) {
   const state = game.ctx.gameService.getState();
@@ -167,8 +163,6 @@ export function createTelemetry(game: HeadlessGame) {
   const skills = new Map<string, SkillObservation>();
   const rolls = new Map<string, RollTally>();
   const decisions: Record<string, number> = {};
-  const offered: Record<string, number> = {};
-  const selected: Record<string, number> = {};
   const counters: Record<string, number> = {};
   let step = 0;
   const original = game.execute.bind(game);
@@ -237,40 +231,22 @@ export function createTelemetry(game: HeadlessGame) {
       batch = previous;
     }
     if (response.ok) {
-      increment(counters, `accepted:${typeOf(typed)}`);
+      increment(counters, `accepted:${optionKey(typed)}`);
       if (context.actor)
         increment(
           counters,
-          `accepted:${String(sideOf(game, context.actor.teamId))}:${typeOf(typed)}`
+          `accepted:${String(sideOf(game, context.actor.teamId))}:${optionKey(typed)}`
         );
     }
     observe(context, current.events);
     step++;
     return response;
   };
-  const wrap = (coach: Coach): Coach => ({
-    name: coach.name,
-    async choose(context: CoachContext) {
-      const types = new Set(
-        context.point.candidates.map((c) => typeOf(c.commands[0]))
-      );
-      types.forEach((type) => {
-        increment(offered, type);
-      });
-      const choice = await coach.choose(context);
-      const command = context.point.candidates[choice.index]?.commands[0];
-      if (command) increment(selected, typeOf(command));
-      return choice;
-    },
-  });
   return {
-    wrap,
     snapshot: () => ({
       skills: [...skills.values()],
       rolls: [...rolls.values()],
       decisions,
-      offered,
-      selected,
       counters,
     }),
   };

@@ -68,7 +68,7 @@ describe("catalogue study", () => {
       seed: 19,
       rosters,
       game,
-      coaches: [telemetry.wrap(plannerCoach), telemetry.wrap(plannerCoach)],
+      coaches: [plannerCoach, plannerCoach],
       inducements: false,
     });
     const observed = telemetry.snapshot();

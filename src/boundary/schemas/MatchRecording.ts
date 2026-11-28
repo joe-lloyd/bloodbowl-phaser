@@ -4,6 +4,7 @@ import { lineupSchema } from "./Lineup";
 import { recordedStepSchema } from "./RecordedStep";
 import { findingSchema } from "./Finding";
 import { teamPlayStatsSchema } from "./TeamPlayStats";
+import { teamTelemetrySchema } from "./TeamTelemetry";
 import { gameTypeSchema, venueSchema } from "./GameType";
 import type { MatchRecording } from "../../simulation/runMatch";
 
@@ -30,4 +31,7 @@ export const matchRecordingSchema: z.ZodType<MatchRecording> = z.looseObject({
   final: finalSchema,
   findings: findingSchema.array(),
   stats: z.tuple([teamPlayStatsSchema, teamPlayStatsSchema]).exactOptional(),
+  telemetry: z
+    .tuple([teamTelemetrySchema, teamTelemetrySchema])
+    .exactOptional(),
 });

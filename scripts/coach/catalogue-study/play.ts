@@ -12,6 +12,7 @@ import {
   runMatch,
 } from "../../../src/simulation/runMatch";
 import { createTelemetry } from "./telemetry";
+import { addUsage, emptyUsage } from "../../../src/simulation/telemetry";
 import type { StudyGame, StudyJob } from "./model";
 import type { Team } from "../../../src/types/Team";
 import type { Coach } from "../../../src/simulation/coach";
@@ -94,6 +95,13 @@ function openingReceiver(
   };
 }
 
+function choices(recording: MatchRecording) {
+  const both = emptyUsage();
+  const sides = recording.telemetry ?? [];
+  for (const side of sides) addUsage(both, side);
+  return { offered: both.offered, selected: both.chosen };
+}
+
 export async function playStudyGame(
   job: StudyJob,
   out: string,
@@ -127,8 +135,8 @@ export async function playStudyGame(
     job.inducements === true || freeAtStart
       ? await settleInducements(game, job.inducements === true)
       : [];
-  const coaches = job.coaches.map((name, side) =>
-    telemetry.wrap(suppliedCoaches?.[side] ?? makeCoach(name, []))
+  const coaches = job.coaches.map(
+    (name, side) => suppliedCoaches?.[side] ?? makeCoach(name, [])
   ) as Parameters<typeof runMatch>[0]["coaches"];
   const played = await runMatch({
     seed: job.seed,
@@ -139,7 +147,7 @@ export async function playStudyGame(
     ...(job.receivingSide !== undefined && { kickingTeamId: job.receivingSide === 0 ? team2.id : team1.id }),
   });
   const recording = withLeadingSteps(played, bought);
-  const observed = telemetry.snapshot();
+  const observed = { ...telemetry.snapshot(), ...choices(played) };
 
   mkdirSync(path.join(out, "traces"), { recursive: true });
   writeFileSync(
