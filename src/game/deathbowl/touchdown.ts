@@ -97,7 +97,7 @@ function landing(
   return null;
 }
 
-export class BallReentryOperation extends GameOperation {
+class BallReentryOperation extends GameOperation {
   public readonly name = "BallReentry";
 
   private readonly ball: BallId;

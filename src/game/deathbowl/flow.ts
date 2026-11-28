@@ -16,7 +16,7 @@ import {
 } from "../seating";
 import { placeOpeningBalls, rollOff } from "./openingBalls";
 import { type Placing, placings } from "./placings";
-import { ScoredTurnOperation } from "./scoredTurn";
+import { scoredTurnOperation } from "./scoredTurn";
 import { scoreTouchdown } from "./touchdown";
 
 export function deathbowlFlow(
@@ -43,7 +43,7 @@ export function deathbowlFlow(
       if (!scorers) return false;
       const order = turnOrderFrom(parts, seating, endingTeamId);
       parts.flowManager.add(
-        new ScoredTurnOperation(order.map((id) => seatOf(seating, id)), scorers)
+        scoredTurnOperation(order.map((id) => seatOf(seating, id)), scorers)
       );
       return true;
     },

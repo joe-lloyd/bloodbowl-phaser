@@ -92,7 +92,7 @@ async function moveReserves(context: FlowContext, seat: Seat): Promise<void> {
   }
 }
 
-export class ScoredTurnOperation extends GameOperation {
+class ScoredTurnOperation extends GameOperation {
   public readonly name = "ScoredTurn";
 
   private readonly order: readonly Seat[];
@@ -109,4 +109,11 @@ export class ScoredTurnOperation extends GameOperation {
     await context.gameService.rollKORecovery();
     for (const seat of this.order) await moveReserves(context, seat);
   }
+}
+
+export function scoredTurnOperation(
+  order: readonly Seat[],
+  scoringTeamIds: readonly string[]
+): GameOperation {
+  return new ScoredTurnOperation(order, scoringTeamIds);
 }
