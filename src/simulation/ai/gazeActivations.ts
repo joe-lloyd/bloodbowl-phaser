@@ -143,7 +143,7 @@ function gazePlan({
     gamble(
       c,
       reach,
-      before +
+      Math.max(before, baseline.alternative) +
         (1 - unfedChance({ c: c, player: player, action: "gaze", at: at })) *
           d6(3) *
           gain
