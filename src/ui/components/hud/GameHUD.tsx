@@ -33,6 +33,8 @@ import { RerollDialog } from "./RerollDialog";
 import { ReactionDialog } from "./ReactionDialog";
 import { SentOffCard } from "./SentOffCard";
 import { FoulAssistsDialog } from "./FoulAssistsDialog";
+import { CrossAssistPrompt } from "./CrossAssistPrompt";
+import { ReserveMovePrompt } from "./ReserveMovePrompt";
 import { ApothecaryDialog } from "./ApothecaryDialog";
 import { InducementChoiceDialog } from "./InducementChoiceDialog";
 import { InterceptionDialog } from "./InterceptionDialog";
@@ -49,6 +51,7 @@ import { SandboxOverlay } from "./SandboxOverlay";
 import { SoundToggle } from "./SoundToggle";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { MatchResultsScreen } from "./MatchResultsScreen";
+import { PlacingsScreen } from "./PlacingsScreen";
 import { useNavigate } from "react-router-dom";
 import { type CompetitionContext } from "../../../competition/types";
 import {
@@ -76,6 +79,8 @@ const DECISION_DOCK = {
   ReactionDialog,
   SentOffCard,
   FoulAssistsDialog,
+  CrossAssistPrompt,
+  ReserveMovePrompt,
   BiteTargetPrompt,
   ApothecaryDialog,
   InducementChoiceDialog,
@@ -304,6 +309,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     </div>
   );
 
+  const fullTime = turnData.phase === GamePhase.GAME_OVER;
+  const pairMatch = activeLayout().frames.length === 2;
   const takeovers = (
     <>
       <DiceTray eventBus={eventBus} />
@@ -315,11 +322,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
       {!phone && <TargetRollPreview eventBus={eventBus} />}
       <TurnoverOverlay eventBus={eventBus} />
+      <PlacingsScreen visible={fullTime && !pairMatch} />
       <MatchResultsScreen
-        visible={
-          turnData.phase === GamePhase.GAME_OVER &&
-          activeLayout().frames.length === 2
-        }
+        visible={fullTime && pairMatch}
         {...(leaveTo === undefined ? {} : { leaveTo: leaveTo })}
         {...(fixtureContext === undefined
           ? {}

@@ -100,6 +100,7 @@ export class GameScene extends Phaser.Scene {
   private remoteSelectedPlayerId: string | null = null;
   public isSetupActive = false;
   public ballSprite: BallSprite | null = null;
+  public spareBallSprite: BallSprite | null = null;
   public competitionContext: (CompetitionContext) | undefined;
   private autosave: MatchAutosave | null = null;
   private diceLog: { dispose(): void } | null = null;
@@ -146,10 +147,7 @@ export class GameScene extends Phaser.Scene {
       for (const p of players) delete p.gridPosition;
     }
 
-    if (clearPlayerPositions && this.ballSprite) {
-      this.ballSprite.destroy();
-      this.ballSprite = null;
-    }
+    if (clearPlayerPositions) board.dropBallSprites(this);
 
     if (this.gameplayController) this.gameplayController.destroy();
     if (this.orchestrator) this.orchestrator.destroy();
@@ -297,6 +295,7 @@ export class GameScene extends Phaser.Scene {
         Promise.all([
           ...[...this.playerSprites.values()].map((sprite) => sprite.motion),
           this.ballSprite?.arrived(),
+          this.spareBallSprite?.arrived(),
         ])
       )
     );
@@ -337,10 +336,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.playerSprites.clear();
 
-    if (this.ballSprite) {
-      this.ballSprite.destroy();
-      this.ballSprite = null;
-    }
+    board.dropBallSprites(this);
 
     if (this.dugouts) {
       this.dugouts.forEach((dugout) => {

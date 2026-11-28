@@ -16,6 +16,7 @@ import {
 import { MoveSplit } from "./MoveSplit";
 import { MOVEMENT_HALVES } from "./movementHalves";
 import type { ActionAvailability } from "../../../game/rules/actionAvailability";
+import type { RivalTarget, TargetState } from "./useActionMenu";
 
 const DEFAULT_ACTION_TONE: HudTone = "info";
 
@@ -38,12 +39,14 @@ interface ActionButtonProps {
   onClick?: () => void;
   blockReplacement?: BlockReplacement;
   half?: MovementHalf;
+  against?: string;
   hotkey?: Hotkey;
 }
 
 export interface ActionChoice {
   blockReplacement?: BlockReplacement | undefined;
   half?: MovementHalf | undefined;
+  against?: string | undefined;
 }
 
 type OnAction = (action: ActionType, choice: ActionChoice) => void;
@@ -201,6 +204,7 @@ interface ActionListProps {
   razzleOn: boolean;
   onToggleRazzle: () => void;
   secondActionAfter: ActionType | undefined;
+  rivals: readonly RivalTarget[];
 }
 export function ActionList(props: ActionListProps) {
   const {
@@ -252,6 +256,28 @@ export function ActionList(props: ActionListProps) {
 interface MenuButton extends ActionButtonProps {
   id: string;
 }
+
+const TARGET_SUB: Record<TargetState, string> = {
+  open: "1/Team",
+  spent: "Spent",
+  "out-of-reach": "Out of reach",
+};
+
+function targetOffers(
+  kind: "blitz" | "foul",
+  { availability, rivals }: Pick<ActionListProps, "availability" | "rivals">
+): MenuButton[] {
+  if (!availability[kind]) return [];
+  return rivals.map((rival) => ({
+    id: `${kind}-${rival.teamId}`,
+    action: kind,
+    against: rival.teamId,
+    label: `${kind.toUpperCase()} ${rival.name.toUpperCase()}`,
+    sub: TARGET_SUB[rival[kind]],
+    disabled: rival[kind] !== "open",
+    color: kind === "blitz" ? "red" : "purple",
+  }));
+}
 function actionOffers(props: ActionListProps): MenuButton[] {
   const {
     availability: a,
@@ -268,7 +294,9 @@ function actionOffers(props: ActionListProps): MenuButton[] {
       color: razzleOn ? "yellow" : "gray",
       onClick: onToggleRazzle,
     });
-  buttons.push(...offeredActions(BLOCK_ACTIONS, a));
+  const targeted = props.rivals.length > 0;
+  buttons.push(...offeredActions(BLOCK_ACTIONS, a, targeted));
+  if (targeted) buttons.push(...targetOffers("blitz", props));
   for (const replacement of a.blitzBlockReplacements)
     buttons.push({
       id: `blitz-${replacement}`,
@@ -278,7 +306,8 @@ function actionOffers(props: ActionListProps): MenuButton[] {
       sub: "1/Turn",
       color: "red",
     });
-  buttons.push(...offeredActions(OTHER_ACTIONS, a));
+  if (targeted) buttons.push(...targetOffers("foul", props));
+  buttons.push(...offeredActions(OTHER_ACTIONS, a, targeted));
   if (a.secureBall)
     buttons.push({
       id: "secureBall",
@@ -290,10 +319,13 @@ function actionOffers(props: ActionListProps): MenuButton[] {
 }
 function offeredActions(
   actions: MenuAction[],
-  availability: ActionAvailability
+  availability: ActionAvailability,
+  targeted: boolean
 ): MenuButton[] {
+  const perTeam = (when: AvailabilityFlag) =>
+    targeted && (when === "blitz" || when === "foul");
   return actions
-    .filter(({ when }) => availability[when])
+    .filter(({ when }) => availability[when] && !perTeam(when))
     .map(({ when, ...button }) => ({ ...button, id: when }));
 }
 
@@ -344,6 +376,7 @@ function ActionButton(props: ActionButtonContextProps) {
     onClick,
     blockReplacement,
     half,
+    against,
     hotkey,
     compact,
     onAction,
@@ -351,11 +384,11 @@ function ActionButton(props: ActionButtonContextProps) {
   const tone = ACTION_TONES[color] ?? DEFAULT_ACTION_TONE;
   const press = () => {
     if (onClick) onClick();
-    else if (action) onAction(action, { blockReplacement, half });
+    else if (action) onAction(action, { blockReplacement, half, against });
   };
   const button = useRef<HTMLButtonElement | null>(null);
   useHotkey(hotkey, press, !disabled, button);
-  const variant = blockReplacement ?? half;
+  const variant = blockReplacement ?? half ?? against;
   const testId = variant
     ? `action-${action ?? "block"}-${variant}`
     : `action-${action ?? label.toLowerCase().replaceAll(/\s+/g, "-")}`;

@@ -7,6 +7,8 @@ import { type Player } from "../../../types/Player";
 import { GamePhase, type GameState } from "../../../types/GameState";
 import type { ActionType, GameEventNames, MovementHalf } from "../../../types/events";
 import {
+  canBlitzTo,
+  canFoulFrom,
   computeActionAvailability,
   noActionAvailability,
   restrictAvailability,
@@ -17,7 +19,11 @@ import { kickoffTurnAllows } from "../../../game/kickoff/kickoffTurn";
 import { groundBall } from "../../../game/rules/balls";
 import { holdsMeasure, spendFor } from "../../../game/inducements/matchInducements";
 import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
-import { freshSpend, type TurnSpend } from "../../../game/rules/turnSpend";
+import {
+  freshSpend,
+  maySpend,
+  type TurnSpend,
+} from "../../../game/rules/turnSpend";
 
 export interface MenuTurnData {
   phase: GamePhase;
@@ -147,6 +153,38 @@ export function readMenuAvailability({
   }
 }
 
+export type TargetState = "open" | "spent" | "out-of-reach";
+
+export interface RivalTarget {
+  teamId: string;
+  name: string;
+  blitz: TargetState;
+  foul: TargetState;
+}
+
+export function readMenuTargets(
+  player: Player | null,
+  turnData: MenuTurnData
+): RivalTarget[] {
+  if (!player?.gridPosition || !ServiceContainer.isInitialized()) return [];
+  const gs = ServiceContainer.getInstance().gameService;
+  const rivals = gs.getTeams().filter(({ id }) => id !== player.teamId);
+  if (rivals.length < 2) return [];
+  const ledger = spendFor(gs.getState(), player.teamId, turnData.spend ?? freshSpend());
+  const ends = [player.gridPosition, ...gs.getAvailableMovements(player.id, "jump")];
+  const state = (kind: "blitz" | "foul", teamId: string, reach: typeof canBlitzTo) => {
+    if (!maySpend(ledger, { kind, against: teamId })) return "spent";
+    const team = gs.getOpponents(player.teamId).filter((o) => o.teamId === teamId);
+    return team.some((o) => reach(o, ends)) ? "open" : "out-of-reach";
+  };
+  return rivals.map(({ id, name }) => ({
+    teamId: id,
+    name,
+    blitz: state("blitz", id, canBlitzTo),
+    foul: state("foul", id, canFoulFrom),
+  }));
+}
+
 function declaredSecondAction(
   declaration: GameState["activePlayer"]
 ): ActionType | undefined {
@@ -160,16 +198,18 @@ export function menuActionRequest(
   options: {
     blockReplacement?: BlockReplacement | undefined;
     half?: MovementHalf | undefined;
+    against?: string | undefined;
     razzleOn: boolean;
     canRazzle: boolean;
   }
 ): UIEvents[typeof GameEventNames.UI_ActionSelected] {
-  const { blockReplacement, half, razzleOn, canRazzle } = options;
+  const { blockReplacement, half, against, razzleOn, canRazzle } = options;
   return {
     action,
     playerId,
     ...(blockReplacement !== undefined && { blockReplacement }),
     ...(half !== undefined && { half }),
+    ...(against !== undefined && { against }),
     ...(razzleOn && canRazzle && action !== "forgoe" && { razzleDazzle: true }),
   };
 }

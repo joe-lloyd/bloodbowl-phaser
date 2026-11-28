@@ -1,5 +1,6 @@
 import { type GameState } from "../../types/GameState";
 import { type Player } from "../../types/Player";
+import type { BallId } from "../rules/balls";
 import {
   type PlayerBox,
   findPlayerLocationViolations,
@@ -30,9 +31,10 @@ export type BallRepresentation =
 
 export function resolveBallRepresentation(
   state: Pick<GameState, "balls">,
-  players: Player[]
+  players: Player[],
+  id: BallId = 0
 ): BallRepresentation {
-  const ball = state.balls[0].at;
+  const ball = state.balls.find((slot) => slot.id === id)?.at;
   if (!ball) return { kind: "none" };
 
   const carrier = players.find((player) => {
