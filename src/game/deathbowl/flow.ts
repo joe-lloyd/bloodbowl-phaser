@@ -11,20 +11,13 @@ import {
   everyone,
   type FourSeating,
   playOrderAfter,
+  seatOf,
   teamsOf,
 } from "../seating";
 import { placeOpeningBalls, rollOff } from "./openingBalls";
 import { type Placing, placings } from "./placings";
-
-export const TOUCHDOWN_PENDING =
-  "Deathbowl touchdowns arrive with task 2.3 (DB-F2).";
-
-export class DeathbowlTouchdownPending extends Error {
-  constructor() {
-    super(TOUCHDOWN_PENDING);
-    this.name = "DeathbowlTouchdownPending";
-  }
-}
+import { ScoredTurnOperation } from "./scoredTurn";
+import { scoreTouchdown } from "./touchdown";
 
 export function deathbowlFlow(
   parts: GameParts,
@@ -42,8 +35,17 @@ export function deathbowlFlow(
     seatSetUp: () => {
       setUpNextSeat(parts, seating);
     },
-    touchdown: () => {
-      throw new DeathbowlTouchdownPending();
+    touchdown: (scorer, ball) => {
+      scoreTouchdown(parts, seating, { scorer, ball });
+    },
+    turnEnding: (endingTeamId) => {
+      const scorers = parts.state.turn.scoringTeamIds;
+      if (!scorers) return false;
+      const order = turnOrderFrom(parts, seating, endingTeamId);
+      parts.flowManager.add(
+        new ScoredTurnOperation(order.map((id) => seatOf(seating, id)), scorers)
+      );
+      return true;
     },
     halfOver: () => {
       if (parts.state.turn.isHalf2) fullTime(parts);
@@ -56,11 +58,20 @@ export function deathbowlFlow(
   };
 }
 
+function turnOrderFrom(
+  parts: GameParts,
+  seating: FourSeating,
+  teamId: string
+): string[] {
+  const rotation = parts.state.turn.isHalf2 ? -1 : 1;
+  const after = playOrderAfter(seating, teamId, rotation).map(({ id }) => id);
+  return [teamId, ...after.slice(0, -1)];
+}
+
 function setupOrder(parts: GameParts, seating: FourSeating): string[] {
   const { turn } = parts.state;
   if (!turn.isHalf2) return teamsOf(seating).map(({ id }) => id);
-  const after = playOrderAfter(seating, turn.teamId, -1).map(({ id }) => id);
-  return [turn.teamId, ...after.slice(0, -1)];
+  return turnOrderFrom(parts, seating, turn.teamId);
 }
 
 function setUpNextSeat(parts: GameParts, seating: FourSeating): void {

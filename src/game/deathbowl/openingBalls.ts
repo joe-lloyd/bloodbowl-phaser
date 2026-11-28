@@ -7,7 +7,7 @@ import type { PitchLayout, Square } from "../variants/pitchLayouts";
 
 const sameSquare = (a: Square, b: Square) => a.x === b.x && a.y === b.y;
 
-function centreSquare(
+export function centreSquare(
   layout: PitchLayout,
   rollD8: () => number,
   taken: readonly Square[]

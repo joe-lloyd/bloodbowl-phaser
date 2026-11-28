@@ -600,6 +600,10 @@ export class GameService implements IGameService {
     drive.addTouchdown(this.parts, scorerId);
   }
 
+  scoreRun(): "stop" | "continue" {
+    return this.parts.flow.scoreRun;
+  }
+
   endDrive(reason: "touchdown" | "halftime", next: NextHalf): void {
     endDrive(this.parts, reason, next);
   }

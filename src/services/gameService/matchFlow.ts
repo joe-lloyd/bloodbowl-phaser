@@ -43,6 +43,7 @@ export interface PairStandings {
 interface FlowApi<Standings> {
   begin(): void;
   touchdown(scorer: Player, ball: BallId): void;
+  turnEnding(endingTeamId: string): boolean;
   halfOver(): void;
   fullTime(): void;
   standings(): Standings;
@@ -89,6 +90,7 @@ function drivesFlow(parts: GameParts, seating: PairSeating): DrivesFlow {
     touchdown: (scorer) => {
       scoreTouchdown(parts, seating, scorer);
     },
+    turnEnding: () => false,
     halfOver: () => {
       const next = nextHalf(parts, seating);
       if (next) endDrive(parts, "halftime", next);

@@ -247,7 +247,7 @@ export async function movePlayer(
       break;
     }
 
-    const presentationId = carryBall(run);
+    const presentationId = await carryBall(run);
 
     if (presentationId) return scoreRun(run, presentationId);
     if (picked === "secured") {
@@ -557,7 +557,7 @@ function takeBall(
   return isSecuringBall(deps.state, run.player.id) ? "secured" : undefined;
 }
 
-function carryBall(run: MoveRun): string | undefined {
+async function carryBall(run: MoveRun): Promise<string | undefined> {
   const { deps, player, currentPos } = run;
   if (run.ball === undefined) return undefined;
   placeBall(deps.state, run.ball, currentPos);
@@ -570,10 +570,23 @@ function carryBall(run: MoveRun): string | undefined {
   if (!scoresAt(frame, currentPos)) return undefined;
   player.gridPosition = currentPos;
   deps.state.turn.movementUsed.set(player.id, run.preUsed + run.stepsTaken);
+  if (deps.callbacks.scoreRun() === "continue") {
+    await scoreAndWalkOn(run);
+    return undefined;
+  }
 
   const presentationId = nextPresentationId("score-run");
   deps.eventBus.emit(GameEventNames.PlayerMoved, walk(run, presentationId));
   return presentationId;
+}
+
+async function scoreAndWalkOn(run: MoveRun): Promise<void> {
+  const { deps, player, context } = run;
+  showWalk(run);
+  deps.callbacks.onTouchdown?.(player.teamId, player.id);
+  if (context) await context.flowManager.whenIdle();
+  run.ball = ballAt(deps.state, run.currentPos);
+  if (run.ball === undefined) run.ballFrom = null;
 }
 
 async function scoreRun(run: MoveRun, presentationId: string): Promise<void> {

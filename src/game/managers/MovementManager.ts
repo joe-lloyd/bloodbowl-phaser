@@ -42,21 +42,13 @@ export class MovementManager {
   private eventBus: IEventBus;
   private state: GameState;
   private diceController: DiceController;
-  private callbacks: {
-    onTurnover: (reason: string) => void;
-    onActivationFinished: (playerId: string) => void;
-    onTouchdown?: (teamId: string, scorerId: string) => void;
-  };
+  private callbacks: MovementDeps["callbacks"];
   constructor(
     eventBus: IEventBus,
     state: GameState,
     seating: Seating,
     diceController: DiceController,
-    callbacks: {
-      onTurnover: (reason: string) => void;
-      onActivationFinished: (playerId: string) => void;
-      onTouchdown?: (teamId: string, scorerId: string) => void;
-    }
+    callbacks: MovementDeps["callbacks"]
   ) {
     this.eventBus = eventBus;
     this.state = state;

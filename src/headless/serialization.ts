@@ -45,6 +45,7 @@ export interface TurnSnapshot extends SpendWire {
   hasThrownBomb: boolean;
   hasPunted?: boolean;
   endsAfterActivation?: true;
+  scoringTeamIds?: string[];
   movementUsed: Record<string, number>;
 
 }
@@ -217,6 +218,7 @@ function optionalTurnFields(turn: TurnData | TurnSnapshot) {
     ...(turn.endsAfterActivation && {
       endsAfterActivation: turn.endsAfterActivation,
     }),
+    ...(turn.scoringTeamIds && { scoringTeamIds: [...turn.scoringTeamIds] }),
   };
 }
 

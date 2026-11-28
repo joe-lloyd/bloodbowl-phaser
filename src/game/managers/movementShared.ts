@@ -57,6 +57,7 @@ export interface MovementDeps {
     onTurnover: (reason: string) => void;
     onActivationFinished: (playerId: string) => void;
     onTouchdown?: (teamId: string, scorerId: string) => void;
+    scoreRun: () => "stop" | "continue";
   };
 }
 

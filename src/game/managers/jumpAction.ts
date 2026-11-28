@@ -281,7 +281,7 @@ function landJump(
     return undefined;
   }
   if (ball !== undefined) {
-    if (carriedBallScores(jump, ball, destination)) return undefined;
+    if (scoreEndsJump(jump, ball, destination)) return undefined;
   } else if (context && isBallAt(deps.state, destination)) {
     return context;
   }
@@ -289,7 +289,7 @@ function landJump(
   return undefined;
 }
 
-function carriedBallScores(
+function scoreEndsJump(
   jump: JumpRun,
   ball: BallId,
   destination: Square
@@ -301,7 +301,7 @@ function carriedBallScores(
   const { frame } = seatOf(deps.seating, player.teamId);
   if (!scoresAt(frame, destination)) return false;
   deps.callbacks.onTouchdown?.(player.teamId, player.id);
-  return true;
+  return deps.callbacks.scoreRun() === "stop";
 }
 
 function finishAfterPickup(jump: JumpRun): void {

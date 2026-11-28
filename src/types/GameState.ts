@@ -58,6 +58,7 @@ export interface TurnData {
   hasThrownBomb: boolean;
   hasPunted?: boolean;
   endsAfterActivation?: true;
+  scoringTeamIds?: string[];
   movementUsed: Map<string, number>;
 }
 
