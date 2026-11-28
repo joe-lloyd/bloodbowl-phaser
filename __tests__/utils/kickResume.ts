@@ -153,6 +153,8 @@ async function answer(
       return { type: "choose-inducement" };
     case "reserve-move":
       return { type: "keep-reserves" };
+    case "cross-assist":
+      return { type: "lend-assists", toAttacker: [], toDefender: [] };
     case "apothecary":
       return { type: "use-apothecary", accept: false };
     case "block-dice":

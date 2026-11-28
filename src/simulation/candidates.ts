@@ -103,6 +103,27 @@ function reserveCandidates(
   return [...moves, one({ type: "keep-reserves" }, "Keep the rest in reserve")];
 }
 
+const lend = (toAttacker: string[], toDefender: string[]): HeadlessCommand => ({
+  type: "lend-assists",
+  toAttacker,
+  toDefender,
+});
+
+function crossAssistCandidates(
+  pending: Extract<PendingDecision, { type: "cross-assist" }>,
+  name: (id: string) => string
+): Candidate[] {
+  const lends = pending.offers.flatMap(({ playerId, sides }) =>
+    sides.map((side) =>
+      one(
+        side === "attacker" ? lend([playerId], []) : lend([], [playerId]),
+        `${name(playerId)} assists the ${side}`
+      )
+    )
+  );
+  return [...lends, one(lend([], []), "Lend no assist")];
+}
+
 export async function enumerateDecision(
   game: HeadlessGame,
   kickingTeamId: string | null
@@ -333,6 +354,8 @@ function decisionCandidates(
       return kickoffChoiceCandidates(game, pending);
     case "reserve-move":
       return reserveCandidates(pending, name);
+    case "cross-assist":
+      return crossAssistCandidates(pending, name);
   }
 }
 

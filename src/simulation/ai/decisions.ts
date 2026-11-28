@@ -342,6 +342,7 @@ function otherDecision(
     | "inducement-choice"
     | "kickoff-event"
     | "reserve-move"
+    | "cross-assist"
   >,
   candidates: readonly Candidate[]
 ): number | null {
@@ -362,6 +363,7 @@ function otherDecision(
     case "kickoff-event":
     case "foul-assists":
     case "reserve-move":
+    case "cross-assist":
       return null;
   }
 }
@@ -375,6 +377,7 @@ function isOtherDecision(
   | "inducement-choice"
   | "kickoff-event"
   | "reserve-move"
+  | "cross-assist"
 > {
   return (
     pending.type === "interception" ||
@@ -382,6 +385,7 @@ function isOtherDecision(
     pending.type === "foul-assists" ||
     pending.type === "inducement-choice" ||
     pending.type === "kickoff-event" ||
-    pending.type === "reserve-move"
+    pending.type === "reserve-move" ||
+    pending.type === "cross-assist"
   );
 }

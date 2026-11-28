@@ -177,6 +177,7 @@ const DECISION_ACTIVITIES: Record<Exclude<PendingDecision["type"], "block-dice" 
   "inducement-choice": "choosing an inducement", "foul-assists": "choosing the foul's assists",
   touchback: "choosing who takes the ball", "kickoff-event": "resolving the kick-off",
   "reserve-move": "bringing on reserves",
+  "cross-assist": "deciding whether to lend an assist",
 };
 
 const SQUIG_DECISION_ACTIVITIES = {

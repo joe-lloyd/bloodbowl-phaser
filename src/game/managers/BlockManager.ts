@@ -42,6 +42,8 @@ import {
   recomputeBlockDice,
 } from "./blockSteps";
 import { BlockPushChain } from "./BlockPushChain";
+import { lendAssists } from "../operations/lendAssists";
+import { NONE_LENT, lentCount, withLent } from "../validators/crossAssists";
 
 export class BlockManager extends BlockPushChain {
   private owedAssistBonus(teamId: string): 0 | 1 {
@@ -105,14 +107,11 @@ export class BlockManager extends BlockPushChain {
     }
 
     if (attacker && defender) {
-      const analysis = this.analyzeBlock(attacker, defender);
-      this.cheerOwedAssist(attacker, analysis);
-      const ctx = this.blockDeclaredContext(
-        attacker,
-        defender,
-        { numDice, isAttackerChoice },
-        analysis
-      );
+      const { analysis, dice } = await this.analysisWithLent(attacker, defender, {
+        numDice,
+        isAttackerChoice,
+      });
+      const ctx = this.blockDeclaredContext(attacker, defender, dice, analysis);
       await foldTrigger(
         "onBlockDeclared",
         this.blockParticipants(attacker, defender),
@@ -165,6 +164,32 @@ export class BlockManager extends BlockPushChain {
     rollData.choiceStage = blockChoiceStage(rollData);
     this.pendingBlockRoll = rollData;
     this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(rollData));
+  }
+
+  private async analysisWithLent(
+    attacker: Player,
+    defender: Player,
+    dice: { numDice: number; isAttackerChoice: boolean }
+  ): Promise<{
+    analysis: BlockAnalysis;
+    dice: { numDice: number; isAttackerChoice: boolean };
+  }> {
+    const game = this.callbacks.getFlowManager?.().context.gameService;
+    const lent = game
+      ? await lendAssists(game, {
+          attacker,
+          defender,
+          action: "block",
+          activeTeamId: this.state.activeTeamId,
+        })
+      : NONE_LENT;
+    const analysis = withLent(this.analyzeBlock(attacker, defender), lent);
+    this.cheerOwedAssist(attacker, analysis);
+    if (lentCount(lent) === 0) return { analysis, dice };
+    return {
+      analysis,
+      dice: { numDice: analysis.diceCount, isAttackerChoice: !analysis.isUphill },
+    };
   }
 
   private async announceBlockDiceRolled(

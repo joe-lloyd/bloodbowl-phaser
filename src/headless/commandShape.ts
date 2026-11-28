@@ -10,7 +10,8 @@ type FieldKind =
   | "integer?"
   | "path"
   | "formation"
-  | "string-array";
+  | "string-array"
+  | "string-list";
 type CommandShape = Record<string, FieldKind>;
 
 const COMMAND_SHAPES: Record<string, CommandShape> = {
@@ -101,6 +102,7 @@ const COMMAND_SHAPES: Record<string, CommandShape> = {
   "choose-foul-assists": { count: "integer" },
   "move-reserve": { playerId: "string", x: "integer", y: "integer" },
   "keep-reserves": {},
+  "lend-assists": { toAttacker: "string-list", toDefender: "string-list" },
   "offer-inducements": {},
   "select-inducement": {
     teamId: "string",
@@ -173,6 +175,11 @@ const FIELD_CHECKS: Record<
   "string-array": {
     valid: (v) => isNonEmptyArrayOf(v, (entry) => typeof entry === "string"),
     must: "must be a non-empty string[]",
+  },
+  "string-list": {
+    valid: (v) =>
+      Array.isArray(v) && v.every((entry) => typeof entry === "string"),
+    must: "must be a string[]",
   },
 };
 

@@ -1,3 +1,5 @@
+import { lendAssists } from "./lendAssists";
+import { lentCount } from "../validators/crossAssists";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { type Player, PlayerStatus } from "../../types/Player";
@@ -280,11 +282,19 @@ export class FoulOperation extends GameOperation {
       })) as FoulAssistsDecisionAnswer;
       offensive = answer.count;
     }
-    const modifier = offensive - defensive;
+    const lent = await lendAssists(gameService, {
+      attacker: fouler,
+      defender: target,
+      action: "foul",
+      activeTeamId: gameService.getState().activeTeamId,
+    });
+    offensive += lent.attacker.length;
+    const defended = defensive + lent.defender.length;
+    const modifier = offensive - defended;
 
     eventBus.emit(
       GameEventNames.UI_Notification,
-      `Assists: +${String(offensive)} Offensive, -${String(defensive)} Defensive. Mod: ${signed(modifier)}`
+      `Assists: +${String(offensive)} Offensive, -${String(defended)} Defensive. Mod: ${signed(modifier)}`
     );
 
     await context.delay(1000);
@@ -293,7 +303,8 @@ export class FoulOperation extends GameOperation {
 
     const foulerHasNoAssists =
       analysis.offensiveAssists.length === 0 &&
-      analysis.defensiveAssists.length === 0;
+      analysis.defensiveAssists.length === 0 &&
+      lentCount(lent) === 0;
 
     const av = effectiveAV(target, gameService.getState());
     const announce = (skill: SkillType, effect: string) => {

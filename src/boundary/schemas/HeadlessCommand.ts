@@ -295,6 +295,11 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     type: z.literal("keep-reserves"),
   }),
   z.looseObject({
+    type: z.literal("lend-assists"),
+    toAttacker: z.string().array(),
+    toDefender: z.string().array(),
+  }),
+  z.looseObject({
     type: z.literal("offer-inducements"),
   }),
   z.looseObject({

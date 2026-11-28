@@ -6,6 +6,7 @@ import { rerollSourceSchema } from "./RerollSource";
 import { inducementChoiceDecisionRequestSchema } from "./InducementChoiceDecisionRequest";
 import { foulAssistsDecisionRequestSchema } from "./FoulAssistsDecisionRequest";
 import { reserveMoveDecisionRequestSchema } from "./ReserveMoveDecisionRequest";
+import { crossAssistDecisionRequestSchema } from "./CrossAssistDecisionRequest";
 import { apothecaryRequestFields } from "./ApothecaryDecisionRequest";
 import type { PendingDecision } from "../../headless/protocol";
 
@@ -107,4 +108,5 @@ export const pendingDecisionSchema: z.ZodType<PendingDecision> = z.union([
   inducementChoiceDecisionRequestSchema,
   foulAssistsDecisionRequestSchema,
   reserveMoveDecisionRequestSchema,
+  crossAssistDecisionRequestSchema,
 ]);

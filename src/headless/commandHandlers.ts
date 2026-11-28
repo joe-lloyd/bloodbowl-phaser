@@ -20,7 +20,10 @@ import {
 import { isStandableSquare } from "../game/rules/pitchSquares";
 import { pairSeating, pairTeams } from "../game/seating";
 import { outsideTarget } from "../game/rules/turnSpend";
-import { answerReserveMove } from "../services/gameService/decisionAnswers";
+import {
+  answerCrossAssists,
+  answerReserveMove,
+} from "../services/gameService/decisionAnswers";
 
 type QueryCommand = Extract<
   HeadlessCommand,
@@ -605,6 +608,12 @@ const COMMAND_HANDLERS: CommandHandlers = {
   "move-reserve": (host, { playerId, x, y }) =>
     answerReserve(host, { playerId, square: { x, y } }),
   "keep-reserves": (host) => answerReserve(host, null),
+  "lend-assists": (host, cmd) => {
+    const pending = host.takePending("cross-assist");
+    const decisions = host.ctx.gameService.getDecisionService();
+    refuseUnless(host, pending, answerCrossAssists(decisions, cmd), "invalid-cross-assist");
+    return Promise.resolve();
+  },
 
   "select-inducement": async ({ ctx }, cmd) => {
     assertTeam(ctx, cmd.teamId);

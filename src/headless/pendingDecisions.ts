@@ -84,6 +84,8 @@ export function requestedDecision(
         playerIds: [...request.playerIds],
         squares: request.squares.map((square) => ({ ...square })),
       };
+    case "cross-assist":
+      return structuredClone(request);
     default:
       return unsurfaced(request);
   }
