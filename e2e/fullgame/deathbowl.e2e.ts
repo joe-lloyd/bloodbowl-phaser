@@ -160,9 +160,16 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
+const seatDebug = (page: Page) =>
+  page.evaluate(async () => {
+    const brain = await import("../../e2e/fullgame/brain.ts");
+    return brain.seatDebug();
+  });
+
 async function unstick(page: Page, app: GameApp, i: number) {
   await shot(page, `stuck-${String(i)}`);
   log(`${String(i)} STUCK buttons=${JSON.stringify(await visibleButtons(page))}`);
+  log(`  engine ${String(await seatDebug(page))}`);
   await page.keyboard.press("Escape");
   if (await visible(app.hud.endTurn())) await app.hud.endTurn().click().catch(() => undefined);
 }
@@ -183,6 +190,7 @@ async function playMatch(page: Page, app: GameApp, difficulty: Difficulty) {
     if (next.board !== lastBoard) changed = Date.now();
     if (Date.now() - changed > STALL_MS) {
       await shot(page, `stalled-${String(i)}`);
+      log(`  engine ${String(await seatDebug(page))}`);
       throw new Error(`The match stalled at step ${String(i)}: buttons=${JSON.stringify(await visibleButtons(page))}`);
     }
     stuck = next.board === lastBoard && !next.waiting ? stuck + 1 : 0;

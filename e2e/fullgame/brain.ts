@@ -15,6 +15,7 @@ import { withDriveModifiers } from "../../src/game/kickoff/driveEffects";
 import { scoresAt } from "../../src/game/rules/frames";
 import { pairFrame } from "../../src/game/variants/activeMatch";
 import { seatedTeams } from "../../src/game/seating";
+import { whenEngineQuiet } from "../../src/game/core/GameFlowManager";
 import { coachFor, type Difficulty } from "../../src/simulation/ai/difficulty";
 import { twoBallViolations } from "../../src/simulation/ballInvariants";
 import { placings } from "../../src/game/deathbowl/placings";
@@ -398,6 +399,7 @@ export async function seatNext(difficulty: Difficulty): Promise<SeatNext> {
   if (!match || !online) return { over: false, waiting: true, board: "" };
   const g = match.game;
   countSeats(g);
+  await whenEngineQuiet();
   const snapshot = g.snapshot();
   if (snapshot.phase === GamePhase.GAME_OVER) return { over: true };
   const board = seatBoard(snapshot, g.pendingDecision()?.type);
@@ -462,3 +464,20 @@ export function seatTally() {
 }
 
 export type SeatTally = ReturnType<typeof seatTally>;
+
+export function seatDebug() {
+  const match = globalThis.__computerMatch;
+  if (!match) return null;
+  const state = match.game.ctx.gameService.getState();
+  return JSON.stringify({
+    phase: state.phase,
+    subPhase: state.subPhase,
+    activeTeamId: state.activeTeamId,
+    turnTeamId: state.turn.teamId,
+    turnNumber: state.turn.turnNumber,
+    activePlayer: state.activePlayer,
+    scoringTeamIds: state.turn.scoringTeamIds,
+    pending: match.game.pendingDecision(),
+    mayAct: getActiveOnlineMatch()?.mayAct(),
+  });
+}
