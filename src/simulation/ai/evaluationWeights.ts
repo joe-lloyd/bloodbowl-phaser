@@ -24,4 +24,6 @@ export const EVALUATION_WEIGHTS: EvaluationWeights = {
   outTheirs: 0.05041,
   rerollsOurs: 0.02915,
   rerollsTheirs: -0.03483,
+  leaderGap: 0,
+  centre: 0,
 };

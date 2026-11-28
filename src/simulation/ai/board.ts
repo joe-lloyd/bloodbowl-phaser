@@ -80,6 +80,7 @@ export interface Board {
 }
 
 const FITTED_GOAL_SCALE = PITCH_LAYOUTS.stadium.cols - 1;
+export const POINTS_PER_TOUCHDOWN = 10;
 
 function ballOn(
   { id, at: position }: BallSlot,
@@ -102,6 +103,31 @@ export function mapBalls(
 }
 
 export const firstBall = (board: Board): BallView => board.balls[0];
+
+export function focusBall(board: Board, id: BallId): Board {
+  const focused = board.balls.find((ball) => ball.id === id);
+  if (!focused || focused === board.balls[0]) return board;
+  return {
+    ...board,
+    balls: [focused, ...board.balls.filter((ball) => ball.id !== id)],
+  };
+}
+
+export const ballFocuses = (board: Board): Board[] =>
+  board.balls.map(({ id }) => focusBall(board, id));
+
+export function otherBallKeys(board: Board): ReadonlySet<number> {
+  const [, ...others] = board.balls;
+  return new Set(
+    others.flatMap((ball) => (ball.kind === "loose" ? [key(ball.at)] : []))
+  );
+}
+
+export function carriedBy(board: Board, player: FieldPlayer): BallView | undefined {
+  return board.balls.find(
+    (ball) => ball.kind === "carried" && ball.carrier.id === player.id
+  );
+}
 
 export function looseBallKey(board: Board): number {
   const ball = firstBall(board);
@@ -158,8 +184,9 @@ export function readBoard(game: HeadlessGame, us: string): Board {
       isLeagueMode(ourTeam?.advancementMode),
     half2: turn.isHalf2,
     lead:
-      (score[us] ?? 0) -
-      Math.max(...rivals.map(({ team }) => score[team.id] ?? 0)),
+      seating.kind === "pair"
+        ? leadOf(score, us, rivals)
+        : leadOf(state.points ?? {}, us, rivals) / POINTS_PER_TOUCHDOWN,
     goalScale:
       seating.kind === "pair" ? FITTED_GOAL_SCALE : seat.frame.arm.length - 1,
     marks,
@@ -167,7 +194,11 @@ export function readBoard(game: HeadlessGame, us: string): Board {
   };
 }
 
-function frameOf(board: Board, team: string): Frame {
+function leadOf(tally: Readonly<Record<string, number>>, us: string, rivals: readonly Seat[]): number {
+  return (tally[us] ?? 0) - Math.max(...rivals.map(({ team }) => tally[team.id] ?? 0));
+}
+
+export function frameOf(board: Board, team: string): Frame {
   if (team === board.us) return board.seat.frame;
   const rival = board.rivals.find((seat) => seat.team.id === team);
   if (!rival) throw new Error(`No team ${team} sits at this match.`);
@@ -204,6 +235,34 @@ export function stepFrom(frame: Frame, s: Square, by: Offset): Square {
     case "-y":
       return { x: s.x + by.across, y: s.y - by.along };
   }
+}
+
+export const pitchCentre = (): Square => ({
+  x: (pitchWidth() - 1) / 2,
+  y: (pitchHeight() - 1) / 2,
+});
+
+const NEAR_EDGE = 2;
+
+function ringOffPitch(at: Square, radius: number): boolean {
+  for (let dx = -radius; dx <= radius; dx++)
+    for (let dy = -radius; dy <= radius; dy++) {
+      const edge = Math.abs(dx) === radius || Math.abs(dy) === radius;
+      if (edge && !onPitch({ x: at.x + dx, y: at.y + dy })) return true;
+    }
+  return false;
+}
+
+export function sidelineGap(board: Board, at: Square): number {
+  if (board.rivals.length === 1) return Math.min(at.y, pitchHeight() - 1 - at.y);
+  for (let gap = 0; gap < NEAR_EDGE; gap++) if (ringOffPitch(at, gap + 1)) return gap;
+  return NEAR_EDGE;
+}
+
+export function acrossGap(board: Board, a: Square, b: Square): number {
+  const { heading } = board.seat.frame;
+  const axis = heading === "+x" || heading === "-x" ? "y" : "x";
+  return Math.abs(a[axis] - b[axis]);
 }
 
 export const forwardOf = (board: Board, s: Square, by: Offset): Square =>

@@ -7,12 +7,14 @@ import {
   type MatchType,
 } from "../../game/variants/gameTypes";
 import {
+  POINTS_PER_TOUCHDOWN,
   type BallView,
   type Board,
   type FieldPlayer,
   type Square,
   distance,
   key,
+  pitchCentre,
   standing,
   toGoal,
 } from "./board";
@@ -41,6 +43,8 @@ export const FEATURES = [
   "outTheirs",
   "rerollsOurs",
   "rerollsTheirs",
+  "leaderGap",
+  "centre",
 ] as const;
 
 export type Feature = (typeof FEATURES)[number];
@@ -69,6 +73,8 @@ const ZERO_FEATURES: Record<Feature, number> = {
   outTheirs: 0,
   rerollsOurs: 0,
   rerollsTheirs: 0,
+  leaderGap: 0,
+  centre: 0,
 };
 
 function outCount(board: Board, team: string): number {
@@ -150,6 +156,23 @@ function ballFeatures(
   else theirCarrierFeatures(board, carrier, f);
 }
 
+const CENTRE_REACH = 2;
+
+function nearCentre(players: readonly FieldPlayer[]): number {
+  const centre = pitchCentre();
+  return players.filter(
+    (p) => standing(p) && distance(p.gridPosition, centre) <= CENTRE_REACH
+  ).length;
+}
+
+function plusFeatures(board: Board, f: Record<Feature, number>): void {
+  const points = board.gs.getState().points ?? {};
+  const ours = points[board.us] ?? 0;
+  const top = Math.max(ours, ...board.rivals.map(({ team }) => points[team.id] ?? 0));
+  f.leaderGap = (ours - top) / POINTS_PER_TOUCHDOWN;
+  f.centre = nearCentre(board.ours) - nearCentre(board.theirs) / board.rivals.length;
+}
+
 export function features(board: Board): Record<Feature, number> {
   const state = board.gs.getState();
   const f = {
@@ -167,6 +190,7 @@ export function features(board: Board): Record<Feature, number> {
     ),
   };
   for (const ball of board.balls) ballFeatures(board, ball, f);
+  if (board.rivals.length > 1) plusFeatures(board, f);
   return f;
 }
 
@@ -175,7 +199,7 @@ const WEIGHTS_BY_TYPE: Record<MatchType, EvaluationWeights> = {
   "gutter-bowl": EVALUATION_WEIGHTS,
   "street-bowl": EVALUATION_WEIGHTS,
   "beach-bowl": EVALUATION_WEIGHTS,
-  deathbowl: EVALUATION_WEIGHTS,
+  deathbowl: { ...EVALUATION_WEIGHTS, leaderGap: 0.1, centre: 0.03 },
 };
 
 export const evaluationWeightsFor = (type: MatchType): EvaluationWeights =>

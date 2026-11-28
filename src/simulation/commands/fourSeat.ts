@@ -14,7 +14,7 @@ export interface FourSeatOptions {
 
 const ROSTERS = Object.values(RosterName);
 
-function rostersFor(seed: number): FourRosters {
+export function rostersFor(seed: number): FourRosters {
   const at = (seat: number) => ROSTERS[(seed * 4 + seat) % ROSTERS.length] ?? RosterName.HUMAN;
   return [at(0), at(1), at(2), at(3)];
 }
@@ -38,7 +38,7 @@ export async function runFourSeat(options: FourSeatOptions): Promise<number> {
     const run = await runFourSeatMatch({
       seed,
       rosters: rostersFor(seed),
-      coach: scoringCoach,
+      coaches: [scoringCoach, scoringCoach, scoringCoach, scoringCoach],
       saveAt: saveStep(seed),
     });
     runs.push(run);

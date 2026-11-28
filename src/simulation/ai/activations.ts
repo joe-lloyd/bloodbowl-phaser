@@ -2,7 +2,15 @@ import { type FieldPlayer as Player } from "./board";
 
 import { type ActionType } from "../../types/events";
 import { byCodeUnit } from "../../game/core/order";
-import { type Board, type Square, carrierOf, distance } from "./board";
+import {
+  type Board,
+  type Square,
+  ballFocuses,
+  carriedBy,
+  carrierOf,
+  distance,
+  focusBall,
+} from "./board";
 import { hasTackleZone } from "../../types/Player";
 import { type RollTarget, sequenceChance } from "./chance";
 import { type Route } from "./routes";
@@ -169,7 +177,33 @@ interface ActivationsArgs {
   skillPlans?: boolean;
 }
 
-export function activations({
+function bestPerPlan(lists: readonly Activation[][]): Activation[] {
+  const best = new Map<string, Activation>();
+  for (const plan of lists.flat()) {
+    const id = planIdentity(plan);
+    const seen = best.get(id);
+    if (!seen || plan.value > seen.value) best.set(id, plan);
+  }
+  return sortActivations([...best.values()]);
+}
+
+function holdsOtherBall(board: Board, player: Player): boolean {
+  const held = carriedBy(board, player);
+  return held !== undefined && held.id !== board.balls[0].id;
+}
+
+export function activations(args: ActivationsArgs): Activation[] {
+  if (args.board.balls.length === 1) return activationsOn(args);
+  return bestPerPlan(
+    ballFocuses(args.board).map((board) =>
+      activationsOn({ ...args, board }).filter(
+        (plan) => !holdsOtherBall(board, plan.player)
+      )
+    )
+  );
+}
+
+function activationsOn({
   board,
   w,
   available,
@@ -291,7 +325,27 @@ interface ContinuationPlansArgs {
   skillPlans?: boolean;
 }
 
-export function continuationPlans({
+function continuationBoards(board: Board, player: Player): Board[] {
+  if (board.balls.length === 1) return [board];
+  const held = carriedBy(board, player);
+  return held ? [focusBall(board, held.id)] : ballFocuses(board);
+}
+
+export function aimsAt(against: string | undefined, plan: Activation): boolean {
+  if (against === undefined) return true;
+  const { intent } = plan;
+  return "target" in intent ? intent.target.teamId === against : true;
+}
+
+export function continuationPlans(args: ContinuationPlansArgs): Activation[] {
+  const against = args.board.gs.getState().activePlayer?.against;
+  const lists = continuationBoards(args.board, args.player).map((board) =>
+    continuationOn({ ...args, board }).filter((plan) => aimsAt(against, plan))
+  );
+  return lists.length === 1 ? (lists[0] ?? []) : bestPerPlan(lists);
+}
+
+function continuationOn({
   board,
   w,
   player,

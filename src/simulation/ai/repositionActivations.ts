@@ -8,7 +8,10 @@ import {
   pitchHeight,
   type Square,
   pitchWidth,
+  acrossGap,
   forwardOf,
+  frameOf,
+  stepFrom,
   canCarry,
   carrierOf,
   firstBall,
@@ -62,7 +65,7 @@ function launchSquares(c: Context, carrier: Player, add: AddSquare): void {
 
 function flankRunner(c: Context, carrier: Player): Player | undefined {
   const at = carrier.gridPosition;
-  const wide = (p: Player) => Math.abs(p.gridPosition.y - at.y) >= 3;
+  const wide = (p: Player) => acrossGap(c.board, p.gridPosition, at) >= 3;
   return c.board.ours
     .filter((p) => p.id !== carrier.id && standing(p) && canCarry(p))
     .sort(
@@ -261,8 +264,10 @@ function cageWallSquares({ board, at, press, add }: CageWallSquaresArgs): void {
   }
 }
 
-function theirCarrierSquares(c: Context, at: Square, add: AddSquare): void {
+function theirCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
   const { board, w } = c;
+  const at = carrier.gridPosition;
+  const heading = frameOf(board, carrier.teamId);
   const preserve =
     c.goal === "protect" &&
     board.persistentInjuries &&
@@ -287,7 +292,7 @@ function theirCarrierSquares(c: Context, at: Square, add: AddSquare): void {
     for (const dy of [-4, -2, 0, 2, 4])
       add({
         role: "screen",
-        at: forwardOf(board, at, { along: -depth, across: dy }),
+        at: stepFrom(heading, at, { along: depth, across: dy }),
         value: w.screen - depth * 0.5,
       });
 }
@@ -303,7 +308,7 @@ export function roleSquares(c: Context): RoleSquare[] {
   if (ball.kind === "carried" && ball.carrier.teamId === board.us) {
     ownCarrierSquares(c, ball.carrier, add);
   } else if (ball.kind === "carried") {
-    theirCarrierSquares(c, ball.at, add);
+    theirCarrierSquares(c, ball.carrier, add);
   } else if (ball.kind === "loose") {
     for (const s of neighbours(ball.at))
       add({ role: "chase", at: s, value: w.chase });

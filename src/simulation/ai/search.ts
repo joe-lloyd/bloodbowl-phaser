@@ -111,7 +111,9 @@ async function finishPlayout({
   rng,
 }: FinishPlayoutArgs): Promise<void> {
   let handedOver = false;
-  for (let steps = 0; steps < PLAYOUT_COMMANDS; steps++) {
+  const seats = game.ctx.gameService.getSeating().seats.length;
+  const commands = (PLAYOUT_COMMANDS * seats) / 2;
+  for (let steps = 0; steps < commands; steps++) {
     if (game.ctx.gameService.getState().activeTeamId !== us) handedOver = true;
     if (
       playoutOver({

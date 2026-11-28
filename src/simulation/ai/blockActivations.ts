@@ -4,6 +4,7 @@ import { BlockValidator } from "../../game/validators/BlockValidator";
 import {
   type Board,
   type Square,
+  acrossGap,
   carrierOf,
   distance,
   key,
@@ -39,7 +40,7 @@ function ourCarrierBonus({
   const at = target.gridPosition;
   const ahead = toGoal(board, from) - toGoal(board, at);
   const lane =
-    ahead > 0 && ahead <= carrier.stats.MA + 2 && Math.abs(at.y - from.y) <= 2;
+    ahead > 0 && ahead <= carrier.stats.MA + 2 && acrossGap(board, at, from) <= 2;
   return (near <= 2 ? w.knockdown : 0) + (lane ? w.lane : 0);
 }
 
