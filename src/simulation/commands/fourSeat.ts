@@ -27,7 +27,8 @@ const blocking = (run: FourSeatRun) =>
 function line(run: FourSeatRun): string {
   const resumed = run.resume ? `save@${String(run.resume.step)} ${run.resume.hash === run.resume.resumedHash ? "same" : "DIFFERS"}` : "no save";
   const refused = run.findings.length - blocking(run).length;
-  return `seed ${String(run.seed)}: ${run.final.phase} after ${String(run.steps)} commands, touchdowns ${run.touchdowns.join("/")}, ${resumed}, ${String(blocking(run).length)} blocking findings, ${String(refused)} refused candidates`;
+  const replayed = run.replayHash === run.final.hash ? "replay same" : "replay DIFFERS";
+  return `seed ${String(run.seed)}: ${run.final.phase} after ${String(run.steps)} commands, points ${run.points.join("/")}, places ${run.places.join("/")}, touchdowns ${run.touchdowns.join("/")}, ${resumed}, ${replayed}, ${String(blocking(run).length)} blocking findings, ${String(refused)} refused candidates`;
 }
 
 export async function runFourSeat(options: FourSeatOptions): Promise<number> {
@@ -46,12 +47,13 @@ export async function runFourSeat(options: FourSeatOptions): Promise<number> {
   fs.mkdirSync(path.dirname(options.out), { recursive: true });
   fs.writeFileSync(options.out, `${JSON.stringify(runs, null, 2)}\n`);
   const failed = runs.filter((run) => blocking(run).length > 0 || !run.resume);
-  const perSeat = [0, 1, 2, 3].map((seat) =>
-    runs.reduce((sum, run) => sum + (run.touchdowns[seat] ?? 0), 0)
-  );
-  process.stdout.write(`Touchdowns per seat (N/E/S/W): ${perSeat.join(" / ")}.\n`);
+  const perSeat = (count: (run: FourSeatRun, seat: number) => number) =>
+    [0, 1, 2, 3].map((seat) => runs.reduce((sum, run) => sum + count(run, seat), 0)).join(" / ");
+  process.stdout.write(`Touchdowns per seat (N/E/S/W): ${perSeat((run, seat) => run.touchdowns[seat] ?? 0)}.\n`);
+  process.stdout.write(`Points per seat (N/E/S/W): ${perSeat((run, seat) => run.points[seat] ?? 0)}.\n`);
+  process.stdout.write(`First places per seat (N/E/S/W): ${perSeat((run, seat) => (run.places[seat] === 1 ? 1 : 0))}.\n`);
   process.stdout.write(
-    `${String(runs.length - failed.length)} of ${String(runs.length)} four-seat matches reached full time with no blocking findings and resumed to the same hash.\n`
+    `${String(runs.length - failed.length)} of ${String(runs.length)} four-seat matches reached full time with no blocking findings, resumed to the same hash and replayed to the same hash.\n`
   );
   return failed.length === 0 ? 0 : 1;
 }
