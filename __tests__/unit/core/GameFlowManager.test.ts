@@ -230,4 +230,23 @@ describe("GameFlowManager", () => {
       expect(ran).toEqual(["Fresh", "Queued behind it"]);
     });
   });
+
+  it("runs an operation added while the queue is finishing", async () => {
+    const ranLate: boolean[] = [];
+    for (let hops = 0; hops < 8; hops++) {
+      let late = false;
+      flowManager.add(new MockOperation("First", () => Promise.resolve()));
+      for (let hop = 0; hop < hops; hop++) await Promise.resolve();
+      flowManager.add(
+        new MockOperation("Late", () => {
+          late = true;
+          return Promise.resolve();
+        })
+      );
+      await Promise.race([flowManager.whenIdle(), tick()]);
+      ranLate.push(late);
+    }
+
+    expect(ranLate).toEqual(Array.from({ length: 8 }, () => true));
+  });
 });
