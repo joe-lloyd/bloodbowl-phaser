@@ -1,4 +1,4 @@
-import { type PendingDecision } from "../../headless/protocol";
+import { type HeadlessCommand, type PendingDecision } from "../../headless/protocol";
 import { type BlockResultType } from "../../services/BlockResolutionService";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type Candidate } from "../candidates";
@@ -360,12 +360,21 @@ function otherDecision(
       );
     case "inducement-choice":
       return inducementChoice(board, pending, candidates);
+    case "cross-assist":
+      return find((c) => lendsNobody(c.commands[0]));
     case "kickoff-event":
     case "foul-assists":
     case "reserve-move":
-    case "cross-assist":
       return null;
   }
+}
+
+function lendsNobody(command: HeadlessCommand): boolean {
+  return (
+    command.type === "lend-assists" &&
+    command.toAttacker.length === 0 &&
+    command.toDefender.length === 0
+  );
 }
 
 function isOtherDecision(
