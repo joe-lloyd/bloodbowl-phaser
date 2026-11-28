@@ -294,3 +294,49 @@ describe("block replacements", () => {
     expect(await hitWith(subject)).toEqual(block);
   });
 });
+
+function gazeBoard(teammateAG: number): HeadlessGame {
+  return game(
+    [
+      {
+        playerIndex: 0,
+        x: 11,
+        y: 3,
+        stats: { ST: 4, MA: 1 },
+        skills: [S.HYPNOTIC_GAZE],
+      },
+      { playerIndex: 1, x: 12, y: 5, stats: { ST: 3, AG: teammateAG } },
+    ],
+    [
+      { playerIndex: 0, x: 12, y: 4, stats: { ST: 3 } },
+      { playerIndex: 1, x: 15, y: 5, stats: { ST: 3 }, hasBall: true },
+      { playerIndex: 2, x: 10, y: 3, stats: { ST: 1, AV: 8 } },
+    ]
+  );
+}
+
+describe("Hypnotic Gaze against the gazer's own block", () => {
+  it("gazes the marker so a teammate who cannot dodge can blitz the carrier", async () => {
+    const subject = gazeBoard(6);
+    expect(await choose(subject)).toEqual({
+      type: "declare-action",
+      playerId: ATTACKER,
+      action: "gaze",
+    });
+    expect(await choose(subject)).toEqual(special("gaze"));
+    expect(await choose(subject)).toMatchObject({
+      type: "declare-action",
+      playerId: "team1-player-2",
+      action: "blitz",
+    });
+  });
+
+  it("lets a teammate who dodges on 2+ blitz without the gaze", async () => {
+    const subject = gazeBoard(2);
+    expect(await choose(subject)).toMatchObject({
+      type: "declare-action",
+      playerId: "team1-player-2",
+      action: "blitz",
+    });
+  });
+});
