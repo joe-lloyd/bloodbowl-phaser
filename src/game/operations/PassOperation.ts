@@ -4,14 +4,13 @@ import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type IGameService } from "../../services/interfaces/IGameService";
-import { chooseInterceptor } from "./interceptionChoice";
+import { resolveInterception } from "./interference";
 import { type Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GamePhase } from "../../types/GameState";
 import { BounceOperation } from "./BounceOperation";
 import { type BallId, ballSquare, restingBall } from "../rules/balls";
 import { CatchOperation } from "./CatchOperation";
-import { lostBallHandling, passModifier } from "../kickoff/ballConditions";
-import { interceptModifiers } from "../rules/rollPreview";
+import { passModifier } from "../kickoff/ballConditions";
 import { ArmourOperation } from "./ArmourOperation";
 import { settleOffObstacle } from "../rules/ballFlight";
 import { isOnPitch, isWallSquare } from "../rules/pitchSquares";
@@ -429,14 +428,11 @@ export class PassOperation extends GameOperation {
     } else {
       const interceptor = passCtx.suppressInterception
         ? undefined
-        : await this.resolveInterception(
-            gameService,
-            eventBus,
-            passer,
+        : await resolveInterception(context, passer, {
             target,
-            result.accurate,
-            passCtx.cloudBurster ?? false
-          );
+            accurate: result.accurate,
+            cloudBurster: passCtx.cloudBurster ?? false,
+          });
       if (interceptor?.gridPosition) {
         const at = { ...interceptor.gridPosition };
         await fly(at);
@@ -665,92 +661,6 @@ export class PassOperation extends GameOperation {
         });
       }
     }
-  }
-
-  private async resolveInterception(
-    gameService: IGameService,
-    eventBus: import("../../services/EventBus").IEventBus,
-    passer: import("@/types/Player").Player,
-    target: { x: number; y: number },
-    accurate: boolean,
-    cloudBurster: boolean
-  ): Promise<import("@/types/Player").Player | undefined> {
-    if (!passer.gridPosition) return undefined;
-
-    const passController = gameService.getPassController();
-    const opponents = gameService.getOpponents(passer.teamId);
-
-    let eligible = passController.checkInterceptions(
-      { from: passer.gridPosition,target,opponents,isAccurate: accurate }    );
-
-    if (cloudBurster) {
-      eligible = eligible.filter((e) => {
-        const p = gameService.getPlayerById(e.playerId);
-        return !!p && hasSkill(p.skills, SkillType.VERY_LONG_LEGS);
-      });
-    }
-    if (eligible.length === 0) return undefined;
-
-    const passingTeam = [passer, ...gameService.getTeammates(passer.id)];
-    const weather = gameService.getState().weather;
-    const candidates = eligible.map((e) => {
-      const interceptor = gameService.getPlayerById(e.playerId)!;
-
-      const { base, marking, total } = interceptModifiers(
-        interceptor,
-        e.modifier,
-        passingTeam,
-        weather
-      );
-      if (hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)) {
-        eventBus.emit(GameEventNames.SkillTriggered, {
-          playerId: e.playerId,
-          skill: SkillType.VERY_LONG_LEGS,
-          effect:
-            "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
-        });
-      }
-      const lostBall = lostBallHandling(gameService.getState());
-      const souvenir = souvenirModifier(
-        gameService.getState(),
-        e.playerId,
-        "intercept"
-      );
-      return {
-        playerId: e.playerId,
-        playerName: interceptor.playerName,
-        base: base + lostBall,
-        marking,
-        modifier: total + lostBall + souvenir,
-      };
-    });
-
-    const chosen = await chooseInterceptor(gameService, passer.id, candidates);
-    if (!chosen) return undefined;
-
-    const interceptor = gameService.getPlayerById(chosen.playerId)!;
-    eventBus.emit(GameEventNames.InterceptionAttempted, {
-      passerId: passer.id,
-      interceptorId: interceptor.id,
-      modifier: chosen.modifier,
-    });
-
-    const outcome = passController.attemptInterception(
-      interceptor,
-      chosen.base +
-        souvenirModifier(gameService.getState(), interceptor.id, "intercept"),
-      chosen.marking
-    );
-
-    if (!outcome.success) {
-      eventBus.emit(GameEventNames.InterceptionFailed, {
-        passerId: passer.id,
-        interceptorId: interceptor.id,
-        roll: outcome.roll,
-      });
-      return undefined;
-    }
-    return interceptor;
   }
 }
 

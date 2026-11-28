@@ -5,7 +5,7 @@ import { CatchOperation } from "./CatchOperation";
 import { d8Offset, settleOffObstacle } from "../rules/ballFlight";
 import { isOnPitch } from "../rules/pitchSquares";
 import { activeRules } from "../variants/activeMatch";
-import { type BallId, restingBall } from "../rules/balls";
+import { type BallId, ballSquare, otherBallSquare, restingBall } from "../rules/balls";
 import {
   awaitPresentation,
   nextPresentationId,
@@ -17,6 +17,12 @@ interface BounceOptions {
   kickoff?: boolean;
   bounces?: number;
   ball?: BallId;
+}
+
+function onOtherBall(state: Parameters<typeof ballSquare>[0], ball: BallId): boolean {
+  const here = ballSquare(state, ball);
+  const other = otherBallSquare(state, ball);
+  return here !== null && other !== null && here.x === other.x && here.y === other.y;
 }
 
 export class BounceOperation extends GameOperation {
@@ -119,11 +125,11 @@ export class BounceOperation extends GameOperation {
         }),
         true
       );
-    } else if (bounces > 1) {
+    } else if (bounces > 1 || onOtherBall(gameService.getState(), ball)) {
       flowManager.add(
         new BounceOperation(
           { x: newX, y: newY },
-          { kickoff: this.kickoff, bounces: bounces - 1, ball }
+          { kickoff: this.kickoff, bounces: Math.max(bounces - 1, 1), ball }
         ),
         true
       );

@@ -65,7 +65,7 @@ export class HandoffOperation extends GameOperation {
     flowManager.add(
       new CatchOperation(
         target.id,
-        { origin: "handoff" },
+        { origin: "handoff", ball },
         { passerId: passer.id, passerTeamId: passer.teamId, accurate: true }
       ),
       true

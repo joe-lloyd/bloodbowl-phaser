@@ -4,7 +4,7 @@ import { GameEventNames } from "../../types/events";
 import { type FlowContext } from "../core/GameFlowManager";
 import { type Player, hasTackleZone } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
-import { type BallId, otherBallSquare, restingBall } from "../rules/balls";
+import { type BallId, mayTakeBall, restingBall } from "../rules/balls";
 import { AgilityTestOperation } from "./AgilityTestOperation";
 import { catchModifier } from "../kickoff/ballConditions";
 import {
@@ -139,13 +139,22 @@ export class CatchOperation extends GameOperation {
 
   private mayCatch(context: FlowContext, player: Player): boolean {
     const { ball } = this.options;
-    const other =
-      ball === undefined
-        ? null
-        : otherBallSquare(context.gameService.getState(), ball);
-    const at = player.gridPosition;
-    const holdsOther = other !== null && other.x === at?.x && other.y === at.y;
-    return hasTackleZone(player) && !holdsOther;
+    const state = context.gameService.getState();
+    return (
+      hasTackleZone(player) &&
+      (ball === undefined || mayTakeBall(state, player, ball))
+    );
+  }
+
+  private bounceOn(
+    context: FlowContext,
+    player: Player,
+    at: { x: number; y: number }
+  ): BounceOperation {
+    return new BounceOperation(
+      this.options.landingPosition ?? at,
+      this.looseBall(context, player)
+    );
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -158,10 +167,7 @@ export class CatchOperation extends GameOperation {
       console.log(
         `[CatchOperation] Player ${player.playerName} has no Tackle Zone or holds the other ball and cannot catch. Bouncing.`
       );
-      flowManager.add(
-        new BounceOperation(player.gridPosition, this.looseBall(context, player)),
-        true
-      );
+      flowManager.add(this.bounceOn(context, player, player.gridPosition), true);
       return;
     }
 
@@ -204,13 +210,7 @@ export class CatchOperation extends GameOperation {
     } else {
       eventBus.emit(GameEventNames.UI_Notification, "Catch Failed!");
 
-      flowManager.add(
-        new BounceOperation(
-          this.options.landingPosition ?? player.gridPosition,
-          this.looseBall(context, player)
-        ),
-        true
-      );
+      flowManager.add(this.bounceOn(context, player, player.gridPosition), true);
     }
   }
 }

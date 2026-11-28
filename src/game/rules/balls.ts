@@ -84,12 +84,16 @@ export function ballOf(
 }
 
 export function mayTakeBall(
-  state: BallState,
-  player: Pick<Player, "gridPosition">,
+  state: BallState & Partial<Pick<GameState, "activePlayer">>,
+  player: Pick<Player, "id" | "gridPosition">,
   ball: BallId
 ): boolean {
-  const held = ballOf(state, player);
-  return held === undefined || held === ball;
+  const other = otherBallSquare(state, ball);
+  const at = player.gridPosition;
+  const holdsOther = other !== null && at !== undefined && sameSquare(other, at);
+  const active = state.activePlayer;
+  const dropped = active?.id === player.id ? active.droppedBall : undefined;
+  return !holdsOther && (dropped ?? ball) === ball;
 }
 
 export function restingBall(
