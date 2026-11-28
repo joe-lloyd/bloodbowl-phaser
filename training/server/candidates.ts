@@ -80,6 +80,15 @@ function readLayers(file: string): Layers {
   });
 }
 
+function withCurrent(given: ToolInput<"save_candidate">["layers"]): Layers {
+  const current = currentLayers();
+  return {
+    weights: given.weights,
+    rosters: given.rosters ?? current.rosters,
+    gameTypes: given.gameTypes ?? current.gameTypes,
+  };
+}
+
 export function candidateStore({ dir, now }: StoreArgs) {
   mkdirSync(dir, { recursive: true });
   const weightFile = (id: string) => path.join(dir, `${id}.json`);
@@ -118,7 +127,7 @@ export function candidateStore({ dir, now }: StoreArgs) {
     note,
     layers: given,
   }: ToolInput<"save_candidate">): Candidate => {
-    const layers = { ...currentLayers(), ...given };
+    const layers = withCurrent(given);
     checkBounds(layers);
     const file = {
       ...layers.weights,
