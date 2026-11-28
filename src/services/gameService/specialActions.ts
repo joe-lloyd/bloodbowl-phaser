@@ -1,4 +1,5 @@
 import { outsideTarget, throwPlayer } from "@/game/rules/turnSpend";
+import { activeRules } from "@/game/variants/activeMatch";
 import { markBlitzBlockUsed } from "./blockActions";
 import { isTurnRunning } from "@/game/kickoff/kickoffTurn";
 import { adjacentSquare } from "./squares";
@@ -130,9 +131,12 @@ function throwsFresh(
   return (
     active?.id === throwerId &&
     active.action === "throwTeamMate" &&
-    !state.turn.spend.thrownIds.includes(teammateId)
+    !(throwsUsePass() && state.turn.spend.thrownIds.includes(teammateId))
   );
 }
+
+const throwsUsePass = (): boolean =>
+  activeRules().format.teamMateThrowUsesPass;
 
 export function throwTeammate(
   parts: GameParts,
@@ -151,7 +155,8 @@ export function throwTeammate(
   if (!abilities) return;
   const { canThrow, canKick } = abilities;
   if (!throwsFresh(parts, throwerId, teammateId)) return;
-  parts.state.turn.spend = throwPlayer(parts.state.turn.spend, teammateId);
+  if (throwsUsePass())
+    parts.state.turn.spend = throwPlayer(parts.state.turn.spend, teammateId);
 
   const resolved: "throw" | "kick" =
     mode ?? (canKick && !canThrow ? "kick" : "throw");
