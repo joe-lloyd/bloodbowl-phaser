@@ -247,9 +247,7 @@ export async function movePlayer(
       break;
     }
 
-    const presentationId = await carryBall(run);
-
-    if (presentationId) return scoreRun(run, presentationId);
+    if (await carryBall(run)) return;
     if (picked === "secured") {
       end = "securedBall";
       break;
@@ -554,7 +552,9 @@ function takeBall(
     return "failed";
   }
 
-  run.ball = ballAt(deps.state, currentPos);
+  run.ball = deps.state.balls.find(
+    ({ at }) => at?.x === currentPos.x && at.y === currentPos.y
+  )?.id;
   if (run.ball === undefined) return undefined;
 
   placeBall(deps.state, run.ball, currentPos);
@@ -573,9 +573,9 @@ async function knockAsideOtherBall(run: MoveRun, carried: BallId): Promise<void>
   await context.flowManager.whenIdle();
 }
 
-async function carryBall(run: MoveRun): Promise<string | undefined> {
+async function carryBall(run: MoveRun): Promise<boolean> {
   const { deps, player, currentPos } = run;
-  if (run.ball === undefined) return undefined;
+  if (run.ball === undefined) return false;
   await knockAsideOtherBall(run, run.ball);
   placeBall(deps.state, run.ball, currentPos);
   deps.eventBus.emit(GameEventNames.BallPlaced, {
@@ -584,17 +584,18 @@ async function carryBall(run: MoveRun): Promise<string | undefined> {
   });
 
   const { frame } = seatOf(deps.seating, player.teamId);
-  if (!scoresAt(frame, currentPos)) return undefined;
+  if (!scoresAt(frame, currentPos)) return false;
   player.gridPosition = currentPos;
   deps.state.turn.movementUsed.set(player.id, run.preUsed + run.stepsTaken);
   if (deps.callbacks.scoreRun() === "continue") {
     await scoreAndWalkOn(run);
-    return undefined;
+    return false;
   }
 
   const presentationId = nextPresentationId("score-run");
   deps.eventBus.emit(GameEventNames.PlayerMoved, walk(run, presentationId));
-  return presentationId;
+  await scoreRun(run, presentationId);
+  return true;
 }
 
 async function scoreAndWalkOn(run: MoveRun): Promise<void> {

@@ -156,6 +156,7 @@ describe("online HUD cards", () => {
 
 const ENGINE_ONLY = new Set([
   "addTouchdown",
+  "scoreRun",
   "abandonKick",
   "announceFullTime",
   "awaitingSecondAction",
