@@ -82,8 +82,8 @@ describe("a match against the computer", () => {
   it("plays the chosen game type", () => {
     const match = createComputerMatch({
       eventBus: new EventBus(),
-      ...teams(),
-      computerTeamId: "team2",
+      teams: seated(),
+      humanTeamId: "team1",
       gameType: "street-bowl",
     });
     matches.push(match);

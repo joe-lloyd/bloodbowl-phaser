@@ -67,15 +67,17 @@ export function startNew(
       competitionContext: competitionContext,
     }),
     eventBus: new EventBus(),
-    team1: stabilizeIds(
-      createLineupTeam(RosterName.DARK_ELF, "Poin", 0xcc0000),
-      "team1"
-    ),
-    team2: stabilizeIds(
-      createLineupTeam(RosterName.HUMAN, "Ready-made", 0x0000cc),
-      "team2"
-    ),
-    computerTeamId: "team2",
+    teams: [
+      stabilizeIds(
+        createLineupTeam(RosterName.DARK_ELF, "Poin", 0xcc0000),
+        "team1"
+      ),
+      stabilizeIds(
+        createLineupTeam(RosterName.HUMAN, "Ready-made", 0x0000cc),
+        "team2"
+      ),
+    ],
+    humanTeamId: "team1",
     pace,
     autosave,
   });
@@ -88,9 +90,8 @@ export function resume(save: MatchSave) {
   rollKickoffsAtOnce(eventBus);
   match = createComputerMatch({
     eventBus,
-    team1: restored.teams[0],
-    team2: restored.teams[1],
-    computerTeamId: fixtureValue(save.computer).computerTeamId,
+    teams: restored.teams,
+    humanTeamId: "team1",
     pace: 0,
     resume: restored,
     autosave,

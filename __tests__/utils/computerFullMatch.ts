@@ -70,9 +70,8 @@ export function describeFullMatch(firstKicker: "human" | "computer"): void {
       });
       match = createComputerMatch({
         eventBus,
-        team1,
-        team2,
-        computerTeamId: team2.id,
+        teams: [team1, team2],
+        humanTeamId: team1.id,
         pace: 0,
       });
       await confirmComputerPregame(match);

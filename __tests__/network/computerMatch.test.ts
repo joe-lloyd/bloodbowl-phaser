@@ -37,6 +37,10 @@ const teams = () => ({
   team1: stabilizeIds(createLineupTeam(RosterName.HUMAN, "H", 1), "team1"),
   team2: stabilizeIds(createLineupTeam(RosterName.ORC, "O", 2), "team2"),
 });
+const seated = () => {
+  const { team1, team2 } = teams();
+  return [team1, team2] as const;
+};
 const listeners = (bus: EventBus) =>
   Object.values(GameEventNames)
     .filter((name) => name !== GameEventNames.PlayerDeselected)
@@ -47,8 +51,8 @@ describe("a match against the computer, once closed", () => {
     const eventBus = new EventBus();
     match = createComputerMatch({
       eventBus,
-      ...teams(),
-      computerTeamId: "team2",
+      teams: seated(),
+      humanTeamId: "team1",
     });
     expect(listeners(eventBus)).toBeGreaterThan(0);
     match.close();
@@ -59,8 +63,8 @@ describe("a match against the computer, once closed", () => {
     const eventBus = new EventBus();
     match = createComputerMatch({
       eventBus,
-      ...teams(),
-      computerTeamId: "team2",
+      teams: seated(),
+      humanTeamId: "team1",
     });
     const synced: unknown[] = [];
     eventBus.on(GameEventNames.UI_SyncBoard, (data) => {
@@ -76,8 +80,8 @@ describe("a match against the computer, once closed", () => {
     const eventBus = new EventBus();
     match = createComputerMatch({
       eventBus,
-      ...teams(),
-      computerTeamId: "team2",
+      teams: seated(),
+      humanTeamId: "team1",
     });
     match.close();
     const announced: unknown[] = [];
@@ -105,9 +109,8 @@ it("the computer waits for both teams, buys its own inducements and confirms bef
   team1.advancementMode = team2.advancementMode = "advanced-league";
   match = createComputerMatch({
     eventBus: new EventBus(),
-    team1,
-    team2,
-    computerTeamId: team2.id,
+    teams: [team1, team2],
+    humanTeamId: team1.id,
     pace: 0,
   });
   await vi.waitFor(() => {
@@ -160,9 +163,8 @@ describe("whose turn it is against the computer", () => {
     });
     match = createComputerMatch({
       eventBus,
-      team1,
-      team2,
-      computerTeamId: team2.id,
+      teams: [team1, team2],
+      humanTeamId: team1.id,
       coach: activatesEveryone,
       pace: 1,
     });
@@ -247,9 +249,8 @@ describe("the computer's pace", () => {
     const stopDrawing = drawsFor(eventBus, () => walk);
     match = createComputerMatch({
       eventBus,
-      team1,
-      team2,
-      computerTeamId: team2.id,
+      teams: [team1, team2],
+      humanTeamId: team1.id,
       pace: 0,
     });
     await confirmComputerPregame(match);
