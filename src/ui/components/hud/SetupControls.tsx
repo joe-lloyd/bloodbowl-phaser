@@ -360,7 +360,11 @@ function FormationTools({
         )}
       </div>
 
-      <div className={compact ? "hidden" : "flex items-stretch gap-2"}>
+      <div
+        className={
+          listsFormations(compact) ? "hidden" : "flex items-stretch gap-2"
+        }
+      >
         <input
           type="text"
           value={saveName}

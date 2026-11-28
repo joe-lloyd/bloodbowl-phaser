@@ -38,6 +38,8 @@ async function shoot(page: Page, name: string) {
 async function setUpNorth(page: Page) {
   const controls = page.getByTestId("setup-controls");
   await controls.waitFor({ timeout: 120_000 });
+  await expect(controls.getByPlaceholder("Formation name…")).toBeHidden();
+  await expect(controls.getByRole("button", { name: "SAVE" })).toBeHidden();
   await controls.getByRole("button", { name: "LOAD" }).click();
   const confirm = controls.getByRole("button", { name: "CONFIRM SETUP" });
   await expect(confirm).toBeEnabled({ timeout: 10_000 });

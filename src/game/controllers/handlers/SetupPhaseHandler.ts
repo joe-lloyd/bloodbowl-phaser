@@ -200,6 +200,13 @@ export class SetupPhaseHandler implements PhaseHandler {
 
   private saveFormation(
 { rawName,activeTeam,key,isTeam1 }: { rawName: string|undefined; activeTeam: Team; key: string; isTeam1: boolean; }  ): void {
+    if (this.arenaFormations()) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Formations are not saved on the Deathbowl arena."
+      );
+      return;
+    }
     const name = rawName?.trim();
     if (!name) {
       this.eventBus.emit(
