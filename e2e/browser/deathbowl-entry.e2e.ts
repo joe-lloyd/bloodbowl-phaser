@@ -57,12 +57,12 @@ async function playRound(page: Page, bridge: GameBridge, humanId: string) {
   return seen;
 }
 
-async function humanTurnAtRest(bridge: GameBridge, humanId: string) {
+async function humanTurnAtRest(page: Page, bridge: GameBridge, humanId: string) {
   await expect(async () => {
     const snapshot = await bridge.snapshot();
     expect(snapshot.phase).toBe(GamePhase.PLAY);
     expect(snapshot.activeTeamId).toBe(humanId);
-    expect(await bridge.pendingDecision()).toBeNull();
+    await expect(page.getByTestId("end-turn")).toBeEnabled({ timeout: 500 });
   }).toPass({ timeout: 600_000, intervals: [500] });
 }
 
@@ -102,7 +102,7 @@ test("an admin plays a Deathbowl round against three computer teams, saves and r
   await shoot(page, "phone-landscape");
   await page.setViewportSize({ width: 1280, height: 800 });
 
-  await humanTurnAtRest(bridge, humanId);
+  await humanTurnAtRest(page, bridge, humanId);
   await page.waitForTimeout(1500);
   const before = snapshotHash(await bridge.snapshot());
   const saved = await page.evaluate((key) => localStorage.getItem(key), SLOT);
@@ -110,7 +110,7 @@ test("an admin plays a Deathbowl round against three computer teams, saves and r
 
   await page.reload();
   await bridge.waitForReady(120_000);
-  await humanTurnAtRest(bridge, humanId);
+  await humanTurnAtRest(page, bridge, humanId);
   const after = snapshotHash(await bridge.snapshot());
   expect(after).toBe(before);
   await shoot(page, "resumed");
