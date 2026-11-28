@@ -33,7 +33,6 @@ import type { GameType } from "../game/variants/gameTypes";
 import type { Venue } from "../game/variants/pitchLayouts";
 import { startingFormat } from "../game/variants/startingFormat";
 import { DEATHBOWL_FORMAT } from "../game/variants/activeMatch";
-import { TOUCHDOWN_PENDING } from "../game/deathbowl/flow";
 import { type SeatedTeams } from "../game/seating";
 
 class ComputerGameService extends NetworkedGameService {
@@ -142,7 +141,6 @@ class ComputerSession {
   private readonly myTeamId: string;
   private readonly autosave: MatchAutosave | null;
   private readonly computerCoaches: ReadonlyMap<string, ReturnType<typeof createComputerCoach>>;
-  private readonly fatalListeners = new Set<(message: string) => void>();
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(options: ComputerMatchOptions) {
@@ -217,14 +215,9 @@ class ComputerSession {
       const refusal = await refusalOnceQuiet({ game: this.game, command, senderTeamId, hostTeamId: this.myTeamId });
       if (refusal) return refusal;
       const response = await this.game.execute(command);
-      if (response.reason?.includes(TOUCHDOWN_PENDING)) this.reportFatal(TOUCHDOWN_PENDING);
       if (["ready-weather", "select-inducement", "remove-inducement", "confirm-inducements", "start-setup", "coin-flip"].includes(command.type) && response.ok) this.autosave?.start();
       return response;
     });
-  }
-
-  private reportFatal(message: string): void {
-    for (const listener of this.fatalListeners) listener(message);
   }
 
   private createAutosave(): MatchAutosave | null {
@@ -292,7 +285,7 @@ class ComputerSession {
       },
       run: (command) => this.runAs(this.myTeamId, command),
       sendChat: () => undefined, onChatMessage: () => noop, chatHistory: () => [],
-      onFatalError: (listener) => { this.fatalListeners.add(listener); return () => this.fatalListeners.delete(listener); },
+      onFatalError: () => noop,
       saveState: () => undefined, setClockPaused: () => undefined,
       runProgressionCommand: (command) => this.enqueue(() => this.game.execute(command)), close: () => { this.close(); },
     };
