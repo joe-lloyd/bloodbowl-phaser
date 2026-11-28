@@ -98,6 +98,7 @@ export class CatchOperation extends GameOperation {
     passerId: string;
     passerTeamId: string;
     accurate: boolean;
+    action: "pass" | "handoff";
 
     setPiece?: boolean;
   }) | undefined;
@@ -116,6 +117,7 @@ export class CatchOperation extends GameOperation {
       passerId: string;
       passerTeamId: string;
       accurate: boolean;
+      action: "pass" | "handoff";
 
       setPiece?: boolean;
     }
@@ -202,6 +204,7 @@ export class CatchOperation extends GameOperation {
         eventBus.emit(GameEventNames.PassCompleted, {
           playerId: this.pass.passerId,
           catcherId: player.id,
+          action: this.pass.action,
           position: { ...player.gridPosition },
         });
       }

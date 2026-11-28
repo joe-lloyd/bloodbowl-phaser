@@ -4,11 +4,13 @@ import type { HeadlessCommand } from "../headless/protocol";
 import type { GameSnapshot } from "../headless/serialization";
 import { DEATHBOWL_FORMAT, keepMatchFormat } from "../game/variants/activeMatch";
 import { arenaSquad } from "../game/deathbowl/squad";
+import { placings } from "../game/deathbowl/placings";
 import { GamePhase } from "../types/GameState";
+import { GameEventNames } from "../types/events";
 import type { RosterName } from "../types/Team";
 import { type Candidate, enumerateDecision } from "./candidates";
 import type { Coach } from "./coach";
-import { createRuleMonitor, type RuleMonitor } from "./invariants";
+import { createRuleMonitor, type InvariantViolation, type RuleMonitor } from "./invariants";
 import { twoBallViolations } from "./ballInvariants";
 import { type CoachRng, createCoachRng } from "./rng";
 import {
@@ -41,7 +43,10 @@ export interface FourSeatRun {
   readonly steps: number;
   readonly final: { readonly phase: string; readonly hash: string };
   readonly touchdowns: readonly number[];
+  readonly points: readonly number[];
+  readonly places: readonly number[];
   readonly resume: ResumeCheck | null;
+  readonly replayHash: string;
   readonly findings: readonly Finding[];
 }
 
@@ -50,6 +55,8 @@ interface Run {
   readonly monitor: RuleMonitor;
   readonly rng: CoachRng;
   readonly findings: Finding[];
+  readonly commands: HeadlessCommand[];
+  readonly awarded: Record<string, number>;
   steps: number;
   refused: Set<string>;
   resume: ResumeCheck | null;
@@ -75,6 +82,42 @@ function createFourSeatGame(seed: number, rosters: FourRosters): HeadlessGame {
 
 const key = (commands: readonly HeadlessCommand[]) => JSON.stringify(commands);
 
+function pointsViolations(
+  snapshot: GameSnapshot,
+  awarded: Readonly<Record<string, number>>
+): InvariantViolation[] {
+  const points = snapshot.points ?? {};
+  return snapshot.teams
+    .filter(({ id }) => (points[id] ?? 0) !== (awarded[id] ?? 0))
+    .map(({ id }) => ({
+      rule: "points-equal-awards",
+      message: `${id} holds ${String(points[id] ?? 0)} points but was awarded ${String(awarded[id] ?? 0)}`,
+    }));
+}
+
+function seatResults(final: GameSnapshot) {
+  const tallies = final.teams.map(({ id }) => ({
+    teamId: id,
+    points: final.points?.[id] ?? 0,
+    touchdowns: final.score[id] ?? 0,
+  }));
+  const placed = placings(tallies);
+  return {
+    touchdowns: tallies.map(({ touchdowns }) => touchdowns),
+    points: tallies.map(({ points }) => points),
+    places: tallies.map(({ teamId }) => placed.find((row) => row.teamId === teamId)?.place ?? 0),
+  };
+}
+
+async function replayHash(spec: FourSeatSpec, commands: readonly HeadlessCommand[]): Promise<string> {
+  const game = createFourSeatGame(spec.seed, spec.rosters);
+  for (const command of commands) {
+    await game.execute(command);
+    keepMatchFormat(DEATHBOWL_FORMAT);
+  }
+  return snapshotHash(game.snapshot());
+}
+
 function report(run: Run, at: GameSnapshot, found: Report): void {
   run.findings.push(finding(found.kind, found.key, found.message, run.steps, at));
 }
@@ -94,6 +137,7 @@ async function play(run: Run, candidate: Candidate): Promise<void> {
     const response = await run.game.execute(command);
     keepMatchFormat(DEATHBOWL_FORMAT);
     run.steps++;
+    run.commands.push(command);
     if (!response.ok) {
       report(run, before, refusalFinding(command, response.reason, candidate.label));
       run.refused.add(key(candidate.commands));
@@ -104,6 +148,7 @@ async function play(run: Run, candidate: Candidate): Promise<void> {
     const violations = [
       ...run.monitor.observe(command, before, response.snapshot, pending),
       ...twoBallViolations(response.snapshot),
+      ...pointsViolations(response.snapshot, run.awarded),
     ];
     for (const { rule, message } of violations)
       report(run, response.snapshot, { kind: "invariant", key: rule, message });
@@ -129,8 +174,14 @@ async function step(run: Run, coach: Coach): Promise<boolean> {
   return candidate !== undefined;
 }
 
-function closingFindings(run: Run): void {
+function closingFindings(run: Run, replayed: string): void {
   const final = run.game.snapshot();
+  if (replayed !== snapshotHash(final))
+    report(run, final, {
+      kind: "invariant",
+      key: "replay-same-hash",
+      message: `the recorded commands replayed to ${replayed}, not ${snapshotHash(final)}`,
+    });
   if (final.phase !== GamePhase.GAME_OVER && run.findings.every((f) => f.kind !== "no-candidates"))
     report(run, final, {
       kind: "budget-exhausted",
@@ -156,7 +207,12 @@ export async function runFourSeatMatch(spec: FourSeatSpec): Promise<FourSeatRun>
     steps: 0,
     refused: new Set(),
     resume: null,
+    commands: [],
+    awarded: {},
   };
+  game.ctx.eventBus.on(GameEventNames.PointsAwarded, ({ teamId, points }) => {
+    run.awarded[teamId] = (run.awarded[teamId] ?? 0) + points;
+  });
   const maxCommands = spec.maxCommands ?? 8000;
   let going = true;
   while (going && run.steps < maxCommands && game.snapshot().phase !== GamePhase.GAME_OVER) {
@@ -165,14 +221,17 @@ export async function runFourSeatMatch(spec: FourSeatSpec): Promise<FourSeatRun>
       run.resume = resumeCheck(game, run.steps);
     going = await step(run, spec.coach);
   }
-  closingFindings(run);
+  const replayed = await replayHash(spec, run.commands);
+  closingFindings(run, replayed);
+  const final = game.snapshot();
   return {
     seed: spec.seed,
     rosters: spec.rosters,
     steps: run.steps,
-    final: { phase: game.snapshot().phase, hash: snapshotHash(game.snapshot()) },
-    touchdowns: game.ctx.teams.map(({ id }) => game.snapshot().score[id] ?? 0),
+    final: { phase: final.phase, hash: snapshotHash(final) },
+    ...seatResults(final),
     resume: run.resume,
+    replayHash: replayed,
     findings: run.findings,
   };
 }

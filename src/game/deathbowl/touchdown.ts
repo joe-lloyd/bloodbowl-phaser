@@ -16,6 +16,7 @@ import { type FourSeating, playerAt } from "../seating";
 import { activeLayout } from "../variants/activeMatch";
 import type { Square } from "../variants/pitchLayouts";
 import { centreSquare } from "./openingBalls";
+import { awardPoints } from "./points";
 
 const otherBall = (ball: BallId): BallId => (ball === 0 ? 1 : 0);
 
@@ -36,6 +37,7 @@ function countTouchdown(parts: GameParts, scorer: Player): void {
   const { state, eventBus } = parts;
   const { teamId } = scorer;
   state.score[teamId] = (state.score[teamId] ?? 0) + 1;
+  awardPoints(parts, scorer, "touchdown");
   eventBus.emit(GameEventNames.Touchdown, {
     teamId,
     score: state.score[teamId],

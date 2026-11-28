@@ -66,7 +66,12 @@ export class HandoffOperation extends GameOperation {
       new CatchOperation(
         target.id,
         { origin: "handoff", ball },
-        { passerId: passer.id, passerTeamId: passer.teamId, accurate: true }
+        {
+          passerId: passer.id,
+          passerTeamId: passer.teamId,
+          accurate: true,
+          action: "handoff",
+        }
       ),
       true
     );

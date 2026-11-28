@@ -295,8 +295,9 @@ export class ThrowTeammateOperation extends GameOperation {
     ) {
       delete teammate.gridPosition;
       context.flowManager.add(
-        new CrowdInjuryOperation(teammate.id, { ...landing }, false, {
-          carriedBall: carriesBall,
+        new CrowdInjuryOperation(teammate.id, { ...landing }, {
+          isTurnover: false,
+          trapdoor: { carriedBall: carriesBall },
         }),
         true
       );
@@ -614,13 +615,10 @@ export class ThrowTeammateOperation extends GameOperation {
     delete teammate.gridPosition;
     if (carriesBall) gameService.placeBall(ball, exitSquare);
     context.flowManager.add(
-      new CrowdInjuryOperation(
-        teammate.id,
-        { ...exitSquare },
-        true,
-        undefined,
-        carriesBall
-      ),
+      new CrowdInjuryOperation(teammate.id, { ...exitSquare }, {
+        isTurnover: true,
+        carriedBall: carriesBall,
+      }),
       true
     );
   }

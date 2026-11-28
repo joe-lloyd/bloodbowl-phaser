@@ -119,7 +119,7 @@ describe("MatchResultsScreen", () => {
               cause: "dodge",
               vacatedSquare: { x: 9, y: 5 },
             })
-          : new CrowdInjuryOperation(fixtureValue(player).id, { x: 0, y: 5 }, false)
+          : new CrowdInjuryOperation(fixtureValue(player).id, { x: 0, y: 5 }, { isTurnover: false })
       );
       await flow.whenIdle();
       await h.render();

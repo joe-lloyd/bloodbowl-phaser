@@ -175,6 +175,7 @@ describe("match SPP tracking", () => {
     bus.emit(GameEventNames.PassCompleted, {
       playerId: scorer.id,
       catcherId: "p3",
+      action: "pass",
       position: { x: 1, y: 1 },
     });
     bus.emit(GameEventNames.PlayerCasualtyInflicted, {

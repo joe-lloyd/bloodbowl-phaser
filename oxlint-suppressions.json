@@ -4018,11 +4018,6 @@
       "count": 1
     }
   },
-  "src/game/operations/CrowdInjuryOperation.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/game/operations/EndDriveOperations.ts": {
     "no-implicit-coercion": {
       "count": 1
@@ -5330,10 +5325,7 @@
       "count": 5
     },
     "typescript/no-non-null-assertion": {
-      "count": 6
-    },
-    "typescript/no-unnecessary-condition": {
-      "count": 1
+      "count": 4
     }
   },
   "src/simulation/lineups.ts": {

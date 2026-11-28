@@ -119,21 +119,36 @@ function ballChecks(
     );
   }
 
-  if (
-    after.phase !== GamePhase.PLAY ||
-    !after.ballPosition ||
-    decisionPending
-  )
-    return;
-  const holder = occupied.get(
-    `${String(after.ballPosition.x)},${String(after.ballPosition.y)}`
-  );
-  if (holder && holder.status !== PlayerStatus.ACTIVE) {
-    fail(
-      "downed-player-holds-ball",
-      `${where(holder)} is ${holder.status} with the ball`
-    );
+  if (after.phase !== GamePhase.PLAY || decisionPending) return;
+  for (const ball of ballSquares(after)) {
+    const holder = ball && occupied.get(`${String(ball.x)},${String(ball.y)}`);
+    if (holder && holder.status !== PlayerStatus.ACTIVE) {
+      fail(
+        "downed-player-holds-ball",
+        `${where(holder)} is ${holder.status} with the ball`
+      );
+    }
   }
+}
+
+function ballSquares(snapshot: GameSnapshot) {
+  return [snapshot.ballPosition, ...(snapshot.extraBalls ?? [])];
+}
+
+interface Passing {
+  readonly team: string;
+  readonly ball: number;
+}
+
+function passedBall(command: HeadlessCommand, before: GameSnapshot): number {
+  if (command.type !== "pass" && command.type !== "handoff") return 0;
+  const passer = before.teams
+    .flatMap((t) => t.players)
+    .find((p) => p.id === command.playerId)?.position;
+  const index = ballSquares(before).findIndex(
+    (ball) => ball?.x === passer?.x && ball?.y === passer?.y
+  );
+  return Math.max(index, 0);
 }
 
 function turnChecks(
@@ -221,19 +236,20 @@ function blitzBlockCheck(
 
 function passTurnoverCheck(
   command: HeadlessCommand,
-  team: string,
+  { team, ball }: Passing,
   after: GameSnapshot,
   fail: Fail
 ): void {
   const stillTheirTurn =
     after.phase === GamePhase.PLAY && after.activeTeamId === team;
-  const holder = after.ballPosition
+  const at = ballSquares(after)[ball];
+  const holder = at
     ? after.teams
         .flatMap((t) => t.players)
         .find(
           (p) =>
-            p.position?.x === after.ballPosition!.x &&
-            p.position?.y === after.ballPosition!.y &&
+            p.position?.x === at.x &&
+            p.position.y === at.y &&
             p.status === PlayerStatus.ACTIVE
         )
     : undefined;
@@ -272,7 +288,7 @@ function movementChecks(
 export function createRuleMonitor(): RuleMonitor {
   const blitzBlocks = new Map<string, number>();
 
-  let passingTeam: string | null = null;
+  let passing: Passing | null = null;
 
   return {
     observe(command, before, after, decisionPending) {
@@ -283,12 +299,15 @@ export function createRuleMonitor(): RuleMonitor {
 
       blitzBlockCheck(command, before, blitzBlocks, fail);
 
-      if (command.type === "pass" || command.type === "handoff") {
-        passingTeam = before.activeTeamId;
+      if (
+        (command.type === "pass" || command.type === "handoff") &&
+        before.activeTeamId
+      ) {
+        passing = { team: before.activeTeamId, ball: passedBall(command, before) };
       }
-      if (passingTeam && !decisionPending) {
-        passTurnoverCheck(command, passingTeam, after, fail);
-        passingTeam = null;
+      if (passing && !decisionPending) {
+        passTurnoverCheck(command, passing, after, fail);
+        passing = null;
       }
 
       movementChecks(before, after, fail);

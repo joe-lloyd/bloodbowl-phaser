@@ -4,6 +4,7 @@ import { ballOf, ballSquare, placeBall } from "../../src/game/rules/balls";
 import { BounceOperation } from "../../src/game/operations/BounceOperation";
 import { CatchOperation } from "../../src/game/operations/CatchOperation";
 import { interferenceOrder } from "../../src/game/operations/interference";
+import { createRuleMonitor } from "../../src/simulation/invariants";
 import { type Player, PlayerStatus } from "../../src/types/Player";
 import { getSkill, SkillType } from "../../src/types/Skills";
 import {
@@ -122,6 +123,38 @@ describe("a player holds at most one ball (DB-B1)", () => {
 
     expect(balls(game)).toEqual([{ x: 9, y: 8 }, { x: 10, y: 10 }]);
     expect(ballOf(stateOf(game), dropper)).toBeUndefined();
+  });
+
+  it("bounces both balls off a carrier who fails a Leap onto the other ball", async () => {
+    const game = await northWithBallsAside();
+    const leaper = stand(game, ["seat0", 0], { at: { x: 10, y: 8 }, ball: 1 });
+    leaper.skills = [getSkill(SkillType.LEAP)];
+    leaper.stats.AG = 6;
+    placeBall(stateOf(game), 0, { x: 10, y: 10 });
+    rig(game, [3, 1, 5]);
+
+    await play(game, { type: "declare-action", playerId: leaper.id, action: "move" });
+    await play(game, { type: "jump", playerId: leaper.id, x: 10, y: 10 });
+
+    expect(leaper).toMatchObject({ gridPosition: { x: 10, y: 10 }, status: PlayerStatus.PRONE });
+    expect(balls(game)).toEqual([{ x: 11, y: 10 }, { x: 9, y: 9 }]);
+  });
+});
+
+describe("the rule monitor follows the ball that moved (DB-B1)", () => {
+  it("accepts a caught hand-off of one ball while the other lies loose", async () => {
+    const game = await northWithBallsAside();
+    const carrier = stand(game, ["seat0", 0], { at: { x: 10, y: 8 }, ball: 1 });
+    const target = stand(game, ["seat0", 1], { at: { x: 10, y: 9 } });
+    const monitor = createRuleMonitor();
+    rig(game, [6]);
+    await play(game, { type: "declare-action", playerId: carrier.id, action: "handoff" });
+    const command = { type: "handoff", playerId: carrier.id, targetId: target.id } as const;
+    const before = game.snapshot();
+    const after = await play(game, command);
+
+    expect(ballOf(stateOf(game), target)).toBe(1);
+    expect(monitor.observe(command, before, after.snapshot, false)).toEqual([]);
   });
 });
 

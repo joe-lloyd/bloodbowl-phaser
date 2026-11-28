@@ -238,6 +238,7 @@ export class InjuryOperation extends InjuryPartiesOperation {
       rollType: `Injury Roll (${player.playerName})`,
       diceTeamId: player.teamId,
       ...(this.opts.stunnedToReserves && { stunnedToReserves: true }),
+      ...(this.opts.causedById !== undefined && { causerId: this.opts.causedById }),
     });
   }
 

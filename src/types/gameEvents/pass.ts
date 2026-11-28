@@ -32,6 +32,7 @@ export interface PassGameEvents {
   [GameEventNames.PassCompleted]: {
     playerId: string;
     catcherId: string;
+    action: "pass" | "handoff";
     position: { x: number; y: number };
   };
 

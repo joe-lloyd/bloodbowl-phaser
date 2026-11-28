@@ -198,7 +198,7 @@ function fallOnRush(jump: JumpRun): void {
   fallOver(deps, {
     player,
     square: jump.from,
-    bouncing: jump.ball,
+    carried: jump.ball,
     context: jump.context,
     slip: { cause: "rush" },
     reason: "Failed Rush",
@@ -335,7 +335,7 @@ function fallFromJump(jump: JumpRun, roll: number): void {
   fallOver(deps, {
     player,
     square: fallSquare,
-    bouncing: jump.ball ?? ballAt(deps.state, fallSquare),
+    carried: jump.ball,
     context: jump.context,
     reason: "Failed Jump",
   });

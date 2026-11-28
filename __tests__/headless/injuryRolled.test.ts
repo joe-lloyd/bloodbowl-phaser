@@ -76,7 +76,7 @@ describe("InjuryRolled", () => {
     forceDice(game.ctx.rng, [6, 6]);
     const { flowManager } = game.ctx.gameService.getFlowContext();
     await flowManager.runToRest(
-      new CrowdInjuryOperation(fixtureValue(victim).id, { x: 11, y: 0 }, false)
+      new CrowdInjuryOperation(fixtureValue(victim).id, { x: 11, y: 0 }, { isTurnover: false })
     );
 
     expect(reported).toEqual([

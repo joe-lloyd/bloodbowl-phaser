@@ -170,7 +170,7 @@ describe("Sevens Apothecary decision", () => {
 
     await runUntilSettledOrDecision(
       game,
-      new CrowdInjuryOperation(fixtureValue(player).id, { x: 0, y: 0 }, false)
+      new CrowdInjuryOperation(fixtureValue(player).id, { x: 0, y: 0 }, { isTurnover: false })
     );
     const pending = game.pendingDecision();
     expect(pending?.type).toBe("apothecary");

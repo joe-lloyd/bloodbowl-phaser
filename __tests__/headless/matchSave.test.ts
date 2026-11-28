@@ -181,6 +181,7 @@ describe("resumable match save", () => {
     game.eventBus.emit(GameEventNames.PassCompleted, {
       playerId: fixtureValue(passer).id,
       catcherId: fixtureValue(catcher).id,
+      action: "pass",
       position: { x: 1, y: 1 },
     });
 
@@ -188,6 +189,7 @@ describe("resumable match save", () => {
     resumed.eventBus.emit(GameEventNames.PassCompleted, {
       playerId: fixtureValue(passer).id,
       catcherId: fixtureValue(catcher).id,
+      action: "pass",
       position: { x: 2, y: 1 },
     });
 

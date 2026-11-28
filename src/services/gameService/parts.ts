@@ -1,7 +1,9 @@
 import {
   activateStateFormat,
   activeLayout,
+  activeRules,
 } from "@/game/variants/activeMatch";
+import { bindPoints } from "@/game/deathbowl/points";
 import { everyone, type Seating, seatTeams } from "@/game/seating";
 import type { GameService } from "../GameService";
 import { type IEventBus } from "../EventBus.js";
@@ -102,6 +104,7 @@ export function createGameParts(options: PartOptions): GameParts {
   );
   const kickoffManagers = makeKickoffManagers(core, options.delay, turnManager);
   bindPartEvents(core, () => parts);
+  if (activeRules().format.result === "points") bindPoints(core);
   bindPotionHooks(core.eventBus, () => parts);
   let flow: MatchFlow | undefined;
   const parts: GameParts = {
