@@ -25,7 +25,7 @@
 - [x] 2.3 Continuous touchdowns: re-entry (DB-F2, DB-F3), Knock-out rolls and reserve moves (DB-F4), Secret Weapons (DB-F6). Landed in [#379](https://github.com/joe-lloyd/bloodbowl-phaser/pull/379).
 - [x] 2.4 Contact and ball rules across teams: cross-team assists (DB-A4), per-team Blitz and Foul (DB-A1, DB-A2), Pass and Hand-off limits, No Hands for the other ball (DB-B1), pass targets and paths (DB-B2), interception order (DB-B3). Landed in [#381](https://github.com/joe-lloyd/bloodbowl-phaser/pull/381), [#382](https://github.com/joe-lloyd/bloodbowl-phaser/pull/382) and [#386](https://github.com/joe-lloyd/bloodbowl-phaser/pull/386).
 - [x] 2.5 Points: causer ids on contact events, `state.points`, the observer (DB-R1). Landed in [#385](https://github.com/joe-lloyd/bloodbowl-phaser/pull/385).
-- [ ] 2.6 Four-seat simulation: `pnpm sim --game-type deathbowl`, invariants for two balls and four seats, random-coach fuzz with zero findings.
+- [x] 2.6 Four-seat simulation: `pnpm sim --game-type deathbowl`, invariants for two balls and four seats, random-coach fuzz with zero findings. Landed as `pnpm sim four-seat` in [#377](https://github.com/joe-lloyd/bloodbowl-phaser/pull/377), [#382](https://github.com/joe-lloyd/bloodbowl-phaser/pull/382) and [#385](https://github.com/joe-lloyd/bloodbowl-phaser/pull/385): 50 of 50 random-coach matches reach full time with zero findings, and each resumes and replays to the same hash.
 
 ## 3. Computer coach
 
