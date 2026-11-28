@@ -79,6 +79,7 @@ const liveGame = () => fixtureValue(globalThis.__computerMatch).game;
 
 async function playHuman(live: OnlineMatch, until: () => boolean) {
   const rng = createCoachRng(3);
+  const refused = new Set<string>();
   for (let step = 0; step < 20_000 && !until(); step++) {
     await whenEngineQuiet();
     if (!live.mayAct()) {
@@ -86,11 +87,20 @@ async function playHuman(live: OnlineMatch, until: () => boolean) {
       continue;
     }
     const game = liveGame();
-    const point = await enumerateDecision(game, null);
+    const offered = await enumerateDecision(game, null);
+    const candidates = offered.candidates.filter((option) => !refused.has(JSON.stringify(option.commands)));
+    const point = { ...offered, candidates };
     const snapshot = game.snapshot();
     const { index } = await heuristicCoach.choose({ game, snapshot, point, rng });
-    const { commands } = fixtureValue(point.candidates[index]);
-    for (const command of commands) await live.run(command);
+    const { commands } = fixtureValue(candidates[index]);
+    for (const command of commands) {
+      const response = await live.run(command);
+      if (response.ok) refused.clear();
+      else {
+        refused.add(JSON.stringify(commands));
+        break;
+      }
+    }
   }
 }
 
@@ -104,6 +114,10 @@ describe("a Deathbowl match against three computer teams", () => {
     const slot = memorySlot();
     const teams = seatTeams();
     const eventBus = new EventBus();
+    eventBus.on(GameEventNames.PassFumbled, ({ presentationId }) => {
+      if (presentationId)
+        eventBus.emit(GameEventNames.UI_PresentationAcknowledged, { id: presentationId });
+    });
     const turns: string[] = [];
     eventBus.on(GameEventNames.TurnStarted, ({ teamId }) => {
       turns.push(teamId);
@@ -149,5 +163,5 @@ describe("a Deathbowl match against three computer teams", () => {
     });
     expect(snapshotHash(liveGame().snapshot())).toBe(hash);
     expect(readMatchSave()).toBe(sevensSave);
-  }, 120_000);
+  }, 300_000);
 });

@@ -54,8 +54,10 @@ describe("carrier marker across the touchdown reset", () => {
       busSubscriptions: [],
       sys: { settings: { status: 5, key: "GameScene" } },
       gameService: { getState: () => state },
-      team1: { id: "team1", players: [scorer] },
-      team2: { id: "team2", players: [defender] },
+      seatedTeams: [
+        { id: "team1", players: [scorer] },
+        { id: "team2", players: [defender] },
+      ],
       playerSprites: new Map([
         ["scorer", fakeSprite()],
         ["defender", fakeSprite()],

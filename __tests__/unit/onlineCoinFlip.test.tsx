@@ -94,10 +94,10 @@ const match = {
   role: "guest",
   myTeamId: "away",
   opponentName: "Coach-HOST",
-  teams: {
-    team1: { id: "home", name: "Reikland Reavers" },
-    team2: { id: "away", name: "Gouged Eye" },
-  },
+  teams: [
+    { id: "home", name: "Reikland Reavers" },
+    { id: "away", name: "Gouged Eye" },
+  ],
 } as unknown as OnlineMatch;
 
 const lobby = (coinFlip: LobbyDoc["coinFlip"]) =>
