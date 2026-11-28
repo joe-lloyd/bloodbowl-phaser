@@ -56,6 +56,7 @@ describe("a pair of teams with one ball", () => {
       expect(maySpend(ledger, { kind })).toBe(false);
     }
     expect(ledger).toEqual({
+      ...freshSpend(),
       blitzed: ["away"],
       fouled: ["away"],
       passes: 1,
@@ -144,6 +145,7 @@ describe("the wire", () => {
     };
 
     expect(spendFromWire(wire, ["away"])).toEqual({
+      ...freshSpend(),
       blitzed: ["away"],
       fouled: [],
       passes: 1,
@@ -160,6 +162,7 @@ describe("the wire", () => {
 
     expect(wire.hasBlitzed).toBe(true);
     expect(spendFromWire(wire, ["east", "south", "west"])).toEqual({
+      ...freshSpend(),
       blitzed: ["east", "west"],
       fouled: [],
       passes: 0,

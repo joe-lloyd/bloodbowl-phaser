@@ -103,6 +103,27 @@ function reserveCandidates(
   return [...moves, one({ type: "keep-reserves" }, "Keep the rest in reserve")];
 }
 
+const lend = (toAttacker: string[], toDefender: string[]): HeadlessCommand => ({
+  type: "lend-assists",
+  toAttacker,
+  toDefender,
+});
+
+function crossAssistCandidates(
+  pending: Extract<PendingDecision, { type: "cross-assist" }>,
+  name: (id: string) => string
+): Candidate[] {
+  const lends = pending.offers.flatMap(({ playerId, sides }) =>
+    sides.map((side) =>
+      one(
+        side === "attacker" ? lend([playerId], []) : lend([], [playerId]),
+        `${name(playerId)} assists the ${side}`
+      )
+    )
+  );
+  return [...lends, one(lend([], []), "Lend no assist")];
+}
+
 export async function enumerateDecision(
   game: HeadlessGame,
   kickingTeamId: string | null
@@ -333,6 +354,8 @@ function decisionCandidates(
       return kickoffChoiceCandidates(game, pending);
     case "reserve-move":
       return reserveCandidates(pending, name);
+    case "cross-assist":
+      return crossAssistCandidates(pending, name);
   }
 }
 
@@ -594,31 +617,57 @@ function kickoffCandidates(
   return out;
 }
 
+function targetsFor(entry: PlayerActions, action: ActionType): readonly (string | undefined)[] {
+  const { against } = entry;
+  if (!against) return [undefined];
+  if (action === "blitz") return against.blitz;
+  return action === "foul" ? against.foul : [undefined];
+}
+
+function declaring(
+  player: Player,
+  action: ActionType,
+  against: string | undefined
+): Candidate {
+  const versus = against === undefined ? "" : ` against ${against}`;
+  return {
+    kind: "declare",
+    commands: [
+      {
+        type: "declare-action",
+        playerId: player.id,
+        action,
+        ...(against !== undefined && { against }),
+      },
+    ],
+    label: `${describePlayer(player)} declares ${action}${versus}`,
+  };
+}
+
 function declareCandidates(player: Player, entry: PlayerActions): Candidate[] {
   const out: Candidate[] = [];
   for (const action of entry.actions) {
     if (!SUPPORTED_DECLARATIONS.has(action)) continue;
-    out.push({
-      kind: "declare",
-      commands: [{ type: "declare-action", playerId: player.id, action }],
-      label: `${describePlayer(player)} declares ${action}`,
-    });
+    for (const against of targetsFor(entry, action))
+      out.push(declaring(player, action, against));
   }
   const replacements = entry.replacementActions ?? [];
   for (const replacement of replacements) {
     if (!replacement.blitz) continue;
-    out.push({
-      kind: "declare",
-      commands: [
-        {
-          type: "declare-action",
-          playerId: player.id,
-          action: "blitz",
-          blockReplacement: replacement.blockReplacement,
-        },
-      ],
-      label: `${describePlayer(player)} declares ${replacement.label}`,
-    });
+    for (const against of targetsFor(entry, "blitz"))
+      out.push({
+        kind: "declare",
+        commands: [
+          {
+            type: "declare-action",
+            playerId: player.id,
+            action: "blitz",
+            blockReplacement: replacement.blockReplacement,
+            ...(against !== undefined && { against }),
+          },
+        ],
+        label: `${describePlayer(player)} declares ${replacement.label}`,
+      });
   }
   return out;
 }

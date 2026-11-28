@@ -1,3 +1,4 @@
+import { freshSpend } from "../../src/game/rules/turnSpend";
 import { spend } from "../../src/game/rules/turnSpend";
 import { parseJson } from "../../src/boundary/json";
 import { gameSnapshotSchema } from "../../src/boundary/schemas/GameSnapshot";
@@ -162,6 +163,7 @@ describe("game state serialization", () => {
     );
 
     expect(restored.turn.spend).toEqual({
+      ...freshSpend(),
       blitzed: [game.teams[1].id],
       fouled: [],
       passes: 0,

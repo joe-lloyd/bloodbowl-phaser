@@ -206,6 +206,26 @@ export interface ReserveMoveDecisionAnswer {
   move: { playerId: string; square: { x: number; y: number } } | null;
 }
 
+export type AssistSide = "attacker" | "defender";
+
+export interface CrossAssistOffer {
+  playerId: string;
+  sides: AssistSide[];
+}
+
+export interface CrossAssistDecisionRequest {
+  type: "cross-assist";
+  chooserTeamId: string;
+  attackerId: string;
+  defenderId: string;
+  action: "block" | "foul";
+  offers: CrossAssistOffer[];
+}
+
+export interface CrossAssistDecisionAnswer {
+  pledges: { playerId: string; side: AssistSide }[];
+}
+
 export type DecisionRequest =
   | RerollDecisionRequest
   | ReactionDecisionRequest
@@ -214,7 +234,8 @@ export type DecisionRequest =
   | ApothecaryDecisionRequest
   | InducementChoiceDecisionRequest
   | FoulAssistsDecisionRequest
-  | ReserveMoveDecisionRequest;
+  | ReserveMoveDecisionRequest
+  | CrossAssistDecisionRequest;
 export type DecisionAnswer =
   | RerollDecisionAnswer
   | ReactionDecisionAnswer
@@ -223,4 +244,5 @@ export type DecisionAnswer =
   | ApothecaryDecisionAnswer
   | InducementChoiceDecisionAnswer
   | FoulAssistsDecisionAnswer
-  | ReserveMoveDecisionAnswer;
+  | ReserveMoveDecisionAnswer
+  | CrossAssistDecisionAnswer;

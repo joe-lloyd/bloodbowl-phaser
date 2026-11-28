@@ -6,7 +6,7 @@ export const DefensiveRule: SkillRule = {
     if (self.id === ctx.assister.id) return;
     if (ctx.negated) return;
 
-    if (ctx.activeTeamId !== ctx.assister.teamId) return;
+    if (ctx.activeTeamId === null || ctx.activeTeamId === self.teamId) return;
 
     ctx.negated = true;
     ctx.triggers.push({

@@ -1,3 +1,4 @@
+import { outsideTarget } from "@/game/rules/turnSpend";
 import { kickoffTurnOf } from "@/game/kickoff/kickRecord";
 import { isBallAt } from "@/game/managers/movementShared";
 import { ballAt, placeBall } from "@/game/rules/balls";
@@ -25,7 +26,7 @@ import { rushSucceeds } from "./rush";
 function isStandingOpponent(
   player: Player,
   other: Player | undefined
-): boolean {
+): other is Player {
   return (
     !!other &&
     other.teamId !== player.teamId &&
@@ -261,8 +262,11 @@ function blockRefusal(
   const blocker = parts.game.getPlayerById(attackerId);
   if (blocker?.status !== PlayerStatus.ACTIVE)
     return "A prone or stunned player cannot block!";
-  if (!isStandingOpponent(blocker, parts.game.getPlayerById(defenderId)))
+  const defender = parts.game.getPlayerById(defenderId);
+  if (!isStandingOpponent(blocker, defender))
     return "Only a Standing opponent can be Blocked.";
+  if (outsideTarget(parts.state.activePlayer, defender.teamId))
+    return "This Blitz was declared against another team.";
   return null;
 }
 

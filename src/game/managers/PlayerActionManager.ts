@@ -14,6 +14,7 @@ import { SkillType, hasSkill } from "@/types/Skills";
 import { foulSpent, spendMeasure } from "../inducements/matchInducements";
 import { mustRedeclare } from "../rules/awaitingDeclaration";
 import { DesperateMeasure } from "../inducements/desperateMeasures";
+import { activeRules } from "../variants/activeMatch";
 
 export type CommitReason =
   | "movement"
@@ -165,14 +166,14 @@ export class PlayerActionManager {
     action: ActionType,
     against?: string
   ): boolean {
+    const declaration = this.declarationOf(playerId, action, against);
+    if (declaration) return this.mayDeclare(playerId, declaration);
     switch (action) {
       case "blitz":
       case "pass":
       case "handoff":
-      case "foul": {
-        const declaration = this.declarationOf(playerId, action, against);
-        return !!declaration && this.mayDeclare(playerId, declaration);
-      }
+      case "foul":
+        return false;
       case "throwTeamMate":
         return this.teamMateThrowLimit(playerId) !== null;
       case "throwBomb":
@@ -203,6 +204,13 @@ export class PlayerActionManager {
     return null;
   }
 
+  private throwUsesPass(playerId: string): boolean {
+    return (
+      activeRules().format.teamMateThrowUsesPass &&
+      this.teamMateThrowLimit(playerId) === "hasThrownTeamMate"
+    );
+  }
+
   private mayDeclare(playerId: string, declaration: Declaration): boolean {
     if (declaration.kind !== "foul") {
       return maySpend(this.state.turn.spend, declaration);
@@ -217,6 +225,9 @@ export class PlayerActionManager {
     against: string | undefined
   ): Declaration | undefined {
     if (action === "pass" || action === "handoff") return { kind: action };
+    if (action === "throwTeamMate" && this.throwUsesPass(playerId)) {
+      return { kind: "pass" };
+    }
     if (action !== "blitz" && action !== "foul") return undefined;
     const mover = this.getPlayer(playerId);
     const target = mover && targetOf(this.seating, mover.teamId, against);
@@ -226,7 +237,11 @@ export class PlayerActionManager {
   private updateTurnFlags(active: ActivePlayer): void {
     const turn = this.state.turn;
     const declaration = this.declarationOf(active.id, active.action, active.against);
-    if (declaration) turn.spend = spend(turn.spend, declaration);
+    if (declaration) {
+      turn.spend = spend(turn.spend, declaration);
+      this.emitTurnFlags();
+      return;
+    }
     switch (active.action) {
       case "throwTeamMate": {
         const limit = this.teamMateThrowLimit(active.id);

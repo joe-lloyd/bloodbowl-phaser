@@ -1,56 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import type { HeadlessGame } from "../../src/headless/HeadlessGame";
-import type { HeadlessCommand } from "../../src/headless/protocol";
 import { ballSquare, placeBall } from "../../src/game/rules/balls";
 import { movePlayerToBox } from "../../src/game/rules/playerLocation";
-import { seatOf } from "../../src/game/seating";
 import { type Player, PlayerStatus } from "../../src/types/Player";
 import { getSkill, SkillType } from "../../src/types/Skills";
-import { deathbowlGame, rig, setUpSeat } from "../utils/deathbowlGame";
-
-interface Square {
-  x: number;
-  y: number;
-}
-
-const PARKED = { x: 10, y: 12 };
-
-async function northToPlay(): Promise<HeadlessGame> {
-  const game = deathbowlGame();
-  for (let seat = 0; seat < 3; seat++) await setUpSeat(game);
-  rig(game, [7, 2, 6, 1, 1, 1]);
-  await setUpSeat(game);
-  placeBall(game.ctx.gameService.getState(), 1, PARKED);
-  return game;
-}
-
-const stateOf = (game: HeadlessGame) => game.ctx.gameService.getState();
-
-function fielded(game: HeadlessGame, teamId: string): Player[] {
-  const { team } = seatOf(game.ctx.gameService.getSeating(), teamId);
-  return team.players.filter((player) => player.gridPosition);
-}
-
-function fieldedAt(game: HeadlessGame, teamId: string, index: number): Player {
-  const player = fielded(game, teamId)[index];
-  if (!player) throw new Error(`${teamId} has no fielded player ${String(index)}.`);
-  return player;
-}
-
-function put(
-  game: HeadlessGame,
-  player: Player,
-  { at, ball }: { at: Square; ball?: 0 | 1 }
-): void {
-  movePlayerToBox(player, { box: "pitch", position: at });
-  if (ball !== undefined) placeBall(stateOf(game), ball, at);
-}
-
-async function play(game: HeadlessGame, command: HeadlessCommand) {
-  const response = await game.execute(command);
-  if (!response.ok) throw new Error(`${command.type}: ${String(response.reason)}`);
-  return response;
-}
+import {
+  type Square,
+  fielded,
+  fieldedAt,
+  northToPlay,
+  play,
+  put,
+  rig,
+  stateOf,
+} from "../utils/deathbowlGame";
 
 async function northScores(
   game: HeadlessGame,

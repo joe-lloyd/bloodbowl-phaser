@@ -49,6 +49,15 @@ const bombers = scenario(
   { x: 15, y: 9 }
 );
 
+const kickAfterThrow = scenario(
+  [
+    { playerIndex: 0, x: 10, y: 9 },
+    { playerIndex: 3, x: 5, y: 8, skills: [SkillType.RIGHT_STUFF] },
+    { playerIndex: 5, x: 4, y: 8, skills: [SkillType.KICK_TEAM_MATE] },
+  ],
+  { x: 10, y: 9 }
+);
+
 const SEED = 5;
 
 async function run(game: HeadlessGame, command: HeadlessCommand) {
@@ -101,6 +110,27 @@ describe("once-per-Turn special throws", () => {
     expect(fourthDeclared.ok).toBe(false);
     const fifthDeclared = await declare(game, 5, "throwTeamMate");
     expect(fifthDeclared.ok).toBe(true);
+  });
+
+  it("lets a Kick Team-mate launch a player already thrown this Turn on a two-team pitch", async () => {
+    const game = new HeadlessGame({ scenario: kickAfterThrow, seed: SEED });
+    const state = game.ctx.gameService.getState();
+    state.turn.spend = { ...state.turn.spend, thrownIds: [id(3)] };
+    const declared = await declare(game, 5, "throwTeamMate");
+    expect(declared.ok).toBe(true);
+
+    const kicked = await run(game, {
+      type: "throw-teammate",
+      throwerId: id(5),
+      teammateId: id(3),
+      x: 9,
+      y: 8,
+      mode: "kick",
+    });
+    const rolls = kicked.events
+      .filter((event) => event.name === "diceRoll")
+      .map((event) => JSON.stringify(event.data));
+    expect(rolls.some((roll) => roll.includes("Kick Team-mate"))).toBe(true);
   });
 
   it("refuses a Move after declaring Throw Bomb", async () => {

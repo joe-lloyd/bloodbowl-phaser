@@ -169,6 +169,7 @@ describe("drive reset", () => {
         }
       }
       state.turn.spend = {
+        ...freshSpend(),
         blitzed: [team2.id],
         fouled: [team2.id],
         passes: 0,

@@ -1,3 +1,5 @@
+import { outsideTarget, throwPlayer } from "@/game/rules/turnSpend";
+import { activeRules } from "@/game/variants/activeMatch";
 import { markBlitzBlockUsed } from "./blockActions";
 import { isTurnRunning } from "@/game/kickoff/kickoffTurn";
 import { adjacentSquare } from "./squares";
@@ -46,6 +48,21 @@ function requiredSkill(kind: SpecialAction): SkillType {
   return SPECIAL_ACTION_SKILL[kind] ?? SkillType.MONSTROUS_MOUTH;
 }
 
+function foulTargetRefusal(
+  parts: GameParts,
+  fouler: Player,
+  at: { x: number; y: number }
+): string | null {
+  const target = parts.game.getPlayerAt(at.x, at.y);
+  if (target && outsideTarget(parts.state.activePlayer, target.teamId)) {
+    return `${fouler.playerName} declared this Foul against another team.`;
+  }
+  if (!adjacentSquare(fouler.gridPosition, at)) {
+    return `${fouler.playerName} must stand next to the player to Foul them.`;
+  }
+  return null;
+}
+
 export async function foulPlayer({
   parts,
   foulerId,
@@ -76,12 +93,9 @@ export async function foulPlayer({
     return;
   }
 
-  const square = parts.game.getPlayerById(foulerId)?.gridPosition;
-  if (!adjacentSquare(square, { x: targetX, y: targetY })) {
-    parts.eventBus.emit(
-      GameEventNames.UI_Notification,
-      `${fouler.playerName} must stand next to the player to Foul them.`
-    );
+  const refusal = foulTargetRefusal(parts, fouler, { x: targetX, y: targetY });
+  if (refusal) {
+    parts.eventBus.emit(GameEventNames.UI_Notification, refusal);
     return;
   }
 
@@ -108,6 +122,22 @@ export async function stabPlayer(
   return true;
 }
 
+function throwsFresh(
+  { state }: GameParts,
+  throwerId: string,
+  teammateId: string
+): boolean {
+  const active = state.activePlayer;
+  return (
+    active?.id === throwerId &&
+    active.action === "throwTeamMate" &&
+    !(throwsUsePass() && state.turn.spend.thrownIds.includes(teammateId))
+  );
+}
+
+const throwsUsePass = (): boolean =>
+  activeRules().format.teamMateThrowUsesPass;
+
 export function throwTeammate(
   parts: GameParts,
   request: {
@@ -124,11 +154,9 @@ export function throwTeammate(
   const abilities = teammateThrowAbilities(parts, throwerId);
   if (!abilities) return;
   const { canThrow, canKick } = abilities;
-  const declared =
-    parts.state.activePlayer?.id === throwerId
-      ? parts.state.activePlayer.action
-      : undefined;
-  if (declared !== "throwTeamMate") return;
+  if (!throwsFresh(parts, throwerId, teammateId)) return;
+  if (throwsUsePass())
+    parts.state.turn.spend = throwPlayer(parts.state.turn.spend, teammateId);
 
   const resolved: "throw" | "kick" =
     mode ?? (canKick && !canThrow ? "kick" : "throw");
@@ -386,6 +414,17 @@ async function rushBeforeReplacement(
   return { accepted: true, proceed: false };
 }
 
+function mayAttack(
+  active: NonNullable<GameParts["state"]["activePlayer"]>,
+  attacker: Player,
+  { target, replacement }: { target: Player; replacement: BlockReplacement }
+): boolean {
+  return (
+    isLegalBlockReplacementTarget(attacker, target, replacement) &&
+    !outsideTarget(active, target.teamId)
+  );
+}
+
 function replacementCommand({
   parts,
   attackerId,
@@ -409,7 +448,7 @@ function replacementCommand({
     active.blockReplacement !== replacement ||
     active.blockReplacementUsed ||
     !replacementActionMatches(active.action, definition.directAction) ||
-    !isLegalBlockReplacementTarget(attacker, target, replacement)
+    !mayAttack(active, attacker, { target, replacement })
   ) {
     return null;
   }

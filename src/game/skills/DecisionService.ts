@@ -9,6 +9,8 @@ import {
   type InterceptionDecisionAnswer,
   type ReserveMoveDecisionRequest,
   type ReserveMoveDecisionAnswer,
+  type CrossAssistDecisionRequest,
+  type CrossAssistDecisionAnswer,
 } from "../../types/decisions";
 
 export class DecisionService {
@@ -50,6 +52,9 @@ export class DecisionService {
   public request(
     request: ReserveMoveDecisionRequest
   ): Promise<ReserveMoveDecisionAnswer>;
+  public request(
+    request: CrossAssistDecisionRequest
+  ): Promise<CrossAssistDecisionAnswer>;
   public request(request: DecisionRequest): Promise<DecisionAnswer>;
   public request(request: DecisionRequest): Promise<DecisionAnswer> {
     if (this.current) {

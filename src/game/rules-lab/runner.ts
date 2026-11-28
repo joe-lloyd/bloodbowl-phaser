@@ -143,20 +143,28 @@ function isConsentDecision(
   );
 }
 
+const PASSING_DECISIONS = new Set<PendingDecision["type"]>([
+  "kickoff-event",
+  "reserve-move",
+  "cross-assist",
+]);
+
 function isPassingDecision(
   pending: PendingDecision
-): pending is Decision<"kickoff-event" | "reserve-move"> {
-  return pending.type === "kickoff-event" || pending.type === "reserve-move";
+): pending is Decision<"kickoff-event" | "reserve-move" | "cross-assist"> {
+  return PASSING_DECISIONS.has(pending.type);
 }
 
 function passingAnswer(
-  pending: Decision<"kickoff-event" | "reserve-move">
+  pending: Decision<"kickoff-event" | "reserve-move" | "cross-assist">
 ): HeadlessCommand {
   switch (pending.type) {
     case "kickoff-event":
       return { type: "kickoff-skip" };
     case "reserve-move":
       return { type: "keep-reserves" };
+    case "cross-assist":
+      return { type: "lend-assists", toAttacker: [], toDefender: [] };
   }
 }
 

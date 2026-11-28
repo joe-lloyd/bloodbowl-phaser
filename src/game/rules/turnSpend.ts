@@ -1,10 +1,15 @@
 import { rivalsOf, type Seating } from "../seating";
+import { activeRules } from "../variants/activeMatch";
+import type { BallId } from "./balls";
 
 export interface TurnSpend {
   readonly blitzed: readonly string[];
   readonly fouled: readonly string[];
   readonly passes: number;
   readonly handOffs: number;
+  readonly passedBalls: readonly BallId[];
+  readonly handedOffBalls: readonly BallId[];
+  readonly thrownIds: readonly string[];
 }
 
 type Targeted = "blitz" | "foul";
@@ -22,10 +27,16 @@ export interface SpendWire {
   spend?: TurnSpend;
 }
 
-const BALLS_IN_PLAY = 1;
-
 export function freshSpend(): TurnSpend {
-  return { blitzed: [], fouled: [], passes: 0, handOffs: 0 };
+  return {
+    blitzed: [],
+    fouled: [],
+    passes: 0,
+    handOffs: 0,
+    passedBalls: [],
+    handedOffBalls: [],
+    thrownIds: [],
+  };
 }
 
 function spentTargets(ledger: TurnSpend, kind: Targeted): readonly string[] {
@@ -37,7 +48,7 @@ export function maySpend(ledger: TurnSpend, declaration: Declaration): boolean {
     return !spentTargets(ledger, declaration.kind).includes(declaration.against);
   }
   const used = declaration.kind === "pass" ? ledger.passes : ledger.handOffs;
-  return used < BALLS_IN_PLAY;
+  return used < activeRules().format.ballCount;
 }
 
 export function openTargets(
@@ -59,6 +70,32 @@ export function spend(ledger: TurnSpend, declaration: Declaration): TurnSpend {
     case "handoff":
       return { ...ledger, handOffs: ledger.handOffs + 1 };
   }
+}
+
+function movedBalls(ledger: TurnSpend, kind: Counted): readonly BallId[] {
+  return kind === "pass" ? ledger.passedBalls : ledger.handedOffBalls;
+}
+
+export function ballMoved(ledger: TurnSpend, kind: Counted, ball: BallId): boolean {
+  return movedBalls(ledger, kind).includes(ball);
+}
+
+export function moveBall(ledger: TurnSpend, kind: Counted, ball: BallId): TurnSpend {
+  const moved = [...movedBalls(ledger, kind), ball];
+  return kind === "pass"
+    ? { ...ledger, passedBalls: moved }
+    : { ...ledger, handedOffBalls: moved };
+}
+
+export function throwPlayer(ledger: TurnSpend, playerId: string): TurnSpend {
+  return { ...ledger, thrownIds: [...ledger.thrownIds, playerId] };
+}
+
+export function outsideTarget(
+  active: { readonly against?: string } | null,
+  teamId: string
+): boolean {
+  return active?.against !== undefined && active.against !== teamId;
 }
 
 export function targetOf(
@@ -87,6 +124,7 @@ export function spendFromWire(
 ): TurnSpend {
   if (wire.spend) return structuredClone(wire.spend);
   return {
+    ...freshSpend(),
     blitzed: wire.hasBlitzed ? [...rivals] : [],
     fouled: wire.hasFouled ? [...rivals] : [],
     passes: wire.hasPassed ? 1 : 0,

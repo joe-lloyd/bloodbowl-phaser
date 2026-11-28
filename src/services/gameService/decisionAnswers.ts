@@ -90,3 +90,22 @@ export function answerReserveMove(
       ));
   return offered && decisions.answer({ move });
 }
+
+export function answerCrossAssists(
+  decisions: DecisionService,
+  lend: { toAttacker: readonly string[]; toDefender: readonly string[] }
+): boolean {
+  const pending = decisions.pending();
+  if (pending?.type !== "cross-assist") return false;
+  const pledges = [
+    ...lend.toAttacker.map((playerId) => ({ playerId, side: "attacker" as const })),
+    ...lend.toDefender.map((playerId) => ({ playerId, side: "defender" as const })),
+  ];
+  const offered = pledges.every(({ playerId, side }) =>
+    pending.offers.some(
+      (offer) => offer.playerId === playerId && offer.sides.includes(side)
+    )
+  );
+  const once = new Set(pledges.map(({ playerId }) => playerId)).size === pledges.length;
+  return offered && once && decisions.answer({ pledges });
+}
