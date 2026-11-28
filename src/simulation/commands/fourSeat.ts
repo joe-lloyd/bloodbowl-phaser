@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import path from "node:path";
 import { RosterName } from "../../types/Team";
-import { randomCoach } from "../coaches/random";
+import { scoringCoach } from "../coaches/scoring";
 import { type FourRosters, type FourSeatRun, runFourSeatMatch } from "../fourSeat";
 import { createCoachRng } from "../rng";
 import { BLOCKING } from "./run";
@@ -27,7 +27,7 @@ const blocking = (run: FourSeatRun) =>
 function line(run: FourSeatRun): string {
   const resumed = run.resume ? `save@${String(run.resume.step)} ${run.resume.hash === run.resume.resumedHash ? "same" : "DIFFERS"}` : "no save";
   const refused = run.findings.length - blocking(run).length;
-  return `seed ${String(run.seed)}: ${run.final.phase} after ${String(run.steps)} commands, ${resumed}, ${String(blocking(run).length)} blocking findings, ${String(refused)} refused candidates`;
+  return `seed ${String(run.seed)}: ${run.final.phase} after ${String(run.steps)} commands, touchdowns ${run.touchdowns.join("/")}, ${resumed}, ${String(blocking(run).length)} blocking findings, ${String(refused)} refused candidates`;
 }
 
 export async function runFourSeat(options: FourSeatOptions): Promise<number> {
@@ -37,7 +37,7 @@ export async function runFourSeat(options: FourSeatOptions): Promise<number> {
     const run = await runFourSeatMatch({
       seed,
       rosters: rostersFor(seed),
-      coach: randomCoach,
+      coach: scoringCoach,
       saveAt: saveStep(seed),
     });
     runs.push(run);
@@ -46,6 +46,10 @@ export async function runFourSeat(options: FourSeatOptions): Promise<number> {
   fs.mkdirSync(path.dirname(options.out), { recursive: true });
   fs.writeFileSync(options.out, `${JSON.stringify(runs, null, 2)}\n`);
   const failed = runs.filter((run) => blocking(run).length > 0 || !run.resume);
+  const perSeat = [0, 1, 2, 3].map((seat) =>
+    runs.reduce((sum, run) => sum + (run.touchdowns[seat] ?? 0), 0)
+  );
+  process.stdout.write(`Touchdowns per seat (N/E/S/W): ${perSeat.join(" / ")}.\n`);
   process.stdout.write(
     `${String(runs.length - failed.length)} of ${String(runs.length)} four-seat matches reached full time with no blocking findings and resumed to the same hash.\n`
   );

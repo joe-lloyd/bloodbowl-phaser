@@ -4,7 +4,6 @@ import type { HeadlessCommand } from "../headless/protocol";
 import type { GameSnapshot } from "../headless/serialization";
 import { DEATHBOWL_FORMAT, keepMatchFormat } from "../game/variants/activeMatch";
 import { arenaSquad } from "../game/deathbowl/squad";
-import { TOUCHDOWN_PENDING } from "../game/deathbowl/flow";
 import { GamePhase } from "../types/GameState";
 import type { RosterName } from "../types/Team";
 import { type Candidate, enumerateDecision } from "./candidates";
@@ -40,6 +39,7 @@ export interface FourSeatRun {
   readonly rosters: FourRosters;
   readonly steps: number;
   readonly final: { readonly phase: string; readonly hash: string };
+  readonly touchdowns: readonly number[];
   readonly resume: ResumeCheck | null;
   readonly findings: readonly Finding[];
 }
@@ -87,12 +87,6 @@ function resumeCheck(game: HeadlessGame, step: number): ResumeCheck | null {
   return check;
 }
 
-function refusal(command: HeadlessCommand, reason: string | undefined, label: string): Report {
-  const found = refusalFinding(command, reason, label);
-  const stub = reason?.includes(TOUCHDOWN_PENDING) ?? false;
-  return { ...found, kind: stub ? "engine-error" : found.kind };
-}
-
 async function play(run: Run, candidate: Candidate): Promise<void> {
   for (const command of candidate.commands) {
     const before = run.game.snapshot();
@@ -100,7 +94,7 @@ async function play(run: Run, candidate: Candidate): Promise<void> {
     keepMatchFormat(DEATHBOWL_FORMAT);
     run.steps++;
     if (!response.ok) {
-      report(run, before, refusal(command, response.reason, candidate.label));
+      report(run, before, refusalFinding(command, response.reason, candidate.label));
       run.refused.add(key(candidate.commands));
       return;
     }
@@ -173,6 +167,7 @@ export async function runFourSeatMatch(spec: FourSeatSpec): Promise<FourSeatRun>
     rosters: spec.rosters,
     steps: run.steps,
     final: { phase: game.snapshot().phase, hash: snapshotHash(game.snapshot()) },
+    touchdowns: game.ctx.teams.map(({ id }) => game.snapshot().score[id] ?? 0),
     resume: run.resume,
     findings: run.findings,
   };
