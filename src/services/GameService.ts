@@ -376,7 +376,7 @@ export class GameService implements IGameService {
     return this.parts.kickoffEventManager.reselect();
   }
 
-  beginCoinFlip(): void {
+  beginMatch(): void {
     this.parts.flow.begin();
   }
 

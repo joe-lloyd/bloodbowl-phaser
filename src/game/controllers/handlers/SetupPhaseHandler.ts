@@ -65,7 +65,7 @@ export class SetupPhaseHandler implements PhaseHandler {
 
   private resumeWeather(isOnline: boolean): void {
     if (isOnline || this.isIntroSequence) return;
-    this.gameService.beginCoinFlip();
+    this.gameService.beginMatch();
     this.startCoinFlip();
   }
 
@@ -314,7 +314,7 @@ export class SetupPhaseHandler implements PhaseHandler {
     await this.weatherRead();
 
     this.isIntroSequence = false;
-    this.gameService.beginCoinFlip();
+    this.gameService.beginMatch();
     this.startCoinFlip();
   }
 }

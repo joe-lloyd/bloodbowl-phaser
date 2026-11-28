@@ -45,8 +45,8 @@ class ComputerGameService extends NetworkedGameService {
   override readyForWeather(teamId: string): boolean {
     return this.engine.readyForWeather(teamId);
   }
-  override beginCoinFlip = (): void => {
-    this.engine.beginCoinFlip();
+  override beginMatch = (): void => {
+    this.engine.beginMatch();
   };
   override tossCoin(): string {
     return this.engine.tossCoin();
