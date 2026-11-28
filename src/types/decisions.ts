@@ -195,6 +195,17 @@ export interface FoulAssistsDecisionAnswer {
   count: number;
 }
 
+export interface ReserveMoveDecisionRequest {
+  type: "reserve-move";
+  chooserTeamId: string;
+  playerIds: string[];
+  squares: { x: number; y: number }[];
+}
+
+export interface ReserveMoveDecisionAnswer {
+  move: { playerId: string; square: { x: number; y: number } } | null;
+}
+
 export type DecisionRequest =
   | RerollDecisionRequest
   | ReactionDecisionRequest
@@ -202,7 +213,8 @@ export type DecisionRequest =
   | InterceptionDecisionRequest
   | ApothecaryDecisionRequest
   | InducementChoiceDecisionRequest
-  | FoulAssistsDecisionRequest;
+  | FoulAssistsDecisionRequest
+  | ReserveMoveDecisionRequest;
 export type DecisionAnswer =
   | RerollDecisionAnswer
   | ReactionDecisionAnswer
@@ -210,4 +222,5 @@ export type DecisionAnswer =
   | InterceptionDecisionAnswer
   | ApothecaryDecisionAnswer
   | InducementChoiceDecisionAnswer
-  | FoulAssistsDecisionAnswer;
+  | FoulAssistsDecisionAnswer
+  | ReserveMoveDecisionAnswer;

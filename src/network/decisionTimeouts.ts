@@ -20,6 +20,7 @@ export const DEFENDER_DECISION_SECONDS: Record<
   "foul-assists": 10,
   touchback: 10,
   "kickoff-event": 10,
+  "reserve-move": 10,
 };
 
 type Decision<T extends PendingDecision["type"]> = Extract<
@@ -65,6 +66,7 @@ const fixedAnswers: Partial<Record<PendingDecision["type"], HeadlessCommand>> = 
   interception: { type: "choose-interception" },
   apothecary: { type: "use-apothecary", accept: false },
   "follow-up": { type: "choose-follow-up", followUp: false },
+  "reserve-move": { type: "keep-reserves" },
 };
 
 export function defaultAnswer(pending: PendingDecision): HeadlessCommand | null {

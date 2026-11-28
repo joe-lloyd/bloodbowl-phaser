@@ -151,6 +151,8 @@ async function answer(
       return { type: "use-reaction", accept: false };
     case "inducement-choice":
       return { type: "choose-inducement" };
+    case "reserve-move":
+      return { type: "keep-reserves" };
     case "apothecary":
       return { type: "use-apothecary", accept: false };
     case "block-dice":

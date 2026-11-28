@@ -143,15 +143,31 @@ function isConsentDecision(
   );
 }
 
+function isPassingDecision(
+  pending: PendingDecision
+): pending is Decision<"kickoff-event" | "reserve-move"> {
+  return pending.type === "kickoff-event" || pending.type === "reserve-move";
+}
+
+function passingAnswer(
+  pending: Decision<"kickoff-event" | "reserve-move">
+): HeadlessCommand {
+  switch (pending.type) {
+    case "kickoff-event":
+      return { type: "kickoff-skip" };
+    case "reserve-move":
+      return { type: "keep-reserves" };
+  }
+}
+
 function automaticAnswer(
   pending: PendingDecision,
   game: HeadlessGame,
   policy: DecisionPolicy
 ): HeadlessCommand | null {
   if (isConsentDecision(pending)) return consentAnswer(pending, policy);
+  if (isPassingDecision(pending)) return passingAnswer(pending);
   switch (pending.type) {
-    case "kickoff-event":
-      return { type: "kickoff-skip" };
     case "block-dice":
       return {
         type: "choose-block-result",

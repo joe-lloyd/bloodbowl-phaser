@@ -286,6 +286,15 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     count: z.number(),
   }),
   z.looseObject({
+    type: z.literal("move-reserve"),
+    playerId: z.string(),
+    x: z.number(),
+    y: z.number(),
+  }),
+  z.looseObject({
+    type: z.literal("keep-reserves"),
+  }),
+  z.looseObject({
     type: z.literal("offer-inducements"),
   }),
   z.looseObject({

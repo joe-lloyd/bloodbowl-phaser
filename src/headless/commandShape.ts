@@ -99,6 +99,8 @@ const COMMAND_SHAPES: Record<string, CommandShape> = {
     y: "integer?",
   },
   "choose-foul-assists": { count: "integer" },
+  "move-reserve": { playerId: "string", x: "integer", y: "integer" },
+  "keep-reserves": {},
   "offer-inducements": {},
   "select-inducement": {
     teamId: "string",
