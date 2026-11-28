@@ -1,6 +1,7 @@
 import { kickoffTurnOf } from "../game/kickoff/kickRecord";
 import Phaser from "phaser";
 import { GameScene } from "./GameScene";
+import { dropBallSprites } from "./boardSprites";
 import type { GameSceneData } from "./matchStart";
 import { GamePhase } from "../types/GameState";
 import { arenaTeam, sandboxTeam } from "./sandboxTeam";
@@ -350,10 +351,7 @@ export class SandboxScene extends GameScene {
     expectedOutcome: Scenario["expectedOutcome"];
     outcomeId: string | undefined;
   }): void {
-    if (this.ballSprite) {
-      this.ballSprite.destroy();
-      this.ballSprite = null;
-    }
+    dropBallSprites(this);
 
     const loader = new ScenarioLoader(this.eventBus, this.team1, this.team2);
     loader.load(scenario);

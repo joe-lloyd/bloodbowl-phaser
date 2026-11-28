@@ -3,6 +3,7 @@ import type { Player } from "../types/Player";
 import { PlayerSprite } from "../game/elements/PlayerSprite";
 import { BallSprite, CARRIED_HEIGHT } from "../game/elements/BallSprite";
 import {
+  type BallRepresentation,
   findBoardStateConflicts,
   isActivatedThisTurn,
   resolveBallRepresentation,
@@ -78,10 +79,11 @@ export function animateBallAlong(
   path: { x: number; y: number }[],
   delayMs: number
 ): void {
+  const startPx = scene.pitch.getPixelPosition(from.x, from.y);
+  bringNearestBallForward(scene, startPx);
   const ball = scene.ballSprite;
   if (!ball || path.length === 0) return;
 
-  const startPx = scene.pitch.getPixelPosition(from.x, from.y);
   ball.setPosition(startPx.x, startPx.y);
 
   const tweenConfigs = path.map((step) => {
@@ -100,6 +102,31 @@ export function animateBallAlong(
   });
 }
 
+interface Point {
+  x: number;
+  y: number;
+}
+
+const distanceTo = (ball: BallSprite | null, at: Point) =>
+  ball?.active ? Math.hypot(ball.x - at.x, ball.y - at.y) : Infinity;
+
+function bringNearestBallForward(scene: GameScene, at: Point): void {
+  const spare = scene.spareBallSprite;
+  if (distanceTo(spare, at) >= distanceTo(scene.ballSprite, at)) return;
+  scene.spareBallSprite = scene.ballSprite;
+  scene.ballSprite = spare;
+}
+
+function placedBall(scene: GameScene, ball: BallSprite | null, pos: Point): BallSprite {
+  if (!ball?.active) return new BallSprite(scene, pos.x, pos.y);
+  scene.tweens.killTweensOf(ball);
+  ball.stopFlight();
+  ball.setPosition(pos.x, pos.y);
+  ball.setAlpha(1);
+  ball.setVisible(true);
+  return ball;
+}
+
 export function placeBallVisual(
   scene: GameScene,
   x: number,
@@ -109,42 +136,61 @@ export function placeBallVisual(
   if (!scene.isSceneLive("placeBallVisual")) return;
 
   const pos = scene.pitch.getPixelPosition(x, y);
+  bringNearestBallForward(scene, pos);
+  scene.ballSprite = placedBall(scene, scene.ballSprite, pos).setHeight(height);
+}
 
-  let ball = scene.ballSprite;
-  if (ball?.active) {
-    scene.tweens.killTweensOf(ball);
-    ball.stopFlight();
-    ball.setPosition(pos.x, pos.y);
+export function dropBallSprites(scene: GameScene): void {
+  scene.ballSprite?.destroy();
+  scene.ballSprite = null;
+  scene.spareBallSprite?.destroy();
+  scene.spareBallSprite = null;
+}
 
-    ball.setAlpha(1);
-    ball.setVisible(true);
-  } else {
-    ball = new BallSprite(scene, pos.x, pos.y);
-    scene.ballSprite = ball;
+type ShownBall = Exclude<BallRepresentation, { kind: "none" }>;
+
+function showSpareBall(scene: GameScene, ball: ShownBall | undefined): void {
+  if (!ball) {
+    scene.spareBallSprite?.destroy();
+    scene.spareBallSprite = null;
+    return;
   }
-  ball.setHeight(height);
+  const pos = scene.pitch.getPixelPosition(ball.square.x, ball.square.y);
+  const height = ball.kind === "carried" ? CARRIED_HEIGHT : 0;
+  scene.spareBallSprite = placedBall(scene, scene.spareBallSprite, pos).setHeight(height);
+}
+
+function shownBalls(scene: GameScene): ShownBall[] {
+  const state = scene.gameService.getState();
+  return state.balls
+    .map(({ id }) => resolveBallRepresentation(state, allPlayers(scene), id))
+    .filter((ball): ball is ShownBall => ball.kind !== "none");
 }
 
 export function reconcileBallVisual(scene: GameScene): void {
-  const ball = resolveBallRepresentation(
-    scene.gameService.getState(),
-    allPlayers(scene)
-  );
-
-  if (ball.kind === "none") {
+  const balls = shownBalls(scene);
+  const [first, second] = balls;
+  if (first && second) {
+    const at = scene.pitch.getPixelPosition(first.square.x, first.square.y);
+    bringNearestBallForward(scene, at);
+  }
+  if (first) {
+    scene.placeBallVisual(
+      first.square.x,
+      first.square.y,
+      first.kind === "carried" ? CARRIED_HEIGHT : 0
+    );
+  } else {
     scene.ballSprite?.destroy();
     scene.ballSprite = null;
-  } else {
-    scene.placeBallVisual(
-      ball.square.x,
-      ball.square.y,
-      ball.kind === "carried" ? CARRIED_HEIGHT : 0
-    );
   }
+  showSpareBall(scene, second);
 
-  const carrierId = ball.kind === "carried" ? ball.playerId : null;
+  const carrierIds = new Set(
+    balls.flatMap((ball) => (ball.kind === "carried" ? [ball.playerId] : []))
+  );
   scene.playerSprites.forEach((sprite, playerId) => {
-    sprite.setCarryingBall(playerId === carrierId);
+    sprite.setCarryingBall(carrierIds.has(playerId));
   });
 }
 

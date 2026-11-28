@@ -4886,12 +4886,6 @@
     }
   },
   "src/scenes/SandboxScene.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-statements": {
-      "count": 1
-    },
     "typescript/consistent-type-assertions": {
       "count": 2
     },
