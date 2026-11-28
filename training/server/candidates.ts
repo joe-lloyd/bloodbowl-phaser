@@ -89,6 +89,13 @@ function withCurrent(given: ToolInput<"save_candidate">["layers"]): Layers {
   };
 }
 
+function refuseRename(taken: string, name: string): void {
+  if (taken !== name)
+    throw new Error(
+      `"${name}" would replace the candidate "${taken}". Pick another name.`
+    );
+}
+
 export function candidateStore({ dir, now }: StoreArgs) {
   mkdirSync(dir, { recursive: true });
   const weightFile = (id: string) => path.join(dir, `${id}.json`);
@@ -136,6 +143,7 @@ export function candidateStore({ dir, now }: StoreArgs) {
     };
     parseWeightFile(file);
     const id = candidateId(name);
+    refuseRename(existsSync(weightFile(id)) ? about(id).name : name, name);
     writeFileSync(weightFile(id), `${JSON.stringify(file, null, 2)}\n`);
     writeFileSync(
       aboutFile(id),

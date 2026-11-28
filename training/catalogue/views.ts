@@ -1,7 +1,7 @@
-import { COMPUTER_TEAM_CATALOGUE } from "../../src/data/computerTeamCatalogue";
+import { getComputerTeamTemplates } from "../../src/competition/computerTeamTemplates";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { matchTypeRules } from "../../src/game/variants/gameTypeRules";
-import type { MatchType } from "../../src/game/variants/gameTypes";
+import { isGameType, type MatchType } from "../../src/game/variants/gameTypes";
 import {
   evaluationWeightsFor,
   FEATURES,
@@ -123,6 +123,9 @@ export function teamList(
   };
 }
 
+const computerBuilds = (matchType: MatchType) =>
+  isGameType(matchType) ? getComputerTeamTemplates({ gameType: matchType }) : [];
+
 export function teamView(input: ToolInput<"get_team">): TeamView {
   const { roster, matchType } = input;
   const template = getRosterByRosterName(roster);
@@ -135,14 +138,14 @@ export function teamView(input: ToolInput<"get_team">): TeamView {
     apothecary: template.apothecary,
     specialRules: template.specialRules,
     positions: template.playerTemplates.map((t) => position(t)),
-    builds: COMPUTER_TEAM_CATALOGUE.filter((t) => t.rosterName === roster).map(
-      (t) => ({
+    builds: computerBuilds(matchType)
+      .filter((t) => t.rosterName === roster)
+      .map((t) => ({
         name: t.name,
         build: t.buildName,
         rerolls: t.rerolls,
         players: t.players.map(([name, count]) => ({ position: name, count })),
-      })
-    ),
+      })),
     draft: {
       budget: draft.budget,
       minPlayers: draft.minPlayers,

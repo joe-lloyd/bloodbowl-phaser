@@ -51,6 +51,36 @@ const BRAVER = {
 };
 
 describe("training ground API", () => {
+  it("refuses a name that would replace a differently named candidate", async () => {
+    const { call } = server();
+    const first = { ...BRAVER, name: "Halfling safe-move" };
+    const saved = await call("save_candidate", first);
+    expect(saved.status).toBe(200);
+
+    const clash = await call("save_candidate", { ...BRAVER, name: "Halfling safe move" });
+
+    expect(clash).toEqual({
+      status: 400,
+      body: {
+        error:
+          '"Halfling safe move" would replace the candidate "Halfling safe-move". Pick another name.',
+      },
+    });
+    const again = await call("save_candidate", first);
+    expect(again.status).toBe(200);
+  });
+
+  it("lists only the computer builds the game accepts for that game type", async () => {
+    const { call } = server();
+    const { body } = await call("get_team", { roster: "Snotling", matchType: "sevens" });
+    const builds = z
+      .object({ builds: z.array(z.object({ name: z.string() }).loose()) })
+      .parse(body).builds.map(({ name }) => name);
+
+    expect(builds).not.toContain("Snot What You Think");
+    expect(builds.length).toBeGreaterThan(0);
+  });
+
   it("shows a weight after the roster layer merges", async () => {
     const { call } = server();
     const { status, body } = await call("list_weights", { roster: "Halfling" });
