@@ -211,6 +211,29 @@ describe("re-rolls once per match (DB-D2)", () => {
   });
 });
 
+describe("a Leader who first takes the pitch after the opening (DB-D2)", () => {
+  it("still grants its team one Leader re-roll in the second half", async () => {
+    const game = deathbowlGame();
+    await setUpAll(game);
+    const state = game.ctx.gameService.getState();
+    const [north] = game.ctx.teams;
+    state.teamRerollsUsed = { seat0: north.rerolls };
+    await endTurnsUntil(
+      game,
+      () => state.turn.isHalf2 &&
+        game.ctx.gameService.getPhase() === GamePhase.PLAY &&
+        state.turn.teamId === "seat0"
+    );
+    const arbiter = game.ctx.gameService.getRerollArbiter();
+    expect(arbiter.nextTeamReroll("seat0")).toBeNull();
+
+    const leader = north.players.find((player) => player.gridPosition);
+    leader?.skills.push(getSkill(SkillType.LEADER));
+
+    expect(arbiter.nextTeamReroll("seat0")).toBe("leader");
+  });
+});
+
 describe("placings (DB-R2)", () => {
   it("places by points, tied teams sharing a place, touchdowns alongside", () => {
     expect(

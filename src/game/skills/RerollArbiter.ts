@@ -29,10 +29,13 @@ export class RerollArbiter {
     const half = this.state.turn.isHalf2 ? "h2" : "h1";
     const held = this.state.leaderRerolls;
     if (held?.half === half) return;
-    if (held && !activeRules().format.rerollsRefillAtHalf) return;
+    const refills = activeRules().format.rerollsRefillAtHalf;
+    if (held && !refills) return;
     this.state.leaderRerolls = {
       half,
-      teamIds: teamIds.filter((teamId) => this.hasOnPitchLeader(teamId)),
+      teamIds: refills
+        ? teamIds.filter((teamId) => this.hasOnPitchLeader(teamId))
+        : teamIds,
     };
   }
 
