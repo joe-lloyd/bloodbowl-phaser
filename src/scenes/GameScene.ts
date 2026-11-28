@@ -35,6 +35,7 @@ import { type CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { kitOf } from "../game/presentation/kits";
 import { type SeatedTeams } from "../game/seating";
+import type { Frame } from "../game/rules/frames";
 import {
   ensureMatchServices,
   type GameSceneData,
@@ -440,16 +441,16 @@ export class GameScene extends Phaser.Scene {
     this.orchestrator.startPlacement(subPhase);
   }
 
-  public highlightSetupZone(isTeam1: boolean): void {
-    this.pitch.highlightSetupZone(isTeam1);
+  public highlightSetupZone(frame: Frame): void {
+    this.pitch.highlightSetupZone(frame);
   }
 
-  public enablePlacement(activeTeam: Team, isTeam1: boolean): void {
+  public enablePlacement(activeTeam: Team, frame: Frame): void {
     this.isSetupActive = true;
 
     const dugout = this.dugouts.get(activeTeam.id);
     const sprites = dugout ? dugout.getSprites() : new Map();
-    this.placementController.enablePlacement(activeTeam, isTeam1, sprites);
+    this.placementController.enablePlacement(activeTeam, frame, sprites);
 
     this.repositionTeam = activeTeam;
     applyPitchRepositioning(this);

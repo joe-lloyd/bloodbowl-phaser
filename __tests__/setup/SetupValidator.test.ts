@@ -71,13 +71,13 @@ describe("SetupValidator", () => {
   });
 
   it("accepts each team's End Zone and rejects every neutral-zone boundary square", () => {
-    expect(validator.isInSetupZone(0, 5, true)).toBe(true);
-    expect(validator.isInSetupZone(19, 5, false)).toBe(true);
-    expect(validator.isInSetupZone(6, 5, true)).toBe(true);
-    expect(validator.isInSetupZone(13, 5, false)).toBe(true);
+    expect(validator.isInSetupZone(0, 5, pairFrame(true))).toBe(true);
+    expect(validator.isInSetupZone(19, 5, pairFrame(false))).toBe(true);
+    expect(validator.isInSetupZone(6, 5, pairFrame(true))).toBe(true);
+    expect(validator.isInSetupZone(13, 5, pairFrame(false))).toBe(true);
     for (let x = 7; x <= 12; x++) {
-      expect(validator.isInSetupZone(x, 5, true)).toBe(false);
-      expect(validator.isInSetupZone(x, 5, false)).toBe(false);
+      expect(validator.isInSetupZone(x, 5, pairFrame(true))).toBe(false);
+      expect(validator.isInSetupZone(x, 5, pairFrame(false))).toBe(false);
     }
   });
 

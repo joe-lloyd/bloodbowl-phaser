@@ -58,8 +58,8 @@ export class SetupValidator {
     };
   }
 
-  isInSetupZone(x: number, y: number, isTeam1: boolean): boolean {
-    return this.inSetupZone(pairFrame(isTeam1), { x, y });
+  isInSetupZone(x: number, y: number, frame: Frame): boolean {
+    return this.inSetupZone(frame, { x, y });
   }
 
   private inSetupZone(frame: Frame, { x, y }: { x: number; y: number }) {

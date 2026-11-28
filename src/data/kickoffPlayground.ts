@@ -7,7 +7,11 @@ import { KICKOFF_TABLES } from "../game/kickoff/kickoffTables";
 import { FormationManager } from "../game/managers/FormationManager";
 import { isStandableSquare } from "../game/rules/pitchSquares";
 import { SetupValidator } from "../game/validators/SetupValidator";
-import { activeLayout, type MatchFormat } from "../game/variants/activeMatch";
+import {
+  activeLayout,
+  type MatchFormat,
+  pairFrame,
+} from "../game/variants/activeMatch";
 import type { KickoffTableId } from "../game/variants/gameTypeRules";
 import { GamePhase, SubPhase } from "../types/GameState";
 import type { RosterName } from "../types/Team";
@@ -145,7 +149,7 @@ export function playgroundLanding(
     ({ x, y }) =>
       isStandableSquare({ x, y }) &&
       !taken.has(`${String(x)},${String(y)}`) &&
-      validator.isInSetupZone(x, y, kicking === "team2")
+      validator.isInSetupZone(x, y, pairFrame(kicking === "team2"))
   );
   const distance = (square: { x: number; y: number }) =>
     Math.hypot(square.x - aim.x, square.y - aim.y);
