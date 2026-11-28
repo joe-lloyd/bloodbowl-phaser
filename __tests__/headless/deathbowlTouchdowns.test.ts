@@ -103,7 +103,7 @@ describe("a touchdown does not end the drive (DB-F2)", () => {
     expect(ballSquare(state, 0)).toEqual({ x: 9, y: 9 });
     expect(ballSquare(state, 1)).toEqual({ x: 11, y: 11 });
     expect(holder.gridPosition).toEqual({ x: 10, y: 13 });
-    expect(state.score.seat0).toBe(1);
+    expect(state.score).toMatchObject({ seat0: 1 });
   });
 
   it("scores for a carrier pushed into its end zone and the blocker's turn goes on", async () => {
@@ -128,6 +128,44 @@ describe("a touchdown does not end the drive (DB-F2)", () => {
     expect(state.activeTeamId).toBe("seat0");
     expect(state.turn.endsAfterActivation).toBeUndefined();
     expect(state.turn.scoringTeamIds).toEqual(["seat2"]);
+  });
+
+  it("scores once for a pick-up in the end zone and walks on without the ball", async () => {
+    const game = await northToPlay();
+    const runner = fieldedAt(game, "seat0", 0);
+    put(game, runner, { at: { x: 5, y: 19 } });
+    placeBall(stateOf(game), 0, { x: 5, y: 20 });
+    rig(game, [6, 1]);
+    await play(game, { type: "declare-action", playerId: runner.id, action: "move" });
+    await play(game, {
+      type: "move",
+      playerId: runner.id,
+      path: [
+        { x: 5, y: 20 },
+        { x: 5, y: 19 },
+      ],
+    });
+    const state = stateOf(game);
+
+    expect(state.score).toMatchObject({ seat0: 1 });
+    expect(ballSquare(state, 0)).toEqual({ x: 9, y: 9 });
+    expect(runner.gridPosition).toEqual({ x: 5, y: 19 });
+  });
+});
+
+describe("a carrier has No Hands for the other ball (DB-B1)", () => {
+  it("knocks the other ball aside when it walks onto it", async () => {
+    const game = await northToPlay();
+    const carrier = fieldedAt(game, "seat0", 0);
+    put(game, carrier, { at: { x: 5, y: 17 }, ball: 0 });
+    placeBall(stateOf(game), 1, { x: 5, y: 18 });
+    rig(game, [7]);
+    await play(game, { type: "declare-action", playerId: carrier.id, action: "move" });
+    await play(game, { type: "move", playerId: carrier.id, path: [{ x: 5, y: 18 }] });
+    const state = stateOf(game);
+
+    expect(ballSquare(state, 0)).toEqual({ x: 5, y: 18 });
+    expect(ballSquare(state, 1)).toEqual({ x: 5, y: 19 });
   });
 });
 
@@ -231,7 +269,7 @@ describe("Secret Weapons (DB-F6)", () => {
     expect(ended.pendingDecision).toMatchObject({ type: "reserve-move", chooserTeamId: "seat3" });
     await play(game, { type: "keep-reserves" });
 
-    expect(stateOf(game).score.seat3).toBe(1);
+    expect(stateOf(game).score).toMatchObject({ seat3: 1 });
     expect(weapon.status).toBe(PlayerStatus.REMOVED);
     expect(weapon.gridPosition).toBeUndefined();
     expect(stateOf(game).turn.teamId).toBe("seat2");

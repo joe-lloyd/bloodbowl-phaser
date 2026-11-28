@@ -350,13 +350,19 @@ function fallInto(
   run.currentPos = step;
   player.gridPosition = run.currentPos;
   player.status = PlayerStatus.PRONE;
+  const lying = ballAt(deps.state, run.currentPos);
   fallOver(deps, {
     player,
     square: run.currentPos,
-    bouncing: run.ball ?? ballAt(deps.state, run.currentPos),
+    bouncing: run.ball ?? lying,
     context: run.context,
     ...fall,
   });
+  if (run.ball === undefined || lying === undefined || lying === run.ball) return;
+  run.context?.flowManager.add(
+    new BounceOperation(run.currentPos, { ball: lying, bounces: 1 }),
+    true
+  );
 }
 
 function fallOnRush(run: MoveRun, step: Square): MoveEnd {
@@ -558,9 +564,19 @@ function takeBall(
   return isSecuringBall(deps.state, run.player.id) ? "secured" : undefined;
 }
 
+async function knockAsideOtherBall(run: MoveRun, carried: BallId): Promise<void> {
+  const { deps, context, currentPos } = run;
+  const other = ballAt(deps.state, currentPos);
+  if (other === undefined || other === carried || !context) return;
+  showWalk(run);
+  context.flowManager.add(new BounceOperation(currentPos, { ball: other, bounces: 1 }));
+  await context.flowManager.whenIdle();
+}
+
 async function carryBall(run: MoveRun): Promise<string | undefined> {
   const { deps, player, currentPos } = run;
   if (run.ball === undefined) return undefined;
+  await knockAsideOtherBall(run, run.ball);
   placeBall(deps.state, run.ball, currentPos);
   deps.eventBus.emit(GameEventNames.BallPlaced, {
     x: currentPos.x,
