@@ -3,6 +3,7 @@ import { GameEventNames } from "./names";
 import { GamePhase, type GameState, SubPhase } from "../GameState";
 import { type Player } from "../Player";
 import type { TurnSpend } from "../../game/rules/turnSpend";
+import type { PointsReason } from "../../game/deathbowl/points";
 
 export interface MatchGameEvents {
   [GameEventNames.PhaseChanged]: {
@@ -109,6 +110,13 @@ export interface MatchGameEvents {
     score: number;
 
     scorerId?: string;
+  };
+  [GameEventNames.PointsAwarded]: {
+    teamId: string;
+    playerId: string;
+    reason: PointsReason;
+    points: number;
+    total: number;
   };
   [GameEventNames.DriveEnded]: {
     reason: "touchdown" | "halftime";

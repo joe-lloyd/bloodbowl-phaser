@@ -39,6 +39,7 @@ export const GameEventNames = {
   DecisionRequested: "decisionRequested",
   DecisionResolved: "decisionResolved",
   Touchdown: "touchdown",
+  PointsAwarded: "pointsAwarded",
   BallPlaced: "ballPlaced",
   BallKicked: "ballKicked",
   KickoffAirbornePositionChanged: "kickoffAirbornePositionChanged",
