@@ -9,7 +9,16 @@ import type { ActionType } from "../../types/events";
 import type { Candidate } from "../candidates";
 import type { CoachChoice } from "../coach";
 import type { Activation, Available } from "./activations";
-import { type FieldPlayer as Player, distance, key, readBoard } from "./board";
+import {
+  type Board,
+  type FieldPlayer as Player,
+  distance,
+  key,
+  middleRow,
+  readBoard,
+  toGoal,
+} from "./board";
+import { bestBy } from "../../game/core/order";
 import {
   type KickoffGround,
   catchChance,
@@ -208,4 +217,38 @@ export function kickoffMove(args: TurnArgs): KickoffMove {
     plan,
     note: `${turn.event}: ${kickoffNote(ground, plan)}`,
   };
+}
+
+export function kickChoice(
+  board: Board,
+  candidates: readonly Candidate[],
+  w: Weights
+): CoachChoice | null {
+  const kicks = candidates.flatMap((c, index) => {
+    const command = c.commands[0];
+    return command.type === "kick-ball"
+      ? { index, x: command.x, y: command.y }
+      : [];
+  });
+  if (kicks.length === 0) return null;
+  const crowd = (y: number) =>
+    board.theirs.filter((o) => Math.abs(o.gridPosition.y - y) <= 2).length;
+  const wide = w.kickWide > 0.5;
+  const score = (kick: { x: number; y: number }) => {
+    const depth = toGoal(board, kick);
+    return -Math.abs(depth - w.kickDepth) * 10 + kickWidth(kick.y, wide, crowd);
+  };
+  const best = bestBy(kicks, score);
+  if (!best) throw new Error("No kick to choose from");
+  return { index: best.index };
+}
+
+function kickWidth(
+  y: number,
+  wide: boolean,
+  crowd: (y: number) => number
+): number {
+  const middle = y === middleRow();
+  if (wide) return middle ? -5 : -crowd(y);
+  return middle ? 5 : 0;
 }

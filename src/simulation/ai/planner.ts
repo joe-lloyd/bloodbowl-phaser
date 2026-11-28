@@ -28,12 +28,10 @@ import {
   type Square,
   carriedBy,
   focusBall,
-  middleRow,
   readBoard,
-  toGoal,
 } from "./board";
 import { decide } from "./decisions";
-import { kickoffMove, kickoffPick } from "./kickoffChoices";
+import { kickChoice, kickoffMove, kickoffPick } from "./kickoffChoices";
 import type { KickoffTurn } from "../../game/kickoff/kickoffTurn";
 import {
   DEFAULT_WEIGHTS,
@@ -57,7 +55,6 @@ import {
   choosePlan,
 } from "./gamePlans";
 import type { CoachRng } from "../rng";
-import { bestBy } from "../../game/core/order";
 import { seatOf } from "../../game/seating";
 
 const END_ACTIVATION = "end-activation";
@@ -448,30 +445,6 @@ function weightsFor({ context, options, w, plan }: WeightsForArgs): Weights {
     : w;
 }
 
-function kickChoice(
-  board: Board,
-  candidates: readonly Candidate[],
-  w: Weights
-): CoachChoice | null {
-  const kicks = candidates.flatMap((c, index) => {
-    const command = c.commands[0];
-    return command.type === "kick-ball"
-      ? { index, x: command.x, y: command.y }
-      : [];
-  });
-  if (kicks.length === 0) return null;
-  const crowd = (y: number) =>
-    board.theirs.filter((o) => Math.abs(o.gridPosition.y - y) <= 2).length;
-  const wide = w.kickWide > 0.5;
-  const score = (kick: { x: number; y: number }) => {
-    const depth = toGoal(board, kick);
-    return -Math.abs(depth - w.kickDepth) * 10 + kickWidth(kick.y, wide, crowd);
-  };
-  const best = bestBy(kicks, score);
-  if (!best) throw new Error("No kick to choose from");
-  return { index: best.index };
-}
-
 interface PlanChoiceArgs {
   context: CoachContext;
   w: Weights;
@@ -707,16 +680,6 @@ function resumeAction({
   }).find((option) => planIdentity(option) === planIdentity(plan));
   const index = resumed ? nextStep(resumed, candidates) : -1;
   return index < 0 || !resumed ? null : { index, note: noteFor(resumed) };
-}
-
-function kickWidth(
-  y: number,
-  wide: boolean,
-  crowd: (y: number) => number
-): number {
-  const middle = y === middleRow();
-  if (wide) return middle ? -5 : -crowd(y);
-  return middle ? 5 : 0;
 }
 
 interface ActiveChoiceArgs extends PlanChoiceArgs {
