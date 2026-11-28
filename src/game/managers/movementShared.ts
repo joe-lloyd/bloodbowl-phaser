@@ -1,7 +1,7 @@
 import { activeRules } from "@/game/variants/activeMatch";
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
-import { type BallId, ballOnSquare, groundBall, placeBall } from "@/game/rules/balls";
+import { type BallId, ballAt, ballOnSquare, groundBall, placeBall } from "@/game/rules/balls";
 import {
   opponentsOf,
   type Seating,
@@ -178,32 +178,34 @@ export async function rollRush(
 }
 
 export function fallOver(
-  { eventBus, callbacks }: MovementDeps,
+  { eventBus, callbacks, state }: MovementDeps,
   fall: {
     player: Player;
     square: Square;
-    bouncing: BallId | undefined;
+    carried: BallId | undefined;
     context: FlowContext | undefined;
 
     slip?: ArmourFall;
     reason: string;
   }
 ): void {
-  const { player, square, context } = fall;
+  const { player, square, context, carried } = fall;
   eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: player.id });
   eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-  const ball = fall.bouncing;
-  if (ball !== undefined && context?.flowManager) {
+  const lying = ballAt(state, square);
+  const ball = carried ?? lying;
+  if (ball !== undefined && context) {
     context.gameService.placeBall(ball, square);
     context.flowManager.add(new BounceOperation(square, { ball }), true);
   }
-  if (context?.flowManager) {
-    context.flowManager.add(
-      new ArmourOperation(player.id, undefined, fall.slip),
-      true
-    );
-  }
+  context?.flowManager.add(
+    new ArmourOperation(player.id, undefined, fall.slip),
+    true
+  );
   callbacks.onTurnover(fall.reason);
+  const other = ball === lying ? undefined : lying;
+  if (context && other !== undefined)
+    context.flowManager.add(new BounceOperation(square, { ball: other, bounces: 1 }), true);
 }
 
 export function diveIntoVacated(

@@ -348,19 +348,13 @@ function fallInto(
   run.currentPos = step;
   player.gridPosition = run.currentPos;
   player.status = PlayerStatus.PRONE;
-  const lying = ballAt(deps.state, run.currentPos);
   fallOver(deps, {
     player,
     square: run.currentPos,
-    bouncing: run.ball ?? lying,
+    carried: run.ball,
     context: run.context,
     ...fall,
   });
-  if (run.ball === undefined || lying === undefined || lying === run.ball) return;
-  run.context?.flowManager.add(
-    new BounceOperation(run.currentPos, { ball: lying, bounces: 1 }),
-    true
-  );
 }
 
 function fallOnRush(run: MoveRun, step: Square): MoveEnd {
