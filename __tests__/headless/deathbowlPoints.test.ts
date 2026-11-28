@@ -243,6 +243,19 @@ describe("ball points (DB-R1)", () => {
     expect(game.snapshot().points).toEqual({ ...NOBODY, seat0: 2 });
   });
 
+  it("pays 2 for an accurate pass caught with a Diving Catch", async () => {
+    const game = await northWithBallsAside();
+    const passer = plain(stand(game, ["seat0", 0], { at: { x: 10, y: 7 }, ball: 0 }));
+    const diver = plain(stand(game, ["seat0", 1], { at: { x: 10, y: 12 } }));
+    diver.skills = [getSkill(SkillType.DIVING_CATCH)];
+    rig(game, [6, 6]);
+    await play(game, { type: "declare-action", playerId: passer.id, action: "pass" });
+    await play(game, { type: "pass", playerId: passer.id, x: 10, y: 11 });
+
+    expect(stateOf(game).balls[0].at).toEqual({ x: 10, y: 12 });
+    expect(game.snapshot().points).toEqual({ ...NOBODY, seat0: 2 });
+  });
+
   it("pays 5 to the intercepting team and nothing to the thrower", async () => {
     const game = await northWithBallsAside();
     const passer = plain(stand(game, ["seat0", 0], { at: { x: 10, y: 7 }, ball: 0 }));
