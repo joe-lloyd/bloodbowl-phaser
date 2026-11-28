@@ -22,10 +22,12 @@ staff and a Gutter Bowl specialist. See [CLUB_MODE.md](CLUB_MODE.md).
 | Beach Bowl | [NAF Beach Bowl 2025](https://www.thenaf.net/wp-content/uploads/2026/05/Beach-Bowl-2025.pdf) | 20 × 9 sand | in progress |
 | Gutter Bowl | GW Gutter Bowl (2023) | 26 × 15 walled street or sewer | in progress |
 
-Deathbowl Sevens is a four-team game with two balls. It is being built as an
-experimental, admin-only type with its own rules page,
-[DEATHBOWL_SEVENS.md](DEATHBOWL_SEVENS.md). Dungeon Bowl fields six and needs a
-dungeon map, so it is left out.
+Deathbowl Sevens is a four-team game with two balls, with its own rules page,
+[DEATHBOWL_SEVENS.md](DEATHBOWL_SEVENS.md). It is playable, but only by admins,
+only on one device against three computer coaches, and only as an exhibition:
+it writes nothing to teams, competitions or Firestore. It stays out of the game
+types above, so leagues, clubs and the team pickers never offer it. Dungeon
+Bowl fields six and needs a dungeon map, so it is left out.
 
 This page is our own summary for building the game, not a copy of any
 rulebook. Anything not listed follows the 2025 rulebook. Each rule has an
