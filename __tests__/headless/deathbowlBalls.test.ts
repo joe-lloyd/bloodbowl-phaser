@@ -186,6 +186,22 @@ describe("a pushed carrier lands on the other ball (DB-B1, DB-F3)", () => {
     expect([carrier.gridPosition, carrier.status]).toEqual([{ x: 10, y: 10 }, PlayerStatus.PRONE]);
     expect(balls(game)).toEqual([{ x: 10, y: 9 }, { x: 9, y: 9 }]);
   });
+
+  it("keeps its own ball when Steady Footing saves it from the knock-down", async () => {
+    const game = await northWithBallsAside();
+    const attacker = stand(game, ["seat0", 0], { at: { x: 10, y: 8 } });
+    const carrier = stand(game, ["seat1", 0], { at: { x: 10, y: 9 }, ball: 1 });
+    attacker.stats.ST = 3;
+    carrier.stats.ST = 3;
+    carrier.skills = [getSkill(SkillType.STEADY_FOOTING)];
+    placeBall(stateOf(game), 0, { x: 10, y: 10 });
+
+    await pushOnto(game, [attacker, carrier], { to: { x: 10, y: 10 }, face: 5, rolls: [6, 5] });
+
+    expect([carrier.gridPosition, carrier.status]).toEqual([{ x: 10, y: 10 }, PlayerStatus.ACTIVE]);
+    expect(ballOf(stateOf(game), carrier)).toBe(1);
+    expect(balls(game)).toEqual([{ x: 11, y: 10 }, { x: 10, y: 10 }]);
+  });
 });
 
 describe("Safe Pair of Hands beside the other ball (DB-B1)", () => {

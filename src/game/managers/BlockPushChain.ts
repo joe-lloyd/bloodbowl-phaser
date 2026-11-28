@@ -63,6 +63,7 @@ interface ChainLanding {
   pushedBy: string;
   fellThrough: Set<string>;
   landedOnLooseBall: Set<string>;
+  strayBall: BallId | undefined;
 }
 
 const SECOND_BALL: BallId = 1;
@@ -432,6 +433,7 @@ export abstract class BlockPushChain extends BlockActivation {
       pushedBy: chain.attackerId,
       fellThrough: new Set(),
       landedOnLooseBall: new Set(),
+      strayBall: undefined,
     };
     const offersFollowUp =
       !followUp && !chain.preventFollowUp && !chain.forceFollowUp;
@@ -500,22 +502,25 @@ export abstract class BlockPushChain extends BlockActivation {
       landing.fellThrough.add(link.playerId);
       return;
     }
-    if (carriedBall) this.bounceStrayBall(to, { resting, falls });
+    if (carriedBall) this.knockStrayBall(landing, to, { resting, falls });
 
     if (!falls && !onLooseBall) {
       flowManager?.context.gameService.checkForTouchdown(link.playerId);
     }
   }
 
-  private bounceStrayBall(
+  private knockStrayBall(
+    landing: ChainLanding,
     to: Square,
     { resting, falls }: { resting: BallId | undefined; falls: boolean }
   ): void {
-    if (resting === undefined) return;
-    this.flow()?.add(
-      new BounceOperation(to, { ball: falls ? SECOND_BALL : resting }),
-      true
-    );
+    if (falls) landing.strayBall = resting;
+    else this.bounceStrayBall(to, resting);
+  }
+
+  private bounceStrayBall(to: Square, ball: BallId | undefined): void {
+    if (ball === undefined) return;
+    this.flow()?.add(new BounceOperation(to, { ball }), true);
   }
 
   private pushIntoCrowd(player: Player, exitSquare: Square, pushedBy: string): void {
@@ -726,13 +731,17 @@ export abstract class BlockPushChain extends BlockActivation {
     landing: ChainLanding
   ): void {
     if (!saved) {
+      this.bounceStrayBall(to, landing.strayBall === undefined ? undefined : SECOND_BALL);
       this.knockDownOnSquare(chain.attackerId, defender, to);
       return;
     }
     const flowManager = this.callbacks.getFlowManager?.();
-    if (landing.landedOnLooseBall.has(defender.id))
+    if (landing.landedOnLooseBall.has(defender.id)) {
       flowManager?.add(new BounceOperation(to), true);
-    else if (!chain.stripBall)
+      return;
+    }
+    this.bounceStrayBall(to, landing.strayBall);
+    if (!chain.stripBall)
       flowManager?.context.gameService.checkForTouchdown(defender.id);
   }
 
