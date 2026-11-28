@@ -7,14 +7,19 @@ import {
   type FieldPlayer,
   carrierOf,
   distance,
+  focusBall,
   key,
   middleRow,
+  pitchCentre,
+  type Square,
   toGoal,
 } from "./board";
 import { hasBiteSupport, isThrall } from "./feeding";
 import { inducementChoice } from "./inducementChoices";
 import { type PushLanding, pushLandingAt } from "../../game/rules/pitchSquares";
 import { blockFaces, defenderWrestles, takesWrestle } from "./wrestle";
+import { type PendingOf, best, first } from "./decisionPicks";
+import { crossAssistChoice, reserveChoice } from "./deathbowlChoices";
 
 const USE_REROLL = "use-reroll";
 
@@ -27,36 +32,6 @@ const UNRELIABLE = [
   SkillType.LONER,
 ];
 
-type PendingOf<T extends PendingDecision["type"]> = Extract<
-  PendingDecision,
-  { type: T }
->;
-
-function first(
-  candidates: readonly Candidate[],
-  test: (c: Candidate) => boolean
-): number | null {
-  const index = candidates.findIndex((candidate) => test(candidate));
-  return index === -1 ? null : index;
-}
-
-function best(
-  candidates: readonly Candidate[],
-  score: (c: Candidate) => number | undefined
-): number | null {
-  let pick: number | null = null;
-  let pickScore = -Infinity;
-  for (const [i, c] of candidates.entries()) {
-    const value = score(c);
-    if (value === undefined || !(value > pickScore)) {
-      continue;
-    }
-
-    pickScore = value;
-    pick = i;
-  }
-  return pick;
-}
 
 const blitzing = (board: Board) =>
   board.gs.getState().activePlayer?.action === "blitz";
@@ -135,9 +110,15 @@ function pushChoice(
     const square = { x: command.x, y: command.y };
     const landing = pushLandingAt(from, square);
     if (landing !== "pitch") return pushingThem ? OFF_PITCH_PUSH[landing] : NaN;
-    const wide = Math.abs(square.y - middleRow()) * 2;
+    const wide = wideness(board, square) * 2;
     return pushingThem ? wide : -wide - board.marks.getUint8(key(square));
   });
+}
+
+function wideness(board: Board, square: Square): number {
+  return board.rivals.length === 1
+    ? Math.abs(square.y - middleRow())
+    : distance(square, pitchCentre());
 }
 
 function keepsFood(board: Board, attacker: FieldPlayer | undefined): boolean {
@@ -302,12 +283,31 @@ interface DecideArgs {
   skillPlans?: boolean;
 }
 
+function involvedIds(pending: PendingDecision): string[] {
+  const ids: string[] = [];
+  if ("attackerId" in pending) ids.push(pending.attackerId);
+  if ("defenderId" in pending) ids.push(pending.defenderId);
+  if ("playerId" in pending) ids.push(pending.playerId);
+  return ids;
+}
+
+function decisionBoard(board: Board, pending: PendingDecision): Board {
+  if (board.balls.length === 1) return board;
+  const active = board.gs.getState().activePlayer?.id;
+  const ids = new Set([...involvedIds(pending), ...(active === undefined ? [] : [active])]);
+  const held = board.balls.find(
+    (ball) => ball.kind === "carried" && ids.has(ball.carrier.id)
+  );
+  return held ? focusBall(board, held.id) : board;
+}
+
 export function decide({
-  board,
+  board: whole,
   pending,
   candidates,
   skillPlans = true,
 }: DecideArgs): number | null {
+  const board = decisionBoard(whole, pending);
   if (isOtherDecision(pending))
     return otherDecision(board, pending, candidates);
   switch (pending.type) {
@@ -360,21 +360,14 @@ function otherDecision(
       );
     case "inducement-choice":
       return inducementChoice(board, pending, candidates);
+    case "reserve-move":
+      return reserveChoice(board, pending, candidates);
     case "cross-assist":
-      return find((c) => lendsNobody(c.commands[0]));
+      return crossAssistChoice(board, pending, candidates);
     case "kickoff-event":
     case "foul-assists":
-    case "reserve-move":
       return null;
   }
-}
-
-function lendsNobody(command: HeadlessCommand): boolean {
-  return (
-    command.type === "lend-assists" &&
-    command.toAttacker.length === 0 &&
-    command.toDefender.length === 0
-  );
 }
 
 function isOtherDecision(

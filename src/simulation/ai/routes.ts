@@ -25,6 +25,7 @@ import {
   key,
   looseBallKey,
   neighbours,
+  otherBallKeys,
 } from "./board";
 import { CERTAIN, type Chance, type RollTarget, chain } from "./chance";
 import { activeLayout } from "../../game/variants/activeMatch";
@@ -150,6 +151,7 @@ interface Search {
   board: Board;
 
   ballKey: number;
+  otherBalls: ReadonlySet<number>;
   rush: number;
 
   dodgeInto: DataView;
@@ -217,6 +219,7 @@ function searchFor(board: Board, player: Player, securing: boolean): Search {
   return {
     board,
     ballKey,
+    otherBalls: otherBallKeys(board),
     rush,
     dodgeInto,
     pickup,
@@ -238,7 +241,8 @@ function relax({ search, k, cell, p, stepRush, neighbours }: RelaxArgs): void {
   const { bestAt, parentAt, crossings, cells } = routeGrid();
   const leavesZone = board.marks.getUint8(cell) > 0;
   for (const next of neighbours) {
-    if (board.occupant[next] !== undefined) continue;
+    if (board.occupant[next] !== undefined || search.otherBalls.has(next))
+      continue;
     let chance = stepRush;
     if (crossings.has(cell * cells + next)) chance *= RECKLESS_CHANCE;
     if (leavesZone)

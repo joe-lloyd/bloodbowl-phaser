@@ -9,9 +9,10 @@ import {
 import { PassController } from "../../game/controllers/PassController";
 import { passRange } from "./passRange";
 import {
-  pitchHeight,
+  sidelineGap,
   type Square,
   canCarry,
+  carriedBy,
   distance,
   key,
   neighbours,
@@ -120,7 +121,7 @@ function carrierCover(c: Context, at: Square, carrier: Player): number {
   const cage = cageCorners(c, at, carrier);
 
   const exposed = cage >= 3 ? 0 : 1 - cage / 4;
-  const edge = Math.min(at.y, pitchHeight() - 1 - at.y);
+  const edge = sidelineGap(board, at);
   return (
     -(w.cageWalk > 0
       ? markRisk(c, carrier, at)
@@ -298,7 +299,7 @@ function stallRoute(
 
   const safety = (at: Square) =>
     Math.min(99, ...board.theirs.map((o) => distance(o.gridPosition, at))) +
-    Math.min(2, at.y, pitchHeight() - 1 - at.y);
+    Math.min(2, sidelineGap(board, at));
   const pick = bestBy(options, (o) => safety(o.at));
   if (!pick) throw new Error("No square to move the ball carrier to");
   return pick.route ?? { to: pick.at, path: [], rolls: [], chance: 1 };
@@ -319,7 +320,11 @@ function endZoneRoute(c: Context, from: Square, mate: Player): Route | null {
 
 function ballMates(c: Context, carrier: Player): Player[] {
   return c.board.ours.filter(
-    (mate) => mate.id !== carrier.id && standing(mate) && canCarry(mate)
+    (mate) =>
+      mate.id !== carrier.id &&
+      standing(mate) &&
+      canCarry(mate) &&
+      carriedBy(c.board, mate) === undefined
   );
 }
 

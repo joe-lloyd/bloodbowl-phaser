@@ -17,14 +17,17 @@ import {
   type Intent,
   type Available,
   activations,
+  aimsAt,
   continuation,
   continuationPlans,
   planIdentity,
 } from "./activations";
 import {
+  type BallView,
   type Board,
   type Square,
-  firstBall,
+  carriedBy,
+  focusBall,
   middleRow,
   readBoard,
   toGoal,
@@ -283,11 +286,13 @@ function turnKey(board: Board): string {
   return `${state.turn.teamId}/${String(state.turn.turnNumber)}/${String(state.turn.isHalf2)}/${String(state.turn.extraTime)}/${String(kickoffTurnOf(state)?.event)}`;
 }
 
-function possessionKey(board: Board): string {
-  const ball = firstBall(board);
+function ballKey(ball: BallView): string {
   if (ball.kind === "carried") return ball.carrier.id;
   return ball.kind === "loose" ? `loose/${String(key(ball.at))}` : "none";
 }
+
+const possessionKey = (board: Board): string =>
+  board.balls.map((ball) => ballKey(ball)).join("+");
 
 interface CurrentIntentArgs {
   board: Board;
@@ -347,8 +352,9 @@ function retainedStep({
     const end = candidates.findIndex((c) => c.kind === END_ACTIVATION);
     return end === -1 ? null : { index: end, note: noteFor(plan) };
   }
+  const held = carriedBy(board, actor);
   const c = activationContext({
-    board: board,
+    board: held ? focusBall(board, held.id) : board,
     w: w,
     available: available,
     skillPlans: skillPlans,
@@ -784,7 +790,8 @@ export function declarationIndex(
       command.type === "declare-action" &&
       !command.blockReplacement &&
       command.playerId === activation.player.id &&
-      command.action === activation.action
+      command.action === activation.action &&
+      aimsAt(command.against, activation)
     );
   });
 }
