@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { TurnSnapshot } from "../../headless/serialization";
 
+const ballIdSchema = z.union([z.literal(0), z.literal(1)]);
+
 export const turnSnapshotSchema: z.ZodType<TurnSnapshot> = z.looseObject({
   teamId: z.string(),
   turnNumber: z.number(),
@@ -17,6 +19,9 @@ export const turnSnapshotSchema: z.ZodType<TurnSnapshot> = z.looseObject({
       fouled: z.string().array(),
       passes: z.number(),
       handOffs: z.number(),
+      passedBalls: ballIdSchema.array().default([]),
+      handedOffBalls: ballIdSchema.array().default([]),
+      thrownIds: z.string().array().default([]),
     })
     .exactOptional(),
   hasThrownTeamMate: z.boolean().default(false),

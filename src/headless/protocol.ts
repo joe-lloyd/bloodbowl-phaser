@@ -250,6 +250,8 @@ export interface PlayerActions {
   playerName: string;
   actions: ActionType[];
 
+  against?: { blitz: string[]; foul: string[] };
+
   moveTargets?: GridPosition[];
   blockTargets?: string[];
   foulTargets?: string[];

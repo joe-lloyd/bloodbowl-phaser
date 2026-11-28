@@ -1,3 +1,4 @@
+import { freshSpend } from "../../src/game/rules/turnSpend";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { type HeadlessCommand } from "../../src/headless/protocol";
@@ -65,6 +66,7 @@ describe("the computer's Punt", () => {
   it("punts to team-mates in the end zone when nothing else can score", async () => {
     const game = lastTurn({ x: 14, y: 5 }, ENDZONE);
     game.ctx.gameService.getState().turn.spend = {
+      ...freshSpend(),
       blitzed: [],
       fouled: [],
       passes: 1,

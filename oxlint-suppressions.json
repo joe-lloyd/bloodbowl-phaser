@@ -3746,7 +3746,7 @@
       "count": 2
     },
     "no-implicit-coercion": {
-      "count": 2
+      "count": 1
     },
     "typescript/prefer-optional-chain": {
       "count": 1
@@ -5420,7 +5420,7 @@
   },
   "src/simulation/stepCandidates.ts": {
     "no-implicit-coercion": {
-      "count": 2
+      "count": 1
     },
     "typescript/consistent-type-imports": {
       "count": 1

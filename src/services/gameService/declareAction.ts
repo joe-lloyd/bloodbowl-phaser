@@ -21,7 +21,7 @@ import {
 import { holdsMeasure } from "@/game/inducements/matchInducements";
 import { kickoffTurnAllows } from "@/game/kickoff/kickoffTurn";
 import { mustRedeclare, rageLeavesOpen } from "@/game/rules/awaitingDeclaration";
-import { razzleDazzleAllows } from "@/game/rules/actionAvailability";
+import { canBlitzTo, razzleDazzleAllows } from "@/game/rules/actionAvailability";
 import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
 import {
   type BlockReplacement,
@@ -452,12 +452,9 @@ function recordDeclaration(
     against: string | undefined;
   }
 ): boolean {
+  if (!mayDeclare(parts, declaring)) return false;
   const { player, action } = declaring;
   const playerId = player.id;
-
-  if (!parts.playerActionManager.canDeclareAction(playerId, action, declaring.against)) {
-    return false;
-  }
   finishOnSwitch(parts, declaring.held, playerId);
 
   const prior = parts.state.activePlayer;
@@ -512,6 +509,34 @@ function finishDeclaration(
     parts.flowManager.add(new ActivationGateOperation(playerId, action), true);
   }
   return true;
+}
+
+function blitzOutOfReach(
+  parts: GameParts,
+  player: Player,
+  against: string | undefined
+): boolean {
+  if (parts.seating.kind === "pair" || !player.gridPosition) return false;
+  const ends = [
+    player.gridPosition,
+    ...parts.game.getAvailableMovements(player.id, "jump"),
+  ];
+  const rivals = parts.game.getTeam(against ?? "")?.players ?? [];
+  return rivals.every((rival) => !canBlitzTo(rival, ends));
+}
+
+function mayDeclare(
+  parts: GameParts,
+  {
+    player,
+    action,
+    against,
+  }: { player: Player; action: ActionType; against: string | undefined }
+): boolean {
+  return (
+    parts.playerActionManager.canDeclareAction(player.id, action, against) &&
+    !(action === "blitz" && blitzOutOfReach(parts, player, against))
+  );
 }
 
 function declarationRulesRefuse(

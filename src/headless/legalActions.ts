@@ -1,4 +1,4 @@
-import { ballOnSquare } from "@/game/rules/balls";
+import { ballOnSquare, groundBalls } from "@/game/rules/balls";
 import { type HeadlessGameContext } from "./createHeadlessGame";
 import {
   type GridPosition,
@@ -15,6 +15,8 @@ import { seatOf } from "../game/seating";
 import { areAdjacent } from "../game/elements/GridUtils";
 import {
   type ActionAvailability,
+  canBlitzTo,
+  canFoulFrom,
   computeActionAvailability,
   razzleDazzleAllows,
 } from "../game/rules/actionAvailability";
@@ -115,21 +117,29 @@ function playerActions({
     .filter((id) => id !== teamId);
   const availability = computeActionAvailability({
     player,
-    ballPosition: state.balls[0].at,
+    ballPosition: ballInReach(state, square, reachable),
     opponents,
     teammates: gs.getTeammates(player.id),
     reachable,
     turn: { ...state.turn, spend: ledger },
     hasMovedInAction: false,
   });
+  const open = {
+    blitz: [...openTargets(state.turn.spend, rivals, "blitz")],
+    foul: [...openTargets(ledger, rivals, "foul")],
+  };
+  const against =
+    rivals.length > 1
+      ? targetsInReach({ ...open, opponents, ends: [square, ...reachable] })
+      : open;
   const actions = razzleDazzleSecond(
     state,
     player.id,
     declarableActions({
       player,
       availability,
-      canBlitz: openTargets(state.turn.spend, rivals, "blitz").length > 0,
-      canFoul: openTargets(ledger, rivals, "foul").length > 0,
+      canBlitz: against.blitz.length > 0,
+      canFoul: against.foul.length > 0,
       carriesBall: ballOnSquare(state, square),
       canBlock: adjacentStanding.length > 0,
     }).filter((action) => kickoffTurnAllows(state, action))
@@ -140,6 +150,7 @@ function playerActions({
     playerId: player.id,
     playerName: player.playerName,
     actions,
+    ...(rivals.length > 1 && { against }),
     replacementActions: replacementActions({
       player,
       square,
@@ -161,6 +172,38 @@ function playerActions({
     ).map((mate) => mate.id);
   }
   return entry;
+}
+
+function targetsInReach({
+  blitz,
+  foul,
+  opponents,
+  ends,
+}: {
+  blitz: readonly string[];
+  foul: readonly string[];
+  opponents: readonly Player[];
+  ends: readonly GridPosition[];
+}): { blitz: string[]; foul: string[] } {
+  const reaches = (teamId: string, near: typeof canBlitzTo) =>
+    opponents.some((o) => o.teamId === teamId && near(o, ends));
+  return {
+    blitz: blitz.filter((teamId) => reaches(teamId, canBlitzTo)),
+    foul: foul.filter((teamId) => reaches(teamId, canFoulFrom)),
+  };
+}
+
+function ballInReach(
+  state: GameState,
+  here: GridPosition,
+  reachable: readonly GridPosition[]
+): GridPosition | null {
+  const lying = groundBalls(state).flatMap(({ at }) => (at ? [at] : []));
+  const at = (square: GridPosition) => (ball: GridPosition) =>
+    ball.x === square.x && ball.y === square.y;
+  const held = lying.find(at(here));
+  const near = lying.find((ball) => reachable.some((square) => at(square)(ball)));
+  return held ?? near ?? state.balls[0].at;
 }
 
 function allowed(entries: [ActionType, boolean][]): ActionType[] {
@@ -269,14 +312,6 @@ function replacementActions({
   });
 }
 
-function canBlitzTo(target: Player, endSquares: GridPosition[]): boolean {
-  const at = target.gridPosition;
-  if (!at || target.status !== PlayerStatus.ACTIVE) return false;
-  return endSquares.some(
-    (square) =>
-      Math.max(Math.abs(square.x - at.x), Math.abs(square.y - at.y)) === 1
-  );
-}
 
 function setupActions(ctx: HeadlessGameContext): LegalActions["setup"] {
   const gs = ctx.gameService;

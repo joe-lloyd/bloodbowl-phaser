@@ -20,6 +20,7 @@ import {
 import { type ActionType } from "../../types/events";
 import { chebyshev } from "./chebyshev";
 import { freshSpend, maySpend, type TurnSpend } from "./turnSpend";
+import { activeRules } from "../variants/activeMatch";
 
 const ACTIONS_WITH_A_MOVE: ReadonlySet<ActionType> = new Set<ActionType>([
   "move",
@@ -276,6 +277,28 @@ function actingBoard(
   };
 }
 
+function endsNextTo(
+  target: Player,
+  endSquares: readonly { x: number; y: number }[]
+): boolean {
+  const at = target.gridPosition;
+  return at !== undefined && endSquares.some((square) => chebyshev(square, at) === 1);
+}
+
+export function canBlitzTo(
+  target: Player,
+  endSquares: readonly { x: number; y: number }[]
+): boolean {
+  return isStanding(target) && endsNextTo(target, endSquares);
+}
+
+export function canFoulFrom(
+  target: Player,
+  endSquares: readonly { x: number; y: number }[]
+): boolean {
+  return isDown(target) && endsNextTo(target, endSquares);
+}
+
 function blitzable(ledger: TurnSpend, opponents: Player[]): Player[] {
   return opponents.filter((o) =>
     maySpend(ledger, { kind: "blitz", against: o.teamId })
@@ -372,9 +395,12 @@ function skillActions(board: ActingBoard) {
   const adjacentEligibleMate = board.standingMates.some(
     (t) => chebyshev(here, t.gridPosition!) === 1 && isRightStuffEligible(t)
   );
+  const throwSpent = activeRules().format.teamMateThrowUsesPass
+    ? !maySpend(input.turn.spend, { kind: "pass" })
+    : input.turn.hasThrownTeamMate;
   const throwTeammate =
     hasSkill(player.skills, SkillType.THROW_TEAM_MATE) &&
-    !input.turn.hasThrownTeamMate &&
+    !throwSpent &&
     adjacentEligibleMate;
   const kickTeammate =
     hasSkill(player.skills, SkillType.KICK_TEAM_MATE) &&

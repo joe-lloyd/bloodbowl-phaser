@@ -2,6 +2,7 @@ import { type AllEvents, GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { InjuryType, PlayerCondition, PlayerStatus } from "../types/Player";
 import { RosterName } from "../types/Team";
+import { freshSpend } from "../game/rules/turnSpend";
 import { getSidelineCrewInfo } from "../game/presentation/sidelineStaff";
 import { setActiveOnlineMatch } from "../network/OnlineMatch";
 import { PlaygroundPanel } from "./PlaygroundPanel";
@@ -51,6 +52,7 @@ const SCORE_ROWS: MatchRow[] = [
       state.turn.turnNumber = 5;
       fx.services.gameService.seedTurnCounts(5);
       state.turn.spend = {
+        ...freshSpend(),
         blitzed: [fx.team2.id],
         fouled: [fx.team2.id],
         passes: 1,

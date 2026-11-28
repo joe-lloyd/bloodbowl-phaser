@@ -1,4 +1,5 @@
-import { type BallId, ballOnSquare, placeBall } from "@/game/rules/balls";
+import { type BallId, ballOnSquare, placeBall, restingBall } from "@/game/rules/balls";
+import { ballMoved, moveBall } from "@/game/rules/turnSpend";
 import { GameEventNames } from "@/types/events";
 import { GamePhase } from "@/types/GameState";
 import { type Player } from "@/types/Player";
@@ -65,7 +66,7 @@ export function throwBall({
     `[GameService] Starting Pass Action: ${passerId} -> ${String(target.x)},${String(target.y)}`
   );
 
-  const carrier = transferCarrier(parts, passerId);
+  const carrier = transferCarrier(parts, passerId, "pass");
   if (!carrier.ok) return carrier.error;
   const { player: passer, position } = carrier;
   const refusal = passTargetRefusal({
@@ -77,6 +78,7 @@ export function throwBall({
   });
   if (refusal) return { success: false, result: refusal };
 
+  recordMovedBall(parts, "pass", carrier.ball);
   const pass = new PassOperation(passerId, target.x, target.y, hailMary);
   if (takeUnsatedBloodlust(parts, passerId)) {
     biteBeforeBallAction(parts, passerId, () => {
@@ -161,7 +163,7 @@ export function handOffBall(
     return { success: false, result: "Not in play phase" };
   }
 
-  const carrier = transferCarrier(parts, passerId);
+  const carrier = transferCarrier(parts, passerId, "handoff");
   if (!carrier.ok) return carrier.error;
   const { player: passer } = carrier;
 
@@ -173,6 +175,7 @@ export function handOffBall(
     return { success: false, result: "Illegal hand-off target" };
   }
 
+  recordMovedBall(parts, "handoff", carrier.ball);
   const handoff = new HandoffOperation(passerId, targetPlayerId);
   if (takeUnsatedBloodlust(parts, passerId)) {
     biteBeforeBallAction(parts, passerId, () => {
@@ -211,19 +214,30 @@ export function puntBall({
   parts.flowManager.add(new PuntOperation(playerId, facingX, facingY));
 }
 
+type Transfer = "pass" | "handoff";
+
+const refused = (result: string) => ({
+  ok: false as const,
+  error: { success: false, result },
+});
+
 function transferCarrier(
   parts: GameParts,
-  playerId: string
+  playerId: string,
+  transfer: Transfer
 ):
-  | { ok: true; player: Player; position: Square }
+  | { ok: true; player: Player; position: Square; ball: BallId }
   | { ok: false; error: ActionStart } {
   const player = parts.game.getPlayerById(playerId);
-  if (!player?.gridPosition)
-    return { ok: false, error: { success: false, result: "Player not found" } };
+  if (!player?.gridPosition) return refused("Player not found");
   if (!holdsBall(parts, playerId, player.gridPosition))
-    return {
-      ok: false,
-      error: { success: false, result: "Player does not have ball" },
-    };
-  return { ok: true, player, position: player.gridPosition };
+    return refused("Player does not have ball");
+  const ball = restingBall(parts.state, player.gridPosition);
+  if (ballMoved(parts.state.turn.spend, transfer, ball))
+    return refused(`This ball was already ${transfer === "pass" ? "passed" : "handed off"} this turn`);
+  return { ok: true, player, position: player.gridPosition, ball };
+}
+
+function recordMovedBall(parts: GameParts, transfer: Transfer, ball: BallId): void {
+  parts.state.turn.spend = moveBall(parts.state.turn.spend, transfer, ball);
 }

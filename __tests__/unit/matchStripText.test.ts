@@ -1,3 +1,4 @@
+import { freshSpend } from "../../src/game/rules/turnSpend";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
@@ -48,12 +49,12 @@ describe("match strip text", () => {
   it("names only spent once-per-turn actions", () => {
     expect(
       spentActions({
-        spend: { blitzed: ["team2"], fouled: ["team2"], passes: 0, handOffs: 1 },
+        spend: { ...freshSpend(), blitzed: ["team2"], fouled: ["team2"], handOffs: 1 },
       })
     ).toEqual(["Blitz", "Hand-off", "Foul"]);
     expect(
       spentActions({
-        spend: { blitzed: [], fouled: [], passes: 1, handOffs: 0 },
+        spend: { ...freshSpend(), passes: 1 },
       })
     ).toEqual(["Pass"]);
   });

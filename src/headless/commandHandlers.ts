@@ -19,6 +19,7 @@ import {
 } from "../types/decisions";
 import { isStandableSquare } from "../game/rules/pitchSquares";
 import { pairSeating, pairTeams } from "../game/seating";
+import { outsideTarget } from "../game/rules/turnSpend";
 import { answerReserveMove } from "../services/gameService/decisionAnswers";
 
 type QueryCommand = Extract<
@@ -126,11 +127,16 @@ function isDeclaredBlock(
   return !declaration.blockReplacement;
 }
 
-function isLegalBlockTarget(attacker: Player, defender: Player): boolean {
+function isLegalBlockTarget(
+  attacker: Player,
+  defender: Player,
+  declared: GameState["activePlayer"]
+): boolean {
   return (
     defender.teamId !== attacker.teamId &&
     playersAdjacent(attacker, defender) &&
-    defender.status === PlayerStatus.ACTIVE
+    defender.status === PlayerStatus.ACTIVE &&
+    !outsideTarget(declared, defender.teamId)
   );
 }
 
@@ -153,7 +159,7 @@ async function block(
   if (gs.hasUsedBlitzBlock(cmd.attackerId)) {
     throw new Error("blitz-block-already-used");
   }
-  if (!isLegalBlockTarget(attacker, defender)) {
+  if (!isLegalBlockTarget(attacker, defender, gs.getState().activePlayer)) {
     throw new Error("illegal-block-target");
   }
   const allPlayers = ctx.teams.flatMap((team) => team.players);

@@ -24,6 +24,8 @@ import {
   throwTeammateAims,
 } from "../game/rules/throwTeammate";
 import type { Candidate } from "./candidates";
+import { ballOf } from "../game/rules/balls";
+import { ballMoved, outsideTarget } from "../game/rules/turnSpend";
 import { isStandableSquare, isWallSquare } from "../game/rules/pitchSquares";
 import { barricadeBetween } from "../game/rules/pitchSquares";
 
@@ -57,6 +59,17 @@ const FACINGS = [
   { x: 0, y: 1 },
   { x: 0, y: -1 },
 ] as const;
+
+function carries(
+  state: GameState,
+  player: Player,
+  action: StepContext["action"]
+): boolean {
+  const ball = ballOf(state, player);
+  if (ball === undefined) return false;
+  if (action !== "pass" && action !== "handoff") return true;
+  return !ballMoved(state.turn.spend, action, ball);
+}
 
 function puntSteps({ player, at, action, carrying, step }: StepContext): void {
   if (action !== "punt" || !carrying) return;
@@ -226,9 +239,10 @@ function replacementSteps(ctx: StepContext): void {
   const { player, active, opponents, replacementPending, step } = ctx;
   if (!replacementPending || player.status !== PlayerStatus.ACTIVE) return;
   const replacement = active.blockReplacement!;
+  const declared = opponents.filter((o) => !outsideTarget(active, o.teamId));
   for (const target of legalBlockReplacementTargets(
     player,
-    opponents,
+    declared,
     replacement
   )) {
     step(
@@ -321,7 +335,8 @@ function throwableMates(
         m.status === PlayerStatus.ACTIVE &&
         m.gridPosition &&
         chebyshev(m.gridPosition, at) === 1 &&
-        isRightStuffEligible(m)
+        isRightStuffEligible(m) &&
+        !gs.getState().turn.spend.thrownIds.includes(m.id)
     );
 }
 
@@ -393,11 +408,10 @@ export function stepCandidates(
       active,
       action: active.action,
       opponents,
-      adjacent: opponents.filter((o) => chebyshev(o.gridPosition!, at) === 1),
-      carrying:
-        !!state.balls[0].at &&
-        state.balls[0].at.x === at.x &&
-        state.balls[0].at.y === at.y,
+      adjacent: opponents.filter(
+        (o) => chebyshev(o.gridPosition!, at) === 1 && !outsideTarget(active, o.teamId)
+      ),
+      carrying: carries(state, player, active.action),
       replacementPending:
         !!active.blockReplacement && !active.blockReplacementUsed,
       step: (command, label) => {
