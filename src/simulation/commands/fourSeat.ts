@@ -19,7 +19,7 @@ function rostersFor(seed: number): FourRosters {
   return [at(0), at(1), at(2), at(3)];
 }
 
-const saveStep = (seed: number) => createCoachRng(seed ^ 0x5a_5e).int(600);
+const saveStep = (seed: number) => createCoachRng(seed ^ 0x5a_5e).int(400);
 
 const blocking = (run: FourSeatRun) =>
   run.findings.filter((finding) => BLOCKING.has(finding.kind));
