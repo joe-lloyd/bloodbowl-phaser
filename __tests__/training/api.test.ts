@@ -19,7 +19,11 @@ const SAVED_AT = "2026-11-28T12:00:00.000Z";
 function server() {
   const dir = mkdtempSync(path.join(tmpdir(), "training-ground-"));
   const store = candidateStore({ dir, now: () => new Date(SAVED_AT) });
-  const handle = trainingHandler({ handlers: toolHandlers(store), root: dir });
+  const handle = trainingHandler({
+    handlers: toolHandlers(store),
+    root: dir,
+    hosts: new Set(["training.test"]),
+  });
   const call = async (
     tool: string,
     body: unknown,
@@ -51,6 +55,23 @@ const BRAVER = {
 };
 
 describe("training ground API", () => {
+  it("refuses a request for a host name it does not serve", async () => {
+    const { handle } = server();
+
+    const rebound = await handle(
+      new Request("http://attacker.example:3960/api/tools/list_candidates", {
+        method: "POST",
+        headers: { host: "attacker.example:3960" },
+        body: "{}",
+      })
+    );
+
+    expect(rebound.status).toBe(403);
+    expect(await rebound.text()).toBe(
+      '{"error":"Requests for other host names are refused"}'
+    );
+  });
+
   it("refuses a name that would replace a differently named candidate", async () => {
     const { call } = server();
     const first = { ...BRAVER, name: "Halfling safe-move" };

@@ -25,6 +25,7 @@ const handle = trainingHandler({
     candidateStore({ dir: env.TRAINING_GROUND_DATA, now: () => new Date() })
   ),
   root: path.join(REPOSITORY, "dist-training"),
+  hosts: env.TRAINING_GROUND_NAMES,
 });
 
 function headersOf(message: IncomingMessage): Headers {

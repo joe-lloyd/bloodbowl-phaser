@@ -10,6 +10,10 @@ const environmentSchema = z.object({
     .max(65_535)
     .default(3960),
   TRAINING_GROUND_HOST: z.string().min(1).default("127.0.0.1"),
+  TRAINING_GROUND_NAMES: z
+    .string()
+    .default("localhost,127.0.0.1,training.home.arpa")
+    .transform((names) => new Set(names.split(",").map((name) => name.trim()))),
 });
 
 export const trainingEnvironment = () => environmentSchema.parse(process.env);

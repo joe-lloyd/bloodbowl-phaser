@@ -27,6 +27,7 @@ Then call <http://127.0.0.1:3960/api/tools>. The server reads three variables:
 | `TRAINING_GROUND_DATA` | none        | The folder for candidate files. It must be outside the repository. |
 | `TRAINING_GROUND_PORT` | `3960`      | The port.                                                          |
 | `TRAINING_GROUND_HOST` | `127.0.0.1` | The address. Use `0.0.0.0` to serve the home network.              |
+| `TRAINING_GROUND_NAMES` | `localhost,127.0.0.1,training.home.arpa` | Host names the server answers. A request for any other name is refused, which stops DNS rebinding. |
 
 ## Tools for agents
 

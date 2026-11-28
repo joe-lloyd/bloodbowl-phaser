@@ -71,11 +71,14 @@ async function staticFile(root: string, pathname: string): Promise<Response> {
 interface ServerArgs {
   handlers: ToolHandlers;
   root: string;
+  hosts: ReadonlySet<string>;
 }
 
-export function trainingHandler({ handlers, root }: ServerArgs) {
+export function trainingHandler({ handlers, root, hosts }: ServerArgs) {
   return async (request: Request): Promise<Response> => {
-    const { pathname } = new URL(request.url);
+    const { pathname, hostname } = new URL(request.url);
+    if (!hosts.has(hostname))
+      return json({ error: "Requests for other host names are refused" }, 403);
     if (crossSite(request))
       return json({ error: "Requests from other sites are refused" }, 403);
     if (pathname === "/mcp") return mcpResponse(request, handlers);
