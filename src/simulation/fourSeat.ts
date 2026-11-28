@@ -9,6 +9,7 @@ import type { RosterName } from "../types/Team";
 import { type Candidate, enumerateDecision } from "./candidates";
 import type { Coach } from "./coach";
 import { createRuleMonitor, type RuleMonitor } from "./invariants";
+import { twoBallViolations } from "./ballInvariants";
 import { type CoachRng, createCoachRng } from "./rng";
 import {
   type Finding,
@@ -100,7 +101,10 @@ async function play(run: Run, candidate: Candidate): Promise<void> {
     }
     run.refused = new Set();
     const pending = response.pendingDecision !== null;
-    const violations = run.monitor.observe(command, before, response.snapshot, pending);
+    const violations = [
+      ...run.monitor.observe(command, before, response.snapshot, pending),
+      ...twoBallViolations(response.snapshot),
+    ];
     for (const { rule, message } of violations)
       report(run, response.snapshot, { kind: "invariant", key: rule, message });
   }
