@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { ballOf, ballSquare, placeBall } from "../../src/game/rules/balls";
 import { BounceOperation } from "../../src/game/operations/BounceOperation";
@@ -138,6 +138,53 @@ describe("a player holds at most one ball (DB-B1)", () => {
 
     expect(leaper).toMatchObject({ gridPosition: { x: 10, y: 10 }, status: PlayerStatus.PRONE });
     expect(balls(game)).toEqual([{ x: 11, y: 10 }, { x: 9, y: 9 }]);
+  });
+});
+
+interface Push {
+  readonly to: Square;
+  readonly face: number;
+  readonly rolls: readonly number[];
+}
+
+async function pushOnto(game: HeadlessGame, [attacker, defender]: readonly [Player, Player], { to, face, rolls }: Push) {
+  await play(game, { type: "declare-action", playerId: attacker.id, action: "block" });
+  vi.spyOn(game.ctx.rng, "rollMultipleDice").mockReturnValueOnce([face]);
+  rig(game, rolls);
+  await play(game, { type: "block", attackerId: attacker.id, defenderId: defender.id });
+  await play(game, { type: "choose-block-result", index: 0 });
+  await play(game, { type: "choose-push-direction", ...to });
+  await play(game, { type: "choose-follow-up", followUp: false });
+}
+
+describe("a pushed carrier lands on the other ball (DB-B1, DB-F3)", () => {
+  it("keeps its own ball and bounces the other one", async () => {
+    const game = await northWithBallsAside();
+    const attacker = stand(game, ["seat0", 0], { at: { x: 10, y: 8 } });
+    const carrier = stand(game, ["seat1", 0], { at: { x: 10, y: 9 }, ball: 0 });
+    attacker.stats.ST = 3;
+    carrier.stats.ST = 3;
+    placeBall(stateOf(game), 1, { x: 10, y: 10 });
+
+    await pushOnto(game, [attacker, carrier], { to: { x: 10, y: 10 }, face: 3, rolls: [5] });
+
+    expect([carrier.gridPosition, carrier.status]).toEqual([{ x: 10, y: 10 }, PlayerStatus.ACTIVE]);
+    expect(ballOf(stateOf(game), carrier)).toBe(0);
+    expect(balls(game)).toEqual([{ x: 10, y: 10 }, { x: 11, y: 10 }]);
+  });
+
+  it("bounces both balls when the carrier is knocked down there", async () => {
+    const game = await northWithBallsAside();
+    const attacker = stand(game, ["seat0", 0], { at: { x: 10, y: 8 } });
+    const carrier = stand(game, ["seat1", 0], { at: { x: 10, y: 9 }, ball: 1 });
+    attacker.stats.ST = 3;
+    carrier.stats.ST = 3;
+    placeBall(stateOf(game), 0, { x: 10, y: 10 });
+
+    await pushOnto(game, [attacker, carrier], { to: { x: 10, y: 10 }, face: 5, rolls: [1, 1, 5, 7] });
+
+    expect([carrier.gridPosition, carrier.status]).toEqual([{ x: 10, y: 10 }, PlayerStatus.PRONE]);
+    expect(balls(game)).toEqual([{ x: 10, y: 9 }, { x: 9, y: 9 }]);
   });
 });
 

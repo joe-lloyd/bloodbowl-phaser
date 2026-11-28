@@ -1,4 +1,4 @@
-import { ballAt, placeBall } from "../rules/balls";
+import { type BallId, ballAt, placeBall } from "../rules/balls";
 import {
   type Player,
   PlayerCondition,
@@ -64,6 +64,8 @@ interface ChainLanding {
   fellThrough: Set<string>;
   landedOnLooseBall: Set<string>;
 }
+
+const SECOND_BALL: BallId = 1;
 
 const isPow = (resultType: string): boolean =>
   resultType === "pow" || resultType === "pow-dodge";
@@ -470,6 +472,7 @@ export abstract class BlockPushChain extends BlockActivation {
     const to = link.to;
     const flowManager = this.callbacks.getFlowManager?.();
     player.gridPosition = { ...to };
+    const resting = ballAt(this.state, to);
     const carriedBall = this.carryBall(link.from, to);
 
     const onLooseBall = !carriedBall && this.ballAt(to);
@@ -497,10 +500,22 @@ export abstract class BlockPushChain extends BlockActivation {
       landing.fellThrough.add(link.playerId);
       return;
     }
+    if (carriedBall) this.bounceStrayBall(to, { resting, falls });
 
     if (!falls && !onLooseBall) {
       flowManager?.context.gameService.checkForTouchdown(link.playerId);
     }
+  }
+
+  private bounceStrayBall(
+    to: Square,
+    { resting, falls }: { resting: BallId | undefined; falls: boolean }
+  ): void {
+    if (resting === undefined) return;
+    this.flow()?.add(
+      new BounceOperation(to, { ball: falls ? SECOND_BALL : resting }),
+      true
+    );
   }
 
   private pushIntoCrowd(player: Player, exitSquare: Square, pushedBy: string): void {
