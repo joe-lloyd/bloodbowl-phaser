@@ -2066,13 +2066,13 @@
       "count": 1
     },
     "typescript/consistent-type-assertions": {
-      "count": 4
-    },
-    "typescript/consistent-type-imports": {
       "count": 2
     },
+    "typescript/consistent-type-imports": {
+      "count": 1
+    },
     "typescript/no-non-null-assertion": {
-      "count": 10
+      "count": 8
     }
   },
   "e2e/browser/computer-dice-log.e2e.ts": {
