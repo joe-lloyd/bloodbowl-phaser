@@ -7,37 +7,68 @@ import { teamRerollsLeft } from "../../../game/teamRerolls";
 import { kitOf } from "../../../game/presentation/kits";
 import { GameConfig } from "../../../config/GameConfig";
 import { activeLayout } from "../../../game/variants/activeMatch";
-import { possessive } from "../../../game/managers/TurnManager";
-
-interface TeamRow {
-  id: string;
-  name: string;
-  roster: string;
-  color: string;
-  score: number;
-  turn: number;
-  rerolls: number;
-  freeRerolls: number;
-  bribes: number;
-
-  coach: string | undefined;
-  isMe?: boolean;
-}
+import { playOrderAfter, type Rotation } from "../../../game/seating";
+import { type ScoreView, SeatScoreBoard, type TeamRow } from "./SeatScoreBoard";
 
 const hexColor = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
 
-function SeatTurnBanner({ row }: { row: TeamRow | undefined }) {
-  if (!row) return null;
-  return (
-    <div
-      data-testid="seat-turn-banner"
-      className="hud-slab pointer-events-auto px-3 py-1.5 font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone animate-hud-in"
-      style={{ borderLeft: `4px solid ${row.color}` }}
-    >
-      {possessive(row.name)} turn{row.isMe ? " · you" : ""}
-    </div>
-  );
+function playOrder(rotation: Rotation, activeTeamId: string | null): string[] {
+  const gs = ServiceContainer.getInstance().gameService;
+  if (activeTeamId === null || gs.getTeams().length < 3) return [];
+  const after = playOrderAfter(gs.getSeating(), activeTeamId, rotation);
+  return [activeTeamId, ...after.slice(0, -1).map(({ id }) => id)];
 }
+
+function readScoreView(): ScoreView | null {
+  if (!ServiceContainer.isInitialized()) return null;
+  const gs = ServiceContainer.getInstance().gameService;
+  const state = gs.getState();
+  const online = getActiveOnlineMatch();
+  const seated = gs.getTeams();
+  const { spend } = state.turn;
+  const rotation: Rotation = state.turn.isHalf2 ? -1 : 1;
+  const rows = Object.keys(state.score)
+    .map((teamId) => gs.getTeam(teamId))
+    .filter((t): t is NonNullable<typeof t> => !!t)
+    .map((team) => ({
+      id: team.id,
+      name: team.name,
+      roster: team.rosterName,
+      color: hexColor(kitOf(seated, team.id).primary),
+      score: state.score[team.id] ?? 0,
+      points: state.points?.[team.id] ?? 0,
+      turn: gs.getTurnNumber(team.id),
+      rerolls: teamRerollsLeft(state, team),
+      freeRerolls: state.driveEffects?.freeRerolls[team.id] ?? 0,
+      bribes: state.bribes?.[team.id] ?? 0,
+      blitzed: spend.blitzed.includes(team.id),
+      fouled: spend.fouled.includes(team.id),
+      coach: online?.coachName(team.id),
+      isMe: online?.myTeamId === team.id,
+    }));
+  return {
+    rows,
+    half: state.turn.extraTime ? "ET" : state.turn.isHalf2 ? "2" : "1",
+    activeTeamId: state.activeTeamId,
+    rotation,
+    order: playOrder(rotation, state.activeTeamId),
+  };
+}
+
+const REFRESH_EVENTS = [
+  GameEventNames.Touchdown,
+  GameEventNames.TurnStarted,
+  GameEventNames.PhaseChanged,
+  GameEventNames.GameStateRestored,
+  GameEventNames.TeamUpdated,
+  GameEventNames.RerollUsed,
+  GameEventNames.DriveEffectGranted,
+  GameEventNames.DriveEffectExpired,
+  GameEventNames.PointsAwarded,
+  GameEventNames.TurnDataUpdated,
+
+  GameEventNames.RefereeCall,
+] as const;
 
 export function ScoreBoard({
   eventBus,
@@ -47,68 +78,30 @@ export function ScoreBoard({
 
   compact?: boolean;
 }) {
-  const [rows, setRows] = useState<TeamRow[]>([]);
-  const [half, setHalf] = useState("1");
-  const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
+  const [view, setView] = useState<ScoreView | null>(null);
 
   useEffect(() => {
     const refresh = () => {
-      if (!ServiceContainer.isInitialized()) return;
-      const gs = ServiceContainer.getInstance().gameService;
-      const state = gs.getState();
-
-      const teams = Object.keys(state.score)
-        .map((teamId) => gs.getTeam(teamId))
-        .filter((t): t is NonNullable<typeof t> => !!t);
-
-      const online = getActiveOnlineMatch();
-      const seated = gs.getTeams();
-      setRows(
-        teams.map((team) => ({
-          id: team.id,
-          name: team.name,
-          roster: team.rosterName,
-          color: hexColor(kitOf(seated, team.id).primary),
-          score: state.score[team.id] ?? 0,
-          turn: gs.getTurnNumber(team.id),
-          rerolls: teamRerollsLeft(state, team),
-          freeRerolls: state.driveEffects?.freeRerolls[team.id] ?? 0,
-          bribes: state.bribes?.[team.id] ?? 0,
-          coach: online?.coachName(team.id),
-          isMe: online?.myTeamId === team.id,
-        }))
-      );
-      setHalf(state.turn.extraTime ? "ET" : state.turn.isHalf2 ? "2" : "1");
-      setActiveTeamId(state.activeTeamId);
+      const next = readScoreView();
+      if (next) setView(next);
     };
 
     refresh();
-    const events = [
-      GameEventNames.Touchdown,
-      GameEventNames.TurnStarted,
-      GameEventNames.PhaseChanged,
-      GameEventNames.GameStateRestored,
-      GameEventNames.TeamUpdated,
-      GameEventNames.RerollUsed,
-      GameEventNames.DriveEffectGranted,
-      GameEventNames.DriveEffectExpired,
-
-      GameEventNames.RefereeCall,
-    ] as const;
-
-    for (const e of events) {
+    for (const e of REFRESH_EVENTS) {
       eventBus.on(e, refresh);
     }
     return () => {
-      for (const e of events) {
+      for (const e of REFRESH_EVENTS) {
         eventBus.off(e, refresh);
       }
     };
   }, [eventBus]);
 
+  if (!view) return null;
+  const { rows, half, activeTeamId } = view;
   if (rows.length === 0) return null;
   if (activeLayout().frames.length !== 2)
-    return <SeatTurnBanner row={rows.find(({ id }) => id === activeTeamId)} />;
+    return <SeatScoreBoard view={view} compact={compact} />;
 
   if (compact) {
     const slim = (row: TeamRow, mirrored: boolean) => (
