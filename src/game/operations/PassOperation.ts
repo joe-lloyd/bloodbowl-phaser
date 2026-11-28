@@ -275,6 +275,13 @@ function fallOnTheBall(
   context.flowManager.add(new ArmourOperation(reactor.id), true);
 }
 
+const passBy = (passer: Player, accurate: boolean) => ({
+  passerId: passer.id,
+  passerTeamId: passer.teamId,
+  accurate,
+  action: "pass" as const,
+});
+
 export class PassOperation extends GameOperation {
   public readonly name = "PassOperation";
 
@@ -526,12 +533,7 @@ export class PassOperation extends GameOperation {
       new CatchOperation(
         catcher.id,
         { origin: "pass", ball: this.ball },
-        {
-          passerId: passer.id,
-          passerTeamId: passer.teamId,
-          accurate: false,
-          action: "pass",
-        }
+        passBy(passer, false)
       )
     );
     return true;
@@ -574,13 +576,7 @@ export class PassOperation extends GameOperation {
               isPassTarget:
                 landingPos.x === this.targetX && landingPos.y === this.targetY,
             },
-            {
-              passerId: passer.id,
-              passerTeamId: passer.teamId,
-              accurate,
-              action: "pass",
-              setPiece,
-            }
+            { ...passBy(passer, accurate), setPiece }
           ),
           true
         );
@@ -595,12 +591,16 @@ export class PassOperation extends GameOperation {
 
         if (divingCatcher) {
           context.flowManager.add(
-            new CatchOperation(divingCatcher.id, {
-              origin: "pass",
-              ball: this.ball,
-              divingCatch: true,
-              landingPosition: landingPos,
-            }),
+            new CatchOperation(
+              divingCatcher.id,
+              {
+                origin: "pass",
+                ball: this.ball,
+                divingCatch: true,
+                landingPosition: landingPos,
+              },
+              passBy(passer, accurate)
+            ),
             true
           );
         } else {

@@ -125,6 +125,23 @@ describe("a player holds at most one ball (DB-B1)", () => {
     expect(ballOf(stateOf(game), dropper)).toBeUndefined();
   });
 
+  it("knocks the other ball aside when a player who dropped one jumps onto it", async () => {
+    const game = await northWithBallsAside();
+    const dropper = stand(game, ["seat0", 0], { at: { x: 10, y: 8 }, ball: 0 });
+    dropper.skills.push(getSkill(SkillType.FUMBLEROOSKI));
+    stand(game, ["seat1", 0], { at: { x: 10, y: 9 } }).status = PlayerStatus.PRONE;
+    placeBall(stateOf(game), 1, { x: 10, y: 10 });
+    rig(game, [6, 7, 6]);
+
+    await play(game, { type: "declare-action", playerId: dropper.id, action: "move" });
+    await play(game, { type: "fumblerooski", playerId: dropper.id, x: 9, y: 8 });
+    await play(game, { type: "jump", playerId: dropper.id, x: 10, y: 10 });
+
+    expect(dropper.gridPosition).toEqual({ x: 10, y: 10 });
+    expect(balls(game)).toEqual([{ x: 9, y: 8 }, { x: 10, y: 11 }]);
+    expect(ballOf(stateOf(game), dropper)).toBeUndefined();
+  });
+
   it("bounces both balls off a carrier who fails a Leap onto the other ball", async () => {
     const game = await northWithBallsAside();
     const leaper = stand(game, ["seat0", 0], { at: { x: 10, y: 8 }, ball: 1 });
@@ -185,6 +202,22 @@ describe("a pushed carrier lands on the other ball (DB-B1, DB-F3)", () => {
 
     expect([carrier.gridPosition, carrier.status]).toEqual([{ x: 10, y: 10 }, PlayerStatus.PRONE]);
     expect(balls(game)).toEqual([{ x: 10, y: 9 }, { x: 9, y: 9 }]);
+  });
+
+  it("keeps its own ball when Steady Footing saves it from the knock-down", async () => {
+    const game = await northWithBallsAside();
+    const attacker = stand(game, ["seat0", 0], { at: { x: 10, y: 8 } });
+    const carrier = stand(game, ["seat1", 0], { at: { x: 10, y: 9 }, ball: 1 });
+    attacker.stats.ST = 3;
+    carrier.stats.ST = 3;
+    carrier.skills = [getSkill(SkillType.STEADY_FOOTING)];
+    placeBall(stateOf(game), 0, { x: 10, y: 10 });
+
+    await pushOnto(game, [attacker, carrier], { to: { x: 10, y: 10 }, face: 5, rolls: [6, 5] });
+
+    expect([carrier.gridPosition, carrier.status]).toEqual([{ x: 10, y: 10 }, PlayerStatus.ACTIVE]);
+    expect(ballOf(stateOf(game), carrier)).toBe(1);
+    expect(balls(game)).toEqual([{ x: 11, y: 10 }, { x: 10, y: 10 }]);
   });
 });
 

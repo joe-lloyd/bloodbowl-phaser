@@ -5101,7 +5101,7 @@
   },
   "src/simulation/ai/decisions.ts": {
     "no-implicit-coercion": {
-      "count": 7
+      "count": 6
     },
     "unicorn-js/prefer-includes-over-repeated-comparisons": {
       "count": 1

@@ -192,17 +192,23 @@ function rerollChoice(
   );
 }
 
+const carrierIds = (board: Board): ReadonlySet<string> =>
+  new Set(board.balls.flatMap((ball) => (ball.kind === "carried" ? [ball.carrier.id] : [])));
+
 function biteChoice(
   board: Board,
   candidates: readonly Candidate[]
 ): number | null {
-  const carrier = carrierOf(board)?.id;
+  const carriers = carrierIds(board);
   const bitten = (c: Candidate) =>
     c.commands[0].type === "choose-bite-target"
       ? c.commands[0].playerId
       : undefined;
   return (
-    first(candidates, (c) => !!bitten(c) && bitten(c) !== carrier) ??
+    first(candidates, (c) => {
+      const id = bitten(c);
+      return id !== undefined && !carriers.has(id);
+    }) ??
     first(candidates, (c) => !!bitten(c))
   );
 }
@@ -271,7 +277,8 @@ function sparesCarrier(board: Board, player: FieldPlayer): boolean {
   const thralls = board.ours.filter(
     (p) => isThrall(p) && distance(p.gridPosition, player.gridPosition) === 1
   );
-  return thralls.length === 1 && thralls[0]?.id === carrierOf(board)?.id;
+  const [only] = thralls;
+  return thralls.length === 1 && only !== undefined && carrierIds(board).has(only.id);
 }
 
 const KEEPS_ACTION_WHEN_FED = new Set<string>(["gaze", "block"]);
