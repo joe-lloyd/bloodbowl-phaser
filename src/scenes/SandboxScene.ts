@@ -365,27 +365,23 @@ export class SandboxScene extends GameScene {
   }
 
   private swapRosters(scenario: Scenario): void {
-    if (
-      scenario.setup.team1Roster &&
-      scenario.setup.team1Roster !== this.team1.rosterName
-    ) {
-      console.log(`[Sandbox] Swapping Team 1 to ${scenario.setup.team1Roster}`);
-      this.team1 = sandboxTeam(
-        scenario.setup.team1Roster,
-        `Test ${scenario.setup.team1Roster} 1`,
-        0x4169e1
-      );
-    }
+    this.seat([
+      this.swappedTeam(scenario.setup.team1Roster, this.team1, 1),
+      this.swappedTeam(scenario.setup.team2Roster, this.team2, 2),
+    ]);
+  }
 
-    if (!scenario.setup.team2Roster || scenario.setup.team2Roster === this.team2.rosterName) {
-      return;
-    }
-
-    console.log(`[Sandbox] Swapping Team 2 to ${scenario.setup.team2Roster}`);
-    this.team2 = sandboxTeam(
-      scenario.setup.team2Roster,
-      `Test ${scenario.setup.team2Roster} 2`,
-      0xdc143c
+  private swappedTeam(
+    roster: RosterName | undefined,
+    team: Team,
+    seat: 1 | 2
+  ): Team {
+    if (!roster || roster === team.rosterName) return team;
+    console.log(`[Sandbox] Swapping Team ${String(seat)} to ${roster}`);
+    return sandboxTeam(
+      roster,
+      `Test ${roster} ${String(seat)}`,
+      seat === 1 ? 0x4169e1 : 0xdc143c
     );
   }
 

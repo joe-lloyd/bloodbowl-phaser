@@ -69,6 +69,11 @@ export class GameScene extends Phaser.Scene {
   public get teams(): SeatedTeams {
     return this.seatedTeams;
   }
+
+  protected seat(teams: SeatedTeams): void {
+    this.seatedTeams = teams;
+    [this.team1, this.team2] = teams;
+  }
   public kickingTeam!: Team;
   public receivingTeam!: Team;
 
@@ -178,8 +183,7 @@ export class GameScene extends Phaser.Scene {
 
   init(data: GameSceneData): void {
     const start = resolveMatchStart(data, this.sys.settings.key);
-    this.seatedTeams = start.teams;
-    [this.team1, this.team2] = start.teams;
+    this.seat(start.teams);
     this.competitionContext = start.competitionContext;
     this.resumedMatch = start.resumed;
     this.autosaveEnabled = start.autosaveEnabled;
