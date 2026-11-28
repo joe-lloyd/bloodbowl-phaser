@@ -1,4 +1,4 @@
-import { ballOnSquare, groundBalls } from "@/game/rules/balls";
+import { ballInReach, ballOnSquare } from "@/game/rules/balls";
 import { type HeadlessGameContext } from "./createHeadlessGame";
 import {
   type GridPosition,
@@ -117,7 +117,7 @@ function playerActions({
     .filter((id) => id !== teamId);
   const availability = computeActionAvailability({
     player,
-    ballPosition: ballInReach(state, square, reachable),
+    ballPosition: ballInReach(state, square, reachable) ?? state.balls[0].at,
     opponents,
     teammates: gs.getTeammates(player.id),
     reachable,
@@ -191,19 +191,6 @@ function targetsInReach({
     blitz: blitz.filter((teamId) => reaches(teamId, canBlitzTo)),
     foul: foul.filter((teamId) => reaches(teamId, canFoulFrom)),
   };
-}
-
-function ballInReach(
-  state: GameState,
-  here: GridPosition,
-  reachable: readonly GridPosition[]
-): GridPosition | null {
-  const lying = groundBalls(state).flatMap(({ at }) => (at ? [at] : []));
-  const at = (square: GridPosition) => (ball: GridPosition) =>
-    ball.x === square.x && ball.y === square.y;
-  const held = lying.find(at(here));
-  const near = lying.find((ball) => reachable.some((square) => at(square)(ball)));
-  return held ?? near ?? state.balls[0].at;
 }
 
 function allowed(entries: [ActionType, boolean][]): ActionType[] {

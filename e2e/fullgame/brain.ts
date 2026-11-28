@@ -15,6 +15,14 @@ import { withDriveModifiers } from "../../src/game/kickoff/driveEffects";
 import { scoresAt } from "../../src/game/rules/frames";
 import { pairFrame } from "../../src/game/variants/activeMatch";
 import { seatedTeams } from "../../src/game/seating";
+import { whenEngineQuiet } from "../../src/game/core/GameFlowManager";
+import { coachFor, type Difficulty } from "../../src/simulation/ai/difficulty";
+import { twoBallViolations } from "../../src/simulation/ballInvariants";
+import { placings } from "../../src/game/deathbowl/placings";
+import { GameEventNames } from "../../src/types/events";
+import type { GameSnapshot } from "../../src/headless/serialization";
+import type { PendingDecision } from "../../src/headless/protocol";
+import type { Candidate as PlannedCandidate } from "../../src/simulation/candidates";
 
 let game: HeadlessGame | null = null;
 let kickingTeamId: string | null = null;
@@ -348,4 +356,128 @@ export async function stateDump() {
     rng: g.ctx.rng.captureState(),
     stats: g.ctx.matchStats.captureState(),
   };
+}
+
+let seatCoach: ReturnType<typeof coachFor> | null = null;
+
+function seatBoard(snapshot: GameSnapshot, pendingType: string | undefined) {
+  return JSON.stringify([
+    snapshot.activePlayer,
+    snapshot.ballPosition,
+    snapshot.extraBalls,
+    snapshot.activeTeamId,
+    snapshot.turn.turnNumber,
+    pendingType,
+    snapshot.teams.map((t) =>
+      t.players.map((p) => [p.position?.x, p.position?.y, p.status])
+    ),
+  ]);
+}
+
+interface SeatCandidate {
+  kind: PlannedCandidate["kind"];
+  label: string;
+  commands: PlannedCandidate["commands"];
+}
+
+export type SeatNext =
+  | { over: true }
+  | { over: false; waiting: true; board: string }
+  | {
+      over: false;
+      waiting: false;
+      phase: string;
+      pending: PendingDecision | null;
+      teamId: string;
+      candidate: SeatCandidate;
+      board: string;
+    };
+
+export async function seatNext(difficulty: Difficulty): Promise<SeatNext> {
+  const match = globalThis.__computerMatch;
+  const online = getActiveOnlineMatch();
+  if (!match || !online) return { over: false, waiting: true, board: "" };
+  const g = match.game;
+  countSeats(g);
+  await whenEngineQuiet();
+  const snapshot = g.snapshot();
+  if (snapshot.phase === GamePhase.GAME_OVER) return { over: true };
+  const board = seatBoard(snapshot, g.pendingDecision()?.type);
+  if (!online.mayAct()) return { over: false, waiting: true, board };
+  const point = await enumerateDecision(g, null);
+  const [first] = point.candidates;
+  if (point.teamId !== online.myTeamId || !first)
+    return { over: false, waiting: true, board };
+  seatCoach ??= coachFor(difficulty);
+  const { index } = await seatCoach.choose({ game: g, snapshot, point, rng });
+  const { kind, label, commands } = point.candidates[index] ?? first;
+  return {
+    over: false,
+    waiting: false,
+    phase: snapshot.phase,
+    pending: point.pending,
+    teamId: point.teamId,
+    candidate: { kind, label, commands },
+    board,
+  };
+}
+
+interface SeatCounts {
+  watched: HeadlessGame | null;
+  awarded: Record<string, number>;
+  turns: Record<string, number>;
+}
+
+const seatCounts: SeatCounts = { watched: null, awarded: {}, turns: {} };
+
+function countSeats(g: HeadlessGame) {
+  if (seatCounts.watched === g) return;
+  seatCounts.watched = g;
+  seatCounts.awarded = {};
+  seatCounts.turns = {};
+  g.ctx.eventBus.on(GameEventNames.PointsAwarded, ({ teamId, points }) => {
+    seatCounts.awarded[teamId] = (seatCounts.awarded[teamId] ?? 0) + points;
+  });
+  g.ctx.eventBus.on(GameEventNames.TurnStarted, ({ teamId }) => {
+    seatCounts.turns[teamId] = (seatCounts.turns[teamId] ?? 0) + 1;
+  });
+}
+
+export function seatTally() {
+  const match = globalThis.__computerMatch;
+  if (!match) return null;
+  const snapshot = match.game.snapshot();
+  const { awarded, turns } = seatCounts;
+  const tallies = snapshot.teams.map(({ id }) => ({
+    teamId: id,
+    points: snapshot.points?.[id] ?? 0,
+    touchdowns: snapshot.score[id] ?? 0,
+  }));
+  return {
+    phase: snapshot.phase,
+    teams: snapshot.teams.map(({ id, name }) => ({ id, name })),
+    awarded,
+    turns,
+    findings: twoBallViolations(snapshot),
+    places: placings(tallies),
+  };
+}
+
+export type SeatTally = ReturnType<typeof seatTally>;
+
+export function seatDebug() {
+  const match = globalThis.__computerMatch;
+  if (!match) return null;
+  const state = match.game.ctx.gameService.getState();
+  return JSON.stringify({
+    phase: state.phase,
+    subPhase: state.subPhase,
+    activeTeamId: state.activeTeamId,
+    turnTeamId: state.turn.teamId,
+    turnNumber: state.turn.turnNumber,
+    activePlayer: state.activePlayer,
+    scoringTeamIds: state.turn.scoringTeamIds,
+    pending: match.game.pendingDecision(),
+    mayAct: getActiveOnlineMatch()?.mayAct(),
+  });
 }
