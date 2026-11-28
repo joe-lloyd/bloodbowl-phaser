@@ -2,6 +2,7 @@ import { type BallId, ballAt, placeBall } from "../rules/balls";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 import { PickupOperation } from "../operations/PickupOperation";
+import { BounceOperation } from "../operations/BounceOperation";
 import { type IGameService } from "@/services/interfaces/IGameService";
 import { type FlowContext } from "../core/GameFlowManager";
 import { steadyFootingSaves } from "../rules/steadyFooting";
@@ -295,9 +296,14 @@ function scoreEndsJump(
   destination: Square
 ): boolean {
   const { deps, player } = jump;
+  const lying = ballAt(deps.state, destination);
   jump.gameService?.placeBall(ball, destination);
   placeBall(deps.state, ball, destination);
   deps.eventBus.emit(GameEventNames.BallPlaced, { ...destination });
+  if (lying !== undefined && lying !== ball)
+    jump.context?.flowManager.add(
+      new BounceOperation(destination, { ball: lying, bounces: 1 })
+    );
   const { frame } = seatOf(deps.seating, player.teamId);
   if (!scoresAt(frame, destination)) return false;
   deps.callbacks.onTouchdown?.(player.teamId, player.id);

@@ -33,7 +33,7 @@ const inPlay = (balls: BallState["balls"]): BallState => ({
   balls,
 });
 
-const standingAt = (at: { x: number; y: number }) => ({ gridPosition: { ...at } });
+const standingAt = (at: { x: number; y: number }) => ({ id: "p", gridPosition: { ...at } });
 
 const pair = (): BallState => {
   const game = inPlay(twoBalls());

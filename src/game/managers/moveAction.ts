@@ -1,4 +1,4 @@
-import { type BallId, ballAt, placeBall } from "../rules/balls";
+import { type BallId, ballAt, mayTakeBall, placeBall } from "../rules/balls";
 import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
@@ -236,7 +236,7 @@ export async function movePlayer(
     }
 
     let picked: "failed" | "secured" | undefined;
-    const pickupContext = pickupDue(run);
+    const pickupContext = await pickupDue(run);
     if (pickupContext) {
       const pickupOp = new PickupOperation(playerId);
       await pickupOp.execute(pickupContext);
@@ -533,9 +533,12 @@ function slipOnBananaSkin(run: MoveRun, step: Square): MoveEnd {
   return "slipped";
 }
 
-function pickupDue(run: MoveRun): FlowContext | undefined {
-  const { context } = run;
-  if (run.ball !== undefined || !isBallAt(run.deps.state, run.currentPos)) {
+async function pickupDue(run: MoveRun): Promise<FlowContext | undefined> {
+  const { context, deps } = run;
+  const lying = ballAt(deps.state, run.currentPos);
+  if (run.ball !== undefined || lying === undefined) return undefined;
+  if (!mayTakeBall(deps.state, run.player, lying)) {
+    await knockAside(run, lying);
     return undefined;
   }
   if (context) showWalk(run);
@@ -564,10 +567,9 @@ function takeBall(
   return isSecuringBall(deps.state, run.player.id) ? "secured" : undefined;
 }
 
-async function knockAsideOtherBall(run: MoveRun, carried: BallId): Promise<void> {
-  const { deps, context, currentPos } = run;
-  const other = ballAt(deps.state, currentPos);
-  if (other === undefined || other === carried || !context) return;
+async function knockAside(run: MoveRun, other: BallId | undefined): Promise<void> {
+  const { context, currentPos } = run;
+  if (other === undefined || !context) return;
   showWalk(run);
   context.flowManager.add(new BounceOperation(currentPos, { ball: other, bounces: 1 }));
   await context.flowManager.whenIdle();
@@ -575,9 +577,11 @@ async function knockAsideOtherBall(run: MoveRun, carried: BallId): Promise<void>
 
 async function carryBall(run: MoveRun): Promise<boolean> {
   const { deps, player, currentPos } = run;
-  if (run.ball === undefined) return false;
-  await knockAsideOtherBall(run, run.ball);
-  placeBall(deps.state, run.ball, currentPos);
+  const carried = run.ball;
+  if (carried === undefined) return false;
+  const lying = ballAt(deps.state, currentPos);
+  placeBall(deps.state, carried, currentPos);
+  await knockAside(run, lying === carried ? undefined : lying);
   deps.eventBus.emit(GameEventNames.BallPlaced, {
     x: currentPos.x,
     y: currentPos.y,

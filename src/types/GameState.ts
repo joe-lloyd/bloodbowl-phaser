@@ -4,7 +4,7 @@ import type { Weather } from "../game/rules/weather";
 import type { LostBall } from "../game/kickoff/ballConditions";
 import type { ActiveFormat } from "../game/variants/activeMatch";
 import type { TurnSpend } from "../game/rules/turnSpend";
-import type { Balls } from "../game/rules/balls";
+import type { BallId, Balls } from "../game/rules/balls";
 export const SubPhase = {
   INTRO: "INTRO",
   WEATHER: "WEATHER",
@@ -115,6 +115,8 @@ export interface GameState {
     grudgeMatch?: boolean;
 
     against?: string;
+
+    droppedBall?: BallId;
 
     razzleDazzle?: {
       actions: ActionType[];
