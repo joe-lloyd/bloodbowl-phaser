@@ -125,6 +125,23 @@ describe("a player holds at most one ball (DB-B1)", () => {
     expect(ballOf(stateOf(game), dropper)).toBeUndefined();
   });
 
+  it("knocks the other ball aside when a player who dropped one jumps onto it", async () => {
+    const game = await northWithBallsAside();
+    const dropper = stand(game, ["seat0", 0], { at: { x: 10, y: 8 }, ball: 0 });
+    dropper.skills.push(getSkill(SkillType.FUMBLEROOSKI));
+    stand(game, ["seat1", 0], { at: { x: 10, y: 9 } }).status = PlayerStatus.PRONE;
+    placeBall(stateOf(game), 1, { x: 10, y: 10 });
+    rig(game, [6, 7, 6]);
+
+    await play(game, { type: "declare-action", playerId: dropper.id, action: "move" });
+    await play(game, { type: "fumblerooski", playerId: dropper.id, x: 9, y: 8 });
+    await play(game, { type: "jump", playerId: dropper.id, x: 10, y: 10 });
+
+    expect(dropper.gridPosition).toEqual({ x: 10, y: 10 });
+    expect(balls(game)).toEqual([{ x: 9, y: 8 }, { x: 10, y: 11 }]);
+    expect(ballOf(stateOf(game), dropper)).toBeUndefined();
+  });
+
   it("bounces both balls off a carrier who fails a Leap onto the other ball", async () => {
     const game = await northWithBallsAside();
     const leaper = stand(game, ["seat0", 0], { at: { x: 10, y: 8 }, ball: 1 });

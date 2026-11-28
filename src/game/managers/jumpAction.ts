@@ -1,4 +1,4 @@
-import { type BallId, ballAt, placeBall } from "../rules/balls";
+import { type BallId, ballAt, mayTakeBall, placeBall } from "../rules/balls";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 import { PickupOperation } from "../operations/PickupOperation";
@@ -26,7 +26,6 @@ import {
   fallOver,
   finishIfSpent,
   heldInSquare,
-  isBallAt,
   movementUsed,
   rollRush,
 } from "./movementShared";
@@ -283,11 +282,23 @@ function landJump(
   }
   if (ball !== undefined) {
     if (scoreEndsJump(jump, ball, destination)) return undefined;
-  } else if (context && isBallAt(deps.state, destination)) {
+  } else if (context && mayPickUp(jump, destination)) {
     return context;
   }
   finishIfSpent(jump.deps, jump.player);
   return undefined;
+}
+
+function mayPickUp(jump: JumpRun, destination: Square): boolean {
+  const lying = ballAt(jump.deps.state, destination);
+  if (lying === undefined) return false;
+  if (mayTakeBall(jump.deps.state, jump.player, lying)) return true;
+  knockAside(jump, destination, lying);
+  return false;
+}
+
+function knockAside(jump: JumpRun, square: Square, ball: BallId): void {
+  jump.context?.flowManager.add(new BounceOperation(square, { ball, bounces: 1 }));
 }
 
 function scoreEndsJump(
@@ -300,10 +311,7 @@ function scoreEndsJump(
   jump.gameService?.placeBall(ball, destination);
   placeBall(deps.state, ball, destination);
   deps.eventBus.emit(GameEventNames.BallPlaced, { ...destination });
-  if (lying !== undefined && lying !== ball)
-    jump.context?.flowManager.add(
-      new BounceOperation(destination, { ball: lying, bounces: 1 })
-    );
+  if (lying !== undefined && lying !== ball) knockAside(jump, destination, lying);
   const { frame } = seatOf(deps.seating, player.teamId);
   if (!scoresAt(frame, destination)) return false;
   deps.callbacks.onTouchdown?.(player.teamId, player.id);
