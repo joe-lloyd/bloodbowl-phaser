@@ -17,6 +17,7 @@ import {
   Notice,
   PageHeader,
   PageShell,
+  Panel,
   Section,
   TeamSwatch,
 } from "../componentWarehouse/HudKit";
@@ -91,9 +92,9 @@ function EntryReport({ check }: { check: DeathbowlEntryCheck }) {
 
 function Opponents({ teams }: { teams: readonly Team[] }) {
   return (
-    <ul className="grid gap-2 sm:grid-cols-3">
+    <div className="grid gap-2 sm:grid-cols-3">
       {teams.map((team, index) => (
-        <li key={team.id} className="hud-slab flex items-center gap-2.5 px-3 py-2">
+        <Panel key={team.id} className="flex items-center gap-2.5 px-3 py-2">
           <TeamSwatch color={numToHex(team.colors.primary)} className="h-4 w-4" />
           <span className="min-w-0 flex-1">
             <Title level="row" as="span" className="block truncate">
@@ -103,9 +104,9 @@ function Opponents({ teams }: { teams: readonly Team[] }) {
               {COMPUTER_SEATS[index]} · {team.rosterName}
             </span>
           </span>
-        </li>
+        </Panel>
       ))}
-    </ul>
+    </div>
   );
 }
 

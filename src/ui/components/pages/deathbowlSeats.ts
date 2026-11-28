@@ -10,7 +10,7 @@ export interface DeathbowlEntryCheck {
   readonly notices: readonly EntryProblem[];
 }
 
-export function enteredTeam(team: Team): Team {
+function enteredTeam(team: Team): Team {
   const entered = structuredClone(team);
   entered.players = entered.players.filter(
     ({ playerKind }) => playerKind !== "star"

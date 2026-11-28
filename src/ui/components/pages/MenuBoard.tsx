@@ -100,7 +100,7 @@ function AdminRows({ go, deathbowlSaved }: { go: Go; deathbowlSaved: boolean }) 
   );
 }
 
-function OnlineRow(props: MenuGroupsProps) {
+function OnlineRow(props: Omit<MenuGroupsProps, "deathbowlSaved">) {
   const { onOnline, onlineDisabled } = props;
   const hint = props.onlineAvailable ? undefined : ONLINE_HINT;
   return (
