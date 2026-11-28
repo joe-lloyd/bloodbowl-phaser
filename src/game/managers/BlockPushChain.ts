@@ -10,7 +10,7 @@ import { type BlockResultType } from "../../services/BlockResolutionService";
 import { GameEventNames } from "../../types/events";
 import { ArmourOperation } from "../operations/ArmourOperation.js";
 import { BounceOperation } from "../operations/BounceOperation";
-import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
+import { type CrowdFall, CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
 import { trapdoorOpens } from "../inducements/matchInducements";
 import { barricadeBetween, pushLandingAt } from "../rules/pitchSquares";
 import { activeRules } from "../variants/activeMatch";
@@ -60,6 +60,7 @@ interface PushChain {
 }
 
 interface ChainLanding {
+  pushedBy: string;
   fellThrough: Set<string>;
   landedOnLooseBall: Set<string>;
 }
@@ -426,6 +427,7 @@ export abstract class BlockPushChain extends BlockActivation {
     }: { knockDownDefender: boolean; followUp: boolean }
   ): ChainLanding {
     const landing: ChainLanding = {
+      pushedBy: chain.attackerId,
       fellThrough: new Set(),
       landedOnLooseBall: new Set(),
     };
@@ -462,7 +464,7 @@ export abstract class BlockPushChain extends BlockActivation {
     }
   ): void {
     if (link.to === null) {
-      this.leaveThePitch(link, player);
+      this.leaveThePitch(link, player, landing.pushedBy);
       return;
     }
     const to = link.to;
@@ -501,13 +503,13 @@ export abstract class BlockPushChain extends BlockActivation {
     }
   }
 
-  private pushIntoCrowd(player: Player, exitSquare: Square): void {
+  private pushIntoCrowd(player: Player, exitSquare: Square, pushedBy: string): void {
     delete player.gridPosition;
     this.eventBus.emit(GameEventNames.PlayerPushedIntoCrowd, {
       playerId: player.id,
       exitSquare,
     });
-    this.queueCrowdInjury(player, exitSquare);
+    this.queueCrowdInjury(player, exitSquare, { pushedBy });
   }
 
   private async pushOffThePitch(
@@ -533,9 +535,9 @@ export abstract class BlockPushChain extends BlockActivation {
     await this.applyChain(followUp);
   }
 
-  private leaveThePitch(link: PushLink, player: Player): void {
+  private leaveThePitch(link: PushLink, player: Player, pushedBy: string): void {
     if (link.pit) this.dropIntoPit(player, link.from, link.pit);
-    else this.pushIntoCrowd(player, link.from);
+    else this.pushIntoCrowd(player, link.from, pushedBy);
   }
 
   private dropIntoPit(player: Player, from: Square, pit: Square): void {
@@ -651,21 +653,21 @@ export abstract class BlockPushChain extends BlockActivation {
     if (bounceLooseBall) {
       this.callbacks.getFlowManager?.()?.add(new BounceOperation(square), true);
     }
-    this.queueCrowdInjury(player, square, { carriedBall });
+    this.queueCrowdInjury(player, square, { trapdoor: { carriedBall } });
     return true;
   }
 
   private queueCrowdInjury(
     player: Player,
     square: Square,
-    trapdoor?: { carriedBall: boolean }
+    fall: Omit<CrowdFall, "isTurnover">
   ): void {
     const flowManager = this.callbacks.getFlowManager?.();
     if (!flowManager) return;
     const isTurnover =
       player.teamId === flowManager.context.gameService.getActiveTeamId();
     flowManager.add(
-      new CrowdInjuryOperation(player.id, square, isTurnover, trapdoor),
+      new CrowdInjuryOperation(player.id, square, { ...fall, isTurnover }),
       true
     );
   }

@@ -16,6 +16,13 @@ import { movePlayerToBox } from "../rules/playerLocation";
 import { offerApothecary } from "../inducements/apothecary";
 import { casualtyOutcome, recordSeriousKnockout } from "./injuryVerdict";
 
+export interface CrowdFall {
+  readonly isTurnover: boolean;
+  readonly trapdoor?: { carriedBall: boolean };
+  readonly carriedBall?: boolean;
+  readonly pushedBy?: string;
+}
+
 export class CrowdInjuryOperation extends GameOperation {
   public readonly name = "CrowdInjury";
 
@@ -24,22 +31,19 @@ export class CrowdInjuryOperation extends GameOperation {
   private isTurnover: boolean;
   private trapdoor: ({ carriedBall: boolean }) | undefined;
   private carriedBallOverride: (boolean) | undefined;
+  private pushedBy: string | undefined;
   constructor(
     playerId: string,
     exitSquare: { x: number; y: number },
-
-    isTurnover: boolean,
-
-    trapdoor?: { carriedBall: boolean },
-
-    carriedBallOverride?: boolean
+    fall: CrowdFall
   ) {
     super();
     this.playerId = playerId;
     this.exitSquare = exitSquare;
-    this.isTurnover = isTurnover;
-    this.trapdoor = trapdoor;
-    this.carriedBallOverride = carriedBallOverride;
+    this.isTurnover = fall.isTurnover;
+    this.trapdoor = fall.trapdoor;
+    this.carriedBallOverride = fall.carriedBall;
+    this.pushedBy = fall.pushedBy;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -66,6 +70,7 @@ export class CrowdInjuryOperation extends GameOperation {
       result: reportedInjury(gameService, player.id, injury.result),
       rollType,
       stunnedToReserves: true,
+      ...(this.pushedBy !== undefined && { causerId: this.pushedBy }),
     });
     await this.settle(context, player, injury);
     eventBus.emit(GameEventNames.PlayerStatusChanged, player);

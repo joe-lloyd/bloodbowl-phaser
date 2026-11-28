@@ -4018,11 +4018,6 @@
       "count": 1
     }
   },
-  "src/game/operations/CrowdInjuryOperation.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/game/operations/EndDriveOperations.ts": {
     "no-implicit-coercion": {
       "count": 1

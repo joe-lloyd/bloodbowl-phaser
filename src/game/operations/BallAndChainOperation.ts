@@ -111,7 +111,7 @@ export class BallAndChainOperation extends GameOperation {
         exitSquare: from,
       });
       context.flowManager.add(
-        new CrowdInjuryOperation(fanatic.id, from, true),
+        new CrowdInjuryOperation(fanatic.id, from, { isTurnover: true }),
         true
       );
       context.flowManager.add(new FinishBallAndChainSquare(square));

@@ -26,6 +26,8 @@ export interface BlockGameEvents {
     diceTeamId?: string;
 
     stunnedToReserves?: true;
+
+    causerId?: string;
   };
 
   [GameEventNames.PlayerKnockedDown]: {

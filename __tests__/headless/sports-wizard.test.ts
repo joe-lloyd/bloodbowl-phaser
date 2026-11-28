@@ -205,8 +205,9 @@ describe("the Sports-Wizard", () => {
         new CrowdInjuryOperation(
           fixtureValue(target).id,
           { x: 0, y: 5 },
-          false,
-          route === "trapdoor" ? { carriedBall: false } : undefined
+          route === "trapdoor"
+            ? { isTurnover: false, trapdoor: { carriedBall: false } }
+            : { isTurnover: false }
         )
       );
       await settle();

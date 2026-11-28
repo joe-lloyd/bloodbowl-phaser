@@ -246,8 +246,9 @@ export function dropThroughTrapdoor(
   }
   delete player.gridPosition;
   flowManager?.add(
-    new CrowdInjuryOperation(player.id, { ...square }, false, {
-      carriedBall: carried !== undefined,
+    new CrowdInjuryOperation(player.id, { ...square }, {
+      isTurnover: false,
+      trapdoor: { carriedBall: carried !== undefined },
     }),
     true
   );

@@ -526,7 +526,12 @@ export class PassOperation extends GameOperation {
       new CatchOperation(
         catcher.id,
         { origin: "pass", ball: this.ball },
-        { passerId: passer.id, passerTeamId: passer.teamId, accurate: false }
+        {
+          passerId: passer.id,
+          passerTeamId: passer.teamId,
+          accurate: false,
+          action: "pass",
+        }
       )
     );
     return true;
@@ -573,6 +578,7 @@ export class PassOperation extends GameOperation {
               passerId: passer.id,
               passerTeamId: passer.teamId,
               accurate,
+              action: "pass",
               setPiece,
             }
           ),

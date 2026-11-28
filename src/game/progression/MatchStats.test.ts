@@ -74,11 +74,13 @@ describe("MatchStats — concession bookkeeping (no artificial touchdown)", () =
     eventBus.emit(GameEventNames.PassCompleted, {
       playerId: "p1",
       catcherId: "p1",
+      action: "pass",
       position: { x: 0, y: 0 },
     });
     eventBus.emit(GameEventNames.PassCompleted, {
       playerId: "p2",
       catcherId: "p2",
+      action: "pass",
       position: { x: 0, y: 0 },
     });
 
@@ -120,6 +122,7 @@ describe("MatchStats — concession bookkeeping (no artificial touchdown)", () =
     eventBus.emit(GameEventNames.PassCompleted, {
       playerId: "p1",
       catcherId: "p1",
+      action: "pass",
       position: { x: 0, y: 0 },
     });
     stats.applySpp(teams, "team-1");

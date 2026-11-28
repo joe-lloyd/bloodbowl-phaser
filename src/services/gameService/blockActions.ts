@@ -333,8 +333,9 @@ function fallThroughFollowUp(
   if (trapdoorOpens(state, parts.diceController, attacker, targetSquare)) {
     delete attacker.gridPosition;
     parts.flowManager.add(
-      new CrowdInjuryOperation(attackerId, { ...targetSquare }, false, {
-        carriedBall,
+      new CrowdInjuryOperation(attackerId, { ...targetSquare }, {
+        isTurnover: false,
+        trapdoor: { carriedBall },
       }),
       true
     );
