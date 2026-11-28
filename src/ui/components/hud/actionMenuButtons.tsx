@@ -267,8 +267,7 @@ function targetOffers(
   kind: "blitz" | "foul",
   { availability, rivals }: Pick<ActionListProps, "availability" | "rivals">
 ): MenuButton[] {
-  const shown = availability[kind] || rivals.some((rival) => rival[kind] === "spent");
-  if (!shown) return [];
+  if (!availability[kind]) return [];
   return rivals.map((rival) => ({
     id: `${kind}-${rival.teamId}`,
     action: kind,

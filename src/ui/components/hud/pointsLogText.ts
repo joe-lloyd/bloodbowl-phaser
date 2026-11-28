@@ -14,6 +14,9 @@ const REASONS: Record<PointsReason, string> = {
   stun: "Stun",
 };
 
+const pointsText = (points: number) =>
+  `${String(points)} point${points === 1 ? "" : "s"}`;
+
 type PointsAward = GameEvents[typeof GameEventNames.PointsAwarded];
 
 export function pointsLine({ teamId, playerId, reason, points, total }: PointsAward) {
@@ -23,7 +26,7 @@ export function pointsLine({ teamId, playerId, reason, points, total }: PointsAw
   const team = gs?.getTeam(teamId)?.name ?? teamId;
   const player = gs?.getPlayerById(playerId)?.playerName ?? playerId;
   return {
-    headline: `${team} +${String(points)} points`,
-    detail: `${REASONS[reason]} by ${player}. ${String(total)} points in all.`,
+    headline: `${team} +${pointsText(points)}`,
+    detail: `${REASONS[reason]} by ${player}. ${pointsText(total)} in all.`,
   };
 }
