@@ -188,6 +188,26 @@ describe("a pushed carrier lands on the other ball (DB-B1, DB-F3)", () => {
   });
 });
 
+describe("Safe Pair of Hands beside the other ball (DB-B1)", () => {
+  it("places the ball on the next square free of players and balls", async () => {
+    const game = await northWithBallsAside();
+    const attacker = stand(game, ["seat0", 0], { at: { x: 10, y: 10 } });
+    const carrier = stand(game, ["seat1", 0], { at: { x: 10, y: 9 }, ball: 0 });
+    attacker.stats.ST = 3;
+    carrier.stats.ST = 3;
+    carrier.skills = [getSkill(SkillType.SAFE_PAIR_OF_HANDS)];
+    placeBall(stateOf(game), 1, { x: 10, y: 8 });
+
+    await play(game, { type: "declare-action", playerId: attacker.id, action: "block" });
+    vi.spyOn(game.ctx.rng, "rollMultipleDice").mockReturnValueOnce([2]);
+    await play(game, { type: "block", attackerId: attacker.id, defenderId: carrier.id });
+    await play(game, { type: "choose-block-result", index: 0 });
+
+    expect(carrier.status).toBe(PlayerStatus.PRONE);
+    expect(balls(game)).toEqual([{ x: 11, y: 8 }, { x: 10, y: 8 }]);
+  });
+});
+
 describe("the rule monitor follows the ball that moved (DB-B1)", () => {
   it("accepts a caught hand-off of one ball while the other lies loose", async () => {
     const game = await northWithBallsAside();

@@ -112,7 +112,7 @@ export abstract class BlockManagerBase {
     ];
     for (const [dx, dy] of dirs) {
       const s = { x: pos.x + dx, y: pos.y + dy };
-      if (!isStandableSquare(s)) continue;
+      if (!isStandableSquare(s) || this.ballAt(s)) continue;
       if (!occupied.has(`${String(s.x)},${String(s.y)}`)) return s;
     }
     return null;
