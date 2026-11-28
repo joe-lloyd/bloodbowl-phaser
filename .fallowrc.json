@@ -40,7 +40,8 @@
     "gallery/main.ts",
     "src/boundary/layerUnpackWorker.ts",
     "vite.gallery.config.ts",
-    "studio/app/main.tsx"
+    "studio/app/main.tsx",
+    "training/app/main.tsx"
   ],
   "supportEntry": ["training/server/main.ts"],
   "ignoreExportsUsedInFile": false,

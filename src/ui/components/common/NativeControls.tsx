@@ -15,3 +15,7 @@ export function Input(props: ComponentProps<"input">) {
 export function Select(props: ComponentProps<"select">) {
   return <select {...props} />;
 }
+
+export function Textarea(props: ComponentProps<"textarea">) {
+  return <textarea {...props} />;
+}

@@ -15,6 +15,7 @@
     "gallery": "vite -c vite.gallery.config.ts",
     "gallery:build": "vite build -c vite.gallery.config.ts",
     "studio": "pnpm --filter studio dev",
+    "training:build": "vite build -c training/vite.config.ts",
     "training:serve": "tsx training/server/main.ts",
     "sprites:roster-cards": "tsx scripts/sprites/roster_picker_cards.ts",
     "sprites:portrait-check": "tsx scripts/sprites/portrait_check.ts",
