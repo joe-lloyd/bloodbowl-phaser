@@ -14,7 +14,9 @@ import {
   pitchWidth,
   carrierOf,
   distance,
+  firstBall,
   key,
+  mapBalls,
   onPitch,
   standing,
   toGoal,
@@ -147,10 +149,12 @@ function landedBoard({ board, mate, at, carrying }: LandedBoardArgs): {
   occupant[key(mate.gridPosition)] = undefined;
   occupant[key(at)] = landed;
   const swap = (p: Player) => (p.id === mate.id ? landed : p);
-  let ball = board.ball;
-  if (carrying) ball = { kind: "carried", at, carrier: landed };
-  else if (board.ball.kind === "carried" && board.ball.carrier.id === mate.id)
-    ball = { kind: "loose", at };
+  const balls = mapBalls(board, (ball) => {
+    if (ball.kind !== "carried" || ball.carrier.id !== mate.id) return ball;
+    return carrying
+      ? { id: ball.id, kind: "carried", at, carrier: landed }
+      : { id: ball.id, kind: "loose", at };
+  });
   return {
     landed,
     after: {
@@ -158,7 +162,7 @@ function landedBoard({ board, mate, at, carrying }: LandedBoardArgs): {
       occupant,
       ours: board.ours.map((element) => swap(element)),
       everyone: board.everyone.map((element) => swap(element)),
-      ball,
+      balls,
     },
   };
 }
@@ -253,8 +257,9 @@ function receiverLanding({
 
 function supportLanding(c: Context, mate: Player, at: Square): number {
   const { board, w } = c;
-  if (board.ball.kind === "loose")
-    return looseBallLanding({ c: c, mate: mate, at: at, ball: board.ball.at });
+  const ball = firstBall(board);
+  if (ball.kind === "loose")
+    return looseBallLanding({ c: c, mate: mate, at: at, ball: ball.at });
   const carrier = carrierOf(board);
   if (!carrier) return 0;
   if (carrier.teamId === board.us)

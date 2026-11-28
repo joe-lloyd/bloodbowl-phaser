@@ -1,4 +1,4 @@
-import { type FieldPlayer, onField } from "../ai/board";
+import { type FieldPlayer, onField, stepFrom, stepsToScore } from "../ai/board";
 import { setupLabel } from "../../game/setup/deployment";
 import {
   type HeadlessCommand,
@@ -9,6 +9,8 @@ import { type BlockResultType } from "../../services/BlockResolutionService";
 import { GameService } from "../../services/GameService";
 import { type Candidate } from "../candidates";
 import { type Coach, type CoachContext } from "../coach";
+import { type Seating, seatOf } from "../../game/seating";
+import { ballSquare } from "../../game/rules/balls";
 import { GameConfig } from "../../config/GameConfig";
 
 const BLOCK_RANK: Record<BlockResultType, number> = {
@@ -25,7 +27,7 @@ const chebyshev = (a: GridPosition, b: GridPosition) =>
 interface Board {
   gs: GameService;
   teamId: string;
-  team1Id: string;
+  seating: Seating;
   ball: GridPosition | null;
 
   carrier: FieldPlayer | undefined;
@@ -58,7 +60,7 @@ function distanceToGoal(
   teamId: string,
   at: GridPosition
 ): number {
-  return teamId === board.team1Id ? GameConfig.PITCH_WIDTH - 1 - at.x : at.x;
+  return stepsToScore(seatOf(board.seating, teamId).frame, at);
 }
 
 function tackleZonesOn(board: Board, teamId: string, at: GridPosition): number {
@@ -161,11 +163,11 @@ function squareValue(player: Player, at: GridPosition, board: Board): number {
     const action = board.gs.getState().activePlayer?.action;
     return -chebyshev(at, carrier.gridPosition) * (action === "blitz" ? 12 : 6);
   }
-  const goal = carrier.gridPosition;
-  const ahead = {
-    x: goal.x + (player.teamId === board.team1Id ? 1 : -1),
-    y: goal.y,
-  };
+  const ahead = stepFrom(
+    seatOf(board.seating, player.teamId).frame,
+    carrier.gridPosition,
+    { along: 1, across: 0 }
+  );
   return -chebyshev(at, ahead) * 4;
 }
 
@@ -373,8 +375,8 @@ function blockDieScore(
 
 function readBoard(context: CoachContext): Board {
   const gs = context.game.ctx.gameService;
-  const state = gs.getState();
-  const ball = state.balls[0].at ? { ...state.balls[0].at } : null;
+  const at = ballSquare(gs.getState(), 0);
+  const ball = at ? { ...at } : null;
   const carrier = ball
     ? context.game.ctx.teams
         .flatMap((team) => team.players)
@@ -389,7 +391,7 @@ function readBoard(context: CoachContext): Board {
   return {
     gs,
     teamId: context.point.teamId,
-    team1Id: context.game.ctx.teams[0].id,
+    seating: gs.getSeating(),
     ball,
     carrier,
   };

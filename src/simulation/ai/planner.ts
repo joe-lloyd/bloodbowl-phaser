@@ -24,9 +24,10 @@ import {
 import {
   type Board,
   type Square,
+  firstBall,
   middleRow,
-  pitchWidth,
   readBoard,
+  toGoal,
 } from "./board";
 import { decide } from "./decisions";
 import { kickoffMove, kickoffPick } from "./kickoffChoices";
@@ -283,10 +284,9 @@ function turnKey(board: Board): string {
 }
 
 function possessionKey(board: Board): string {
-  if (board.ball.kind === "carried") return board.ball.carrier.id;
-  return board.ball.kind === "loose"
-    ? `loose/${String(key(board.ball.at))}`
-    : "none";
+  const ball = firstBall(board);
+  if (ball.kind === "carried") return ball.carrier.id;
+  return ball.kind === "loose" ? `loose/${String(key(ball.at))}` : "none";
 }
 
 interface CurrentIntentArgs {
@@ -458,7 +458,7 @@ function kickChoice(
     board.theirs.filter((o) => Math.abs(o.gridPosition.y - y) <= 2).length;
   const wide = w.kickWide > 0.5;
   const score = (kick: { x: number; y: number }) => {
-    const depth = board.dir === 1 ? pitchWidth() - 1 - kick.x : kick.x;
+    const depth = toGoal(board, kick);
     return -Math.abs(depth - w.kickDepth) * 10 + kickWidth(kick.y, wide, crowd);
   };
   const best = bestBy(kicks, score);

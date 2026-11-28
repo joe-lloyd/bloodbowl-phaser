@@ -1,6 +1,6 @@
 import { type FieldPlayer as Player } from "./board";
 import { PlayerStatus } from "../../types/Player";
-import { type Board, type Square, distance, toGoal } from "./board";
+import { type Board, type Square, distance, firstBall, toGoal } from "./board";
 import { type Chance } from "./chance";
 import { SPP_VALUES, sppValuesFor } from "../../game/progression/MatchStats";
 import { type Route, routesFor, withTeamReroll } from "./routes";
@@ -61,7 +61,8 @@ export function context({
       );
     return routes;
   };
-  const ballAt = board.ball.kind === "none" ? null : board.ball.at;
+  const ball = firstBall(board);
+  const ballAt = ball.kind === "none" ? null : ball.at;
   const pace = ballAt ? toGoal(board, ballAt) / (board.turnsLeft + 1) : 0;
 
   const speed =

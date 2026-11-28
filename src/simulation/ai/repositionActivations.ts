@@ -8,8 +8,10 @@ import {
   pitchHeight,
   type Square,
   pitchWidth,
+  forwardOf,
   canCarry,
   carrierOf,
+  firstBall,
   distance,
   key,
   neighbours,
@@ -96,7 +98,7 @@ function flankSquares(c: Context, carrier: Player, add: AddSquare): void {
   for (const ahead of [0, 1, 2, 3])
     for (let y = 1; y < pitchHeight() - 1; y++) {
       if (Math.abs(y - at.y) < 3) continue;
-      const s = { x: at.x + board.dir * ahead, y };
+      const s = forwardOf(board, at, { along: ahead, across: y - at.y });
       if (
         onPitch(s) &&
         flankPays({ board: board, carrier: carrier, runner: runner, s: s })
@@ -238,7 +240,7 @@ function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
     for (const dy of [-2, 0, 2])
       add({
         role: "receiver",
-        at: { x: at.x + board.dir * ahead, y: at.y + dy },
+        at: forwardOf(board, at, { along: ahead, across: dy }),
         value: w.receiver,
       });
   for (const s of transfer) add(s);
@@ -285,7 +287,7 @@ function theirCarrierSquares(c: Context, at: Square, add: AddSquare): void {
     for (const dy of [-4, -2, 0, 2, 4])
       add({
         role: "screen",
-        at: { x: at.x - board.dir * depth, y: at.y + dy },
+        at: forwardOf(board, at, { along: -depth, across: dy }),
         value: w.screen - depth * 0.5,
       });
 }
@@ -297,7 +299,7 @@ export function roleSquares(c: Context): RoleSquare[] {
     if (onPitch(at) && value > 0)
       out.push(only ? { role, at, value, only } : { role, at, value });
   };
-  const ball = board.ball;
+  const ball = firstBall(board);
   if (ball.kind === "carried" && ball.carrier.teamId === board.us) {
     ownCarrierSquares(c, ball.carrier, add);
   } else if (ball.kind === "carried") {
@@ -461,13 +463,13 @@ function rolePriorities(player: Player, squares: RoleSquare[]) {
 }
 
 function chaseTarget(c: Context, player: Player): Square | null {
-  const { board } = c;
-  if (board.ball.kind === "none" || !standing(player)) return null;
+  const ball = firstBall(c.board);
+  if (ball.kind === "none" || !standing(player)) return null;
   if (
-    board.turnsLeft === 0 &&
-    board.ball.kind === "carried" &&
-    board.ball.carrier.teamId === board.us
+    c.board.turnsLeft === 0 &&
+    ball.kind === "carried" &&
+    ball.carrier.teamId === c.board.us
   )
     return null;
-  return board.ball.at;
+  return ball.at;
 }

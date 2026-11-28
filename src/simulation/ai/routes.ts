@@ -23,6 +23,7 @@ import {
   pitchWidth,
   distance,
   key,
+  looseBallKey,
   neighbours,
 } from "./board";
 import { CERTAIN, type Chance, type RollTarget, chain } from "./chance";
@@ -73,7 +74,7 @@ function stepRolls({
   }
   if (barricadeBetween(from, to))
     rolls.push({ kind: "barricade", target: RECKLESS_CROSSING_TARGET });
-  if (board.ball.kind === "loose" && key(board.ball.at) === key(to))
+  if (looseBallKey(board) === key(to))
     rolls.push({
       kind: securing ? "secure" : "pickup",
       target: (securing ? secureBallTarget : pickupTarget)(
@@ -189,7 +190,7 @@ export function rushTarget(board: Board, player: RosterPlayer): number {
 }
 
 function searchFor(board: Board, player: Player, securing: boolean): Search {
-  const ballKey = board.ball.kind === "loose" ? key(board.ball.at) : -1;
+  const ballKey = looseBallKey(board);
 
   const rush = rollChance(rushTarget(board, player));
   const stunty = hasSkill(player.skills, SkillType.STUNTY);
