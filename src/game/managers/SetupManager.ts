@@ -19,7 +19,15 @@ import { isConfinedToReserves } from "../kickoff/driveEffects";
 import { type GameReadiness, readyForLeagueGame } from "../rules/leagueRoster";
 import { teamCaptain } from "../rules/teamCaptain";
 import { assignPlayers } from "../setup/deployment";
-import { pairSeating, pairTeams, playerById, type Seating, teamsOf } from "../seating";
+import {
+  pairSeating,
+  pairTeams,
+  playerById,
+  type Seating,
+  seatOf,
+  teamsOf,
+} from "../seating";
+import { activeRules } from "../variants/activeMatch";
 import {
   emptySetupStatus,
   swarmPlayerLimits,
@@ -33,6 +41,12 @@ const UNAVAILABLE_STATUSES: ReadonlySet<PlayerStatus> = new Set([
   PlayerStatus.REMOVED,
 ]);
 
+interface SetupCallbacks {
+  onKickoffRequested: () => void;
+  onSeatSetUp: () => void;
+  rollSwarming: (teamId: string) => number;
+}
+
 export class SetupManager {
   private placedPlayers = new Map<string, { x: number; y: number }>();
   private setupReady = new Set<string>();
@@ -45,20 +59,14 @@ export class SetupManager {
   private state: GameState;
   private seating: Seating;
   private weatherService: WeatherManager;
-  private callbacks: {
-    onKickoffRequested: () => void;
-    rollSwarming: (teamId: string) => number;
-  };
+  private callbacks: SetupCallbacks;
   private delay: import("../core/GameFlowManager").DelayProvider;
   constructor(
     eventBus: IEventBus,
     state: GameState,
     seating: Seating,
     weatherService: WeatherManager,
-    callbacks: {
-      onKickoffRequested: () => void;
-      rollSwarming: (teamId: string) => number;
-    },
+    callbacks: SetupCallbacks,
     delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
     this.eventBus = eventBus;
@@ -140,15 +148,8 @@ export class SetupManager {
         kickingTeam.id,
         this.pairRivalOf(kickingTeam.id)
       );
-      this.state.subPhase = SubPhase.SETUP_KICKING;
-      this.state.activeTeamId = kickingTeam.id;
       this.updateAllStatuses();
-      this.eventBus.emit(GameEventNames.PhaseChanged, {
-        phase: GamePhase.SETUP,
-        subPhase: this.state.subPhase,
-        activeTeamId: kickingTeam.id,
-      });
-      this.emitStatus(kickingTeam.id);
+      this.handTo(kickingTeam.id, SubPhase.SETUP_KICKING);
       return;
     }
 
@@ -165,6 +166,27 @@ export class SetupManager {
         subPhase: SubPhase.COIN_FLIP,
       });
     });
+  }
+
+  public startSeatSetup(teamId: string): void {
+    this.state.phase = GamePhase.SETUP;
+    this.reportedNoAvailablePlayers.clear();
+    this.state.setup ??= this.createSetupState(null, null);
+    this.handTo(teamId, SubPhase.SETUP_RECEIVING);
+  }
+
+  private handTo(teamId: string, subPhase: SubPhase): void {
+    const setup = this.ensureSetupState();
+    this.state.subPhase = subPhase;
+    this.state.activeTeamId = teamId;
+    setup.currentTeamId = teamId;
+    this.updateStatus(teamId);
+    this.eventBus.emit(GameEventNames.PhaseChanged, {
+      phase: GamePhase.SETUP,
+      subPhase,
+      activeTeamId: teamId,
+    });
+    this.emitStatus(teamId);
   }
 
   public placePlayer(playerId: string, x: number, y: number): boolean {
@@ -203,7 +225,7 @@ export class SetupManager {
       (position) => position.playerId !== playerId
     );
     const eligible = this.getEligiblePlayers(team);
-    const validation = this.validator.validatePlacement({ candidate: { playerId, x, y }, currentPositions: positions, isTeam1: this.isHome(player.teamId), availablePlayerCount: eligible.length, limits: swarmPlayerLimits(this.state.setup, team.id, eligible) });
+    const validation = this.validator.validatePlacement({ candidate: { playerId, x, y }, currentPositions: positions, frame: this.frameOf(player.teamId), availablePlayerCount: eligible.length, limits: swarmPlayerLimits(this.state.setup, team.id, eligible) });
     if (!validation.valid) {
       return this.refuse(validation.errors[0] ?? "Illegal setup placement.", {
         playerId,
@@ -211,7 +233,10 @@ export class SetupManager {
         y,
       });
     }
-    if (this.isSquareOccupiedByOther(x, y, playerId)) {
+    const taken = [...this.placedPlayers].some(
+      ([id, at]) => id !== playerId && at.x === x && at.y === y
+    );
+    if (taken) {
       return this.refuse("Only one player may occupy a pitch square.", {
         playerId,
         x,
@@ -345,38 +370,26 @@ export class SetupManager {
     this.lastError = null;
     const team = this.getTeam(teamId);
     if (this.state.setup?.swarming) {
-      const reason =
-        "Swarming adds reserve Linemen to the confirmed formation; presets cannot replace it.";
-      this.refuse(reason);
-      return {
-        placedPlayerIds: [],
-        skipped: [{ reason }],
-        status: this.requireStatus(teamId),
-      };
+      return this.refuseFormation(
+        teamId,
+        "Swarming adds reserve Linemen to the confirmed formation; presets cannot replace it."
+      );
     }
     if (
       !team ||
       this.state.activeTeamId !== teamId ||
       this.setupReady.has(teamId)
     ) {
-      const reason = "Only the team currently setting up may load a formation.";
-      this.refuse(reason);
-      return {
-        placedPlayerIds: [],
-        skipped: [{ reason }],
-        status: this.requireStatus(teamId),
-      };
+      return this.refuseFormation(
+        teamId,
+        "Only the team currently setting up may load a formation."
+      );
     }
-    const status = this.getSetupStatus(teamId);
-    if (status?.concessionDecision === "pending") {
-      const reason =
-        "Choose whether to concede or play on before loading a formation.";
-      this.refuse(reason);
-      return {
-        placedPlayerIds: [],
-        skipped: [{ reason }],
-        status,
-      };
+    if (this.getSetupStatus(teamId)?.concessionDecision === "pending") {
+      return this.refuseFormation(
+        teamId,
+        "Choose whether to concede or play on before loading a formation."
+      );
     }
 
     this.clearTeamPlacements(team);
@@ -421,16 +434,26 @@ export class SetupManager {
     };
   }
 
+  private refuseFormation(teamId: string, reason: string): SetupFormationResult {
+    this.refuse(reason);
+    return {
+      placedPlayerIds: [],
+      skipped: [{ reason }],
+      status: this.requireStatus(teamId),
+    };
+  }
+
   private formationSlots(
     team: Team,
     formation: FormationPosition[],
     eligible: Player[]
   ): FormationPosition[] {
+    const { maxOnPitch } = activeRules().setup;
     if (formation.some((position) => !position.role))
-      return formation.slice(0, Math.min(7, eligible.length));
+      return formation.slice(0, Math.min(maxOnPitch, eligible.length));
     const captain = teamCaptain(team);
     return assignPlayers({
-      squares: formation.slice(0, 7),
+      squares: formation.slice(0, maxOnPitch),
       players: eligible,
       kicking: this.state.setup?.kickingTeamId === team.id,
       mustField: captain && this.isEligible(captain) ? captain.id : undefined,
@@ -481,19 +504,12 @@ export class SetupManager {
     setup.confirmedTeamIds = [...this.setupReady];
     this.eventBus.emit(GameEventNames.SetupConfirmed, teamId);
 
-    if (this.state.subPhase === SubPhase.SETUP_KICKING) {
+    if (this.seating.kind === "four") {
+      this.callbacks.onSeatSetUp();
+    } else if (this.state.subPhase === SubPhase.SETUP_KICKING) {
       const receivingTeamId = setup.receivingTeamId!;
       this.delay(100).then(() => {
-        this.state.subPhase = SubPhase.SETUP_RECEIVING;
-        this.state.activeTeamId = receivingTeamId;
-        setup.currentTeamId = receivingTeamId;
-        this.updateStatus(receivingTeamId);
-        this.eventBus.emit(GameEventNames.PhaseChanged, {
-          phase: GamePhase.SETUP,
-          subPhase: SubPhase.SETUP_RECEIVING,
-          activeTeamId: receivingTeamId,
-        });
-        this.emitStatus(receivingTeamId);
+        this.handTo(receivingTeamId, SubPhase.SETUP_RECEIVING);
       });
     } else if (this.state.subPhase === SubPhase.SETUP_RECEIVING) {
       setup.swarming = {
@@ -633,10 +649,7 @@ export class SetupManager {
   }
 
   public resetForNewDrive(): void {
-    this.placedPlayers.clear();
-    this.setupReady.clear();
-    this.reportedNoAvailablePlayers.clear();
-    delete this.state.setup;
+    this.reset();
     for (const team of teamsOf(this.seating)) {
       for (const player of team.players) {
         player.hasActed = false;
@@ -651,8 +664,8 @@ export class SetupManager {
   }
 
   private createSetupState(
-    kickingTeamId: string,
-    receivingTeamId: string
+    kickingTeamId: string | null,
+    receivingTeamId: string | null
   ): SetupState {
     return {
       kickingTeamId,
@@ -686,7 +699,7 @@ export class SetupManager {
     const captain = teamCaptain(team);
     const status = teamSetupStatus({
       teamId,
-      isTeam1: this.isHome(teamId),
+      frame: this.frameOf(teamId),
       positions: this.getFormationPositions(teamId),
       eligible: this.getEligiblePlayers(team),
       captain: captain && this.isEligible(captain) ? captain : undefined,
@@ -748,17 +761,6 @@ export class SetupManager {
     }
   }
 
-  private isSquareOccupiedByOther(
-    x: number,
-    y: number,
-    playerId: string
-  ): boolean {
-    for (const [id, position] of this.placedPlayers) {
-      if (id !== playerId && position.x === x && position.y === y) return true;
-    }
-    return false;
-  }
-
   private getEligiblePlayers(team: Team): Player[] {
     return team.players.filter((player) => this.isEligible(player));
   }
@@ -778,6 +780,10 @@ export class SetupManager {
 
   private getPlayerById(playerId: string): Player | undefined {
     return playerById(this.seating, playerId);
+  }
+
+  private frameOf(teamId: string) {
+    return seatOf(this.seating, teamId).frame;
   }
 
   private isHome(teamId: string): boolean {

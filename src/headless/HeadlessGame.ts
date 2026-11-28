@@ -24,7 +24,7 @@ import { engineDecision, requestedDecision } from "./pendingDecisions";
 import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { type Player } from "../types/Player";
-import { pairSeating, pairTeams } from "../game/seating";
+import { seatedTeams, teamsOf } from "../game/seating";
 
 export const tick: () => Promise<void> =
   typeof setImmediate === "function"
@@ -124,13 +124,14 @@ export class HeadlessGame {
 
   public matchSave(): MatchSave {
     const gs = this.ctx.gameService;
-    const [team1, team2] = pairTeams(pairSeating(gs.getSeating()));
+    const teams = seatedTeams(teamsOf(gs.getSeating()));
+    const [team1, team2] = teams;
     const turnManager = gs.captureTurnManagerState();
     const state = gs.getState();
     const kickingTeamId = this.driveKickingTeamId() ?? team1.id;
     return createMatchSave({
       state,
-      teams: [team1, team2],
+      teams,
       drive: {
         kickingTeamId,
         receivingTeamId: kickingTeamId === team1.id ? team2.id : team1.id,

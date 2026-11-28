@@ -3,6 +3,7 @@ import { type Team } from "@/types/Team";
 import { Inducement } from "@/types/Inducements";
 import { MAX_TEAM_REROLLS } from "./rules/sevensPrices";
 import { inducementCount } from "./inducements/inventory";
+import { activeRules } from "./variants/activeMatch";
 
 export function currentHalf(state: GameState): "h1" | "h2" {
   return state.turn.isHalf2 ? "h2" : "h1";
@@ -34,5 +35,5 @@ export function spendTeamReroll(state: GameState, team: Team): boolean {
 }
 
 export function replenishTeamRerolls(state: GameState): void {
-  state.teamRerollsUsed = {};
+  if (activeRules().format.rerollsRefillAtHalf) state.teamRerollsUsed = {};
 }

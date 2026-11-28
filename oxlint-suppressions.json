@@ -3760,13 +3760,13 @@
       "count": 4
     },
     "max-lines-per-function": {
-      "count": 2
+      "count": 1
     },
     "max-params": {
       "count": 1
     },
     "max-statements": {
-      "count": 5
+      "count": 4
     },
     "typescript/consistent-type-imports": {
       "count": 3
@@ -5216,9 +5216,6 @@
     },
     "no-empty-function": {
       "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 4
     },
     "no-restricted-properties": {
       "count": 1

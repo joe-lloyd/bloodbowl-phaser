@@ -36,13 +36,8 @@ import { bindPotionHooks } from "./potionWiring";
 import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
 import { InducementSession } from "@/game/inducements/InducementSession";
 import { createInitialState } from "./matchStart";
-import { flowFor, type MatchFlow } from "./matchFlow";
-import {
-  announceFullTime,
-  rollFanFactors,
-  resetActivationMarks,
-  updateDedicatedFans,
-} from "./driveLifecycle";
+import { deathbowlFlowOf, flowFor, type MatchFlow } from "./matchFlow";
+import { resetActivationMarks } from "./driveLifecycle";
 import {
   turnEndHazards,
   handleTurnEnding,
@@ -98,7 +93,7 @@ interface PartOptions {
 
 export function createGameParts(options: PartOptions): GameParts {
   const core = createCore(options);
-  const setupManager = makeSetupManager(core, options.delay);
+  const setupManager = makeSetupManager(core, options.delay, () => parts);
   const turnManager = makeTurnManager(core, options.delay, () => parts);
   const ballManager = makeBallManager(
     core,
@@ -178,7 +173,11 @@ function createCore({
 
 type Core = ReturnType<typeof createCore>;
 
-function makeSetupManager(core: Core, delay: DelayProvider): SetupManager {
+function makeSetupManager(
+  core: Core,
+  delay: DelayProvider,
+  getParts: () => GameParts
+): SetupManager {
   const {
     game,
     eventBus,
@@ -195,6 +194,9 @@ function makeSetupManager(core: Core, delay: DelayProvider): SetupManager {
     {
       onKickoffRequested: () => {
         game.startKickoff();
+      },
+      onSeatSetUp: () => {
+        deathbowlFlowOf(getParts().flow).seatSetUp();
       },
       rollSwarming: (teamId) => diceController.rollD3("Swarming", teamId),
     },
@@ -337,10 +339,7 @@ function bindPartEvents(core: Core, getParts: () => GameParts): void {
     state.bribes = {};
 
     revokeMatchGrants(state, everyone(seating));
-    announceFullTime(getParts());
-
-    rollFanFactors(getParts());
-    updateDedicatedFans(getParts());
+    getParts().flow.fullTime();
   });
 
   const clearMarks = () => {

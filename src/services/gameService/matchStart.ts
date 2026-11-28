@@ -1,7 +1,7 @@
 import { oneBall } from "@/game/rules/balls";
 import {
   activateMatchFormat,
-  type MatchFormat,
+  type ActiveFormat,
   SEVENS_FORMAT,
 } from "@/game/variants/activeMatch";
 import { freshTurn } from "./turnState";
@@ -14,7 +14,7 @@ import type { GameParts } from "./parts";
 import { pairSeating, teamsOf } from "@/game/seating";
 import { readyInducements, skipUnaffordableInducements } from "./inducements";
 import { prepareClubSquad } from "@/game/rules/club";
-import type { GameType } from "@/game/variants/gameTypes";
+import { isGameType, type MatchType } from "@/game/variants/gameTypes";
 
 export function createMatchState({
   teams,
@@ -31,7 +31,7 @@ export function createMatchState({
     competition?: boolean;
     pregameInducements?: boolean;
   };
-  format?: MatchFormat;
+  format?: ActiveFormat;
 }): GameState {
   activateMatchFormat(format);
   const competition = !!(fixture.competition ?? fixture.paysWinnings);
@@ -56,11 +56,12 @@ export function createMatchState({
 
 function readyTeams(
   teams: readonly Team[],
-  gameType: GameType,
+  matchType: MatchType,
   readiness: { leagueFixture: boolean; competition: boolean }
 ): void {
   for (const team of teams) {
-    prepareClubSquad(team, gameType, readiness.competition);
+    if (isGameType(matchType))
+      prepareClubSquad(team, matchType, readiness.competition);
   }
   for (const team of teams) SetupManager.sanitizeTeam(team, readiness);
 }

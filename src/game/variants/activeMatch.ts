@@ -97,7 +97,7 @@ export function matchFormatFor(
   return { gameType, venue: venues[index] ?? venues[0] };
 }
 
-export function withMatchFormat<T>(format: MatchFormat, run: () => T): T {
+export function withMatchFormat<T>(format: ActiveFormat, run: () => T): T {
   const previous = session.active;
   activateMatchFormat(format);
   try {

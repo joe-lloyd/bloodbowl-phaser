@@ -61,6 +61,7 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   activeTeamId: z.union([z.null(), z.string()]),
   turn: turnSnapshotSchema,
   score: z.record(z.string(), z.number()),
+  points: z.record(z.string(), z.number()).exactOptional(),
   knockout: z.union([z.literal(false), z.literal(true)]).exactOptional(),
   paysWinnings: z.union([z.literal(false), z.literal(true)]).exactOptional(),
   competition: z.union([z.literal(false), z.literal(true)]).exactOptional(),

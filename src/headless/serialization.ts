@@ -13,6 +13,7 @@ import {
   type MatchResult,
 } from "../types/GameState";
 import { type Team } from "../types/Team";
+import { type SeatedTeams, seatedTeams } from "../game/seating";
 import {
   type Player,
   type PlayerStats,
@@ -77,6 +78,7 @@ export interface GameSnapshot {
   activeTeamId: string | null;
   turn: TurnSnapshot;
   score: Record<string, number>;
+  points?: Record<string, number>;
 
   knockout?: boolean;
 
@@ -148,7 +150,7 @@ export interface MatchSave {
   version: typeof MATCH_SAVE_VERSION;
   savedAt: number;
   snapshot: GameSnapshot;
-  teams: [Team, Team];
+  teams: SeatedTeams;
   drive: MatchDriveAssignment;
   rng: RNGState;
   matchStats: MatchStatsSnapshot;
@@ -166,7 +168,7 @@ export interface ComputerMatchSave {
 
 export interface CreateMatchSaveInput {
   state: GameState;
-  teams: [Team, Team];
+  teams: SeatedTeams;
   drive: Omit<MatchDriveAssignment, "half"> & { half?: 1 | 2 };
   rng: RNGState;
   matchStats: MatchStatsSnapshot;
@@ -245,6 +247,7 @@ export function serializeGameState(
       ...optionalTurnFields(state.turn),
     },
     score: { ...state.score },
+    ...(state.points && { points: { ...state.points } }),
     ...rerollFields(state),
     ...driveFields(state),
     ...inducementFields(state),
@@ -340,6 +343,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     activeTeamId: snapshot.activeTeamId,
     turn,
     score: { ...snapshot.score },
+    ...(snapshot.points && { points: { ...snapshot.points } }),
     ...rerollFields(snapshot),
     ...driveFields(snapshot),
     ...inducementFields(snapshot),
@@ -396,7 +400,7 @@ export function createMatchSave(input: CreateMatchSaveInput): MatchSave {
     version: MATCH_SAVE_VERSION,
     savedAt: input.savedAt ?? Date.now(),
     snapshot: serializeGameState(input.state, input.teams),
-    teams: [structuredClone(input.teams[0]), structuredClone(input.teams[1])],
+    teams: seatedTeams(input.teams.map((team) => structuredClone(team))),
     drive: {
       kickingTeamId: input.drive.kickingTeamId,
       receivingTeamId: input.drive.receivingTeamId,
@@ -426,12 +430,12 @@ export function deserializeMatchSave(value: unknown): MatchSave {
 export interface RestoredMatchSave {
   save: MatchSave;
   state: GameState;
-  teams: [Team, Team];
+  teams: SeatedTeams;
 }
 
 export function restoreMatchSave(value: MatchSave | string): RestoredMatchSave {
   const save = deserializeMatchSave(value);
-  const teams: [Team, Team] = [structuredClone(save.teams[0]), structuredClone(save.teams[1])];
+  const teams = seatedTeams(save.teams.map((team) => structuredClone(team)));
   applySnapshotToTeams(save.snapshot, teams);
   return {
     save,

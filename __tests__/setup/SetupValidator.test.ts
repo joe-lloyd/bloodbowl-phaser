@@ -85,7 +85,7 @@ describe("SetupValidator", () => {
     const neutral = validator.validatePlacement({
       candidate: { playerId: "1", x: 7, y: 5 },
       currentPositions: [],
-      isTeam1: true,
+      frame: pairFrame(true),
       availablePlayerCount: 7,
     });
     expect(neutral.valid).toBe(false);
@@ -94,7 +94,7 @@ describe("SetupValidator", () => {
     const opponent = validator.validatePlacement({
       candidate: { playerId: "1", x: 15, y: 5 },
       currentPositions: [],
-      isTeam1: true,
+      frame: pairFrame(true),
       availablePlayerCount: 7,
     });
     expect(opponent.errors[0]).toContain("own End Zone");
@@ -104,7 +104,7 @@ describe("SetupValidator", () => {
     const result = validator.validatePlacement({
       candidate: { playerId: "8", x: 4, y: 5 },
       currentPositions: legalFormation(true),
-      isTeam1: true,
+      frame: pairFrame(true),
       availablePlayerCount: 11,
     });
     expect(result.valid).toBe(false);

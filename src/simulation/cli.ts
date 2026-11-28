@@ -7,6 +7,7 @@ import { type RunOptions, runBatch } from "./commands/run";
 import { replay } from "./commands/replay";
 import { type BenchOptions, benchWorker, runBench } from "./commands/bench";
 import { type TuneOptions, runTune, tuneWorker } from "./commands/tune";
+import { type FourSeatOptions, runFourSeat } from "./commands/fourSeat";
 
 const RECORD_MODES = ["all", "failures", "none"] as const;
 const COACH_NAMES: readonly CoachName[] = ["random", "heuristic", "jev", "planner", "hard", "legend"];
@@ -105,12 +106,16 @@ function parseRunOptions(argv: string[]): RunOptions {
     },
     HELP
   );
-  if (!Number.isSafeInteger(options.games) || options.games < 1)
-    fail("--games must be a positive integer");
-  if (!Number.isSafeInteger(options.seed)) fail("--seed must be an integer");
+  checkGamesAndSeed(options);
 
   if (options.html && !recordChosen) options.record = "all";
   return options;
+}
+
+function checkGamesAndSeed(options: { games: number; seed: number }): void {
+  if (!Number.isSafeInteger(options.games) || options.games < 1)
+    fail("--games must be a positive integer");
+  if (!Number.isSafeInteger(options.seed)) fail("--seed must be an integer");
 }
 
 const HELP = `Usage: pnpm sim [options]
@@ -278,6 +283,31 @@ function parseTuneOptions(argv: string[]): TuneOptions {
   return options;
 }
 
+const FOUR_SEAT_HELP = `Usage: pnpm sim four-seat [options]
+  --games <n>          Deathbowl matches with four random coaches (default 50)
+  --seed <n>           first seed; match i uses seed+i (default 1)
+  --out <file>         report path (default sim-results/four-seat-<timestamp>.json)
+Each match saves once at a seeded step and checks the save resumes to the same hash.`;
+
+function parseFourSeatOptions(argv: string[]): FourSeatOptions {
+  const options = parseFlags<FourSeatOptions>(
+    argv,
+    {
+      games: 50,
+      seed: 1,
+      out: `sim-results/four-seat-${timestamp()}.json`,
+    },
+    {
+      "--games": (o, value) => (o.games = Number(value())),
+      "--seed": (o, value) => (o.seed = Number(value())),
+      "--out": (o, value) => (o.out = value()),
+    },
+    FOUR_SEAT_HELP
+  );
+  checkGamesAndSeed(options);
+  return options;
+}
+
 const engineLog = { errors: 0 };
 const quiet = () => {};
 console.log = quiet;
@@ -298,18 +328,17 @@ process.on("exit", () => {
 });
 
 const [mode, ...rest] = process.argv.slice(2);
-const run =
-  mode === "replay"
-    ? replay(rest)
-    : mode === "bench"
-      ? runBench(parseBenchOptions(rest))
-      : mode === "bench-worker"
-        ? benchWorker(rest)
-        : mode === "tune"
-          ? runTune(parseTuneOptions(rest))
-          : mode === "tune-worker"
-            ? tuneWorker()
-            : runBatch(parseRunOptions(process.argv.slice(2)));
+const MODES = new Map<string, () => Promise<number>>([
+  ["replay", () => replay(rest)],
+  ["bench", () => runBench(parseBenchOptions(rest))],
+  ["bench-worker", () => benchWorker(rest)],
+  ["tune", () => runTune(parseTuneOptions(rest))],
+  ["tune-worker", () => tuneWorker()],
+  ["four-seat", () => runFourSeat(parseFourSeatOptions(rest))],
+]);
+const run = (
+  MODES.get(mode ?? "") ?? (() => runBatch(parseRunOptions(process.argv.slice(2))))
+)();
 try {
   process.exit(await run);
 } catch (error) {

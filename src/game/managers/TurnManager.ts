@@ -3,6 +3,7 @@ import {
   whenMomentsComplete,
 } from "../presentation/momentQueue";
 import { realTimeDelay } from "../core/GameFlowManager";
+import { activeRules } from "../variants/activeMatch";
 import { type IEventBus } from "../../services/EventBus";
 import {
   type GameState,
@@ -73,7 +74,7 @@ export class TurnManager {
   private handoverPending = false;
 
   private betweenTurnsActive = false;
-  private maxTurns = 6;
+  private maxTurns = activeRules().turnsPerHalf;
   private turnCounts: Record<string, number> = {};
   private driveKickingTeamId: string | null = null;
   private firstHalfKickingTeamId: string | null = null;
@@ -150,6 +151,8 @@ export class TurnManager {
 
   public beginHalf(first: string, rotation: Rotation): void {
     this.rotation = rotation;
+    this.state.subPhase = SubPhase.TURN_RECEIVING;
+    for (const team of teamsOf(this.seating)) activatePlayers(team);
     this.startTurn(first);
   }
 

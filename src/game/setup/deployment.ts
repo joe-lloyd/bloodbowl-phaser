@@ -19,6 +19,7 @@ import { type Player, PlayerStatus } from "../../types/Player";
 import type { Seat, Seating } from "../seating";
 import { playerBoxOf } from "../rules/playerLocation";
 import { SkillType, hasSkill } from "../../types/Skills";
+import { teamCaptain } from "../rules/teamCaptain";
 
 export type DeploymentUse = "kick" | "receive" | "any";
 
@@ -443,14 +444,16 @@ const ARENA: Deployment = {
 
 export function seatFormation(
   seat: Seat,
-  layout: PitchLayout
+  layout: PitchLayout,
+  players: readonly Player[] = seat.team.players.filter(
+    (player) => playerBoxOf(player) === "reserves"
+  )
 ): FormationPosition[] {
   return assignPlayers({
     squares: deploymentSquares({ layout, frame: seat.frame }, ARENA),
-    players: seat.team.players.filter(
-      (player) => playerBoxOf(player) === "reserves"
-    ),
+    players,
     kicking: false,
+    mustField: teamCaptain(seat.team)?.id,
   });
 }
 
