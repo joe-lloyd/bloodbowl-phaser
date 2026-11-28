@@ -408,6 +408,14 @@ coaching puzzles (see [Simulations](../SIMULATION.md)). `--weights` loads
 a weight set for the planner under test, which is how `pnpm sim tune` tries
 candidates.
 
+Every match runner counts the same things through
+`src/simulation/telemetry.ts`: each action offered and declared, skill
+triggers, re-rolls by source, Rushes, Dodges, passes, hand-offs,
+interceptions, pick-ups, touchdowns and casualties. The
+[coverage command](../../scripts/coach/action-coverage/README.md) plays the
+planner over every roster of a game type and reports the actions and skills
+each roster holds but never uses.
+
 ### Against each roster's standard
 
 `pnpm sim bench --standards` judges the planner against a standard for each
