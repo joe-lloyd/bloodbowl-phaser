@@ -278,6 +278,9 @@ function FormationSelect({
   );
 }
 
+const listsFormations = (compact: boolean) =>
+  compact || activeLayout().frames.length !== 2;
+
 function FormationTools({
   formations,
   isTeam1,
@@ -304,7 +307,7 @@ function FormationTools({
   const selected = formations.find((f) => f.name === selectedFormation);
   return (
     <>
-      {compact || activeLayout().frames.length !== 2 ? (
+      {listsFormations(compact) ? (
         <FormationSelect
           formations={formations}
           selected={selectedFormation}
