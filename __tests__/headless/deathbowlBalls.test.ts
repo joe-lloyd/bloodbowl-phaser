@@ -221,6 +221,50 @@ describe("a pushed carrier lands on the other ball (DB-B1, DB-F3)", () => {
   });
 });
 
+describe("a carrier follows up onto the other ball (DB-B1)", () => {
+  it("keeps its own ball and knocks the other one aside", async () => {
+    const game = await northWithBallsAside();
+    const attacker = stand(game, ["seat0", 0], { at: { x: 10, y: 8 }, ball: 1 });
+    const defender = stand(game, ["seat1", 0], { at: { x: 10, y: 9 }, ball: 0 });
+    attacker.stats.ST = 3;
+    defender.stats.ST = 3;
+
+    await play(game, { type: "declare-action", playerId: attacker.id, action: "block" });
+    vi.spyOn(game.ctx.rng, "rollMultipleDice").mockReturnValueOnce([5]);
+    rig(game, [2, 5]);
+    await play(game, { type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await play(game, { type: "choose-block-result", index: 0 });
+    await play(game, { type: "choose-push-direction", x: 10, y: 10 });
+    expect(balls(game)).toEqual([{ x: 10, y: 9 }, { x: 10, y: 8 }]);
+
+    await play(game, { type: "choose-follow-up", followUp: true });
+
+    expect(attacker.gridPosition).toEqual({ x: 10, y: 9 });
+    expect(ballOf(stateOf(game), attacker)).toBe(1);
+    expect(balls(game)).toEqual([{ x: 11, y: 9 }, { x: 10, y: 9 }]);
+  });
+
+  it("knocks the other ball aside on a Frenzy follow-up", async () => {
+    const game = await northWithBallsAside();
+    const attacker = stand(game, ["seat0", 0], { at: { x: 10, y: 8 }, ball: 1 });
+    const defender = stand(game, ["seat1", 0], { at: { x: 10, y: 9 }, ball: 0 });
+    attacker.stats.ST = 3;
+    defender.stats.ST = 3;
+    attacker.skills = [getSkill(SkillType.FRENZY)];
+
+    await play(game, { type: "declare-action", playerId: attacker.id, action: "block" });
+    vi.spyOn(game.ctx.rng, "rollMultipleDice").mockReturnValueOnce([5]);
+    rig(game, [2, 5]);
+    await play(game, { type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await play(game, { type: "choose-block-result", index: 0 });
+    await play(game, { type: "choose-push-direction", x: 10, y: 10 });
+
+    expect(attacker.gridPosition).toEqual({ x: 10, y: 9 });
+    expect(ballOf(stateOf(game), attacker)).toBe(1);
+    expect(balls(game)).toEqual([{ x: 11, y: 9 }, { x: 10, y: 9 }]);
+  });
+});
+
 describe("Safe Pair of Hands beside the other ball (DB-B1)", () => {
   it("places the ball on the next square free of players and balls", async () => {
     const game = await northWithBallsAside();
