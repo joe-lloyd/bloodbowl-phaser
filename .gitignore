@@ -69,6 +69,7 @@ src/data/*.json
 # node_modules junction; none of it belongs in the repo.
 .claude/worktrees
 /dist-gallery/
+/dist-training/
 /studio/dist/
 
 # Perf benchmark build (pnpm perf). Its results JSON and LOG.md are committed.

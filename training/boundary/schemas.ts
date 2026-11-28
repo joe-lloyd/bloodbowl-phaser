@@ -26,7 +26,10 @@ export const ALL_ROSTERS = nonEmpty([
   ...TUNABLE_ROSTERS,
   ...SECRET_ROSTER_NAMES,
 ]);
-const MATCH_TYPES = [...GAME_TYPES, ...EXPERIMENTAL_MATCH_TYPES] as const;
+export const MATCH_TYPES = [
+  ...GAME_TYPES,
+  ...EXPERIMENTAL_MATCH_TYPES,
+] as const;
 
 const weightName = z.enum(WEIGHT_NAMES);
 const gameType = z.enum(GAME_TYPES);

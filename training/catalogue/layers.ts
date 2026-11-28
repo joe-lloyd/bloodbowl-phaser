@@ -10,6 +10,7 @@ import {
   type Layers,
   TUNABLE_ROSTERS,
   WEIGHT_NAMES,
+  type WeightName,
 } from "../boundary/schemas";
 
 type Values = Partial<Weights>;
@@ -36,6 +37,38 @@ export function layerValues(layers: Layers, layer: Layer): Values {
       return layers.gameTypes[layer.gameType] ?? {};
     case "roster":
       return layers.rosters[layer.roster] ?? {};
+  }
+}
+
+function without(values: Values, name: WeightName): Values {
+  return Object.fromEntries(
+    Object.entries(values).filter(([key]) => key !== name)
+  );
+}
+
+export interface LayerEdit {
+  layer: Layer;
+  name: WeightName;
+  value: number | null;
+}
+
+export function withValue(layers: Layers, edit: LayerEdit): Layers {
+  const { layer, name, value } = edit;
+  const rest = without(layerValues(layers, layer), name);
+  const values = value === null ? rest : { ...rest, [name]: value };
+  switch (layer.kind) {
+    case "all":
+      return { ...layers, weights: values };
+    case "gameType":
+      return {
+        ...layers,
+        gameTypes: { ...layers.gameTypes, [layer.gameType]: values },
+      };
+    case "roster":
+      return {
+        ...layers,
+        rosters: { ...layers.rosters, [layer.roster]: values },
+      };
   }
 }
 

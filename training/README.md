@@ -1,12 +1,13 @@
 # Training ground
 
-A companion server for the computer coach. It tells agents what each planner
-weight makes the coach do and what every team can do, and keeps candidate
-weight sets to try. A page for the owner follows in the next pull request. It never ships with the game: the live site builds from the root
+A companion app for the computer coach. It shows what each planner weight
+makes the coach do, what every team can do, and keeps candidate weight sets
+to try. It never ships with the game: the live site builds from the root
 `index.html` and `vite.config.ts`, and nothing there imports this folder.
 
 | Part         | What it holds                                                              |
 | ------------ | -------------------------------------------------------------------------- |
+| `app/`       | The page: Weights, Teams and Candidates                                    |
 | `server/`    | A Node server for the built page, a JSON API and an MCP endpoint           |
 | `catalogue/` | The plain-English descriptions and the views built from the game's modules |
 | `boundary/`  | The schemas every request and response passes through                      |
@@ -17,10 +18,11 @@ so the app cannot disagree with the coach. It does no heavy work.
 ## Run it
 
 ```sh
+pnpm training:build
 TRAINING_GROUND_DATA=~/training-ground pnpm training:serve
 ```
 
-Then call <http://127.0.0.1:3960/api/tools>. The server reads three variables:
+Then open <http://127.0.0.1:3960>. The server reads three variables:
 
 | Variable               | Default     | Use                                                                |
 | ---------------------- | ----------- | ------------------------------------------------------------------ |
@@ -29,13 +31,18 @@ Then call <http://127.0.0.1:3960/api/tools>. The server reads three variables:
 | `TRAINING_GROUND_HOST` | `127.0.0.1` | The address. Use `0.0.0.0` to serve the home network.              |
 | `TRAINING_GROUND_NAMES` | `localhost,127.0.0.1,training.home.arpa` | Host names the server answers. A request for any other name is refused, which stops DNS rebinding. |
 
+To work on the page, run the server and `pnpm exec vite -c training/vite.config.ts`.
+Vite serves the page on port 3300 and passes `/api` and `/mcp` to the server.
+
 ## Tools for agents
 
-`boundary/schemas.ts` defines each tool once, and the server serves it two ways:
+`boundary/schemas.ts` defines each tool once, and the app serves it three ways:
 
 - `POST /api/tools/<name>` with the input as JSON. `GET /api/tools` lists
   the tools with their input schemas.
 - MCP over Streamable HTTP at `/mcp`, without sessions.
+- WebMCP: the page registers the same tools through `navigator.modelContext`
+  when the browser has it.
 
 The tools are `list_weights`, `list_teams`, `get_team`, `list_candidates`,
 `get_candidate`, `save_candidate` and `delete_candidate`.
