@@ -9,8 +9,9 @@ import { placeBall, twoBalls } from "../../src/game/rules/balls";
 import { freshSpend } from "../../src/game/rules/turnSpend";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { freshTurn } from "../../src/services/gameService/turnState";
-import { PlayerStatus } from "../../src/types/Player";
 import { RosterName } from "../../src/types/Team";
+import { SkillType } from "../../src/types/Skills";
+import { PositionKeyWord, PlayerStatus, TraitKeyWord } from "../../src/types/Player";
 import { type Candidate, enumerateDecision } from "../../src/simulation/candidates";
 import { createPlannerCoach, availableActions } from "../../src/simulation/ai/planner";
 import { activations, planIdentity } from "../../src/simulation/ai/activations";
@@ -305,5 +306,56 @@ describe("the Deathbowl evaluation features", () => {
     expect(f.leaderGap).toBe(-1);
     expect(f.lead).toBe(-1);
     expect(f.centre).toBe(1);
+  });
+});
+
+describe("a Vampire's bite with two carriers on one team (DB-B1)", () => {
+  it("spares both carriers when a team-mate without a ball is in reach", () => {
+    const game = plusGame({
+      squads: [[{ x: 10, y: 9 }, { x: 11, y: 9 }, { x: 9, y: 9 }, { x: 10, y: 8 }], FAR, FAR, FAR],
+      balls: [{ x: 9, y: 9 }, { x: 11, y: 9 }],
+    });
+    const bites = ["seat0-player-2", "seat0-player-3", "seat0-player-4"];
+    const candidates: Candidate[] = bites.map((playerId) => ({
+      kind: "decision" as const,
+      commands: [{ type: "choose-bite-target" as const, playerId }],
+      label: "bite",
+    }));
+    const index = decide({
+      board: readBoard(game, "seat0"),
+      pending: { type: "bite-target", playerId: "seat0-player-1", chooserTeamId: "seat0", targetIds: bites },
+      candidates,
+    });
+
+    expect(index === null ? undefined : candidates[index]?.commands[0]).toEqual({
+      type: "choose-bite-target",
+      playerId: "seat0-player-4",
+    });
+  });
+
+  it("declines to feed when the only thrall in reach carries the second ball", () => {
+    const game = plusGame({
+      squads: [[{ x: 10, y: 9 }, { x: 11, y: 9 }, { x: 5, y: 9 }], FAR, FAR, FAR],
+      balls: [{ x: 5, y: 9 }, { x: 11, y: 9 }],
+    });
+    game.ctx.gameService.getPlayerById("seat0-player-2")?.keywords.push(TraitKeyWord.THRALL, PositionKeyWord.LINEMAN);
+    const candidates: Candidate[] = [true, false].map((accept) => ({
+      kind: "decision" as const,
+      commands: [{ type: "use-reaction" as const, accept }],
+      label: "feed",
+    }));
+    const index = decide({
+      board: readBoard(game, "seat0"),
+      pending: {
+        type: "reaction",
+        playerId: "seat0-player-1",
+        chooserTeamId: "seat0",
+        skill: SkillType.BLOODLUST,
+        prompt: "Bloodlust: bite the thrall?",
+      },
+      candidates,
+    });
+
+    expect(index === null ? undefined : candidates[index]?.commands[0]).toEqual({ type: "use-reaction", accept: false });
   });
 });
