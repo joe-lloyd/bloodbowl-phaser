@@ -13,6 +13,7 @@ import type { Coach } from "./coach";
 import { createRuleMonitor, type InvariantViolation, type RuleMonitor } from "./invariants";
 import { twoBallViolations } from "./ballInvariants";
 import { type CoachRng, createCoachRng } from "./rng";
+import { type MatchTelemetry, type TeamTelemetry, watchMatch } from "./telemetry";
 import {
   type Finding,
   type FindingKind,
@@ -49,6 +50,7 @@ export interface FourSeatRun {
   readonly resume: ResumeCheck | null;
   readonly replayHash: string;
   readonly findings: readonly Finding[];
+  readonly telemetry: readonly TeamTelemetry[];
 }
 
 interface Run {
@@ -58,6 +60,7 @@ interface Run {
   readonly findings: Finding[];
   readonly commands: HeadlessCommand[];
   readonly awarded: Record<string, number>;
+  readonly telemetry: MatchTelemetry;
   steps: number;
   refused: Set<string>;
   resume: ResumeCheck | null;
@@ -174,10 +177,13 @@ async function step(run: Run, coaches: FourCoaches): Promise<boolean> {
     return false;
   }
   const coach = coachOf(coaches, snapshot, point.teamId);
-  const choice = await coach.choose({ game, snapshot, point: { ...point, candidates }, rng: run.rng });
+  const offered = { ...point, candidates };
+  const choice = await coach.choose({ game, snapshot, point: offered, rng: run.rng });
   const candidate = candidates[choice.index] ?? candidates[0];
-  if (candidate) await play(run, candidate);
-  return candidate !== undefined;
+  if (!candidate) return false;
+  run.telemetry.decided(offered, candidate);
+  await play(run, candidate);
+  return true;
 }
 
 function closingFindings(run: Run, replayed: string): void {
@@ -215,6 +221,7 @@ export async function runFourSeatMatch(spec: FourSeatSpec): Promise<FourSeatRun>
     resume: null,
     commands: [],
     awarded: {},
+    telemetry: watchMatch(game),
   };
   game.ctx.eventBus.on(GameEventNames.PointsAwarded, ({ teamId, points }) => {
     run.awarded[teamId] = (run.awarded[teamId] ?? 0) + points;
@@ -239,5 +246,6 @@ export async function runFourSeatMatch(spec: FourSeatSpec): Promise<FourSeatRun>
     resume: run.resume,
     replayHash: replayed,
     findings: run.findings,
+    telemetry: run.telemetry.teams(),
   };
 }

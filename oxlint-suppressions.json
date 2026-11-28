@@ -5374,13 +5374,13 @@
   },
   "src/simulation/runMatch.ts": {
     "complexity": {
-      "count": 2
+      "count": 1
     },
     "max-lines-per-function": {
       "count": 1
     },
     "max-params": {
-      "count": 5
+      "count": 4
     },
     "max-statements": {
       "count": 1
@@ -5389,9 +5389,6 @@
       "count": 1
     },
     "sonarjs/no-duplicate-string": {
-      "count": 1
-    },
-    "typescript/consistent-type-assertions": {
       "count": 1
     },
     "typescript/consistent-type-imports": {
