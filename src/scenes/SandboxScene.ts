@@ -140,6 +140,38 @@ function defaultSandboxTeams(): { team1: Team; team2: Team } {
   return { team1, team2 };
 }
 
+function swappedTeam(
+  roster: RosterName | undefined,
+  team: Team,
+  seat: 1 | 2
+): Team {
+  if (!roster || roster === team.rosterName) return team;
+  console.log(`[Sandbox] Swapping Team ${String(seat)} to ${roster}`);
+  return sandboxTeam(
+    roster,
+    `Test ${roster} ${String(seat)}`,
+    seat === 1 ? 0x4169e1 : 0xdc143c
+  );
+}
+
+function rostersFor(
+  setup: Scenario["setup"] | undefined,
+  [team1, team2]: readonly [Team, Team]
+): readonly [Team, Team] {
+  return [
+    swappedTeam(setup?.team1Roster, team1, 1),
+    swappedTeam(setup?.team2Roster, team2, 2),
+  ];
+}
+
+function openingTeams(): readonly [Team, Team] {
+  const { team1, team2 } = defaultSandboxTeams();
+  const request = scenarioFromUrl();
+  const found =
+    request && findSandboxScenario(request.scenarioId, request.outcomeId);
+  return rostersFor(found?.scenario.setup, [team1, team2]);
+}
+
 export class SandboxScene extends GameScene {
   private arena: SeatedTeams | null = null;
 
@@ -184,13 +216,12 @@ export class SandboxScene extends GameScene {
       ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), teams: data.teams, initialState: initialState });
       super.init({ teams: data.teams });
     } else {
-      const { team1, team2 } = defaultSandboxTeams();
-
-      const initialState = GameService.createInitialState({ teams: [team1, team2], startingPhase: GamePhase.SANDBOX_IDLE }
+      const teams = openingTeams();
+      const initialState = GameService.createInitialState({ teams, startingPhase: GamePhase.SANDBOX_IDLE }
       );
-      ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), teams: [team1, team2], initialState: initialState });
+      ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), teams, initialState: initialState });
 
-      super.init({ teams: [team1, team2] });
+      super.init({ teams });
     }
 
     this.listenForScenarios();
@@ -365,24 +396,7 @@ export class SandboxScene extends GameScene {
   }
 
   private swapRosters(scenario: Scenario): void {
-    this.seat([
-      this.swappedTeam(scenario.setup.team1Roster, this.team1, 1),
-      this.swappedTeam(scenario.setup.team2Roster, this.team2, 2),
-    ]);
-  }
-
-  private swappedTeam(
-    roster: RosterName | undefined,
-    team: Team,
-    seat: 1 | 2
-  ): Team {
-    if (!roster || roster === team.rosterName) return team;
-    console.log(`[Sandbox] Swapping Team ${String(seat)} to ${roster}`);
-    return sandboxTeam(
-      roster,
-      `Test ${roster} ${String(seat)}`,
-      seat === 1 ? 0x4169e1 : 0xdc143c
-    );
+    this.seat(rostersFor(scenario.setup, [this.team1, this.team2]));
   }
 
   private cleanupSandbox(): void {
