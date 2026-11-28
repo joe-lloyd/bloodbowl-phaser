@@ -104,6 +104,11 @@ async function decide(page: Page, command: Command, pending: Play["pending"]): P
 
 async function play(page: Page, app: GameApp, next: Play) {
   const [first] = next.candidate.commands;
+  const roll = page.getByTestId("block-roll-dice");
+  if (await visible(roll)) {
+    await roll.click();
+    return;
+  }
   if (next.pending && DIALOG_DECISIONS.has(next.pending.type)) {
     if (!(await answerDialog(page, app, -1, rec))) await page.waitForTimeout(300);
     return;
