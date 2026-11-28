@@ -7,6 +7,7 @@ import {
   sampleCamera,
   finishCameraSample,
   expectZoomHeld,
+  clickDuringHandoff,
 } from "../support/camera";
 
 test.use({ contextOptions: { reducedMotion: "no-preference" } });
@@ -236,31 +237,19 @@ test("resizing during a team zoom keeps every eligible player visible", async ({
   await expectTeamFits(page, app, 0, true);
 });
 
-for (const afterMs of [250, 700]) {
-  test(`selection at ${String(afterMs)}ms cancels the obsolete handoff fit`, async ({
+for (const [moment, when] of [
+  ["gliding", "while the both-teams fit glides"],
+  ["paused", "in the pause before the next-team fit"],
+] as const) {
+  test(`selection ${when} cancels the obsolete handoff fit`, async ({
     page,
   }) => {
     const app = await openSpread(page);
-    await app.hud.endTurn().click();
-    await page.waitForTimeout(afterMs);
-    const square = await app.pitch.squareOf("team2:0");
-    const point = await page.evaluate((s) => {
-      const bridge = (
-        globalThis as unknown as {
-          __bbTestBridge: import("../../src/testing/browserBridge").BrowserTestBridge;
-        }
-      ).__bbTestBridge;
-      const canvas = (document
-        .querySelector("#game-container canvas"))!
-        .getBoundingClientRect();
-      const size = bridge.canvasSize();
-      const p = (bridge.squareToCanvas(s.x, s.y))!;
-      return {
-        x: canvas.left + (p.x * canvas.width) / size.width,
-        y: canvas.top + (p.y * canvas.height) / size.height,
-      };
-    }, square);
-    await page.mouse.click(point.x, point.y);
+    await clickDuringHandoff(page, {
+      square: await app.pitch.squareOf("team2:0"),
+      moment,
+      handOff: () => app.hud.endTurn().click(),
+    });
     const requestedId = await app.bridge.resolveRef("team2:0");
     await expect
       .poll(async () => {
