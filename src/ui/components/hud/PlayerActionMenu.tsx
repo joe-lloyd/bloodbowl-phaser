@@ -18,7 +18,9 @@ import {
   actingSide,
   razzleDazzle,
   readMenuAvailability,
+  readMenuTargets,
   type MenuTurnData,
+  type RivalTarget,
 } from "./useActionMenu";
 
 interface PlayerActionMenuProps {
@@ -53,6 +55,8 @@ export function PlayerActionMenu(props: PlayerActionMenuProps) {
     secondActionAfter,
   });
 
+  const rivals = readMenuTargets(selectedPlayer, turnData);
+
   if (!selectedPlayer || held) return null;
 
   if (selectedPlayer.teamId !== effectiveActiveTeamId) return null;
@@ -80,6 +84,7 @@ export function PlayerActionMenu(props: PlayerActionMenuProps) {
       declaration={declaration}
       handleAction={handleAction}
       availability={availability}
+      rivals={rivals}
       canRazzle={canRazzle}
       razzleOn={razzleOn}
       setRazzleOn={setRazzleOn}
@@ -112,6 +117,7 @@ interface PlayerActionMenuViewProps {
   } | null;
   handleAction: (action: ActionType, choice: ActionChoice) => void;
   availability: ActionAvailability;
+  rivals: readonly RivalTarget[];
   canRazzle: boolean;
   razzleOn: boolean;
   setRazzleOn: React.Dispatch<React.SetStateAction<boolean>>;
@@ -132,6 +138,7 @@ function PlayerActionMenuView({
   declaration,
   handleAction,
   availability,
+  rivals,
   canRazzle,
   razzleOn,
   setRazzleOn,
@@ -166,6 +173,7 @@ function PlayerActionMenuView({
           <ActionList
             onAction={handleAction}
             availability={availability}
+            rivals={rivals}
             hasActed={selectedPlayer.hasActed}
             compact={compact}
             canRazzle={canRazzle}

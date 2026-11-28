@@ -27,6 +27,18 @@ export interface PlannedDeclaration {
   action: ActionType;
   blockReplacement: BlockReplacement | null;
   razzleDazzle: boolean;
+  against?: string;
+}
+
+export function declarationOptions(choice: {
+  razzleDazzle?: boolean | undefined;
+  against?: string | undefined;
+}): { options?: { razzleDazzle?: boolean; against?: string } } {
+  const options = {
+    ...(choice.razzleDazzle && { razzleDazzle: true }),
+    ...(choice.against !== undefined && { against: choice.against }),
+  };
+  return Object.keys(options).length > 0 ? { options } : {};
 }
 
 export const PLANNED_MOVE: PlannedDeclaration = {

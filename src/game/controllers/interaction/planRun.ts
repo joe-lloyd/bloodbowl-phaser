@@ -7,6 +7,7 @@ import {
   type FinishKind,
   type PlanFinish,
   currentFinish,
+  declarationOptions,
   finishKey,
   needsContact,
   plannedActor,
@@ -80,7 +81,7 @@ async function declarePlanned(c: GameplayInteractionController, playerId: string
     playerId,
     action: planned.action,
     ...(planned.blockReplacement && { blockReplacement: planned.blockReplacement }),
-    ...(planned.razzleDazzle && { options: { razzleDazzle: true } }),
+    ...declarationOptions(planned),
   });
   if (!declared) {
     stopPlan(c, playerId, `Cannot declare ${planned.action} now.`);

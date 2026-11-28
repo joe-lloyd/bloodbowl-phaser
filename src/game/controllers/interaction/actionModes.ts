@@ -18,7 +18,7 @@ import { movementHalf, showSteps } from "./movement";
 import { gateRequest } from "./Confirmations";
 import { activationGates } from "../../skills";
 import type { ActivationGate } from "../../skills/SkillRule";
-import { plansBeforeDeclaring } from "./plan";
+import { declarationOptions, plansBeforeDeclaring } from "./plan";
 import { publishPlan } from "./planSummary";
 
 export function enterActionMode(
@@ -74,7 +74,12 @@ function planWithoutDeclaring(
     plansBeforeDeclaring(data.action, blockReplacement) &&
     defersGates(c, data.playerId, data.action);
   if (!deferrable) return false;
-  c.undeclared = { action: data.action, blockReplacement, razzleDazzle: false };
+  c.undeclared = {
+    action: data.action,
+    blockReplacement,
+    razzleDazzle: false,
+    ...(data.against !== undefined && { against: data.against }),
+  };
   enterActionMode({ c, playerId: data.playerId, action: data.action, blockReplacement });
   publishPlan(c);
   return true;
@@ -88,6 +93,7 @@ export async function selectAction(
     blockReplacement?: BlockReplacement;
     razzleDazzle?: boolean;
     half?: MovementHalf;
+    against?: string;
   }
 ): Promise<void> {
   const blockReplacement =
@@ -116,8 +122,12 @@ function declareNow(
   data: Parameters<typeof selectAction>[1],
   blockReplacement: BlockReplacement | null
 ): void {
-  const success = c.gameService.declareAction({ playerId: data.playerId, action: data.action, ...(blockReplacement && { blockReplacement }), ...(data.razzleDazzle && { options: { razzleDazzle: true } }) }
-  );
+  const success = c.gameService.declareAction({
+    playerId: data.playerId,
+    action: data.action,
+    ...(blockReplacement && { blockReplacement }),
+    ...declarationOptions(data),
+  });
   if (success) {
     enterActionMode({ c,playerId: data.playerId,action: data.action,blockReplacement });
     if (data.half) selectStep(c, { stepId: data.half });

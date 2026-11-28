@@ -31,6 +31,8 @@ export interface CommonUIEvents {
     razzleDazzle?: boolean;
 
     half?: MovementHalf;
+
+    against?: string;
   };
   [GameEventNames.UI_ConfirmAction]: { actionId: string };
   [GameEventNames.UI_CancelAction]: void;

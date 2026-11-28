@@ -15,7 +15,12 @@ import { attack, type SquareClick, stepClickFor } from "./stepClicks";
 import { plannedJumpTargets, showSteps } from "./movement";
 import { addWaypoint, drawCurrentPath, refreshPlayerVisualization } from "./routes";
 import { askGates, defersGates, enterActionMode, selectAction } from "./actionModes";
-import { PLANNED_MOVE, finishKindAt, plannedActionFor } from "./plan";
+import {
+  PLANNED_MOVE,
+  declarationOptions,
+  finishKindAt,
+  plannedActionFor,
+} from "./plan";
 import { goPlan, planFinishAt } from "./planRun";
 
 export function clickTouchback(
@@ -80,18 +85,22 @@ function rollAllows(
 
 async function foulInsteadOfBlock(
 { c,playerId,x,y }: { c: GameplayInteractionController; playerId: string; x: number; y: number; }): Promise<void> {
+  const against = c.gameService.getPlayerAt(x, y)?.teamId;
+  const several = c.gameService.getTeams().length > 2;
+  const target = several && against !== undefined ? { against } : {};
+  const options = declarationOptions(target);
   if (c.undeclared) {
     c.clearWaypoints();
     c.dropFinish();
     c.pitch.clearPath();
-    await selectAction(c, { playerId, action: "foul" });
+    await selectAction(c, { playerId, action: "foul", ...target });
     if (!(await rollAllows(c, playerId))) return;
     await c.onSquareClicked(x, y);
     return;
   }
   const asked = askGates(c, playerId, "foul");
   if (asked && !(await asked)) return;
-  if (!c.gameService.declareAction({ playerId: playerId, action: "foul" })) {
+  if (!c.gameService.declareAction({ playerId, action: "foul", ...options })) {
     c.eventBus.emit(
       GameEventNames.UI_Notification,
       "A downed player can only be Fouled, and this player cannot Foul now."
